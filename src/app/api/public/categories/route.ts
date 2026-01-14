@@ -1,23 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// GET /api/public/categories - List categories (PROTECTED)
+// GET /api/public/categories - Public categories listing (NO AUTH REQUIRED)
 export async function GET() {
     try {
-        // SECURITY: Require authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
         const { data, error } = await supabaseAdmin
             .from('categories')
-            .select('*')
+            .select('id, category_name, description, count, icon')
             .order('category_name', { ascending: true });
 
         if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
+            console.error('Public categories fetch error:', error);
+            return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
         }
 
         const mappedData = (data || []).map(row => ({
@@ -28,8 +22,12 @@ export async function GET() {
             icon: row.icon,
         }));
 
-        return NextResponse.json(mappedData);
+        // PERFORMANCE: Cache public responses
+        const response = NextResponse.json(mappedData);
+        response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+        return response;
     } catch (err) {
+        console.error('Public categories error:', err);
         return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
     }
 }

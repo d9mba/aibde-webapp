@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { AdminTool, Task } from '@/types';
-import { Target, ChevronRight } from 'lucide-react';
+import { ClipboardEdit, ChevronRight } from 'lucide-react';
 
 interface TasksPageClientProps {
     tasks: Task[];
@@ -17,7 +17,7 @@ export default function TasksPageClient({ tasks, tools }: TasksPageClientProps) 
             {/* Hero Section */}
             <section className="text-center py-6 sm:py-8 mb-6 sm:mb-8">
                 <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-accent-green/10 text-accent-green mb-4">
-                    <Target className="w-6 h-6 sm:w-7 sm:h-7" />
+                    <ClipboardEdit className="w-6 h-6 sm:w-7 sm:h-7" />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">Find by Task</h1>
                 <p className="text-sm sm:text-base text-text-secondary max-w-md mx-auto">What do you need to accomplish? Find the right AI tool for your task.</p>
@@ -35,7 +35,7 @@ export default function TasksPageClient({ tasks, tools }: TasksPageClientProps) 
                         >
                             <div className="flex items-start gap-3">
                                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-accent-green/10 flex items-center justify-center text-accent-green flex-shrink-0 group-hover:bg-accent-green group-hover:text-white transition-colors">
-                                    <Target className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    <ClipboardEdit className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-sm sm:text-base font-semibold text-text-primary mb-0.5 sm:mb-1 group-hover:text-accent-green transition-colors truncate">{task.taskName}</h3>
@@ -55,10 +55,11 @@ export default function TasksPageClient({ tasks, tools }: TasksPageClientProps) 
             {/* Empty State */}
             {tasks.length === 0 && (
                 <div className="text-center py-12">
-                    <Target className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
+                    <ClipboardEdit className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
                     <p className="text-text-tertiary">No tasks found</p>
                 </div>
             )}
         </div>
     );
 }
+

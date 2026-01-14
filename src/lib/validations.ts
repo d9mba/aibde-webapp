@@ -1,9 +1,19 @@
 import { z } from 'zod';
+import DOMPurify from 'isomorphic-dompurify';
 
 /**
  * Zod validation schemas for API input validation
  * Ensures all API inputs are properly validated before processing
  */
+
+// SECURITY: Sanitize HTML to prevent XSS attacks
+const sanitizeHtml = (html: string): string => {
+    return DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'ul', 'ol', 'li', 'h2', 'h3', 'h4', 'br', 'span'],
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+        ALLOW_DATA_ATTR: false,
+    });
+};
 
 // Tool creation/update schema - validates tool data
 export const toolSchema = z.object({
@@ -13,7 +23,12 @@ export const toolSchema = z.object({
         .max(100)
         .optional(),
     summary: z.string().max(500, 'Summary too long').optional().nullable(),
-    description: z.string().max(10000, 'Description too long').optional().nullable(),
+    // SECURITY: Sanitize HTML in description to prevent XSS
+    description: z.string()
+        .max(10000, 'Description too long')
+        .transform((val) => val ? sanitizeHtml(val) : val)
+        .optional()
+        .nullable(),
     categoryName: z.array(z.string()).optional().nullable(),
     taskName: z.array(z.string()).optional().nullable(),
     tags: z.array(z.string()).optional().nullable(),

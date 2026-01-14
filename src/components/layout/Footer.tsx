@@ -47,11 +47,11 @@ export default function Footer() {
                             </div>
                         </div>
 
-                        {/* Spacer */}
-                        <div className="hidden md:block md:col-span-3"></div>
+                        {/* Spacer - pushes nav to the right */}
+                        <div className="hidden md:block md:col-span-5"></div>
 
                         {/* Navigation Columns */}
-                        <div className="col-span-12 md:col-span-5 flex gap-12 sm:gap-16">
+                        <div className="col-span-12 md:col-span-3 flex gap-12 sm:gap-16 justify-end">
                             {/* Explore */}
                             <div className="flex flex-col gap-4">
                                 <span className="text-sm font-medium text-text-primary">Explore</span>
@@ -70,16 +70,6 @@ export default function Footer() {
                                     <Link href="/category" className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Categories</Link>
                                     <Link href="/tasks" className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Tasks</Link>
                                     <Link href="/submit" className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Submit Tool</Link>
-                                </nav>
-                            </div>
-
-                            {/* About */}
-                            <div className="flex flex-col gap-4">
-                                <span className="text-sm font-medium text-text-primary">About</span>
-                                <nav className="flex flex-col gap-2">
-                                    <Link href="/about" className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">About Us</Link>
-                                    <Link href="/privacy" className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Privacy</Link>
-                                    <Link href="/terms" className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Terms</Link>
                                 </nav>
                             </div>
                         </div>
@@ -106,7 +96,6 @@ export default function Footer() {
                 <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pb-48 lg:pb-6 pt-6">
                     <div className="flex items-center justify-center gap-6">
                         <span className="text-xs text-text-tertiary">© {new Date().getFullYear()} AIBDE</span>
-                        <Link href="/about" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">About</Link>
                         <Link href="/privacy" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">Privacy</Link>
                         <Link href="/terms" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">Terms</Link>
                     </div>

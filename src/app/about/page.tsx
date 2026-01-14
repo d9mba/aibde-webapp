@@ -1,3 +1,15 @@
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'About | AiBDE',
+    description: 'Learn about AiBDE - your go-to directory for discovering the best AI tools. Our mission is to make AI accessible to everyone.',
+    openGraph: {
+        title: 'About | AiBDE',
+        description: 'Learn about AiBDE - your go-to directory for discovering the best AI tools.',
+        type: 'website',
+    },
+};
+
 export default function AboutPage() {
     return (
         <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-12 sm:py-16">

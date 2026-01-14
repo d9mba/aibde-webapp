@@ -4,6 +4,7 @@ import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool } from '@/lib/supab
 import { toolSchema } from '@/lib/validations';
 
 // All fields for tools - needed for edit form to work correctly
+// WARNING: Contains sensitive fields - use only for single-tool detail view
 const ALL_FIELDS = `
     id, name, app_username, summary, description,
     category_name, task_name, tags,
@@ -18,6 +19,17 @@ const ALL_FIELDS = `
     version_history, alternative_tools, tool_references,
     contact_name, contact_email, contact_company, contact_address, contact_mobile,
     internal_notes, scheduled_at, spotlight_start_date, spotlight_end_date
+`;
+
+// SECURITY: Lighter fields for list views - excludes sensitive data
+// Does NOT include: internal_notes, contact details, full descriptions
+const LIST_FIELDS = `
+    id, name, app_username, summary,
+    category_name, task_name, tags,
+    pricing, pricing_label, logo_url,
+    website_url, save_count, is_featured, released_at,
+    status, spotlight_position, spotlight_enabled,
+    created_at, updated_at
 `;
 
 // GET /api/tools - List tools (PROTECTED)

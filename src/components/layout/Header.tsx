@@ -13,7 +13,7 @@ import {
     TrendingUp,
     Sparkles,
     Folder,
-    Target,
+    ClipboardEdit,
     Plus,
     Sun,
     Moon,
@@ -31,7 +31,7 @@ const iconMap = {
     trending: TrendingUp,
     sparkle: Sparkles,
     folder: Folder,
-    target: Target,
+    task: ClipboardEdit,
     plus: Plus,
     sun: Sun,
     moon: Moon,
@@ -120,7 +120,7 @@ export default function Header() {
 
     const browseNav: NavItem[] = [
         { href: '/category', label: 'Categories', icon: 'folder' },
-        { href: '/tasks', label: 'Tasks', icon: 'target' },
+        { href: '/tasks', label: 'Tasks', icon: 'task' },
     ];
 
     const actionNav: NavItem[] = [

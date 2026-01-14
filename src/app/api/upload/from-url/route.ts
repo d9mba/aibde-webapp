@@ -1,10 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { uploadFile, generateUniqueFilename } from '@/services/storage.service';
 import sharp from 'sharp';
 
+// Block private/internal IP ranges to prevent SSRF
+function isPrivateUrl(urlString: string): boolean {
+    try {
+        const url = new URL(urlString);
+        const hostname = url.hostname.toLowerCase();
+
+        // Block localhost variants
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+            return true;
+        }
+
+        // Block private IP ranges
+        const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+        if (ipv4Match) {
+            const [, a, b] = ipv4Match.map(Number);
+            // 10.x.x.x, 172.16-31.x.x, 192.168.x.x, 169.254.x.x (link-local)
+            if (a === 10 || (a === 172 && b >= 16 && b <= 31) ||
+                (a === 192 && b === 168) || (a === 169 && b === 254) ||
+                a === 0 || a === 127) {
+                return true;
+            }
+        }
+
+        // Block internal hostnames
+        if (hostname.endsWith('.local') || hostname.endsWith('.internal') ||
+            hostname.includes('metadata') || hostname.includes('169.254.169.254')) {
+            return true;
+        }
+
+        return false;
+    } catch {
+        return true; // Block invalid URLs
+    }
+}
+
 // Compress image while maintaining quality
 async function compressImage(input: Uint8Array, mimeType: string): Promise<Uint8Array> {
-    if (mimeType === 'image/svg+xml' || mimeType === 'image/gif') {
+    if (mimeType === 'image/gif') {
         return input;
     }
 
@@ -39,28 +75,55 @@ async function compressImage(input: Uint8Array, mimeType: string): Promise<Uint8
     }
 }
 
-// POST /api/upload/from-url - Download image from URL and upload to R2
+// POST /api/upload/from-url - Download image from URL and upload to R2 (PROTECTED)
 export async function POST(request: NextRequest) {
     try {
+        // SECURITY: Require authentication
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { url, type = 'logo', name = '' } = await request.json();
 
         if (!url) {
             return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
         }
 
-        // Validate URL
+        // Validate URL format
+        let parsedUrl: URL;
         try {
-            new URL(url);
+            parsedUrl = new URL(url);
         } catch {
             return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
         }
 
+        // SECURITY: Block private/internal URLs to prevent SSRF
+        if (isPrivateUrl(url)) {
+            return NextResponse.json({ error: 'Invalid URL: internal addresses not allowed' }, { status: 400 });
+        }
+
+        // SECURITY: Only allow http/https protocols
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+            return NextResponse.json({ error: 'Invalid URL: only HTTP/HTTPS allowed' }, { status: 400 });
+        }
+
         // Fetch image from URL (server-side, bypasses CORS)
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            },
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+        let response: Response;
+        try {
+            response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                },
+                signal: controller.signal,
+                redirect: 'follow',
+            });
+        } finally {
+            clearTimeout(timeout);
+        }
 
         if (!response.ok) {
             return NextResponse.json({ error: 'Failed to fetch image from URL' }, { status: 400 });
@@ -68,11 +131,17 @@ export async function POST(request: NextRequest) {
 
         const contentType = response.headers.get('content-type') || 'image/jpeg';
 
-        // Validate content type
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+        // SECURITY: Validate content type - SVG REMOVED (XSS risk)
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         const isValidType = allowedTypes.some(t => contentType.includes(t));
         if (!isValidType) {
-            return NextResponse.json({ error: 'URL does not point to a valid image' }, { status: 400 });
+            return NextResponse.json({ error: 'URL does not point to a valid image (JPEG, PNG, GIF, WebP only)' }, { status: 400 });
+        }
+
+        // Check content-length header first if available
+        const contentLength = response.headers.get('content-length');
+        if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+            return NextResponse.json({ error: 'Image too large (max 10MB)' }, { status: 400 });
         }
 
         // Get the image buffer

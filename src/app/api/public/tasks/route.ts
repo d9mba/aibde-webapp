@@ -1,23 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// GET /api/public/tasks - List tasks (PROTECTED)
+// GET /api/public/tasks - Public tasks listing (NO AUTH REQUIRED)
 export async function GET() {
     try {
-        // SECURITY: Require authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
         const { data, error } = await supabaseAdmin
             .from('tasks')
-            .select('*')
+            .select('id, task_name, description, count')
             .order('task_name', { ascending: true });
 
         if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
+            console.error('Public tasks fetch error:', error);
+            return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
         }
 
         const mappedData = (data || []).map(row => ({
@@ -27,8 +21,12 @@ export async function GET() {
             count: row.count,
         }));
 
-        return NextResponse.json(mappedData);
+        // PERFORMANCE: Cache public responses
+        const response = NextResponse.json(mappedData);
+        response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+        return response;
     } catch (err) {
+        console.error('Public tasks error:', err);
         return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
     }
 }

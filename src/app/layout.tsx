@@ -22,6 +22,25 @@ export default async function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
+                {/* Theme script - runs BEFORE React hydrates to prevent flash */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            (function() {
+                                try {
+                                    var mode = localStorage.getItem('themeMode') || 'system';
+                                    var theme = mode;
+                                    if (mode === 'system') {
+                                        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                                    }
+                                    document.documentElement.setAttribute('data-theme', theme);
+                                } catch (e) {
+                                    document.documentElement.setAttribute('data-theme', 'dark');
+                                }
+                            })();
+                        `,
+                    }}
+                />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet" />

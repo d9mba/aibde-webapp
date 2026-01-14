@@ -1,6 +1,23 @@
 import { Suspense } from 'react';
+import { Metadata } from 'next';
 import { getPublishedTools, getCategories, getTasks } from '@/lib/data';
 import SearchPageClient from './SearchPageClient';
+
+// Generate dynamic metadata with tool count
+export async function generateMetadata(): Promise<Metadata> {
+    const tools = await getPublishedTools();
+    const toolCount = tools.length;
+
+    return {
+        title: `Search ${toolCount}+ Tools | AiBDE`,
+        description: `Search and discover ${toolCount}+ AI tools for your everyday needs.`,
+        openGraph: {
+            title: `Search ${toolCount}+ Tools | AiBDE`,
+            description: `Search and discover ${toolCount}+ AI tools for your everyday needs.`,
+            type: 'website',
+        },
+    };
+}
 
 /**
  * Search Page - Server Component with SSR

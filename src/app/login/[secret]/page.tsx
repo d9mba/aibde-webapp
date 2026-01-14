@@ -30,7 +30,7 @@ export default function SecretLoginPage({ params }: { params: Promise<{ secret: 
                 if (secret !== validSecret) {
                     setStatus('error');
                     setErrorMessage('Invalid access key. Access denied.');
-                    setTimeout(() => router.push('/'), 3000);
+                    setTimeout(() => router.push('/search?q=lo'), 3000);
                     return;
                 }
 
@@ -75,8 +75,8 @@ export default function SecretLoginPage({ params }: { params: Promise<{ secret: 
 
                 {status === 'redirecting' && (
                     <>
-                        <div className="animate-spin w-10 h-10 border-2 border-accent-green border-t-transparent rounded-full mx-auto mb-4"></div>
-                        <p className="text-text-primary font-medium mb-2">Access granted!</p>
+                        <div className="animate-spin w-10 h-10 border-2 border-accent-blue border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <p className="text-text-primary font-medium mb-2">Valid access key</p>
                         <p className="text-text-secondary">Redirecting to sign-in...</p>
                     </>
                 )}

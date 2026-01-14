@@ -1,0 +1,41 @@
+interface PricingPlan {
+    name: string;
+    price: string;
+    features?: string[];
+    highlighted?: boolean;
+}
+
+interface PricingSectionProps {
+    plans: PricingPlan[];
+}
+
+export default function PricingSection({ plans }: PricingSectionProps) {
+    if (plans.length === 0) return null;
+
+    return (
+        <section id="pricing" className="py-6 border-b border-border">
+            <h2 className="text-xl font-bold text-text-primary mb-4">Pricing Plans</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {plans.map((plan, idx) => (
+                    <div
+                        key={idx}
+                        className={`p-5 rounded-xl border transition-colors ${plan.highlighted
+                            ? 'border-accent-blue bg-accent-blue/5'
+                            : 'border-border bg-bg-card hover:border-accent-blue'
+                            }`}
+                    >
+                        <div className="text-sm font-medium text-text-secondary">{plan.name}</div>
+                        <div className="text-2xl font-bold text-text-primary mt-1">{plan.price}</div>
+                        <ul className="mt-4 space-y-2">
+                            {(plan.features || []).map((f, i) => (
+                                <li key={i} className="flex items-center gap-2 text-sm text-text-secondary">
+                                    <span className="text-accent-green">✓</span> {f}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}

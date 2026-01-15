@@ -24,7 +24,7 @@ export default function AlternativesSection({ toolName, alternatives }: Alternat
                                 : 'bg-amber-100 text-amber-700';
                         return (
                             <Link
-                                key={t.id}
+                                prefetch={false} key={t.id}
                                 href={`/app/${t.slug}`}
                                 className="flex flex-col p-3 bg-bg-tertiary border border-border rounded-2xl hover:bg-bg-secondary no-underline transition-colors group"
                             >

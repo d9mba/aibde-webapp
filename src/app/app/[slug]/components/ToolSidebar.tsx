@@ -148,7 +148,7 @@ export default function ToolSidebar({
                                 const ftColor = logoColors[ft.name.charCodeAt(0) % logoColors.length];
                                 return (
                                     <Link
-                                        key={ft.id}
+                                        prefetch={false} key={ft.id}
                                         href={`/app/${ft.slug}`}
                                         className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                     >
@@ -189,7 +189,7 @@ export default function ToolSidebar({
                                     ];
                                     return (
                                         <Link
-                                            key={idx}
+                                            prefetch={false} key={idx}
                                             href={`/category/${cat.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
                                             className={`px-3 py-1.5 border rounded-full text-xs font-medium transition-colors no-underline ${colors[idx % colors.length]}`}
                                         >
@@ -221,7 +221,7 @@ export default function ToolSidebar({
                                     ];
                                     return (
                                         <Link
-                                            key={idx}
+                                            prefetch={false} key={idx}
                                             href={`/task/${task.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
                                             className={`px-3 py-1.5 border rounded-full text-xs font-medium transition-colors no-underline ${colors[idx % colors.length]}`}
                                         >
@@ -249,7 +249,7 @@ export default function ToolSidebar({
                                     const altColor = logoColors[alt.name.charCodeAt(0) % logoColors.length];
                                     return (
                                         <Link
-                                            key={alt.id}
+                                            prefetch={false} key={alt.id}
                                             href={`/app/${alt.slug}`}
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >
@@ -287,7 +287,7 @@ export default function ToolSidebar({
                                     const rtColor = logoColors[rt.name.charCodeAt(0) % logoColors.length];
                                     return (
                                         <Link
-                                            key={rt.id}
+                                            prefetch={false} key={rt.id}
                                             href={`/app/${rt.slug}`}
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >

@@ -78,7 +78,7 @@ export default function ToolHeader({
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3">
                 {(tool.categoryName || [])[0] && (
                     <Link
-                        href={`/category/${tool.categoryName[0].toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                        prefetch={false} href={`/category/${tool.categoryName[0].toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
                         className="flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 text-[10px] sm:text-xs font-medium rounded-full transition-colors no-underline"
                     >
                         <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -92,7 +92,7 @@ export default function ToolHeader({
                 )}
                 {(tool.taskName || [])[0] && (
                     <Link
-                        href={`/task/${tool.taskName[0].toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                        prefetch={false} href={`/task/${tool.taskName[0].toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
                         className="flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 bg-orange-50 border border-orange-100 text-orange-700 hover:bg-orange-100 text-[10px] sm:text-xs font-medium rounded-full transition-colors no-underline"
                     >
                         <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -103,7 +103,7 @@ export default function ToolHeader({
                 )}
                 {/* Pricing */}
                 <Link
-                    href={`/search?pricing=${tool.pricing}`}
+                    prefetch={false} href={`/search?pricing=${tool.pricing}`}
                     className={`flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full transition-colors no-underline ${tool.pricing === 'free' ? 'bg-green-50 border border-green-100 text-green-700 hover:bg-green-100' :
                         tool.pricing === 'freemium' ? 'bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100' :
                             tool.pricing === 'paid' ? 'bg-rose-50 border border-rose-100 text-rose-700 hover:bg-rose-100' :
@@ -131,7 +131,7 @@ export default function ToolHeader({
                 <div className="flex flex-wrap items-center gap-1.5 mt-3">
                     {tool.tags.slice(0, 6).map((tag, idx) => (
                         <Link
-                            key={idx}
+                            prefetch={false} key={idx}
                             href={`/search?q=${encodeURIComponent('#' + tag)}`}
                             className="px-2 py-0.5 bg-bg-tertiary text-text-secondary hover:bg-accent-primary/10 hover:text-accent-primary text-xs rounded-full no-underline transition-colors"
                         >

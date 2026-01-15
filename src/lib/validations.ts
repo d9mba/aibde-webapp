@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import DOMPurify from 'isomorphic-dompurify';
+import { sanitize } from './sanitize';
 
 /**
  * Zod validation schemas for API input validation
@@ -8,11 +8,7 @@ import DOMPurify from 'isomorphic-dompurify';
 
 // SECURITY: Sanitize HTML to prevent XSS attacks
 const sanitizeHtml = (html: string): string => {
-    return DOMPurify.sanitize(html, {
-        ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'ul', 'ol', 'li', 'h2', 'h3', 'h4', 'br', 'span'],
-        ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
-        ALLOW_DATA_ATTR: false,
-    });
+    return sanitize(html);
 };
 
 // Tool creation/update schema - validates tool data

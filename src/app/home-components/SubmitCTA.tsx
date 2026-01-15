@@ -8,7 +8,7 @@ export default function SubmitCTA() {
                     <h3 className="text-base font-semibold text-text-primary m-0 mb-1">Have an AI Tool?</h3>
                     <p className="text-[0.8125rem] text-text-secondary m-0">Get your AI tool discovered by millions of users</p>
                 </div>
-                <Link href="/submit" className="px-5 py-2.5 text-[0.8125rem] font-medium text-white bg-accent-primary rounded-md transition-opacity duration-fast hover:opacity-90">
+                <Link href="/submit" prefetch={false} className="px-5 py-2.5 text-[0.8125rem] font-medium text-white bg-accent-primary rounded-md transition-opacity duration-fast hover:opacity-90">
                     Submit Your AI Tool
                 </Link>
             </div>

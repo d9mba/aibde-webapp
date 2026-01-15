@@ -78,7 +78,7 @@ export default function Footer() {
 
                 {/* Giant Wordmark */}
                 <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-4 text-center">
-                    <Link href="/" className="inline-block no-underline focus:outline-none">
+                    <Link href="/" prefetch={false} className="inline-block no-underline focus:outline-none">
                         <span
                             className="block text-text-primary leading-[0.85] select-none font-orbitron"
                             style={{

@@ -31,6 +31,7 @@ export default function TasksPageClient({ tasks, tools }: TasksPageClientProps) 
                         <Link
                             key={task.taskName}
                             href={`/task/${slugify(task.taskName)}`}
+                            prefetch={false}
                             className="group p-4 sm:p-5 bg-bg-card border border-border rounded-xl no-underline transition-all duration-200 hover:border-accent-green/50 hover:shadow-lg hover:shadow-accent-green/5 active:scale-[0.98]"
                         >
                             <div className="flex items-start gap-3">

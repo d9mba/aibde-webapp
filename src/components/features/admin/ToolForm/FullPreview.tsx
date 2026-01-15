@@ -39,7 +39,7 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                         {data.logoUrl ? (
                             <img src={data.logoUrl} alt="" className="w-20 h-20 rounded-xl object-cover" />
                         ) : (
-                            <div className="w-20 h-20 bg-accent-blue/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-blue">
+                            <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
                                 {data.name?.[0] || '?'}
                             </div>
                         )}
@@ -53,7 +53,7 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                                     }`}>
                                     {data.status || 'draft'}
                                 </span>
-                                <span className="text-xs px-2 py-1 bg-accent-blue/10 text-accent-blue rounded-full">
+                                <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full">
                                     {data.pricing === 'free' ? 'Free' : data.pricing === 'freemium' ? 'Freemium' : 'Paid'}
                                 </span>
                             </div>
@@ -136,7 +136,7 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                                 href={data.websiteUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm text-accent-blue hover:underline flex items-center gap-1"
+                                className="text-sm text-accent-primary hover:underline flex items-center gap-1"
                             >
                                 {data.websiteUrl} ↗
                             </a>
@@ -157,7 +157,7 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                             href={data.affiliateEnabled && data.affiliateUrl ? data.affiliateUrl : data.websiteUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 px-4 py-2.5 bg-accent-blue text-white rounded-xl text-sm font-medium hover:bg-accent-blue/90 text-center"
+                            className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 text-center"
                         >
                             Visit Website →
                         </a>

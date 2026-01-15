@@ -52,7 +52,7 @@ export default function MediaSection({
                                 href={currentMedia.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center justify-center h-80 text-accent-blue hover:underline"
+                                className="flex items-center justify-center h-80 text-accent-primary hover:underline"
                             >
                                 Open Video
                             </a>
@@ -68,7 +68,7 @@ export default function MediaSection({
                         <button
                             key={idx}
                             onClick={() => onSelectMedia(idx)}
-                            className={`relative overflow-hidden rounded-lg transition-all ${selectedMedia === idx ? 'ring-2 ring-accent-blue' : 'opacity-70 hover:opacity-100'
+                            className={`relative overflow-hidden rounded-lg transition-all ${selectedMedia === idx ? 'ring-2 ring-accent-primary' : 'opacity-70 hover:opacity-100'
                                 }`}
                             suppressHydrationWarning
                         >

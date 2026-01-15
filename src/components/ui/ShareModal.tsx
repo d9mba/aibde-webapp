@@ -201,7 +201,7 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
                                 onClick={handleCopyLink}
                                 className={`w-full sm:w-auto px-4 py-2.5 rounded-lg font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 flex-shrink-0 ${copied
                                     ? 'bg-accent-green text-white'
-                                    : 'bg-accent-blue text-white hover:bg-accent-blue/90'
+                                    : 'bg-accent-primary text-white hover:bg-accent-primary/90'
                                     }`}
                             >
                                 {copied ? (

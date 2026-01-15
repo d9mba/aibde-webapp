@@ -35,9 +35,9 @@ export default function ToolSidebar({
                                 href={tool.websiteUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2.5 text-sm text-text-secondary hover:text-accent-blue transition-colors no-underline group"
+                                className="flex items-center gap-2.5 text-sm text-text-secondary hover:text-accent-primary transition-colors no-underline group"
                             >
-                                <svg className="w-4 h-4 text-text-tertiary group-hover:text-accent-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg className="w-4 h-4 text-text-tertiary group-hover:text-accent-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                                     <polyline points="15,3 21,3 21,9" />
                                     <line x1="10" y1="14" x2="21" y2="3" />

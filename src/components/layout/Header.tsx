@@ -141,12 +141,15 @@ export default function Header() {
     return (
         <>
             {/* Mobile Bottom Navigation Bar - Compact Capsule Style */}
-            <nav className="fixed bottom-3 left-4 right-4 z-[201] lg:hidden bg-bg-secondary border border-border rounded-full flex items-center justify-around py-1.5 px-2 shadow-lg">
+            <nav
+                className="fixed left-4 right-4 z-[201] lg:hidden bg-bg-secondary border border-border rounded-full flex items-center justify-around py-1.5 px-2 shadow-lg"
+                style={{ bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }}
+            >
                 <Link
                     href="/"
                     className={cn(
                         "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
-                        pathname === '/' ? "text-accent-blue" : "text-text-secondary hover:text-text-primary"
+                        pathname === '/' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
                     <Home size={20} strokeWidth={1.5} />
@@ -157,7 +160,7 @@ export default function Header() {
                     onClick={() => setSearchOpen(true)}
                     className={cn(
                         "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
-                        searchOpen ? "text-accent-blue" : "text-text-secondary hover:text-text-primary"
+                        searchOpen ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                     suppressHydrationWarning
                 >
@@ -169,7 +172,7 @@ export default function Header() {
                     href="/trending"
                     className={cn(
                         "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
-                        pathname === '/trending' ? "text-accent-blue" : "text-text-secondary hover:text-text-primary"
+                        pathname === '/trending' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
                     <TrendingUp size={20} strokeWidth={1.5} />
@@ -180,7 +183,7 @@ export default function Header() {
                     href="/new"
                     className={cn(
                         "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
-                        pathname === '/new' ? "text-accent-blue" : "text-text-secondary hover:text-text-primary"
+                        pathname === '/new' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
                     <Sparkles size={20} strokeWidth={1.5} />
@@ -191,7 +194,7 @@ export default function Header() {
                     onClick={() => setSidebarOpen(!sidebarOpen)}
                     className={cn(
                         "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
-                        sidebarOpen ? "text-accent-blue" : "text-text-secondary hover:text-text-primary"
+                        sidebarOpen ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                     suppressHydrationWarning
                 >
@@ -244,8 +247,8 @@ export default function Header() {
                                         {tool.logoUrl ? (
                                             <img src={tool.logoUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                                         ) : (
-                                            <div className="w-10 h-10 rounded-lg bg-accent-blue/20 flex items-center justify-center flex-shrink-0">
-                                                <span className="text-sm font-semibold text-accent-blue">{tool.name[0]}</span>
+                                            <div className="w-10 h-10 rounded-lg bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
+                                                <span className="text-sm font-semibold text-accent-primary">{tool.name[0]}</span>
                                             </div>
                                         )}
                                         <div className="flex-1 min-w-0">
@@ -334,7 +337,7 @@ export default function Header() {
                             <Link
                                 key={item.href}
                                 href={item.href}
-                                className="flex items-center gap-3 px-4 py-3 text-base font-medium text-accent-blue rounded-lg transition-colors hover:bg-bg-tertiary"
+                                className="flex items-center gap-3 px-4 py-3 text-base font-medium text-accent-primary rounded-lg transition-colors hover:bg-bg-tertiary"
                                 onClick={() => setSidebarOpen(false)}
                             >
                                 {renderIcon(item.icon)}
@@ -459,7 +462,7 @@ export default function Header() {
                             <Link
                                 key={item.href}
                                 href={item.href}
-                                className="flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] text-accent-blue no-underline rounded-md transition-all duration-fast whitespace-nowrap hover:bg-bg-tertiary focus:outline-none"
+                                className="flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] text-accent-primary no-underline rounded-md transition-all duration-fast whitespace-nowrap hover:bg-bg-tertiary focus:outline-none"
                                 onClick={handleLinkClick}
                                 title={item.label}
                             >
@@ -543,7 +546,7 @@ export default function Header() {
                         onClick={() => setIsPinned(!isPinned)}
                         className={cn(
                             "flex items-center justify-center w-10 h-10 rounded-md cursor-pointer transition-all duration-fast focus:outline-none flex-shrink-0",
-                            isPinned ? "text-accent-blue" : "text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary",
+                            isPinned ? "text-accent-primary" : "text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary",
                             // Hide when collapsed, show when expanded
                             (sidebarOpen || isPinned) ? "flex" : "hidden lg:group-hover:flex"
                         )}

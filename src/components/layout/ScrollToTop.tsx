@@ -32,16 +32,16 @@ export default function ScrollToTop() {
         <button
             onClick={scrollToTop}
             className={cn(
-                "fixed z-[100] w-10 h-10 bg-emerald-500/20 backdrop-blur-sm border border-emerald-500/30 rounded-full shadow-lg",
-                "flex items-center justify-center text-emerald-600 hover:bg-emerald-500/30 hover:text-emerald-700",
+                "fixed z-[100] w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-full shadow-lg",
+                "flex items-center justify-center text-emerald-500 hover:bg-emerald-500/30 hover:text-emerald-400",
                 "transition-all duration-200 focus:outline-none",
-                // Only show on desktop (lg and up)
-                "hidden lg:flex lg:bottom-6 lg:right-6",
+                "right-4 lg:bottom-6 lg:right-6",
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
             )}
+            style={{ bottom: 'max(80px, calc(60px + env(safe-area-inset-bottom, 0px)))' }}
             aria-label="Scroll to top"
         >
-            <ChevronsUp size={20} strokeWidth={2} className="animate-bounce" />
+            <ChevronsUp size={20} strokeWidth={2} />
         </button>
     );
 }

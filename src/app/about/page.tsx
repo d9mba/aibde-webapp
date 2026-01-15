@@ -41,7 +41,7 @@ export default function AboutPage() {
                 <h2 className="text-xl font-semibold text-text-primary mt-8 mb-4">Contact Us</h2>
                 <p>
                     Have questions or suggestions? We&apos;d love to hear from you!
-                    Reach out to us at <a href="mailto:support@aibde.tech" className="text-accent-blue hover:underline">support@aibde.tech</a>.
+                    Reach out to us at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a>.
                 </p>
             </div>
         </div>

@@ -30,7 +30,7 @@ export default function TaskDetailPage() {
     if (!isLoaded) {
         return (
             <div className="p-3 sm:p-6 flex items-center justify-center min-h-[200px]">
-                <div className="animate-spin w-6 h-6 border-2 border-accent-blue border-t-transparent rounded-full" />
+                <div className="animate-spin w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full" />
             </div>
         );
     }
@@ -38,7 +38,7 @@ export default function TaskDetailPage() {
     if (!task) {
         return (
             <div className="p-3 sm:p-6">
-                <button onClick={() => router.push('/dashboard/tasks')} className="flex items-center gap-1.5 text-text-secondary hover:text-accent-blue text-sm mb-4">
+                <button onClick={() => router.push('/dashboard/tasks')} className="flex items-center gap-1.5 text-text-secondary hover:text-accent-primary text-sm mb-4">
                     <ArrowLeft className="w-4 h-4" /> Back to Tasks
                 </button>
                 <div className="text-center py-12">
@@ -52,7 +52,7 @@ export default function TaskDetailPage() {
     return (
         <div className="p-3 sm:p-6">
             {/* Back Button */}
-            <button onClick={() => router.push('/dashboard/tasks')} className="flex items-center gap-1.5 text-text-secondary hover:text-accent-blue text-sm mb-4">
+            <button onClick={() => router.push('/dashboard/tasks')} className="flex items-center gap-1.5 text-text-secondary hover:text-accent-primary text-sm mb-4">
                 <ArrowLeft className="w-4 h-4" /> Back to Tasks
             </button>
 
@@ -88,12 +88,12 @@ export default function TaskDetailPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {linkedTools.map((tool: AdminTool) => (
                         <div key={tool.id} onClick={() => setPreviewTool(tool)}
-                            className="bg-bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-accent-blue/50 hover:shadow-lg transition-all">
+                            className="bg-bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-accent-primary/50 hover:shadow-lg transition-all">
                             <div className="flex items-center gap-3 mb-3">
                                 {tool.logoUrl ? (
                                     <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-xl object-cover" />
                                 ) : (
-                                    <div className="w-12 h-12 bg-accent-blue/20 rounded-xl flex items-center justify-center text-xl font-bold text-accent-blue">
+                                    <div className="w-12 h-12 bg-accent-primary/20 rounded-xl flex items-center justify-center text-xl font-bold text-accent-primary">
                                         {tool.name[0]}
                                     </div>
                                 )}
@@ -105,7 +105,7 @@ export default function TaskDetailPage() {
                             <p className="text-sm text-text-secondary line-clamp-2">{tool.summary || tool.description || 'No description'}</p>
                             <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
                                 <span className="text-xs text-text-tertiary">{tool.pricingLabel}</span>
-                                <span className="text-accent-blue text-sm flex items-center gap-1">Preview {renderIcon('arrow-right', 14)}</span>
+                                <span className="text-accent-primary text-sm flex items-center gap-1">Preview {renderIcon('arrow-right', 14)}</span>
                             </div>
                         </div>
                     ))}
@@ -122,7 +122,7 @@ export default function TaskDetailPage() {
                                 {previewTool.logoUrl ? (
                                     <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-cover" />
                                 ) : (
-                                    <div className="w-20 h-20 bg-accent-blue/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-blue">
+                                    <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
                                         {previewTool.name[0]}
                                     </div>
                                 )}
@@ -135,7 +135,7 @@ export default function TaskDetailPage() {
                                         <span className={`text-xs px-2 py-1 rounded-full ${previewTool.status === 'published' ? 'bg-green-500/10 text-green-500' : previewTool.status === 'draft' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-gray-500/10 text-gray-500'}`}>
                                             {previewTool.status}
                                         </span>
-                                        <span className="text-xs px-2 py-1 bg-accent-blue/10 text-accent-blue rounded-full">{previewTool.pricingLabel}</span>
+                                        <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full">{previewTool.pricingLabel}</span>
                                         {previewTool.isFeatured && <span className="text-xs px-2 py-1 bg-yellow-500/10 text-yellow-600 rounded-full">Featured</span>}
                                     </div>
                                 </div>
@@ -220,7 +220,7 @@ export default function TaskDetailPage() {
                             {previewTool.websiteUrl && (
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Website</h3>
-                                    <a href={previewTool.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-blue hover:underline flex items-center gap-1">
+                                    <a href={previewTool.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline flex items-center gap-1">
                                         {previewTool.websiteUrl}
                                         <span className="inline-flex">{renderIcon('external-link', 12)}</span>
                                     </a>
@@ -231,7 +231,7 @@ export default function TaskDetailPage() {
                         {/* Actions */}
                         <div className="border-t border-border p-4 flex gap-3">
                             <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.slug}`); }}
-                                className="flex-1 px-4 py-2.5 bg-accent-blue text-white rounded-xl text-sm font-medium hover:bg-accent-blue/90 flex items-center justify-center gap-2">
+                                className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
                                 <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
                             </button>
                             <button onClick={() => { setPreviewTool(null); router.push(`/dashboard/tools/${previewTool.id}`); }}

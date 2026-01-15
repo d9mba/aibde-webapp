@@ -39,7 +39,7 @@ export default function SubmitPage() {
                     <label className="block text-sm font-medium text-text-primary mb-2">Tool Name *</label>
                     <input
                         type="text"
-                        className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-blue focus:outline-none"
+                        className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none"
                         placeholder="My Awesome AI Tool"
                         required
                     />
@@ -49,7 +49,7 @@ export default function SubmitPage() {
                     <label className="block text-sm font-medium text-text-primary mb-2">Website URL *</label>
                     <input
                         type="url"
-                        className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-blue focus:outline-none"
+                        className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none"
                         placeholder="https://myaitool.com"
                         required
                     />
@@ -58,7 +58,7 @@ export default function SubmitPage() {
                 <div className="mb-5">
                     <label className="block text-sm font-medium text-text-primary mb-2">Short Description *</label>
                     <textarea
-                        className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-blue focus:outline-none resize-none"
+                        className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none resize-none"
                         placeholder="Describe what your AI tool does in 1-2 sentences"
                         rows={3}
                         required
@@ -68,7 +68,7 @@ export default function SubmitPage() {
                 <div className="grid grid-cols-2 gap-4 mb-5">
                     <div>
                         <label className="block text-sm font-medium text-text-primary mb-2">Category *</label>
-                        <select className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary focus:border-accent-blue focus:outline-none cursor-pointer" required>
+                        <select className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary focus:border-accent-primary focus:outline-none cursor-pointer" required>
                             <option value="">Select a category</option>
                             <option value="chatbots">Chatbots</option>
                             <option value="image-generation">Image Generation</option>
@@ -82,7 +82,7 @@ export default function SubmitPage() {
 
                     <div>
                         <label className="block text-sm font-medium text-text-primary mb-2">Pricing *</label>
-                        <select className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary focus:border-accent-blue focus:outline-none cursor-pointer" required>
+                        <select className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary focus:border-accent-primary focus:outline-none cursor-pointer" required>
                             <option value="">Select pricing</option>
                             <option value="free">Free</option>
                             <option value="freemium">Freemium</option>
@@ -95,19 +95,19 @@ export default function SubmitPage() {
                     <label className="block text-sm font-medium text-text-primary mb-2">Your Email *</label>
                     <input
                         type="email"
-                        className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-blue focus:outline-none"
+                        className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none"
                         placeholder="you@example.com"
                         required
                     />
                 </div>
 
-                <button type="submit" className="w-full py-3 bg-accent-blue text-white font-medium rounded-lg transition-opacity duration-fast hover:opacity-90">
+                <button type="submit" className="w-full py-3 bg-accent-primary text-white font-medium rounded-lg transition-opacity duration-fast hover:opacity-90">
                     Submit AI Tool
                 </button>
 
                 <p className="text-center text-sm text-text-tertiary mt-4">
                     Free submissions are reviewed within 7 days.
-                    <a href="#" className="ml-1 text-accent-blue hover:underline">Get featured instantly →</a>
+                    <a href="#" className="ml-1 text-accent-primary hover:underline">Get featured instantly →</a>
                 </p>
             </form>
         </div>

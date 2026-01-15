@@ -157,7 +157,7 @@ export default function SearchPageClient({ tools, categories, tasks }: SearchPag
                         </p>
                         <a
                             href="/submit"
-                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-accent-blue rounded-full transition-opacity hover:opacity-90"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-accent-primary rounded-full transition-opacity hover:opacity-90"
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M12 5v14M5 12h14" />
@@ -206,7 +206,7 @@ export default function SearchPageClient({ tools, categories, tasks }: SearchPag
                 <section className="pt-10">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-lg font-semibold text-text-primary">Recently Added</h2>
-                        <a href="/new" className="text-sm text-text-tertiary hover:text-accent-blue transition-colors">
+                        <a href="/new" className="text-sm text-text-tertiary hover:text-accent-primary transition-colors">
                             View all
                         </a>
                     </div>

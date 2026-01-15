@@ -213,7 +213,7 @@ export default function Combobox(props: Props) {
                     {canAddNew && (
                         <div
                             onClick={createAndSelect}
-                            className={`px-3 py-2.5 text-sm cursor-pointer text-accent-blue border-t border-border ${focusedIdx === filteredOptions.length ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'
+                            className={`px-3 py-2.5 text-sm cursor-pointer text-accent-primary border-t border-border ${focusedIdx === filteredOptions.length ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'
                                 }`}
                         >
                             + Create "{search}"

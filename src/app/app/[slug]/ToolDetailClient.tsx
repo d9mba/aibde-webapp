@@ -207,8 +207,8 @@ export default function ToolDetailClient({
                         {tool.logoUrl ? (
                             <img src={tool.logoUrl} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
                         ) : (
-                            <div className="w-8 h-8 rounded-lg bg-accent-blue/20 flex items-center justify-center flex-shrink-0">
-                                <span className="text-xs font-semibold text-accent-blue">{tool.name[0]}</span>
+                            <div className="w-8 h-8 rounded-lg bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
+                                <span className="text-xs font-semibold text-accent-primary">{tool.name[0]}</span>
                             </div>
                         )}
                         <span className="text-sm font-medium text-text-primary truncate">{tool.name}</span>
@@ -219,7 +219,7 @@ export default function ToolDetailClient({
                         href={tool.affiliateEnabled && tool.affiliateUrl ? tool.affiliateUrl : tool.websiteUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center px-3.5 py-1.5 bg-accent-blue text-white rounded-full text-xs font-medium hover:bg-accent-blue/90 transition-colors"
+                        className="flex items-center justify-center px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium hover:bg-accent-primary/90 transition-colors"
                     >
                         Visit
                     </a>
@@ -251,7 +251,7 @@ export default function ToolDetailClient({
                                             setShowMobileMenu(false);
                                         }}
                                         className={`flex items-center w-full px-4 py-2.5 text-left text-sm transition-colors ${activeSection === section.id
-                                            ? 'bg-accent-blue/10 text-accent-blue font-medium'
+                                            ? 'bg-accent-primary/10 text-accent-primary font-medium'
                                             : 'text-text-primary hover:bg-bg-tertiary/80'
                                             }`}
                                         suppressHydrationWarning

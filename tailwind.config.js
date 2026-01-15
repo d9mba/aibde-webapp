@@ -28,8 +28,8 @@ module.exports = {
                 },
                 border: 'var(--border-color)',
                 accent: {
-                    blue: 'var(--accent-blue)',
-                    'blue-bg': 'var(--accent-blue-bg)',
+                    primary: 'var(--accent-primary)',
+                    'primary-bg': 'var(--accent-primary-bg)',
                     purple: 'var(--accent-purple)',
                     'purple-bg': 'var(--accent-purple-bg)',
                     green: 'var(--accent-green)',

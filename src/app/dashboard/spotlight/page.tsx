@@ -71,7 +71,7 @@ export default function SpotlightPage() {
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-accent-blue">{spotlightTools.length}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-primary">{spotlightTools.length}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Active</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
@@ -103,7 +103,7 @@ export default function SpotlightPage() {
                                         {tool.logoUrl ? (
                                             <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover" />
                                         ) : (
-                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-accent-blue-bg flex items-center justify-center text-accent-blue text-xs font-bold">
+                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary text-xs font-bold">
                                                 {tool.name[0]}
                                             </div>
                                         )}
@@ -183,7 +183,7 @@ export default function SpotlightPage() {
                                             </div>
                                             <button
                                                 onClick={() => handleAddToSpotlight(tool.id)}
-                                                className="px-2 py-1 text-xs text-accent-blue bg-accent-blue-bg rounded hover:bg-accent-blue/20"
+                                                className="px-2 py-1 text-xs text-accent-primary bg-accent-primary-bg rounded hover:bg-accent-primary/20"
                                             >
                                                 + Add
                                             </button>

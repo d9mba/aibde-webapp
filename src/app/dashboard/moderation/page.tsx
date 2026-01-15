@@ -239,7 +239,7 @@ export default function ModerationPage() {
                         {activeTab === 'pending' && pendingTools.length > 0 && (
                             <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
                                 <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                                    className="w-4 h-4 rounded border-border text-accent-blue focus:ring-accent-blue" />
+                                    className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-primary" />
                                 Select All
                             </label>
                         )}
@@ -259,14 +259,14 @@ export default function ModerationPage() {
                                     </div>
                                 ) : (
                                     pendingTools.map((tool) => (
-                                        <div key={tool.id} className={`p-5 transition-colors ${selectedIds.has(tool.id) ? 'bg-accent-blue/5' : 'hover:bg-bg-secondary'}`}>
+                                        <div key={tool.id} className={`p-5 transition-colors ${selectedIds.has(tool.id) ? 'bg-accent-primary/5' : 'hover:bg-bg-secondary'}`}>
                                             <div className="flex items-start gap-4">
                                                 <input type="checkbox" checked={selectedIds.has(tool.id)} onChange={() => toggleSelect(tool.id)}
-                                                    className="mt-1 w-4 h-4 rounded border-border text-accent-blue focus:ring-accent-blue" />
+                                                    className="mt-1 w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-primary" />
                                                 {tool.logoUrl ? (
                                                     <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-lg object-cover" />
                                                 ) : (
-                                                    <div className="w-12 h-12 rounded-lg bg-accent-blue-bg flex items-center justify-center text-accent-blue font-bold">
+                                                    <div className="w-12 h-12 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary font-bold">
                                                         {tool.name[0]}
                                                     </div>
                                                 )}
@@ -288,14 +288,14 @@ export default function ModerationPage() {
                                                 <div className="flex items-center gap-1">
                                                     <button
                                                         onClick={() => setPreviewTool(tool)}
-                                                        className="p-1.5 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors"
+                                                        className="p-1.5 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                                         title="Quick Preview"
                                                     >
                                                         <Eye className="w-4 h-4" />
                                                     </button>
                                                     <Link
                                                         href={`/dashboard/tools/${tool.id}`}
-                                                        className="p-1.5 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors"
+                                                        className="p-1.5 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                                         title="Edit"
                                                     >
                                                         <Pencil className="w-4 h-4" />
@@ -342,7 +342,7 @@ export default function ModerationPage() {
                                                 {tool.logoUrl ? (
                                                     <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-lg object-cover" />
                                                 ) : (
-                                                    <div className="w-12 h-12 rounded-lg bg-accent-blue-bg flex items-center justify-center text-accent-blue font-bold">
+                                                    <div className="w-12 h-12 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary font-bold">
                                                         {tool.name[0]}
                                                     </div>
                                                 )}
@@ -351,7 +351,7 @@ export default function ModerationPage() {
                                                         <h3 className="font-semibold text-text-primary">{tool.name}</h3>
                                                         <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'approved' ? 'bg-accent-green-bg text-accent-green' :
                                                             activeTab === 'rejected' ? 'bg-accent-red-bg text-accent-red' :
-                                                                'bg-accent-blue-bg text-accent-blue'
+                                                                'bg-accent-primary-bg text-accent-primary'
                                                             }`}>
                                                             {activeTab === 'approved' ? 'published' : activeTab === 'rejected' ? 'rejected' : 'updated'}
                                                         </span>
@@ -367,14 +367,14 @@ export default function ModerationPage() {
                                                 <div className="flex items-center gap-1">
                                                     <button
                                                         onClick={() => setPreviewTool(tool)}
-                                                        className="p-1.5 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors"
+                                                        className="p-1.5 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                                         title="Quick Preview"
                                                     >
                                                         <Eye className="w-4 h-4" />
                                                     </button>
                                                     <Link
                                                         href={`/dashboard/tools/${tool.id}`}
-                                                        className="p-1.5 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors"
+                                                        className="p-1.5 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                                         title="Edit"
                                                     >
                                                         <Pencil className="w-4 h-4" />
@@ -400,7 +400,7 @@ export default function ModerationPage() {
                                 {previewTool.logoUrl ? (
                                     <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-cover" />
                                 ) : (
-                                    <div className="w-20 h-20 bg-accent-blue/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-blue">
+                                    <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
                                         {previewTool.name[0]}
                                     </div>
                                 )}
@@ -413,7 +413,7 @@ export default function ModerationPage() {
                                         <span className={`text-xs px-2 py-1 rounded-full ${previewTool.status === 'published' ? 'bg-green-500/10 text-green-500' : previewTool.status === 'draft' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-purple-500/10 text-purple-500'}`}>
                                             {previewTool.status}
                                         </span>
-                                        <span className="text-xs px-2 py-1 bg-accent-blue/10 text-accent-blue rounded-full">{previewTool.pricingLabel || previewTool.pricing}</span>
+                                        <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full">{previewTool.pricingLabel || previewTool.pricing}</span>
                                         {previewTool.isFeatured && <span className="text-xs px-2 py-1 bg-yellow-500/10 text-yellow-600 rounded-full">Featured</span>}
                                     </div>
                                 </div>
@@ -461,7 +461,7 @@ export default function ModerationPage() {
                             {previewTool.websiteUrl && (
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Website</h3>
-                                    <a href={previewTool.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-blue hover:underline flex items-center gap-1">
+                                    <a href={previewTool.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline flex items-center gap-1">
                                         {previewTool.websiteUrl}
                                         <span className="inline-flex">{renderIcon('external-link', 12)}</span>
                                     </a>
@@ -472,7 +472,7 @@ export default function ModerationPage() {
                         {/* Actions */}
                         <div className="border-t border-border p-4 flex gap-3">
                             <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.slug}`); }}
-                                className="flex-1 px-4 py-2.5 bg-accent-blue text-white rounded-xl text-sm font-medium hover:bg-accent-blue/90 flex items-center justify-center gap-2">
+                                className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
                                 <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
                             </button>
                             <button onClick={() => { setPreviewTool(null); router.push(`/dashboard/tools/${previewTool.id}`); }}

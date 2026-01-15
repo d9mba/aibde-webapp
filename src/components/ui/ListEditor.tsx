@@ -44,7 +44,7 @@ export default function ListEditor({ label, items, onChange, placeholder }: List
                 <button
                     type="button"
                     onClick={add}
-                    className="px-3 py-2 bg-accent-blue text-white rounded-lg text-sm hover:opacity-90"
+                    className="px-3 py-2 bg-accent-primary text-white rounded-lg text-sm hover:opacity-90"
                 >
                     Add
                 </button>

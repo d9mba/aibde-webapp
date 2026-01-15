@@ -24,7 +24,7 @@ export default function EditToolPage() {
             <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
                 <div className="text-center">
                     <h2 className="text-xl font-bold text-text-primary mb-2">Tool not found</h2>
-                    <a href="/dashboard/tools" className="text-accent-blue hover:underline">← Back to Tools</a>
+                    <a href="/dashboard/tools" className="text-accent-primary hover:underline">← Back to Tools</a>
                 </div>
             </div>
         );

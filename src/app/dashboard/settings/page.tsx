@@ -26,7 +26,7 @@ export default function SettingsPage() {
             </div>
             <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
                 <input type="checkbox" className="sr-only peer" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-                <div className="w-10 sm:w-11 h-5 sm:h-6 bg-bg-tertiary rounded-full peer peer-checked:bg-accent-blue transition-colors">
+                <div className="w-10 sm:w-11 h-5 sm:h-6 bg-bg-tertiary rounded-full peer peer-checked:bg-accent-primary transition-colors">
                     <div className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${checked ? 'translate-x-5' : ''}`} />
                 </div>
             </label>
@@ -116,7 +116,7 @@ export default function SettingsPage() {
                         <h2 className="text-sm sm:text-base font-semibold text-text-primary">Analytics</h2>
                     </div>
                     <div className="px-3 sm:px-5 py-3 sm:py-4">
-                        <div className="p-3 sm:p-4 bg-accent-blue-bg border border-accent-blue/20 rounded-lg">
+                        <div className="p-3 sm:p-4 bg-accent-primary-bg border border-accent-primary/20 rounded-lg">
                             <p className="text-sm text-text-primary font-medium">PostHog Integration</p>
                             <p className="text-[10px] sm:text-xs text-text-secondary mt-1">
                                 Analytics will be tracked automatically once PostHog is configured.

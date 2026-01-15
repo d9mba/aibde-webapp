@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import Providers from '@/components/Providers';
 import { LayoutWrapper } from '@/components/layout/LayoutWrapper';
@@ -8,6 +8,13 @@ import '@/styles/globals.css';
 export const metadata: Metadata = {
     title: 'aibde - AI Tool Directory',
     description: 'Discover AI tools for writing, image generation, coding, video, and more.',
+};
+
+// Viewport configuration for safe area support on iOS devices
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    viewportFit: 'cover',
 };
 
 export default async function RootLayout({

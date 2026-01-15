@@ -40,7 +40,7 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
             </h1>
             <p className="font-orbitron text-text-secondary text-sm sm:text-base -mt-2 tracking-wide">Browse, Discover, Explore</p>
             <p className="text-text-tertiary text-xs sm:text-sm -mt-2">
-                <Link href="/search"><span className="text-text-primary font-semibold">{allTools.length.toLocaleString()}</span> AI tools</Link> for <Link href="/tasks"><span className="text-text-primary font-semibold">{taskCount}</span> tasks</Link> and <Link href="/category"><span className="text-text-primary font-semibold">{categoryCount}</span> categories</Link>
+                <Link href="/search" prefetch={false}><span className="text-text-primary font-semibold">{allTools.length.toLocaleString()}</span> AI tools</Link> for <Link href="/tasks" prefetch={false}><span className="text-text-primary font-semibold">{taskCount}</span> tasks</Link> and <Link href="/category" prefetch={false}><span className="text-text-primary font-semibold">{categoryCount}</span> categories</Link>
             </p>
             <div className="relative w-full max-w-[500px] mt-1 py-1">
                 {/* Search Input */}
@@ -113,8 +113,8 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
                                     {logoUrl ? (
                                         <img src={logoUrl} alt={tool.name} className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
                                     ) : (
-                                        <div className="w-7 h-7 rounded-md bg-accent-blue/20 flex items-center justify-center flex-shrink-0">
-                                            <span className="text-xs font-semibold text-accent-blue">{tool.name.charAt(0)}</span>
+                                        <div className="w-7 h-7 rounded-md bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
+                                            <span className="text-xs font-semibold text-accent-primary">{tool.name.charAt(0)}</span>
                                         </div>
                                     )}
                                     <span className="text-sm text-text-primary truncate">{tool.name}</span>

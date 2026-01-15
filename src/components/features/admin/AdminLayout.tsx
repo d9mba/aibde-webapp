@@ -144,7 +144,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     )}>
                         <div className="px-3 py-3.5 border-b border-border flex items-center justify-between">
                             <Link href="/dashboard" className="flex items-center gap-2.5 no-underline">
-                                <span className="flex items-center justify-center w-8 h-8 text-accent-blue flex-shrink-0">
+                                <span className="flex items-center justify-center w-8 h-8 text-accent-primary flex-shrink-0">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                                         <rect x="3" y="3" width="18" height="18" rx="2" />
                                         <path d="M9 9h6M9 15h6M9 12h6" />
@@ -161,7 +161,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                                 onClick={togglePin}
                                 className={cn(
                                     "hidden lg:flex items-center justify-center w-6 h-6 rounded transition-all",
-                                    isPinned ? 'text-accent-blue' : 'text-text-tertiary hover:text-text-secondary',
+                                    isPinned ? 'text-accent-primary' : 'text-text-tertiary hover:text-text-secondary',
                                     isExpanded ? 'opacity-100' : 'opacity-0 lg:group-hover:opacity-100'
                                 )}
                                 title={isPinned ? 'Unpin sidebar' : 'Pin sidebar'}

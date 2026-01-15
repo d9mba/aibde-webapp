@@ -63,7 +63,7 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
                 flex flex-col gap-3 p-4 bg-bg-card rounded-lg border cursor-pointer relative overflow-hidden min-h-[180px]
                 transition-[border-color,box-shadow,background-color] duration-fast hover:border-text-tertiary hover:shadow-md hover:bg-bg-card-hover group
                 ${isCompact ? 'p-3.5 gap-2.5' : ''}
-                ${isFeatured ? 'border-accent-blue bg-gradient-to-br from-bg-card to-accent-blue/[0.03]' : 'border-border'}
+                ${isFeatured ? 'border-accent-primary bg-gradient-to-br from-bg-card to-accent-primary/[0.03]' : 'border-border'}
             `}
             onClick={handleCardClick}
         >

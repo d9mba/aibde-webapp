@@ -243,14 +243,14 @@ export default function MediaUpload({
             {mode === 'direct' && (
                 <div className="flex gap-2">
                     <input value={url} onChange={e => setUrl(e.target.value)} placeholder={placeholderText} className="flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addDirectUrl())} />
-                    <button type="button" onClick={addDirectUrl} className="px-4 py-2 bg-accent-blue text-white rounded-lg text-sm">{multiple ? 'Add' : 'Set'}</button>
+                    <button type="button" onClick={addDirectUrl} className="px-4 py-2 bg-accent-primary text-white rounded-lg text-sm">{multiple ? 'Add' : 'Set'}</button>
                 </div>
             )}
 
             {mode === 'fetch' && (
                 <div className="flex gap-2">
                     <input value={url} onChange={e => setUrl(e.target.value)} placeholder="Paste URL to upload to cloud..." className="flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary" disabled={isUploading} />
-                    <button type="button" onClick={fetchAndUpload} disabled={isUploading || !url.trim()} className="px-4 py-2 bg-accent-blue text-white rounded-lg text-sm disabled:opacity-50">{isUploading ? 'Uploading...' : 'Upload'}</button>
+                    <button type="button" onClick={fetchAndUpload} disabled={isUploading || !url.trim()} className="px-4 py-2 bg-accent-primary text-white rounded-lg text-sm disabled:opacity-50">{isUploading ? 'Uploading...' : 'Upload'}</button>
                 </div>
             )}
 
@@ -275,7 +275,7 @@ export default function MediaUpload({
                         const isCloud = isUploadedFile(item);
                         const isExternal = item.startsWith('http') && !isCloud;
                         const sourceLabel = isCloud ? 'Cloud' : isExternal ? 'External' : 'Local';
-                        const sourceColor = isCloud ? 'bg-accent-blue' : isExternal ? 'bg-amber-500' : 'bg-gray-500';
+                        const sourceColor = isCloud ? 'bg-accent-primary' : isExternal ? 'bg-amber-500' : 'bg-gray-500';
 
                         return (
                             <div key={i} className="relative group inline-block">

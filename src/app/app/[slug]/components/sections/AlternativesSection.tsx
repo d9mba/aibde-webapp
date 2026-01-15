@@ -43,7 +43,7 @@ export default function AlternativesSection({ toolName, alternatives }: Alternat
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
                                     {t.categoryName?.[0] && (
-                                        <span className="px-2 py-0.5 bg-accent-blue/10 text-accent-blue rounded-full text-[10px] font-medium">{t.categoryName[0]}</span>
+                                        <span className="px-2 py-0.5 bg-accent-primary/10 text-accent-primary rounded-full text-[10px] font-medium">{t.categoryName[0]}</span>
                                     )}
                                     {t.taskName?.[0] && (
                                         <span className="px-2 py-0.5 bg-accent-green/10 text-accent-green rounded-full text-[10px] font-medium">{t.taskName[0]}</span>

@@ -54,7 +54,7 @@ export default function ToolHeader({
                                     href={ensureProtocol(tool.websiteUrl)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-blue text-white sm:bg-bg-secondary sm:text-text-primary sm:border sm:border-border rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 sm:hover:border-text-tertiary transition-colors"
+                                    className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-primary text-white sm:bg-bg-secondary sm:text-text-primary sm:border sm:border-border rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 sm:hover:border-text-tertiary transition-colors"
                                 >
                                     Visit
                                 </a>
@@ -133,7 +133,7 @@ export default function ToolHeader({
                         <Link
                             key={idx}
                             href={`/search?q=${encodeURIComponent('#' + tag)}`}
-                            className="px-2 py-0.5 bg-bg-tertiary text-text-secondary hover:bg-accent-blue/10 hover:text-accent-blue text-xs rounded-full no-underline transition-colors"
+                            className="px-2 py-0.5 bg-bg-tertiary text-text-secondary hover:bg-accent-primary/10 hover:text-accent-primary text-xs rounded-full no-underline transition-colors"
                         >
                             #{tag}
                         </Link>

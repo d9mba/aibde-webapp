@@ -109,11 +109,11 @@ export default function TagsPage() {
             <div className="bg-bg-card border border-border rounded-xl p-4 mb-6">
                 <h3 className="font-medium text-text-primary mb-3">Add New Tag</h3>
                 <div className="flex gap-2">
-                    <div className="flex items-center px-3 py-2 bg-bg-secondary border border-border rounded-xl text-sm text-accent-blue font-medium">
+                    <div className="flex items-center px-3 py-2 bg-bg-secondary border border-border rounded-xl text-sm text-accent-primary font-medium">
                         #
                     </div>
                     <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Tag name..." className="flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-xl text-sm" onKeyDown={e => e.key === 'Enter' && handleAdd()} />
-                    <button onClick={handleAdd} className="px-4 py-2 bg-accent-blue text-white rounded-xl text-sm font-medium hover:bg-accent-blue/90 transition-colors">Add Tag</button>
+                    <button onClick={handleAdd} className="px-4 py-2 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 transition-colors">Add Tag</button>
                 </div>
             </div>
 
@@ -145,11 +145,11 @@ export default function TagsPage() {
                                     <td className="px-4 py-3">
                                         {editingId === tag.id ? (
                                             <div className="flex items-center gap-1">
-                                                <span className="text-accent-blue font-medium">#</span>
+                                                <span className="text-accent-primary font-medium">#</span>
                                                 <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(tag.id, e as unknown as React.MouseEvent); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm" />
                                             </div>
                                         ) : (
-                                            <span className="inline-flex items-center px-2.5 py-1 bg-accent-blue/10 text-accent-blue rounded-lg text-sm font-medium">#{tag.tagName}</span>
+                                            <span className="inline-flex items-center px-2.5 py-1 bg-accent-primary/10 text-accent-primary rounded-lg text-sm font-medium">#{tag.tagName}</span>
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-text-secondary text-sm">
@@ -161,12 +161,12 @@ export default function TagsPage() {
                                     <td className="px-4 py-3 text-right">
                                         {editingId === tag.id ? (
                                             <div className="flex items-center justify-end gap-2">
-                                                <button onClick={(e) => saveEdit(tag.id, e)} className="px-3 py-1.5 bg-accent-blue text-white rounded-lg text-xs font-medium hover:bg-accent-blue/90">Save</button>
+                                                <button onClick={(e) => saveEdit(tag.id, e)} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-xs font-medium hover:bg-accent-primary/90">Save</button>
                                                 <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="px-3 py-1.5 bg-bg-secondary text-text-secondary border border-border rounded-lg text-xs font-medium hover:bg-bg-tertiary">Cancel</button>
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-end gap-1">
-                                                <button onClick={(e) => startEdit(tag, e)} className="p-2 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors" title="Edit">
+                                                <button onClick={(e) => startEdit(tag, e)} className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors" title="Edit">
                                                     <Pencil className="w-4 h-4" />
                                                 </button>
                                                 <button onClick={(e) => handleDelete(tag, e)} className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors" title="Delete">

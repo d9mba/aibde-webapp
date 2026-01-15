@@ -20,8 +20,8 @@ export default function PricingSection({ plans }: PricingSectionProps) {
                     <div
                         key={idx}
                         className={`p-5 rounded-xl border transition-colors ${plan.highlighted
-                            ? 'border-accent-blue bg-accent-blue/5'
-                            : 'border-border bg-bg-card hover:border-accent-blue'
+                            ? 'border-accent-primary bg-accent-primary/5'
+                            : 'border-border bg-bg-card hover:border-accent-primary'
                             }`}
                     >
                         <div className="text-sm font-medium text-text-secondary">{plan.name}</div>

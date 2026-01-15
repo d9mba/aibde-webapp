@@ -23,9 +23,9 @@
 
     --border-color: #e5e5e5;
 
-    /* Subdued accent colors */
-    --accent-blue: #34b27b;
-    --accent-blue-bg: rgba(52, 178, 123, 0.08);
+    /* Primary accent color (green) */
+    --accent-primary: #34b27b;
+    --accent-primary-bg: rgba(52, 178, 123, 0.08);
     --accent-purple: #7c3aed;
     --accent-purple-bg: rgba(124, 58, 237, 0.08);
     --accent-green: #059669;
@@ -164,7 +164,7 @@ img {
 
 /* Selection */
 ::selection {
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     color: white;
 }
 
@@ -183,7 +183,7 @@ input:focus,
 textarea:focus,
 select:focus {
     outline: none;
-    border-color: var(--accent-blue) !important;
+    border-color: var(--accent-primary) !important;
     box-shadow: 0 0 0 3px rgba(52, 178, 123, 0.15);
 }
 
@@ -232,7 +232,7 @@ select:hover {
 }
 
 select:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
 }
 
 /* Style dropdown options - force dark colors in dark mode */
@@ -332,8 +332,8 @@ select option:checked {
 
 .app-card-overlay button:hover,
 .app-card-overlay a:hover {
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
     color: white;
 }
 
@@ -433,8 +433,8 @@ select option:checked {
 }
 
 .rich-text blockquote {
-    border-left: 3px solid var(--accent-blue);
-    background: var(--accent-blue-bg);
+    border-left: 3px solid var(--accent-primary);
+    background: var(--accent-primary-bg);
     padding: 0.25em 0.5em 0.25em 0.75em;
     margin: 0.5em 0;
     border-radius: 0 4px 4px 0;

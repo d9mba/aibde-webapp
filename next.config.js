@@ -26,6 +26,12 @@ const securityHeaders = [
 
 const nextConfig = {
     reactStrictMode: true,
+    // Fix ESM compatibility issues with jsdom/dompurify on Vercel serverless
+    serverExternalPackages: [
+        'isomorphic-dompurify',
+        'dompurify',
+        'jsdom',
+    ],
     images: {
         domains: [],
         remotePatterns: [

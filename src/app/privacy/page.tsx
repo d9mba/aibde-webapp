@@ -86,7 +86,7 @@ export default function PrivacyPage() {
                     <h2 className="text-xl font-semibold text-text-primary mb-3">8. Contact Us</h2>
                     <p className="leading-relaxed">
                         If you have any questions about this Privacy Policy, please contact us at{' '}
-                        <a href="mailto:support@aibde.tech" className="text-accent-blue hover:underline">support@aibde.tech</a>
+                        <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a>
                     </p>
                 </section>
             </div>

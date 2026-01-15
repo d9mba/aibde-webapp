@@ -92,7 +92,7 @@ export default function CustomSelect({
                             className={`
                                 w-full px-4 py-2.5 text-left text-sm transition-colors duration-150
                                 ${option.value === value
-                                    ? 'bg-accent-blue-bg text-accent-blue font-medium'
+                                    ? 'bg-accent-primary-bg text-accent-primary font-medium'
                                     : 'text-text-primary hover:bg-bg-tertiary'
                                 }
                             `}

@@ -38,7 +38,7 @@ export default function FeaturedPage() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-bg-card border border-border rounded-xl p-4">
-                    <div className="text-2xl font-bold text-accent-blue">{spotlightTools.length}</div>
+                    <div className="text-2xl font-bold text-accent-primary">{spotlightTools.length}</div>
                     <div className="text-sm text-text-secondary">Spotlight (Hero)</div>
                 </div>
                 <div className="bg-bg-card border border-border rounded-xl p-4">
@@ -104,7 +104,7 @@ export default function FeaturedPage() {
                                     <div className="text-xs text-text-tertiary">{(tool.categoryName || []).join(', ') || '-'}</div>
                                 </div>
                             </div>
-                            <button onClick={() => toggleFeatured(tool.id, true)} className="px-3 py-1 text-sm text-accent-blue hover:bg-accent-blue/10 rounded">
+                            <button onClick={() => toggleFeatured(tool.id, true)} className="px-3 py-1 text-sm text-accent-primary hover:bg-accent-primary/10 rounded">
                                 + Feature
                             </button>
                         </div>

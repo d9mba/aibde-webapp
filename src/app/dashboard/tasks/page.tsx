@@ -113,7 +113,7 @@ export default function TasksPage() {
                 <div className="flex flex-col sm:flex-row gap-2">
                     <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Task name..." className="flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-xl text-sm" />
                     <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Description (optional)..." className="flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-xl text-sm" />
-                    <button onClick={handleAdd} className="px-4 py-2 bg-accent-blue text-white rounded-xl text-sm whitespace-nowrap">Add Task</button>
+                    <button onClick={handleAdd} className="px-4 py-2 bg-accent-primary text-white rounded-xl text-sm whitespace-nowrap">Add Task</button>
                 </div>
             </div>
 
@@ -159,12 +159,12 @@ export default function TasksPage() {
                             <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-border" onClick={e => e.stopPropagation()}>
                                 {editingId === task.id ? (
                                     <>
-                                        <button onClick={(e) => saveEdit(task.id, e)} className="px-3 py-1.5 bg-accent-blue text-white rounded-lg text-xs font-medium">Save</button>
+                                        <button onClick={(e) => saveEdit(task.id, e)} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-xs font-medium">Save</button>
                                         <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="px-3 py-1.5 bg-bg-secondary text-text-secondary rounded-lg text-xs">Cancel</button>
                                     </>
                                 ) : (
                                     <>
-                                        <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-blue rounded-lg"><Pencil className="w-4 h-4" /></button>
+                                        <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-primary rounded-lg"><Pencil className="w-4 h-4" /></button>
                                         <button onClick={(e) => handleDelete(task, e)} className="p-2 text-text-tertiary hover:text-accent-red rounded-lg"><Trash2 className="w-4 h-4" /></button>
                                     </>
                                 )}
@@ -214,12 +214,12 @@ export default function TasksPage() {
                                     <td className="px-4 py-3 text-right">
                                         {editingId === task.id ? (
                                             <div className="flex items-center justify-end gap-2">
-                                                <button onClick={(e) => saveEdit(task.id, e)} className="px-3 py-1.5 bg-accent-blue text-white rounded-lg text-xs font-medium hover:bg-accent-blue/90">Save</button>
+                                                <button onClick={(e) => saveEdit(task.id, e)} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-xs font-medium hover:bg-accent-primary/90">Save</button>
                                                 <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="px-3 py-1.5 bg-bg-secondary text-text-secondary border border-border rounded-lg text-xs font-medium hover:bg-bg-tertiary">Cancel</button>
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-end gap-1">
-                                                <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors" title="Edit">
+                                                <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors" title="Edit">
                                                     <Pencil className="w-4 h-4" />
                                                 </button>
                                                 <button onClick={(e) => handleDelete(task, e)} className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors" title="Delete">
@@ -248,7 +248,7 @@ export default function TasksPage() {
                     <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium ${currentPage === page ? 'bg-accent-blue text-white' : 'border border-border text-text-secondary hover:bg-bg-secondary'}`}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium ${currentPage === page ? 'bg-accent-primary text-white' : 'border border-border text-text-secondary hover:bg-bg-secondary'}`}
                     >
                         {page}
                     </button>

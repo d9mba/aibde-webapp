@@ -161,7 +161,7 @@ export default function NotesPage() {
                 <div className="p-4 border-b border-border">
                     <div className="flex items-center justify-between mb-4">
                         <h1 className="text-lg font-bold text-text-primary">Notes</h1>
-                        <button onClick={createNote} className="px-3 py-1.5 bg-accent-blue text-white rounded-lg text-sm">+ New</button>
+                        <button onClick={createNote} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-sm">+ New</button>
                     </div>
 
                     {/* Search by Tool */}
@@ -231,8 +231,8 @@ export default function NotesPage() {
 
                 {/* Selected Tool Display */}
                 {selectedToolData && (
-                    <div className="px-4 py-3 bg-accent-blue/5 border-b border-border flex items-center gap-3">
-                        {selectedToolData.logoUrl ? <img src={selectedToolData.logoUrl} alt="" className="w-8 h-8 rounded-lg object-cover" /> : <div className="w-8 h-8 bg-accent-blue/20 rounded-lg flex items-center justify-center text-accent-blue"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg></div>}
+                    <div className="px-4 py-3 bg-accent-primary/5 border-b border-border flex items-center gap-3">
+                        {selectedToolData.logoUrl ? <img src={selectedToolData.logoUrl} alt="" className="w-8 h-8 rounded-lg object-cover" /> : <div className="w-8 h-8 bg-accent-primary/20 rounded-lg flex items-center justify-center text-accent-primary"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg></div>}
                         <div><div className="font-medium text-text-primary text-sm">{selectedToolData.name}</div><div className="text-xs text-text-tertiary">{filteredNotes.length} note{filteredNotes.length !== 1 ? 's' : ''}</div></div>
                     </div>
                 )}
@@ -240,17 +240,17 @@ export default function NotesPage() {
                 {/* Notes List */}
                 <div className="flex-1 overflow-y-auto p-2">
                     {filteredNotes.length === 0 ? (
-                        <div className="text-center py-12"><svg className="w-8 h-8 text-text-tertiary mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg><p className="text-text-tertiary text-sm mb-3">{filterTool ? `No notes for ${getToolName(filterTool)}` : 'No notes yet'}</p><button onClick={createNote} className="text-accent-blue text-sm hover:underline">+ Add new note</button></div>
+                        <div className="text-center py-12"><svg className="w-8 h-8 text-text-tertiary mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg><p className="text-text-tertiary text-sm mb-3">{filterTool ? `No notes for ${getToolName(filterTool)}` : 'No notes yet'}</p><button onClick={createNote} className="text-accent-primary text-sm hover:underline">+ Add new note</button></div>
                     ) : viewMode === 'list' ? (
                         filteredNotes.map(note => (
-                            <button key={note.id} onClick={() => { setSelectedNote(note); setIsEditing(false); }} className={`w-full text-left p-3 rounded-xl mb-1 transition-all border ${selectedNote?.id === note.id ? 'bg-bg-tertiary border-accent-blue/30' : 'border-transparent hover:bg-bg-tertiary/50'}`}>
+                            <button key={note.id} onClick={() => { setSelectedNote(note); setIsEditing(false); }} className={`w-full text-left p-3 rounded-xl mb-1 transition-all border ${selectedNote?.id === note.id ? 'bg-bg-tertiary border-accent-primary/30' : 'border-transparent hover:bg-bg-tertiary/50'}`}>
                                 <div className="font-medium text-text-primary text-sm truncate">{note.title}</div>
                                 <div className="text-xs text-text-tertiary truncate mt-0.5">{note.content.slice(0, 60)}...</div>
-                                <div className="flex items-center gap-2 mt-1.5"><span className="text-[10px] text-text-tertiary">{formatDateTime(note.updatedAt)}</span>{note.toolId && !filterTool && <span className="text-[10px] text-accent-blue">• {getToolName(note.toolId)}</span>}</div>
+                                <div className="flex items-center gap-2 mt-1.5"><span className="text-[10px] text-text-tertiary">{formatDateTime(note.updatedAt)}</span>{note.toolId && !filterTool && <span className="text-[10px] text-accent-primary">• {getToolName(note.toolId)}</span>}</div>
                             </button>
                         ))
                     ) : (
-                        <div className="grid grid-cols-2 gap-2">{filteredNotes.map(note => (<button key={note.id} onClick={() => { setSelectedNote(note); setIsEditing(false); }} className={`text-left p-3 rounded-xl border transition-all ${selectedNote?.id === note.id ? 'bg-bg-tertiary border-accent-blue/30' : 'border-border hover:border-accent-blue/30'}`}><div className="font-medium text-text-primary text-xs truncate">{note.title}</div><div className="text-[10px] text-text-tertiary line-clamp-2 mt-0.5">{note.content}</div><div className="text-[9px] text-text-tertiary mt-1">{formatDateTime(note.updatedAt)}</div></button>))}</div>
+                        <div className="grid grid-cols-2 gap-2">{filteredNotes.map(note => (<button key={note.id} onClick={() => { setSelectedNote(note); setIsEditing(false); }} className={`text-left p-3 rounded-xl border transition-all ${selectedNote?.id === note.id ? 'bg-bg-tertiary border-accent-primary/30' : 'border-border hover:border-accent-primary/30'}`}><div className="font-medium text-text-primary text-xs truncate">{note.title}</div><div className="text-[10px] text-text-tertiary line-clamp-2 mt-0.5">{note.content}</div><div className="text-[9px] text-text-tertiary mt-1">{formatDateTime(note.updatedAt)}</div></button>))}</div>
                     )}
                 </div>
             </div>
@@ -261,7 +261,7 @@ export default function NotesPage() {
                     <>
                         <div className="p-4 border-b border-border flex items-center justify-between">
                             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Note title..." className="text-xl font-bold text-text-primary bg-transparent border-none outline-none flex-1" autoFocus />
-                            <div className="flex gap-2"><button onClick={() => { setIsEditing(false); setSelectedNote(null); }} className="px-3 py-1.5 text-text-secondary text-sm">Cancel</button><button onClick={saveNote} className="px-4 py-1.5 bg-accent-blue text-white rounded-lg text-sm">Save</button></div>
+                            <div className="flex gap-2"><button onClick={() => { setIsEditing(false); setSelectedNote(null); }} className="px-3 py-1.5 text-text-secondary text-sm">Cancel</button><button onClick={saveNote} className="px-4 py-1.5 bg-accent-primary text-white rounded-lg text-sm">Save</button></div>
                         </div>
                         <div className="p-4 border-b border-border">
                             <label className="text-xs text-text-tertiary block mb-1">Link to Tool</label>
@@ -299,7 +299,7 @@ export default function NotesPage() {
                 ) : selectedNote ? (
                     <>
                         <div className="p-4 border-b border-border flex items-center justify-between">
-                            <div className="flex items-center gap-3">{selectedNote.toolId && getToolLogo(selectedNote.toolId) && <img src={getToolLogo(selectedNote.toolId)!} alt="" className="w-8 h-8 rounded-lg" />}<div>{selectedNote.toolId && <span className="text-xs text-accent-blue">{getToolName(selectedNote.toolId)}</span>}<h2 className="text-xl font-bold text-text-primary">{selectedNote.title}</h2></div></div>
+                            <div className="flex items-center gap-3">{selectedNote.toolId && getToolLogo(selectedNote.toolId) && <img src={getToolLogo(selectedNote.toolId)!} alt="" className="w-8 h-8 rounded-lg" />}<div>{selectedNote.toolId && <span className="text-xs text-accent-primary">{getToolName(selectedNote.toolId)}</span>}<h2 className="text-xl font-bold text-text-primary">{selectedNote.title}</h2></div></div>
                             <div className="flex gap-2"><button onClick={() => editNote(selectedNote)} className="px-3 py-1.5 text-text-secondary hover:text-text-primary text-sm flex items-center gap-1"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg> Edit</button><button onClick={() => handleDeleteNote(selectedNote.id)} className="px-3 py-1.5 text-accent-red text-sm flex items-center gap-1"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg> Delete</button></div>
                         </div>
                         <div className="flex-1 p-4 text-text-secondary whitespace-pre-wrap overflow-y-auto">{selectedNote.content || 'No content...'}</div>

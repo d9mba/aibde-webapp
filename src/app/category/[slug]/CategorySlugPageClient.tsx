@@ -34,7 +34,7 @@ export default function CategorySlugPageClient({
                     </div>
                     <h1 className="text-2xl font-bold text-text-primary mb-2">Category not found</h1>
                     <p className="text-text-secondary mb-4">The category you&apos;re looking for doesn&apos;t exist.</p>
-                    <Link href="/category" className="inline-flex items-center gap-1.5 text-accent-blue hover:underline">
+                    <Link href="/category" className="inline-flex items-center gap-1.5 text-accent-primary hover:underline">
                         <ArrowLeft className="w-4 h-4" /> Browse all categories
                     </Link>
                 </div>
@@ -45,14 +45,14 @@ export default function CategorySlugPageClient({
     return (
         <div className="max-w-[1200px] mx-auto px-3 sm:px-6 py-4 sm:py-8">
             {/* Back Link */}
-            <Link href="/category" className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-accent-blue mb-4 no-underline">
+            <Link href="/category" className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-accent-primary mb-4 no-underline">
                 <ArrowLeft className="w-4 h-4" /> Back to Categories
             </Link>
 
             {/* Header - Compact */}
             <div className="mb-6">
                 <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-xl bg-accent-blue/10 text-accent-blue flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-accent-primary/10 text-accent-primary flex items-center justify-center flex-shrink-0">
                         <Folder className="w-5 h-5" />
                     </div>
                     <div>
@@ -75,7 +75,7 @@ export default function CategorySlugPageClient({
                     <div className="col-span-full text-center py-12 bg-bg-card border border-border rounded-xl">
                         <Folder className="w-10 h-10 text-text-tertiary mx-auto mb-3" />
                         <p className="text-text-secondary mb-2">No tools in this category yet.</p>
-                        <Link href="/category" className="text-accent-blue hover:underline text-sm">Browse other categories</Link>
+                        <Link href="/category" className="text-accent-primary hover:underline text-sm">Browse other categories</Link>
                     </div>
                 )}
             </div>
@@ -84,7 +84,7 @@ export default function CategorySlugPageClient({
             <section className="border-t border-border pt-6 sm:pt-8">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-text-primary">Other Categories</h2>
-                    <Link href="/category" className="text-sm text-text-tertiary hover:text-accent-blue no-underline flex items-center gap-1">
+                    <Link href="/category" className="text-sm text-text-tertiary hover:text-accent-primary no-underline flex items-center gap-1">
                         View all <ChevronRight className="w-4 h-4" />
                     </Link>
                 </div>
@@ -96,7 +96,7 @@ export default function CategorySlugPageClient({
                             <Link
                                 key={cat.categoryName}
                                 href={`/category/${slugify(cat.categoryName)}`}
-                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-bg-card border border-border rounded-full text-xs sm:text-sm text-text-secondary no-underline transition-all duration-200 hover:border-accent-blue hover:text-accent-blue hover:bg-accent-blue/5"
+                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-bg-card border border-border rounded-full text-xs sm:text-sm text-text-secondary no-underline transition-all duration-200 hover:border-accent-primary hover:text-accent-primary hover:bg-accent-primary/5"
                             >
                                 {cat.categoryName}
                             </Link>

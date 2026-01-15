@@ -102,7 +102,7 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
 
             {hasMore && (
                 <div ref={loadMoreRef} className="flex items-center justify-center gap-2.5 py-6 text-text-tertiary text-sm">
-                    <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-blue rounded-full animate-spin"></span>
+                    <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
                     <span>Loading more tools...</span>
                 </div>
             )}
@@ -110,7 +110,7 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
             <div className="flex justify-center mt-4">
                 <Link
                     href={activeTab === 'latest' ? '/new' : '/trending'}
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 text-[0.8125rem] font-medium text-text-secondary bg-bg-tertiary rounded-full transition-all duration-fast hover:bg-accent-blue hover:text-white"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 text-[0.8125rem] font-medium text-text-secondary bg-bg-tertiary rounded-full transition-all duration-fast hover:bg-accent-primary hover:text-white"
                 >
                     View all {activeTab === 'latest' ? 'latest' : 'trending'} tools
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

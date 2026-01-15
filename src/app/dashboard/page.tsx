@@ -47,10 +47,10 @@ export default function DashboardHome() {
     const spotlightTools = tools.filter(t => t.spotlightPosition && t.spotlightPosition > 0);
 
     const stats = [
-        { label: 'Total Tools', value: tools.length, icon: 'tools', color: 'text-accent-blue', bgColor: 'bg-accent-blue/10', href: '/dashboard/tools' },
+        { label: 'Total Tools', value: tools.length, icon: 'tools', color: 'text-accent-primary', bgColor: 'bg-accent-primary/10', href: '/dashboard/tools' },
         { label: 'Published', value: publishedTools.length, icon: 'published', color: 'text-accent-green', bgColor: 'bg-accent-green/10', href: '/dashboard/tools?status=published' },
         { label: 'Drafts', value: draftTools.length, icon: 'drafts', color: 'text-accent-yellow', bgColor: 'bg-accent-yellow/10', href: '/dashboard/tools?status=draft' },
-        { label: 'Categories', value: categories.length, icon: 'categories', color: 'text-accent-blue', bgColor: 'bg-accent-blue/10', href: '/dashboard/categories' },
+        { label: 'Categories', value: categories.length, icon: 'categories', color: 'text-accent-primary', bgColor: 'bg-accent-primary/10', href: '/dashboard/categories' },
         { label: 'Tasks', value: tasks.length, icon: 'tasks', color: 'text-accent-orange', bgColor: 'bg-accent-orange/10', href: '/dashboard/tasks' },
         { label: 'Spotlight', value: spotlightTools.length, icon: 'spotlight', color: 'text-accent-pink', bgColor: 'bg-accent-pink/10', href: '/dashboard/spotlight' },
     ];
@@ -75,7 +75,7 @@ export default function DashboardHome() {
         return (
             <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
                 <div className="flex items-center gap-3 text-text-secondary">
-                    <span className="w-5 h-5 border-2 border-border border-t-accent-blue rounded-full animate-spin"></span>
+                    <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
                     Loading dashboard...
                 </div>
             </div>
@@ -93,7 +93,7 @@ export default function DashboardHome() {
                     </div>
                     <Link
                         href="/dashboard/tools/new"
-                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent-blue text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
                     >
                         <span className="flex items-center">{renderIcon('plus', 16)}</span>
                         <span className="hidden sm:inline">Add Tool</span>
@@ -129,7 +129,7 @@ export default function DashboardHome() {
                                 href={action.href}
                                 className="flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-5 text-center no-underline bg-bg-card hover:bg-bg-secondary transition-colors group"
                             >
-                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-bg-tertiary flex items-center justify-center text-text-secondary group-hover:bg-accent-blue group-hover:text-white transition-colors">
+                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-bg-tertiary flex items-center justify-center text-text-secondary group-hover:bg-accent-primary group-hover:text-white transition-colors">
                                     {renderIcon(action.icon, 18)}
                                 </div>
                                 <div>
@@ -147,14 +147,14 @@ export default function DashboardHome() {
                     <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
                         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                             <h2 className="text-base font-semibold text-text-primary">Recently Updated</h2>
-                            <Link href="/dashboard/tools" className="text-xs text-accent-blue hover:underline no-underline flex items-center gap-1">
+                            <Link href="/dashboard/tools" className="text-xs text-accent-primary hover:underline no-underline flex items-center gap-1">
                                 View All {renderIcon('chevron-right', 12)}
                             </Link>
                         </div>
                         <div className="divide-y divide-border">
                             {recentTools.length === 0 ? (
                                 <div className="p-8 text-center text-text-tertiary text-sm">
-                                    No tools yet. <Link href="/dashboard/tools/new" className="text-accent-blue hover:underline">Add your first tool</Link>
+                                    No tools yet. <Link href="/dashboard/tools/new" className="text-accent-primary hover:underline">Add your first tool</Link>
                                 </div>
                             ) : (
                                 recentTools.map((tool) => (
@@ -166,7 +166,7 @@ export default function DashboardHome() {
                                         {tool.logoUrl ? (
                                             <img src={tool.logoUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
                                         ) : (
-                                            <div className="w-9 h-9 rounded-lg bg-accent-blue/10 flex items-center justify-center text-accent-blue font-bold text-sm flex-shrink-0">
+                                            <div className="w-9 h-9 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm flex-shrink-0">
                                                 {tool.name[0]}
                                             </div>
                                         )}
@@ -192,7 +192,7 @@ export default function DashboardHome() {
                     <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
                         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                             <h2 className="text-base font-semibold text-text-primary">Recently Published</h2>
-                            <Link href="/" target="_blank" className="text-xs text-accent-blue hover:underline no-underline flex items-center gap-1">
+                            <Link href="/" target="_blank" className="text-xs text-accent-primary hover:underline no-underline flex items-center gap-1">
                                 View Site {renderIcon('external-link', 12)}
                             </Link>
                         </div>

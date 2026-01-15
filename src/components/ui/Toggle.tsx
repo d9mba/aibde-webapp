@@ -12,7 +12,7 @@ export default function Toggle({ label, checked, onChange, disabled }: TogglePro
         <label className={`flex items-center gap-3 cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <div
                 onClick={() => !disabled && onChange(!checked)}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${checked ? 'bg-accent-blue' : 'bg-bg-tertiary'
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${checked ? 'bg-accent-primary' : 'bg-bg-tertiary'
                     }`}
             >
                 <div

@@ -18,7 +18,7 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-bg-primary">
             <div className="text-center p-8">
-                <div className="animate-spin w-10 h-10 border-2 border-accent-blue border-t-transparent rounded-full mx-auto mb-4"></div>
+                <div className="animate-spin w-10 h-10 border-2 border-accent-primary border-t-transparent rounded-full mx-auto mb-4"></div>
                 <p className="text-text-secondary">Redirecting...</p>
             </div>
         </div>

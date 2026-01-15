@@ -46,7 +46,7 @@ export default function StickyHeader({
                     ))}
                 </div>
                 {tool.websiteUrl && (
-                    <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer" className="px-3.5 py-1.5 bg-accent-blue text-white rounded-full text-xs font-medium no-underline">
+                    <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer" className="px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium no-underline">
                         Visit
                     </a>
                 )}

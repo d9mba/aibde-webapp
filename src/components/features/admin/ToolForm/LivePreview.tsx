@@ -41,7 +41,7 @@ export default function LivePreview({ control, categories, onExpand }: LivePrevi
         <div className="bg-bg-card border border-border rounded-xl p-4 sticky top-4">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-medium text-text-secondary">Live Preview</h3>
-                <button type="button" onClick={onExpand} className="text-xs text-accent-blue">
+                <button type="button" onClick={onExpand} className="text-xs text-accent-primary">
                     Expand ↗
                 </button>
             </div>
@@ -65,7 +65,7 @@ export default function LivePreview({ control, categories, onExpand }: LivePrevi
 
                     <div className="flex gap-2 mt-2 flex-wrap">
                         {categoryNames.length > 0 && (
-                            <span className="px-2 py-0.5 bg-accent-blue/10 text-accent-blue rounded text-xs">
+                            <span className="px-2 py-0.5 bg-accent-primary/10 text-accent-primary rounded text-xs">
                                 {firstCategoryName}{categoryNames.length > 1 && ` +${categoryNames.length - 1}`}
                             </span>
                         )}
@@ -89,7 +89,7 @@ export default function LivePreview({ control, categories, onExpand }: LivePrevi
                     href={affiliateEnabled && affiliateUrl ? affiliateUrl : websiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`px-3 py-1.5 rounded-lg text-sm ${websiteUrl ? 'bg-accent-blue text-white' : 'bg-bg-tertiary text-text-tertiary pointer-events-none'
+                    className={`px-3 py-1.5 rounded-lg text-sm ${websiteUrl ? 'bg-accent-primary text-white' : 'bg-bg-tertiary text-text-tertiary pointer-events-none'
                         }`}
                 >
                     Visit →

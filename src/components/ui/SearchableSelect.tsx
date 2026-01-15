@@ -173,7 +173,7 @@ export function SearchableSelect({
                                         className={`
                                             w-full text-left px-3 py-2 text-sm flex items-center justify-between rounded-lg transition-colors focus:outline-none
                                             ${isHighlighted ? 'bg-bg-tertiary text-text-primary' : 'text-text-secondary hover:bg-bg-secondary'}
-                                            ${isSelected ? 'bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20' : ''}
+                                            ${isSelected ? 'bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/20' : ''}
                                         `}
                                     >
                                         <div className="flex items-center gap-2 truncate">

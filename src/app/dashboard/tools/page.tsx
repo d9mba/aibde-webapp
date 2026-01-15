@@ -61,7 +61,7 @@ export default function ToolsListPage() {
                     </div>
                     <Link
                         href="/dashboard/tools/new"
-                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent-blue text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
                     >
                         <span className="flex items-center">{renderIcon('plus', 16)}</span>
                         <span className="hidden sm:inline">Add Tool</span>
@@ -77,7 +77,7 @@ export default function ToolsListPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search tools..."
-                            className="w-full pl-9 pr-4 py-2 sm:py-2.5 text-sm bg-bg-secondary border border-border rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-blue/30"
+                            className="w-full pl-9 pr-4 py-2 sm:py-2.5 text-sm bg-bg-secondary border border-border rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/30"
                         />
                     </div>
                     <div className="flex gap-2 sm:gap-3">
@@ -106,7 +106,7 @@ export default function ToolsListPage() {
                 <div className="sm:hidden space-y-3">
                     {filteredTools.length === 0 ? (
                         <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary">
-                            No tools found. <Link href="/dashboard/tools/new" className="text-accent-blue hover:underline">Add your first tool</Link>
+                            No tools found. <Link href="/dashboard/tools/new" className="text-accent-primary hover:underline">Add your first tool</Link>
                         </div>
                     ) : (
                         filteredTools.map((tool) => (
@@ -119,7 +119,7 @@ export default function ToolsListPage() {
                                     {tool.logoUrl ? (
                                         <img src={tool.logoUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                                     ) : (
-                                        <div className="w-10 h-10 rounded-lg bg-accent-blue-bg flex items-center justify-center text-accent-blue font-bold text-sm flex-shrink-0">
+                                        <div className="w-10 h-10 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary font-bold text-sm flex-shrink-0">
                                             {tool.name[0]}
                                         </div>
                                     )}
@@ -147,13 +147,13 @@ export default function ToolsListPage() {
                                 <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-border" onClick={(e) => e.stopPropagation()}>
                                     <button
                                         onClick={() => setPreviewTool(tool)}
-                                        className="p-2 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors"
+                                        className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                     >
                                         <Eye className="w-4 h-4" />
                                     </button>
                                     <Link
                                         href={`/dashboard/tools/${tool.id}`}
-                                        className="p-2 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors"
+                                        className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                     >
                                         <Pencil className="w-4 h-4" />
                                     </Link>
@@ -187,7 +187,7 @@ export default function ToolsListPage() {
                             {filteredTools.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-12 text-center text-text-tertiary">
-                                        No tools found. <Link href="/dashboard/tools/new" className="text-accent-blue hover:underline">Add your first tool</Link>
+                                        No tools found. <Link href="/dashboard/tools/new" className="text-accent-primary hover:underline">Add your first tool</Link>
                                     </td>
                                 </tr>
                             ) : (
@@ -202,7 +202,7 @@ export default function ToolsListPage() {
                                                 {tool.logoUrl ? (
                                                     <img src={tool.logoUrl} alt="" className="w-9 h-9 rounded-lg object-cover" />
                                                 ) : (
-                                                    <div className="w-9 h-9 rounded-lg bg-accent-blue-bg flex items-center justify-center text-accent-blue font-bold text-sm">
+                                                    <div className="w-9 h-9 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary font-bold text-sm">
                                                         {tool.name[0]}
                                                     </div>
                                                 )}
@@ -228,14 +228,14 @@ export default function ToolsListPage() {
                                             <div className="flex items-center justify-end gap-1">
                                                 <button
                                                     onClick={() => setPreviewTool(tool)}
-                                                    className="p-2 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors"
+                                                    className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                                     title="Preview"
                                                 >
                                                     <Eye className="w-4 h-4" />
                                                 </button>
                                                 <Link
                                                     href={`/dashboard/tools/${tool.id}`}
-                                                    className="p-2 text-text-tertiary hover:text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-colors"
+                                                    className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                                     title="Edit"
                                                 >
                                                     <Pencil className="w-4 h-4" />
@@ -270,7 +270,7 @@ export default function ToolsListPage() {
                                     {previewTool.logoUrl ? (
                                         <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-cover" />
                                     ) : (
-                                        <div className="w-20 h-20 bg-accent-blue/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-blue">
+                                        <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
                                             {previewTool.name[0]}
                                         </div>
                                     )}
@@ -284,7 +284,7 @@ export default function ToolsListPage() {
                                             <span className={`text-xs px-2 py-1 rounded-full ${previewTool.status === 'published' ? 'bg-green-500/10 text-green-500' : previewTool.status === 'draft' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-gray-500/10 text-gray-500'}`}>
                                                 {previewTool.status}
                                             </span>
-                                            <span className="text-xs px-2 py-1 bg-accent-blue/10 text-accent-blue rounded-full">{previewTool.pricingLabel}</span>
+                                            <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full">{previewTool.pricingLabel}</span>
                                             {previewTool.isFeatured && <span className="text-xs px-2 py-1 bg-yellow-500/10 text-yellow-600 rounded-full">Featured</span>}
                                         </div>
                                     </div>
@@ -377,7 +377,7 @@ export default function ToolsListPage() {
                                 {previewTool.websiteUrl && (
                                     <div>
                                         <h3 className="text-xs font-medium text-text-tertiary mb-1">Website</h3>
-                                        <a href={previewTool.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-blue hover:underline flex items-center gap-1">
+                                        <a href={previewTool.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline flex items-center gap-1">
                                             {previewTool.websiteUrl}
                                             <span className="inline-flex">{renderIcon('external-link', 12)}</span>
                                         </a>
@@ -388,7 +388,7 @@ export default function ToolsListPage() {
                             {/* Actions */}
                             <div className="border-t border-border p-4 flex gap-3">
                                 <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.slug}`); }}
-                                    className="flex-1 px-4 py-2.5 bg-accent-blue text-white rounded-xl text-sm font-medium hover:bg-accent-blue/90 flex items-center justify-center gap-2">
+                                    className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
                                     <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
                                 </button>
                                 <button onClick={() => { setPreviewTool(null); router.push(`/dashboard/tools/${previewTool.id}`); }}

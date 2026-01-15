@@ -24,7 +24,7 @@ export default function DashboardError({
                 <div className="flex gap-3 justify-center">
                     <button
                         onClick={() => reset()}
-                        className="px-4 py-2 bg-accent-blue text-white rounded-xl text-sm font-medium hover:bg-accent-blue/90"
+                        className="px-4 py-2 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90"
                     >
                         Try Again
                     </button>

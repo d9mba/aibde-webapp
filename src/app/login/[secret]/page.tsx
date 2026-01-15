@@ -68,14 +68,14 @@ export default function SecretLoginPage({ params }: { params: Promise<{ secret: 
             <div className="text-center p-8 max-w-md">
                 {status === 'validating' && (
                     <>
-                        <div className="animate-spin w-10 h-10 border-2 border-accent-blue border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <div className="animate-spin w-10 h-10 border-2 border-accent-primary border-t-transparent rounded-full mx-auto mb-4"></div>
                         <p className="text-text-secondary">Validating access...</p>
                     </>
                 )}
 
                 {status === 'redirecting' && (
                     <>
-                        <div className="animate-spin w-10 h-10 border-2 border-accent-blue border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <div className="animate-spin w-10 h-10 border-2 border-accent-primary border-t-transparent rounded-full mx-auto mb-4"></div>
                         <p className="text-text-primary font-medium mb-2">Valid access key</p>
                         <p className="text-text-secondary">Redirecting to sign-in...</p>
                     </>

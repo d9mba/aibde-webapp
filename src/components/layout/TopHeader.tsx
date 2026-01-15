@@ -167,7 +167,7 @@ export default function TopHeader() {
                         )}>
                             <form onSubmit={handleSearch} className="w-full">
                                 <div className="flex items-center gap-3 px-4 py-2.5">
-                                    <Search size={18} strokeWidth={1.5} className={cn("flex-shrink-0 transition-colors", isFocused ? "text-accent-blue" : "text-text-tertiary")} />
+                                    <Search size={18} strokeWidth={1.5} className={cn("flex-shrink-0 transition-colors", isFocused ? "text-accent-primary" : "text-text-tertiary")} />
                                     <input
                                         ref={inputRef}
                                         type="text"
@@ -230,8 +230,8 @@ export default function TopHeader() {
                                                 className="w-7 h-7 rounded-md object-cover flex-shrink-0"
                                             />
                                         ) : (
-                                            <div className="w-7 h-7 rounded-md bg-accent-blue/20 flex items-center justify-center flex-shrink-0">
-                                                <span className="text-xs font-semibold text-accent-blue">
+                                            <div className="w-7 h-7 rounded-md bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
+                                                <span className="text-xs font-semibold text-accent-primary">
                                                     {tool.name[0]}
                                                 </span>
                                             </div>

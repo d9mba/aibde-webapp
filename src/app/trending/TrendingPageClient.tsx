@@ -21,7 +21,7 @@ export default function TrendingPageClient({ tools }: TrendingPageClientProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {trendingTools.map((tool, index) => (
                     <div key={tool.id} className="relative">
-                        <span className="absolute -top-2 -left-2 z-10 w-8 h-8 flex items-center justify-center bg-accent-blue text-white text-xs font-bold rounded-full shadow-md">
+                        <span className="absolute -top-2 -left-2 z-10 w-8 h-8 flex items-center justify-center bg-accent-primary text-white text-xs font-bold rounded-full shadow-md">
                             #{index + 1}
                         </span>
                         <AIToolCard tool={tool} />

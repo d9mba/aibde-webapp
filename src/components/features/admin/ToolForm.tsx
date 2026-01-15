@@ -25,7 +25,7 @@ const FAQEditor = ({ items, onChange }: { items: { question: string; answer: str
             <div className="space-y-2 mb-3">
                 <input value={q} onChange={e => setQ(e.target.value)} placeholder="Question" className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary" />
                 <textarea value={a} onChange={e => setA(e.target.value)} placeholder="Answer" rows={2} className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary resize-none" />
-                <button type="button" onClick={add} className="px-3 py-1.5 bg-accent-blue text-white rounded-lg text-sm">Add FAQ</button>
+                <button type="button" onClick={add} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-sm">Add FAQ</button>
             </div>
             {items.map((faq, i) => (
                 <div key={i} className="p-3 bg-bg-secondary rounded-lg mb-2">
@@ -49,7 +49,7 @@ const PricingTierEditor = ({ tiers, onChange }: { tiers: any[]; onChange: (tiers
         <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-text-secondary">Pricing Tiers</label>
-                <button type="button" onClick={addTier} className="text-xs text-accent-blue hover:underline">+ Add Tier</button>
+                <button type="button" onClick={addTier} className="text-xs text-accent-primary hover:underline">+ Add Tier</button>
             </div>
             {tiers.map((tier, i) => (
                 <div key={i} className="p-4 bg-bg-secondary rounded-lg mb-3 border border-border">
@@ -86,7 +86,7 @@ const NotesEditor = ({ notes, onChange }: { notes: { note: string; createdAt: st
             <label className="block text-sm font-medium text-text-secondary mb-1.5">Internal Notes (Admin Only)</label>
             <div className="flex gap-2 mb-3">
                 <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Add a note..." rows={2} className="flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm resize-none" />
-                <button type="button" onClick={add} className="px-3 py-2 bg-accent-blue text-white rounded-lg text-sm self-end">Add</button>
+                <button type="button" onClick={add} className="px-3 py-2 bg-accent-primary text-white rounded-lg text-sm self-end">Add</button>
             </div>
             {notes.map((n, i) => (
                 <div key={i} className="p-3 bg-bg-secondary rounded-lg mb-2 flex justify-between">
@@ -111,7 +111,7 @@ const VersionEditor = ({ versions, onChange }: { versions: { version: string; re
             <div className="grid grid-cols-3 gap-2 mb-2">
                 <input value={v.version} onChange={e => setV({ ...v, version: e.target.value })} placeholder="Version (e.g., 2.0)" className="px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm" />
                 <input type="date" value={v.releasedAt} onChange={e => setV({ ...v, releasedAt: e.target.value })} className="px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm" />
-                <button type="button" onClick={add} className="px-3 py-2 bg-accent-blue text-white rounded-lg text-sm">Add</button>
+                <button type="button" onClick={add} className="px-3 py-2 bg-accent-primary text-white rounded-lg text-sm">Add</button>
             </div>
             <textarea value={v.releaseNotes} onChange={e => setV({ ...v, releaseNotes: e.target.value })} placeholder="Release notes..." rows={2} className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm resize-none mb-3" />
             {versions.map((ver, i) => (
@@ -139,7 +139,7 @@ const MultiImageUpload = ({ label, images, onChange }: {
             <label className="block text-sm font-medium text-text-secondary mb-1.5">{label}</label>
             <div className="flex gap-2 mb-3">
                 <input value={url} onChange={e => setUrl(e.target.value)} placeholder="Enter image URL..." className="flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm" />
-                <button type="button" onClick={add} className="px-3 py-2 bg-accent-blue text-white rounded-lg text-sm">Add</button>
+                <button type="button" onClick={add} className="px-3 py-2 bg-accent-primary text-white rounded-lg text-sm">Add</button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {images.map((img, i) => (
@@ -163,7 +163,7 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
         <div className="bg-bg-card border border-border rounded-xl p-4 sticky top-4 z-10">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-medium text-text-secondary">Live Preview</h3>
-                <button type="button" onClick={onExpand} className="text-xs text-accent-blue hover:underline">Full Preview</button>
+                <button type="button" onClick={onExpand} className="text-xs text-accent-primary hover:underline">Full Preview</button>
             </div>
             <div className="flex gap-4 items-start">
                 <div className="w-16 h-16 rounded-xl bg-bg-tertiary flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -173,7 +173,7 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
                     <h2 className="text-lg font-bold text-text-primary truncate">{values.name || 'Tool Name'}</h2>
                     <p className="text-sm text-text-secondary line-clamp-2">{values.summary || 'Short summary will appear here...'}</p>
                     <div className="flex gap-2 mt-2 flex-wrap">
-                        {firstCategory && <span className="px-2 py-0.5 bg-accent-blue/10 text-accent-blue rounded text-xs">{firstCategory}{categoryNames.length > 1 && ` +${categoryNames.length - 1}`}</span>}
+                        {firstCategory && <span className="px-2 py-0.5 bg-accent-primary/10 text-accent-primary rounded text-xs">{firstCategory}{categoryNames.length > 1 && ` +${categoryNames.length - 1}`}</span>}
                         {values.pricing && (
                             <span className={`px-2 py-0.5 rounded text-xs ${values.pricing === 'free' ? 'bg-accent-green/10 text-accent-green' : values.pricing === 'freemium' ? 'bg-accent-purple/10 text-accent-purple' : 'bg-accent-yellow/10 text-accent-yellow'}`}>
                                 {values.pricing === 'free' ? 'Free' : values.pricing === 'freemium' ? 'Freemium' : 'Paid'}
@@ -182,7 +182,7 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
                         {values.hasFreeTrial && <span className="px-2 py-0.5 bg-bg-tertiary text-text-secondary rounded text-xs">{values.freeTrialDays} day trial</span>}
                     </div>
                 </div>
-                <a href={values.affiliateEnabled && values.affiliateUrl ? values.affiliateUrl : values.websiteUrl || '#'} target="_blank" rel="noopener noreferrer" className={`px-3 py-1.5 rounded-lg text-sm ${values.websiteUrl ? 'bg-accent-blue text-white' : 'bg-bg-tertiary text-text-tertiary pointer-events-none'}`}>Visit →</a>
+                <a href={values.affiliateEnabled && values.affiliateUrl ? values.affiliateUrl : values.websiteUrl || '#'} target="_blank" rel="noopener noreferrer" className={`px-3 py-1.5 rounded-lg text-sm ${values.websiteUrl ? 'bg-accent-primary text-white' : 'bg-bg-tertiary text-text-tertiary pointer-events-none'}`}>Visit →</a>
             </div>
         </div>
     );
@@ -384,8 +384,8 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                 <div className="flex gap-2">
                     <button type="button" onClick={() => router.back()} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary">Cancel</button>
                     <button type="button" onClick={handleSaveAsDraft} disabled={isSubmitting} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save as Draft'}</button>
-                    {!isEdit && <button type="button" onClick={handleReadyForReview} disabled={isSubmitting} className="px-3 py-1.5 text-sm bg-accent-blue text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Ready for Review'}</button>}
-                    {isEdit && <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-blue text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Update'}</button>}
+                    {!isEdit && <button type="button" onClick={handleReadyForReview} disabled={isSubmitting} className="px-3 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Ready for Review'}</button>}
+                    {isEdit && <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Update'}</button>}
                 </div>
             </div>
 
@@ -630,8 +630,8 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-border">
                 <button type="button" onClick={() => router.back()} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary">Cancel</button>
                 <button type="button" onClick={handleSaveAsDraft} disabled={isSubmitting} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save as Draft'}</button>
-                {!isEdit && <button type="button" onClick={handleReadyForReview} disabled={isSubmitting} className="px-3 py-1.5 text-sm bg-accent-blue text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Ready for Review'}</button>}
-                {isEdit && <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-blue text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Update'}</button>}
+                {!isEdit && <button type="button" onClick={handleReadyForReview} disabled={isSubmitting} className="px-3 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Ready for Review'}</button>}
+                {isEdit && <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Update'}</button>}
             </div>
 
             {/* Full Preview Modal */}

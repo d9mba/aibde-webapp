@@ -60,7 +60,7 @@ const LinkModal = ({
                             value={text}
                             onChange={e => setText(e.target.value)}
                             placeholder="Display text (optional)"
-                            className="w-full px-2 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-blue)]"
+                            className="w-full px-2 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-primary)]"
                             autoFocus
                         />
                     </div>
@@ -71,7 +71,7 @@ const LinkModal = ({
                             value={url}
                             onChange={e => setUrl(e.target.value)}
                             placeholder="https://..."
-                            className="w-full px-2 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-blue)]"
+                            className="w-full px-2 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-primary)]"
                         />
                     </div>
                     <div className="flex gap-2 pt-1">
@@ -85,7 +85,7 @@ const LinkModal = ({
                         <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); if (url.trim()) onSubmit(url.trim(), text.trim()); }}
-                            className="flex-1 px-2 py-1.5 text-xs bg-[var(--accent-blue)] text-white rounded hover:opacity-90"
+                            className="flex-1 px-2 py-1.5 text-xs bg-[var(--accent-primary)] text-white rounded hover:opacity-90"
                         >
                             {initialUrl ? 'Update' : 'Insert Link'}
                         </button>
@@ -116,7 +116,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write s
         Link.extend({ name: 'customLink' }).configure({
             openOnClick: false,
             HTMLAttributes: {
-                class: 'text-[var(--accent-blue)] underline',
+                class: 'text-[var(--accent-primary)] underline',
                 target: '_blank',
                 rel: 'noopener noreferrer',
             },
@@ -233,18 +233,18 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write s
                 {!isHtmlMode && (
                     <>
                         <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()}
-                            className={`px-2 py-1 rounded text-sm font-bold ${editor?.isActive('bold') ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>B</button>
+                            className={`px-2 py-1 rounded text-sm font-bold ${editor?.isActive('bold') ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>B</button>
                         <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()}
-                            className={`px-2 py-1 rounded text-sm italic ${editor?.isActive('italic') ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>I</button>
+                            className={`px-2 py-1 rounded text-sm italic ${editor?.isActive('italic') ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>I</button>
                         <button type="button" onClick={() => editor?.chain().focus().toggleUnderline().run()}
-                            className={`px-2 py-1 rounded text-sm underline ${editor?.isActive('customUnderline') ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>U</button>
+                            className={`px-2 py-1 rounded text-sm underline ${editor?.isActive('customUnderline') ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>U</button>
                         <button type="button" onClick={() => editor?.chain().focus().toggleStrike().run()}
-                            className={`px-2 py-1 rounded text-sm line-through ${editor?.isActive('strike') ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>S</button>
+                            className={`px-2 py-1 rounded text-sm line-through ${editor?.isActive('strike') ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>S</button>
 
                         <div className="w-px h-5 bg-[var(--border-color)] mx-1" />
 
                         <button type="button" onClick={openLinkModal}
-                            className={`px-2 py-1 rounded text-sm ${editor?.isActive('customLink') ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>🔗</button>
+                            className={`px-2 py-1 rounded text-sm ${editor?.isActive('customLink') ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>🔗</button>
                         {editor?.isActive('customLink') && (
                             <button type="button" onClick={removeLink} className="px-1 py-1 rounded text-sm text-[var(--accent-red)] hover:bg-[var(--bg-tertiary)]">✕</button>
                         )}
@@ -252,20 +252,20 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write s
                         <div className="w-px h-5 bg-[var(--border-color)] mx-1" />
 
                         <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                            className={`px-2 py-1 rounded text-sm font-semibold ${editor?.isActive('heading', { level: 2 }) ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>H2</button>
+                            className={`px-2 py-1 rounded text-sm font-semibold ${editor?.isActive('heading', { level: 2 }) ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>H2</button>
                         <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-                            className={`px-2 py-1 rounded text-sm font-semibold ${editor?.isActive('heading', { level: 3 }) ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>H3</button>
+                            className={`px-2 py-1 rounded text-sm font-semibold ${editor?.isActive('heading', { level: 3 }) ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>H3</button>
 
                         <div className="w-px h-5 bg-[var(--border-color)] mx-1" />
 
                         <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                            className={`px-2 py-1 rounded text-sm ${editor?.isActive('bulletList') ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>•</button>
+                            className={`px-2 py-1 rounded text-sm ${editor?.isActive('bulletList') ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>•</button>
                         <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                            className={`px-2 py-1 rounded text-sm ${editor?.isActive('orderedList') ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>1.</button>
+                            className={`px-2 py-1 rounded text-sm ${editor?.isActive('orderedList') ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>1.</button>
                         <button type="button" onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                            className={`px-2 py-1 rounded text-sm ${editor?.isActive('blockquote') ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>❝</button>
+                            className={`px-2 py-1 rounded text-sm ${editor?.isActive('blockquote') ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>❝</button>
                         <button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-                            className={`px-2 py-1 rounded text-sm font-mono ${editor?.isActive('codeBlock') ? 'bg-[var(--accent-blue)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>&lt;/&gt;</button>
+                            className={`px-2 py-1 rounded text-sm font-mono ${editor?.isActive('codeBlock') ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>&lt;/&gt;</button>
                     </>
                 )}
                 <div className="flex-1" />
@@ -304,17 +304,17 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write s
                 .rich-text-content li { margin: 0.25rem 0; }
                 .rich-text-content li p { margin: 0; }
                 .rich-text-content blockquote {
-                    border-left: 4px solid var(--accent-blue);
+                    border-left: 4px solid var(--accent-primary);
                     padding: 0.5rem 1rem;
                     margin: 0.5rem 0;
-                    background: var(--accent-blue-bg);
+                    background: var(--accent-primary-bg);
                     border-radius: 0 6px 6px 0;
                     font-style: italic;
                 }
                 .rich-text-content pre { background: var(--bg-tertiary); padding: 1rem; border-radius: 6px; margin: 0.5rem 0; }
                 .rich-text-content code { font-family: monospace; font-size: 0.9em; background: var(--bg-tertiary); padding: 0.2em 0.4em; border-radius: 3px; }
                 .rich-text-content pre code { background: none; padding: 0; }
-                .rich-text-content a { color: var(--accent-blue); text-decoration: underline; }
+                .rich-text-content a { color: var(--accent-primary); text-decoration: underline; }
             `}</style>
         </div>
     );

@@ -89,7 +89,7 @@ export default function ReportsPage() {
                                 </div>
                                 <div className="flex gap-4 text-sm">
                                     <span className="text-text-secondary">{tool.views} views</span>
-                                    <span className="text-accent-blue">{tool.clicks} clicks</span>
+                                    <span className="text-accent-primary">{tool.clicks} clicks</span>
                                 </div>
                             </div>
                         ))}
@@ -109,7 +109,7 @@ export default function ReportsPage() {
                                 <div key={cat.id} className="flex items-center gap-3">
                                     <span className="text-sm text-text-secondary w-24 truncate">{cat.categoryName}</span>
                                     <div className="flex-1 h-2 bg-bg-secondary rounded-full overflow-hidden">
-                                        <div className="h-full bg-accent-blue rounded-full" style={{ width: `${percentage}%` }} />
+                                        <div className="h-full bg-accent-primary rounded-full" style={{ width: `${percentage}%` }} />
                                     </div>
                                     <span className="text-xs text-text-tertiary w-8">{count}</span>
                                 </div>

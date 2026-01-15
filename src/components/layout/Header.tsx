@@ -141,12 +141,10 @@ export default function Header() {
     return (
         <>
             {/* Mobile Bottom Navigation Bar - Compact Capsule Style */}
-            <nav
-                className="fixed left-4 right-4 z-[201] lg:hidden bg-bg-secondary border border-border rounded-full flex items-center justify-around py-1.5 px-2 shadow-lg"
-                style={{ bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }}
-            >
+            <nav className="fixed bottom-3 left-4 right-4 z-[201] lg:hidden bg-bg-secondary border border-border rounded-full flex items-center justify-around py-1.5 px-2 shadow-lg">
                 <Link
                     href="/"
+                    prefetch={false}
                     className={cn(
                         "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
                         pathname === '/' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
@@ -170,6 +168,7 @@ export default function Header() {
 
                 <Link
                     href="/trending"
+                    prefetch={false}
                     className={cn(
                         "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
                         pathname === '/trending' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
@@ -181,6 +180,7 @@ export default function Header() {
 
                 <Link
                     href="/new"
+                    prefetch={false}
                     className={cn(
                         "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
                         pathname === '/new' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
@@ -299,6 +299,7 @@ export default function Header() {
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                prefetch={false}
                                 className={cn(
                                     "flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-colors",
                                     isActive(item.href)
@@ -318,6 +319,7 @@ export default function Header() {
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                prefetch={false}
                                 className={cn(
                                     "flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-colors",
                                     isActive(item.href)
@@ -337,6 +339,7 @@ export default function Header() {
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                prefetch={false}
                                 className="flex items-center gap-3 px-4 py-3 text-base font-medium text-accent-primary rounded-lg transition-colors hover:bg-bg-tertiary"
                                 onClick={() => setSidebarOpen(false)}
                             >
@@ -404,6 +407,7 @@ export default function Header() {
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                prefetch={false}
                                 className={cn(
                                     "flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] no-underline rounded-md transition-all duration-fast whitespace-nowrap focus:outline-none",
                                     isActive(item.href)
@@ -433,6 +437,7 @@ export default function Header() {
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                prefetch={false}
                                 className={cn(
                                     "flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] no-underline rounded-md transition-all duration-fast whitespace-nowrap focus:outline-none",
                                     isActive(item.href)
@@ -462,6 +467,7 @@ export default function Header() {
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                prefetch={false}
                                 className="flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] text-accent-primary no-underline rounded-md transition-all duration-fast whitespace-nowrap hover:bg-bg-tertiary focus:outline-none"
                                 onClick={handleLinkClick}
                                 title={item.label}

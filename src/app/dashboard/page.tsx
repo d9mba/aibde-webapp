@@ -93,6 +93,7 @@ export default function DashboardHome() {
                     </div>
                     <Link
                         href="/dashboard/tools/new"
+                        prefetch={false}
                         className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
                     >
                         <span className="flex items-center">{renderIcon('plus', 16)}</span>
@@ -106,6 +107,7 @@ export default function DashboardHome() {
                         <Link
                             key={stat.label}
                             href={stat.href}
+                            prefetch={false}
                             className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 hover:shadow-md transition-all hover:border-text-tertiary no-underline group cursor-pointer active:scale-[0.98] flex flex-col items-center text-center"
                         >
                             <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-bg-tertiary border border-border flex items-center justify-center ${stat.color} group-hover:scale-110 transition-transform mb-2`}>
@@ -127,6 +129,7 @@ export default function DashboardHome() {
                             <Link
                                 key={action.href}
                                 href={action.href}
+                                prefetch={false}
                                 className="flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-5 text-center no-underline bg-bg-card hover:bg-bg-secondary transition-colors group"
                             >
                                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-bg-tertiary flex items-center justify-center text-text-secondary group-hover:bg-accent-primary group-hover:text-white transition-colors">
@@ -147,20 +150,21 @@ export default function DashboardHome() {
                     <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
                         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                             <h2 className="text-base font-semibold text-text-primary">Recently Updated</h2>
-                            <Link href="/dashboard/tools" className="text-xs text-accent-primary hover:underline no-underline flex items-center gap-1">
+                            <Link href="/dashboard/tools" prefetch={false} className="text-xs text-accent-primary hover:underline no-underline flex items-center gap-1">
                                 View All {renderIcon('chevron-right', 12)}
                             </Link>
                         </div>
                         <div className="divide-y divide-border">
                             {recentTools.length === 0 ? (
                                 <div className="p-8 text-center text-text-tertiary text-sm">
-                                    No tools yet. <Link href="/dashboard/tools/new" className="text-accent-primary hover:underline">Add your first tool</Link>
+                                    No tools yet. <Link href="/dashboard/tools/new" prefetch={false} className="text-accent-primary hover:underline">Add your first tool</Link>
                                 </div>
                             ) : (
                                 recentTools.map((tool) => (
                                     <Link
                                         key={tool.id}
                                         href={`/dashboard/tools/${tool.id}`}
+                                        prefetch={false}
                                         className="flex items-center gap-3 px-5 py-3 hover:bg-bg-secondary transition-colors no-underline"
                                     >
                                         {tool.logoUrl ? (
@@ -192,7 +196,7 @@ export default function DashboardHome() {
                     <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
                         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                             <h2 className="text-base font-semibold text-text-primary">Recently Published</h2>
-                            <Link href="/" target="_blank" className="text-xs text-accent-primary hover:underline no-underline flex items-center gap-1">
+                            <Link href="/" prefetch={false} target="_blank" className="text-xs text-accent-primary hover:underline no-underline flex items-center gap-1">
                                 View Site {renderIcon('external-link', 12)}
                             </Link>
                         </div>

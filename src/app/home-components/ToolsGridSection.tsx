@@ -110,6 +110,7 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
             <div className="flex justify-center mt-4">
                 <Link
                     href={activeTab === 'latest' ? '/new' : '/trending'}
+                    prefetch={false}
                     className="inline-flex items-center gap-1.5 px-5 py-2.5 text-[0.8125rem] font-medium text-text-secondary bg-bg-tertiary rounded-full transition-all duration-fast hover:bg-accent-primary hover:text-white"
                 >
                     View all {activeTab === 'latest' ? 'latest' : 'trending'} tools

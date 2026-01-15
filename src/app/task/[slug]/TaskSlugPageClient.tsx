@@ -34,7 +34,7 @@ export default function TaskSlugPageClient({
                     </div>
                     <h1 className="text-2xl font-bold text-text-primary mb-2">Task not found</h1>
                     <p className="text-text-secondary mb-4">The task you&apos;re looking for doesn&apos;t exist.</p>
-                    <Link href="/tasks" className="inline-flex items-center gap-1.5 text-accent-green hover:underline">
+                    <Link href="/tasks" prefetch={false} className="inline-flex items-center gap-1.5 text-accent-green hover:underline">
                         <ArrowLeft className="w-4 h-4" /> Browse all tasks
                     </Link>
                 </div>
@@ -45,7 +45,7 @@ export default function TaskSlugPageClient({
     return (
         <div className="max-w-[1200px] mx-auto px-3 sm:px-6 py-4 sm:py-8">
             {/* Back Link */}
-            <Link href="/tasks" className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-accent-green mb-4 no-underline">
+            <Link href="/tasks" prefetch={false} className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-accent-green mb-4 no-underline">
                 <ArrowLeft className="w-4 h-4" /> Back to Tasks
             </Link>
 
@@ -75,7 +75,7 @@ export default function TaskSlugPageClient({
                     <div className="col-span-full text-center py-12 bg-bg-card border border-border rounded-xl">
                         <Target className="w-10 h-10 text-text-tertiary mx-auto mb-3" />
                         <p className="text-text-secondary mb-2">No tools found for this task yet.</p>
-                        <Link href="/tasks" className="text-accent-green hover:underline text-sm">Browse other tasks</Link>
+                        <Link href="/tasks" prefetch={false} className="text-accent-green hover:underline text-sm">Browse other tasks</Link>
                     </div>
                 )}
             </div>
@@ -84,7 +84,7 @@ export default function TaskSlugPageClient({
             <section className="border-t border-border pt-6 sm:pt-8">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-text-primary">Other Tasks</h2>
-                    <Link href="/tasks" className="text-sm text-text-tertiary hover:text-accent-green no-underline flex items-center gap-1">
+                    <Link href="/tasks" prefetch={false} className="text-sm text-text-tertiary hover:text-accent-green no-underline flex items-center gap-1">
                         View all <ChevronRight className="w-4 h-4" />
                     </Link>
                 </div>
@@ -96,6 +96,7 @@ export default function TaskSlugPageClient({
                             <Link
                                 key={t.taskName}
                                 href={`/task/${slugify(t.taskName)}`}
+                                prefetch={false}
                                 className="px-3 sm:px-4 py-1.5 sm:py-2 bg-bg-card border border-border rounded-full text-xs sm:text-sm text-text-secondary no-underline transition-all duration-200 hover:border-accent-green hover:text-accent-green hover:bg-accent-green/5"
                             >
                                 {t.taskName}

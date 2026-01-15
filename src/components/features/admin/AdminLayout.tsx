@@ -143,7 +143,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         isPinned ? 'lg:w-sidebar' : 'lg:w-sidebar-collapsed lg:hover:w-sidebar'
                     )}>
                         <div className="px-3 py-3.5 border-b border-border flex items-center justify-between">
-                            <Link href="/dashboard" className="flex items-center gap-2.5 no-underline">
+                            <Link href="/dashboard" prefetch={false} className="flex items-center gap-2.5 no-underline">
                                 <span className="flex items-center justify-center w-8 h-8 text-accent-primary flex-shrink-0">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                                         <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -189,6 +189,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                                             <Link
                                                 key={item.href}
                                                 href={item.href}
+                                                prefetch={false}
                                                 className={cn(
                                                     "flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] no-underline rounded-md transition-all duration-fast whitespace-nowrap",
                                                     isActive(item.href)
@@ -247,6 +248,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                             </SignOutButton>
                             <Link
                                 href="/"
+                                prefetch={false}
                                 className="flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] text-text-secondary no-underline rounded-md transition-all duration-fast whitespace-nowrap hover:bg-bg-tertiary hover:text-text-primary"
                                 title="Back to Site"
                             >

@@ -61,6 +61,7 @@ export default function ToolsListPage() {
                     </div>
                     <Link
                         href="/dashboard/tools/new"
+                        prefetch={false}
                         className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
                     >
                         <span className="flex items-center">{renderIcon('plus', 16)}</span>
@@ -106,7 +107,7 @@ export default function ToolsListPage() {
                 <div className="sm:hidden space-y-3">
                     {filteredTools.length === 0 ? (
                         <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary">
-                            No tools found. <Link href="/dashboard/tools/new" className="text-accent-primary hover:underline">Add your first tool</Link>
+                            No tools found. <Link href="/dashboard/tools/new" prefetch={false} className="text-accent-primary hover:underline">Add your first tool</Link>
                         </div>
                     ) : (
                         filteredTools.map((tool) => (
@@ -127,8 +128,8 @@ export default function ToolsListPage() {
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="font-medium text-text-primary truncate">{tool.name}</div>
                                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${tool.status === 'published' ? 'bg-accent-green-bg text-accent-green' :
-                                                    tool.status === 'draft' ? 'bg-accent-yellow/10 text-accent-yellow' :
-                                                        'bg-accent-purple-bg text-accent-purple'
+                                                tool.status === 'draft' ? 'bg-accent-yellow/10 text-accent-yellow' :
+                                                    'bg-accent-purple-bg text-accent-purple'
                                                 }`}>
                                                 {tool.status}
                                             </span>
@@ -153,6 +154,7 @@ export default function ToolsListPage() {
                                     </button>
                                     <Link
                                         href={`/dashboard/tools/${tool.id}`}
+                                        prefetch={false}
                                         className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                     >
                                         <Pencil className="w-4 h-4" />
@@ -187,7 +189,7 @@ export default function ToolsListPage() {
                             {filteredTools.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-12 text-center text-text-tertiary">
-                                        No tools found. <Link href="/dashboard/tools/new" className="text-accent-primary hover:underline">Add your first tool</Link>
+                                        No tools found. <Link href="/dashboard/tools/new" prefetch={false} className="text-accent-primary hover:underline">Add your first tool</Link>
                                     </td>
                                 </tr>
                             ) : (
@@ -235,6 +237,7 @@ export default function ToolsListPage() {
                                                 </button>
                                                 <Link
                                                     href={`/dashboard/tools/${tool.id}`}
+                                                    prefetch={false}
                                                     className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                                     title="Edit"
                                                 >

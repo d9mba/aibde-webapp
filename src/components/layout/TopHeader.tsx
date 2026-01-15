@@ -144,7 +144,7 @@ export default function TopHeader() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
                 <div className="flex items-center justify-between h-14 sm:h-16 gap-4">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2 no-underline flex-shrink-0">
+                    <Link href="/" prefetch={false} className="flex items-center gap-2 no-underline flex-shrink-0">
                         <span className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight font-orbitron">
                             aibde
                         </span>
@@ -268,6 +268,7 @@ export default function TopHeader() {
                         {!showHeaderSearch && (
                             <Link
                                 href="/search"
+                                prefetch={false}
                                 className="flex items-center justify-center w-10 h-10 text-text-secondary hover:text-text-primary rounded-full hover:bg-bg-secondary transition-colors"
                             >
                                 <Search size={20} strokeWidth={1.5} />

@@ -31,6 +31,7 @@ export default function CategoryPageClient({ categories, tools }: CategoryPageCl
                         <Link
                             key={category.categoryName}
                             href={`/category/${slugify(category.categoryName)}`}
+                            prefetch={false}
                             className="group p-4 sm:p-5 bg-bg-card border border-border rounded-xl no-underline transition-all duration-200 hover:border-accent-primary/50 hover:shadow-lg hover:shadow-accent-primary/5 active:scale-[0.98]"
                         >
                             <div className="flex items-start gap-3">

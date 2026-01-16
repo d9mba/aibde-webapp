@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { taskSchema } from '@/lib/validations';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
-// GET /api/tasks - List all tasks (PROTECTED)
+// GET /api/tasks - List all tasks (ADMIN ONLY)
 export async function GET() {
     try {
-        // SECURITY: Require authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const { data, error } = await supabaseAdmin
@@ -35,13 +34,12 @@ export async function GET() {
     }
 }
 
-// POST /api/tasks - Create new task (protected)
+// POST /api/tasks - Create new task (ADMIN ONLY)
 export async function POST(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const body = await request.json();
@@ -79,13 +77,12 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// PUT /api/tasks - Update task (protected)
+// PUT /api/tasks - Update task (ADMIN ONLY)
 export async function PUT(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const body = await request.json();
@@ -123,13 +120,12 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-// DELETE /api/tasks - Delete task (protected)
+// DELETE /api/tasks - Delete task (ADMIN ONLY)
 export async function DELETE(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const { searchParams } = new URL(request.url);

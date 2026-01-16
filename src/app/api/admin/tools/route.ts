@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
 import { toolSchema } from '@/lib/validations';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 // All fields for tools - admin can see everything
 const ALL_FIELDS = `
@@ -21,21 +21,11 @@ const ALL_FIELDS = `
     internal_notes, scheduled_at, spotlight_start_date, spotlight_end_date
 `;
 
-// Admin auth check helper
-async function requireAdmin() {
-    const { userId } = await auth();
-    if (!userId) {
-        return { error: 'Unauthorized', status: 401, userId: null };
-    }
-    // TODO: Add role check when RBAC is configured in Clerk
-    return { error: null, status: 200, userId };
-}
-
 // GET /api/admin/tools - List all tools (admin only)
 export async function GET(request: NextRequest) {
     try {
         const authResult = await requireAdmin();
-        if (authResult.error) {
+        if (isAuthError(authResult)) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
@@ -72,7 +62,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const authResult = await requireAdmin();
-        if (authResult.error) {
+        if (isAuthError(authResult)) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 

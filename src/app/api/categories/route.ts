@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { categorySchema } from '@/lib/validations';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
-// GET /api/categories - List all categories (PROTECTED)
+// GET /api/categories - List all categories (ADMIN ONLY)
 export async function GET() {
     try {
-        // SECURITY: Require authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const { data, error } = await supabaseAdmin
@@ -36,13 +35,12 @@ export async function GET() {
     }
 }
 
-// POST /api/categories - Create new category (protected)
+// POST /api/categories - Create new category (ADMIN ONLY)
 export async function POST(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const body = await request.json();
@@ -80,13 +78,12 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// PUT /api/categories - Update category (protected)
+// PUT /api/categories - Update category (ADMIN ONLY)
 export async function PUT(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const body = await request.json();
@@ -125,13 +122,12 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-// DELETE /api/categories - Delete category (protected)
+// DELETE /api/categories - Delete category (ADMIN ONLY)
 export async function DELETE(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const { searchParams } = new URL(request.url);

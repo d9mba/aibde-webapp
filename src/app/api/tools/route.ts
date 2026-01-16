@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
 import { toolSchema } from '@/lib/validations';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 // All fields for tools - needed for edit form to work correctly
 // WARNING: Contains sensitive fields - use only for single-tool detail view
@@ -40,17 +40,15 @@ const LIST_FIELDS = `
     spotlight_start_date, spotlight_end_date
 `;
 
-// GET /api/tools - List tools (PROTECTED)
-// Requires authentication - use /api/public/tools for public access
+// GET /api/tools - List tools (ADMIN ONLY)
+// Requires admin role - use /api/public/tools for public access
 // Supports pagination: ?page=1&limit=50 (default: 50 per page)
 // Use ?all=true to fetch all tools (for export/backup)
 export async function GET(request: NextRequest) {
     try {
-        const { userId } = await auth();
-
-        // SECURITY: Require authentication
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const { searchParams } = new URL(request.url);
@@ -133,13 +131,13 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// POST /api/tools - Create new tool (protected)
+// POST /api/tools - Create new tool (ADMIN ONLY)
 export async function POST(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        // Check admin role
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const body = await request.json();

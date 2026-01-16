@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { noteSchema } from '@/lib/validations';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
-// GET /api/notes - List all notes (PROTECTED - admin/internal only)
+// GET /api/notes - List all notes (ADMIN ONLY)
 export async function GET() {
     try {
-        // SECURITY: Notes are internal - require authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const { data, error } = await supabaseAdmin
@@ -37,13 +36,12 @@ export async function GET() {
     }
 }
 
-// POST /api/notes - Create new note (protected)
+// POST /api/notes - Create new note (ADMIN ONLY)
 export async function POST(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const body = await request.json();
@@ -87,13 +85,12 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// PUT /api/notes - Update note (protected)
+// PUT /api/notes - Update note (ADMIN ONLY)
 export async function PUT(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const body = await request.json();
@@ -143,13 +140,12 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-// DELETE /api/notes - Delete note (protected)
+// DELETE /api/notes - Delete note (ADMIN ONLY)
 export async function DELETE(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const { searchParams } = new URL(request.url);

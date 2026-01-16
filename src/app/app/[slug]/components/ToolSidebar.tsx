@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { AdminTool } from '@/types';
 import { getFullUrl, logoColors } from './utils';
+import { addUtmParams } from '@/lib/url-utils';
+import { trackToolVisit } from '@/hooks/useToolAnalytics';
 
 // Ensure URL has https:// protocol
 const ensureUrl = (url: string): string => {
@@ -32,9 +34,13 @@ export default function ToolSidebar({
                     <div className="space-y-3">
                         {tool.websiteUrl && (
                             <a
-                                href={tool.websiteUrl}
+                                href={`/go/${tool.slug}`}
                                 target="_blank"
-                                rel="noopener noreferrer"
+                                rel={tool.premium ? "noopener" : "noopener noreferrer nofollow"}
+                                onClick={() => trackToolVisit(
+                                    { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                                    tool.websiteUrl || ''
+                                )}
                                 className="flex items-center gap-2.5 text-sm text-text-secondary hover:text-accent-primary transition-colors no-underline group"
                             >
                                 <svg className="w-4 h-4 text-text-tertiary group-hover:text-accent-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

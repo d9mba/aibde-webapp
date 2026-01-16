@@ -3,55 +3,39 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Search } from 'lucide-react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { useSearch } from '@/context/SearchContext';
+import { useAdminData } from '@/context/AdminContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
 import { useDebounce } from '@/hooks/useDebounce';
+import { quickSearchTools } from '@/lib/search';
 import { AdminTool } from '@/types';
 
 export default function TopHeader() {
     const router = useRouter();
     const pathname = usePathname();
     const { searchQuery, setSearchQuery, isMainSearchFocused } = useSearch();
+    const adminData = useAdminData();
     const [showHeaderSearch, setShowHeaderSearch] = useState(false);
     const [showRecommendations, setShowRecommendations] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
-    const [recommendations, setRecommendations] = useState<AdminTool[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const typingPlaceholder = useTypingPlaceholder();
 
     // Debounce search query for recommendations
-    const debouncedQuery = useDebounce(searchQuery, 300);
+    const debouncedQuery = useDebounce(searchQuery, 150);
 
-    // Fetch recommendations from server-side search API
-    useEffect(() => {
-        const fetchRecommendations = async () => {
-            if (!debouncedQuery || debouncedQuery.trim().length < 2) {
-                setRecommendations([]);
-                return;
-            }
-
-            setIsSearching(true);
-            try {
-                const response = await fetch(`/api/tools/search?q=${encodeURIComponent(debouncedQuery)}&limit=6`);
-                if (response.ok) {
-                    const tools = await response.json();
-                    setRecommendations(tools);
-                }
-            } catch (error) {
-                console.error('Search error:', error);
-                setRecommendations([]);
-            } finally {
-                setIsSearching(false);
-            }
-        };
-
-        fetchRecommendations();
-    }, [debouncedQuery]);
+    // Get tools from AdminContext and filter client-side (no API calls!)
+    const tools = adminData?.getPublishedTools() || [];
+    const recommendations = useMemo(() => {
+        if (!debouncedQuery || debouncedQuery.trim().length < 2) {
+            return [];
+        }
+        return quickSearchTools(tools, debouncedQuery, 6);
+    }, [tools, debouncedQuery]);
 
     // Pages that have their own search bar
     const pagesWithSearch = ['/', '/search'];
@@ -96,12 +80,14 @@ export default function TopHeader() {
     }, []);
 
     // Global keyboard shortcut: Ctrl+K or Cmd+K to focus search
+    // Only handle when TopHeader search is visible (scrolled past 200px)
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
-            // Ctrl+K or Cmd+K
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            // Ctrl+K or Cmd+K - only when scrolled down enough to see TopHeader search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k' && window.scrollY >= 200) {
                 e.preventDefault();
                 inputRef.current?.focus();
+                setIsFocused(true);
                 setShowRecommendations(true);
             }
         };

@@ -1,5 +1,7 @@
 import { AdminTool } from '@/types';
 import { getFullUrl, getLogoColor, Section } from './utils';
+import { addUtmParams } from '@/lib/url-utils';
+import { trackToolVisit } from '@/hooks/useToolAnalytics';
 
 interface StickyHeaderProps {
     tool: AdminTool;
@@ -46,7 +48,12 @@ export default function StickyHeader({
                     ))}
                 </div>
                 {tool.websiteUrl && (
-                    <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer" className="px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium no-underline">
+                    <a href={`/go/${tool.slug}`} target="_blank" rel="noopener noreferrer"
+                        onClick={() => trackToolVisit(
+                            { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                            tool.websiteUrl || ''
+                        )}
+                        className="px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium no-underline">
                         Visit
                     </a>
                 )}

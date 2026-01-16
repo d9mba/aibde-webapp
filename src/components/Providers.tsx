@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { AdminProvider } from '@/context/AdminContext';
 import { SearchProvider } from '@/context/SearchContext';
 import { SidebarProvider } from '@/context/SidebarContext';
+import { PostHogProvider } from '@/components/providers/PostHogProvider';
 import { AdminTool } from '@/types';
 
 interface ProvidersProps {
@@ -13,13 +14,14 @@ interface ProvidersProps {
 
 export default function Providers({ children, headerTools }: ProvidersProps) {
     return (
-        <AdminProvider initialTools={headerTools}>
-            <ThemeProvider>
-                <SidebarProvider>
-                    <SearchProvider>{children}</SearchProvider>
-                </SidebarProvider>
-            </ThemeProvider>
-        </AdminProvider>
+        <PostHogProvider>
+            <AdminProvider initialTools={headerTools}>
+                <ThemeProvider>
+                    <SidebarProvider>
+                        <SearchProvider>{children}</SearchProvider>
+                    </SidebarProvider>
+                </ThemeProvider>
+            </AdminProvider>
+        </PostHogProvider>
     );
 }
-

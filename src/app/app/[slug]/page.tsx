@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { getToolBySlug, getPublishedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
 import ToolDetailClient from './ToolDetailClient';
 
+// PERFORMANCE: ISR - regenerate page every 5 minutes
+export const revalidate = 300;
 // Generate dynamic metadata for SEO
 export async function generateMetadata({
     params,

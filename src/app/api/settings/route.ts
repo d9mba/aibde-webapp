@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { supabaseAdmin } from '@/lib/supabase';
 import { settingsSchema } from '@/lib/validations';
 
 // GET /api/settings - Get settings (PROTECTED)
 export async function GET() {
     try {
-        // SECURITY: Require authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        // SECURITY: Require admin role to view settings
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const { data, error } = await supabaseAdmin
@@ -47,10 +47,10 @@ export async function GET() {
 // PUT /api/settings - Update settings (protected)
 export async function PUT(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        // SECURITY: Require admin role to modify settings
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const body = await request.json();

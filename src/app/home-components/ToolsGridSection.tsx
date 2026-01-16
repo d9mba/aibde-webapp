@@ -64,7 +64,7 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
 
     return (
         <section className="flex flex-col gap-4">
-            <div className="flex justify-center mb-2 sticky top-14 sm:top-16 z-[50] py-4 -mx-4 sm:-mx-6 px-4 sm:px-6">
+            <div className="flex justify-center mb-2 sticky top-14 sm:top-16 z-10 py-4 -mx-4 sm:-mx-6 px-4 sm:px-6">
                 <div className="inline-flex gap-1 p-1 bg-bg-tertiary rounded-full">
                     <button
                         className={`inline-flex items-center gap-2 px-6 py-2.5 text-[0.9375rem] font-semibold border-none rounded-full cursor-pointer transition-all duration-fast ${activeTab === 'latest'

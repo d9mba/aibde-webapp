@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { createAdminClient } from '@/lib/supabase/server';
 import { dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
 import { toolSchema } from '@/lib/validations';
 
@@ -28,10 +28,6 @@ async function requireAdmin() {
         return { error: 'Unauthorized', status: 401, userId: null };
     }
     // TODO: Add role check when RBAC is configured in Clerk
-    // const { sessionClaims } = await auth();
-    // if (sessionClaims?.metadata?.role !== 'admin') {
-    //     return { error: 'Forbidden', status: 403, userId: null };
-    // }
     return { error: null, status: 200, userId };
 }
 
@@ -46,7 +42,9 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
 
-        let query = supabaseAdmin
+        const supabase = await createAdminClient();
+
+        let query = supabase
             .from('tools')
             .select(ALL_FIELDS)
             .order('created_at', { ascending: false });
@@ -61,7 +59,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        const tools = (data || []).map((tool) => dbToolToAdminTool(tool));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tools = (data || []).map((tool: any) => dbToolToAdminTool(tool));
 
         return NextResponse.json(tools);
     } catch (err) {
@@ -92,7 +91,8 @@ export async function POST(request: NextRequest) {
         dbTool.created_at = new Date().toISOString();
         dbTool.updated_at = new Date().toISOString();
 
-        const { data, error } = await supabaseAdmin
+        const supabase = await createAdminClient();
+        const { data, error } = await supabase
             .from('tools')
             .insert([dbTool])
             .select()

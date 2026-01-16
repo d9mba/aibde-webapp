@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { AdminTool, Category, Task } from '@/types';
 import ShareModal from '@/components/ui/ShareModal';
+import { useToolPageView, trackToolVisit } from '@/hooks/useToolAnalytics';
+import { addUtmParams } from '@/lib/url-utils';
 
 // Import all modular components
 import {
@@ -42,6 +44,15 @@ export default function ToolDetailClient({
     const [selectedMedia, setSelectedMedia] = useState(0);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+
+    // Analytics: Track page view and time spent
+    useToolPageView({
+        id: tool.id,
+        name: tool.name,
+        slug: tool.slug,
+        category: (tool.categoryName || [])[0],
+        pricing: tool.pricing,
+    });
 
     // Get related/alternative tools
     const relatedTools = useMemo(() => {
@@ -216,9 +227,13 @@ export default function ToolDetailClient({
 
                     {/* Visit button */}
                     <a
-                        href={tool.affiliateEnabled && tool.affiliateUrl ? tool.affiliateUrl : tool.websiteUrl}
+                        href={`/go/${tool.slug}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => trackToolVisit(
+                            { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                            tool.affiliateEnabled && tool.affiliateUrl ? tool.affiliateUrl : tool.websiteUrl || ''
+                        )}
                         className="flex items-center justify-center px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium hover:bg-accent-primary/90 transition-colors"
                     >
                         Visit
@@ -263,18 +278,6 @@ export default function ToolDetailClient({
                         </>
                     )}
                 </div>
-
-                {/* Scroll to top button - glossy effect */}
-                <button
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                    className="ml-2 w-12 h-12 bg-bg-secondary rounded-full shadow-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors flex-shrink-0"
-                    aria-label="Scroll to top"
-                    suppressHydrationWarning
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m18 15-6-6-6 6" />
-                    </svg>
-                </button>
             </div>
 
             {/* Share Modal */}

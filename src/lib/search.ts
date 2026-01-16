@@ -17,8 +17,13 @@ function similarity(str1: string, str2: string): number {
     if (s1 === s2) return 1;
     if (s1.length === 0 || s2.length === 0) return 0;
 
-    // For very short strings, be more strict
-    if (s1.length < 3 || s2.length < 3) {
+    // For very short strings, be very strict to avoid flooding results
+    // Length < 2: Only exact match gets a score
+    if (s1.length < 2 || s2.length < 2) {
+        return s1 === s2 ? 1.0 : 0;
+    }
+    // Length 2-3: Require containment for a score
+    if (s1.length < 4 || s2.length < 4) {
         return s1.includes(s2) || s2.includes(s1) ? 0.8 : 0;
     }
 
@@ -218,7 +223,8 @@ export function searchTools(tools: AITool[], query: string): AITool[] {
                 matchType = 'tag';
             }
             // Priority 13: Summary contains query (score: 150)
-            else if (summary.includes(normalizedQuery) || fuzzyMatch(summary, normalizedQuery, 0.8)) {
+            // OPTIMIZATION: Use simple .includes() instead of fuzzyMatch for long text
+            else if (summary.includes(normalizedQuery)) {
                 score = 150;
                 matchType = 'content';
             }
@@ -232,11 +238,10 @@ export function searchTools(tools: AITool[], query: string): AITool[] {
                 score = 50;
                 matchType = 'content';
             }
-            // Priority 16: Fuzzy match on description words (score: 25)
-            else if (queryWords.some(word => word.length >= 4 && fuzzyMatch(description, word, 0.75))) {
-                score = 25;
-                matchType = 'content';
-            }
+            // REMOVED: Priority 16 (Fuzzy match on description words)
+            // Rationale: Too expensive for client-side search on large datasets.
+            // The Levenshtein matrix calculation on 50-word descriptions × 500 tools
+            // would cause 50,000+ matrix calculations per keystroke.
         }
 
         // Boost score based on additional matches

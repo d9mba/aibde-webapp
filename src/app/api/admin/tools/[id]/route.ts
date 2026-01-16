@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { createAdminClient } from '@/lib/supabase/server';
 import { dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
 import { toolUpdateSchema } from '@/lib/validations';
 
@@ -25,8 +25,9 @@ export async function GET(
         }
 
         const { id } = await params;
+        const supabase = await createAdminClient();
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('tools')
             .select('*')
             .eq('id', id)
@@ -71,7 +72,8 @@ export async function PUT(
         const dbTool = adminToolToDbTool(body);
         dbTool.updated_at = new Date().toISOString();
 
-        const { data, error } = await supabaseAdmin
+        const supabase = await createAdminClient();
+        const { data, error } = await supabase
             .from('tools')
             .update(dbTool)
             .eq('id', id)
@@ -100,8 +102,9 @@ export async function DELETE(
         }
 
         const { id } = await params;
+        const supabase = await createAdminClient();
 
-        const { error } = await supabaseAdmin
+        const { error } = await supabase
             .from('tools')
             .delete()
             .eq('id', id);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, dbToolToAdminTool } from '@/lib/supabase';
+// SECURITY: Use anonymous client (not admin) to let RLS act as safety net
+import { supabase, dbToolToAdminTool } from '@/lib/supabase';
 
 // Public fields for single tool detail - excludes sensitive internal data
 const PUBLIC_DETAIL_FIELDS = `
@@ -20,7 +21,7 @@ export async function GET(
     try {
         const { id } = await params;
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('tools')
             .select(PUBLIC_DETAIL_FIELDS)
             .eq('id', id)

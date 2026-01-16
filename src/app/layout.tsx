@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import Providers from '@/components/Providers';
 import { LayoutWrapper } from '@/components/layout/LayoutWrapper';
-import { getPublishedTools } from '@/lib/data';
 import '@/styles/globals.css';
 
 export const metadata: Metadata = {
@@ -22,8 +21,9 @@ export default async function RootLayout({
 }: {
     children: React.ReactNode;
 }) {
-    // Fetch tools on server for header search (SSR)
-    const tools = await getPublishedTools();
+    // PERFORMANCE: Removed blocking getPublishedTools() call
+    // Tools are now fetched per-page (with ISR) or lazy-loaded by AdminContext
+    // This eliminates a DB query on every single page view
 
     // No ClerkProvider here - public routes don't need Clerk
     return (
@@ -73,14 +73,6 @@ export default async function RootLayout({
                     gtag('config', 'G-HT35EHF7PQ');`}
                 </Script>
 
-                {/* Microsoft Clarity */}
-                <Script id="clarity-script" strategy="afterInteractive">
-                    {`(function(c,l,a,r,i,t,y){
-                        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                    })(window, document, "clarity", "script", "v19ejk4063");`}
-                </Script>
             </head>
             <body className="bg-bg-primary text-text-primary antialiased transition-colors duration-normal" suppressHydrationWarning>
                 {/* Google Tag Manager (noscript) */}
@@ -93,7 +85,7 @@ export default async function RootLayout({
                     />
                 </noscript>
 
-                <Providers headerTools={tools}>
+                <Providers>
                     <LayoutWrapper>{children}</LayoutWrapper>
                 </Providers>
             </body>

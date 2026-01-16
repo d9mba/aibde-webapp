@@ -614,6 +614,10 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                             )}
                         </div>
                         <div className="pt-4 border-t border-border mt-4">
+                            <Controller name="premium" control={control} render={({ field }) => <Toggle label="Premium" checked={field.value || false} onChange={field.onChange} />} />
+                            <p className="text-xs text-text-tertiary mt-1">Premium tools get SEO backlinks (dofollow) and direct website links</p>
+                        </div>
+                        <div className="pt-4 border-t border-border mt-4">
                             <Input label="Save Count" type="number" {...register('saveCount', { valueAsNumber: true })} placeholder="0" />
                             <p className="text-xs text-text-tertiary mt-1">Number of saves/bookmarks for this tool</p>
                         </div>
@@ -644,6 +648,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                         logoUrl: watch('logoUrl'),
                         status: watch('status'),
                         pricing: watch('pricing'),
+                        pricingLabel: watch('pricingLabel'),
                         categoryName: watch('categoryName'),
                         taskName: watch('taskName'),
                         websiteUrl: watch('websiteUrl'),
@@ -652,6 +657,13 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                         tags: watch('tags'),
                         pros: watch('pros'),
                         cons: watch('cons'),
+                        coreFeatures: watch('coreFeatures'),
+                        useCases: watch('useCases'),
+                        faq: watch('faq'),
+                        images: watch('images'),
+                        videos: watch('videos'),
+                        pricingTiers: watch('pricingTiers'),
+                        socialLinks: watch('socialLinks'),
                     }}
                     categories={categories}
                     tasks={tasks}

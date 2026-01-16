@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, dbToolToAdminTool } from '@/lib/supabase';
+// SECURITY: Use anonymous client (not admin) to let RLS act as safety net
+import { supabase, dbToolToAdminTool } from '@/lib/supabase';
+
+// PERFORMANCE: Edge runtime for faster cold starts
+export const runtime = 'edge';
 
 // Light fields for public list views - excludes sensitive/heavy data
 const PUBLIC_LIST_FIELDS = `
@@ -28,7 +32,7 @@ export async function GET(request: NextRequest) {
         const offset = (page - 1) * limit;
 
         // Get total count for pagination
-        let countQuery = supabaseAdmin
+        let countQuery = supabase
             .from('tools')
             .select('id', { count: 'exact', head: true })
             .eq('status', 'published');
@@ -43,7 +47,7 @@ export async function GET(request: NextRequest) {
         const { count: totalCount } = await countQuery;
 
         // Build main query
-        let query = supabaseAdmin
+        let query = supabase
             .from('tools')
             .select(PUBLIC_LIST_FIELDS)
             .eq('status', 'published') // Only published tools

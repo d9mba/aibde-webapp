@@ -141,14 +141,18 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 return fallback;
             }
 
-            const [tools, categories, tasks, tags, notes, settings] = await Promise.all([
-                extractData(results[0], []),
+            const [toolsResponse, categories, tasks, tags, notes, settings] = await Promise.all([
+                extractData(results[0], { data: [], pagination: {} }),
                 extractData(results[1], []),
                 extractData(results[2], []),
                 extractData(results[3], []),
                 extractData(results[4], []),
                 extractData(results[5], defaultSettings),
             ]);
+
+            // Handle paginated tools response - API returns { data: [...], pagination: {...} }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const tools = Array.isArray(toolsResponse) ? toolsResponse : ((toolsResponse as any)?.data || []);
 
             return {
                 tools: Array.isArray(tools) ? tools : [],
@@ -185,8 +189,10 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             return;
         }
 
-        // OPTIMIZATION: Skip if already fetched (prevents double-fetch)
-        if (dataFetched && state.tools.length > 0) {
+        // OPTIMIZATION: Skip if already fetched (all data must be present)
+        // Note: This needs to check categories too since initialTools only has tools
+        const hasFullData = state.tools.length > 0 && state.categories.length > 0;
+        if (dataFetched && hasFullData) {
             setIsLoaded(true);
             setIsLoading(false);
             return;

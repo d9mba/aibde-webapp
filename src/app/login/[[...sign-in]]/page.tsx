@@ -1,26 +1,36 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { SignIn } from '@clerk/nextjs';
 
 /**
- * /login page - Redirects to search page
- * Login is only accessible via secret URL: /login/{secret}
+ * /login page - Clerk Sign-In
+ * 
+ * SECURITY: This page is protected by middleware.
+ * Direct access to /login is blocked unless:
+ * 1. User has admin_access cookie (set by /login/SECRET)
+ * 2. User is already signed in
+ * 
+ * After successful sign-in, redirects to /dashboard
  */
 export default function LoginPage() {
-    const router = useRouter();
-
-    useEffect(() => {
-        // Redirect to search page - login only works with secret
-        router.replace('/search?q=lo');
-    }, [router]);
-
     return (
         <div className="min-h-screen flex items-center justify-center bg-bg-primary">
-            <div className="text-center p-8">
-                <div className="animate-spin w-10 h-10 border-2 border-accent-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-text-secondary">Redirecting...</p>
-            </div>
+            <SignIn
+                appearance={{
+                    elements: {
+                        rootBox: 'mx-auto',
+                        card: 'bg-bg-secondary border border-border-primary shadow-xl',
+                        headerTitle: 'text-text-primary',
+                        headerSubtitle: 'text-text-secondary',
+                        formFieldLabel: 'text-text-secondary',
+                        formFieldInput: 'bg-bg-tertiary border-border-primary text-text-primary',
+                        formButtonPrimary: 'bg-accent-primary hover:bg-accent-primary/90',
+                        footerActionLink: 'text-accent-primary hover:text-accent-primary/80',
+                    },
+                }}
+                forceRedirectUrl="/dashboard"
+                fallbackRedirectUrl="/dashboard"
+            />
         </div>
     );
 }

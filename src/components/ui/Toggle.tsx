@@ -3,22 +3,30 @@
 interface ToggleProps {
     label: string;
     checked: boolean;
-    onChange: (value: boolean) => void;
+    onChange: (checked: boolean) => void;
     disabled?: boolean;
 }
 
 export default function Toggle({ label, checked, onChange, disabled }: ToggleProps) {
     return (
-        <label className={`flex items-center gap-3 cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            <div
-                onClick={() => !disabled && onChange(!checked)}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${checked ? 'bg-accent-primary' : 'bg-bg-tertiary'
-                    }`}
-            >
-                <div
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'
-                        }`}
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="relative">
+                <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => onChange(e.target.checked)}
+                    disabled={disabled}
+                    className="sr-only"
                 />
+                <div
+                    className={`w-10 h-5 rounded-full transition-colors ${checked ? 'bg-accent-primary' : 'bg-bg-tertiary'
+                        } ${disabled ? 'opacity-50' : ''}`}
+                >
+                    <div
+                        className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'
+                            }`}
+                    />
+                </div>
             </div>
             <span className="text-sm text-text-secondary">{label}</span>
         </label>

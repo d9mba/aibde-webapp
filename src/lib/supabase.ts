@@ -116,6 +116,9 @@ export interface DbTool {
     spotlight_start_date?: string;
     spotlight_end_date?: string;
 
+    // Premium - gives dofollow backlinks (SEO value)
+    premium?: boolean;
+
     // Legacy fields for backwards compat (may not exist in all DBs)
     screenshots?: string[];
     video_url?: string;
@@ -177,6 +180,19 @@ function toArray(value: string | string[] | undefined | null): string[] {
         return value.split(',').map(s => s.trim()).filter(Boolean);
     }
     return [];
+}
+
+// Helper to parse JSON fields that may come as strings from the database
+function parseJsonField<T>(value: T | string | undefined | null, defaultValue: T): T {
+    if (value === null || value === undefined) return defaultValue;
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value) as T;
+        } catch {
+            return defaultValue;
+        }
+    }
+    return value;
 }
 
 // Helper to format relative time (e.g., "Added 10 sec ago", "Updated 2 hr ago")
@@ -278,17 +294,17 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         useCases: dbTool.use_cases,
         pros: dbTool.pros,
         cons: dbTool.cons,
-        faq: dbTool.faq,
+        faq: parseJsonField(dbTool.faq, []),
 
         // Pricing
-        pricingTiers: dbTool.pricing_tiers,
+        pricingTiers: parseJsonField(dbTool.pricing_tiers, []),
         hasFreeTrial: dbTool.has_free_trial,
         freeTrialDays: dbTool.free_trial_days,
         discount: dbTool.discount,
         billingFrequency: dbTool.billing_frequency,
 
         // Version & Alternatives
-        versionHistory: dbTool.version_history,
+        versionHistory: parseJsonField(dbTool.version_history, []),
         alternativeTools: dbTool.alternative_tools,
         manualAlternatives: dbTool.manual_alternatives,
         references: dbTool.tool_references,
@@ -299,14 +315,14 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         contactCompany: dbTool.contact_company,
         contactAddress: dbTool.contact_address,
         contactMobile: dbTool.contact_mobile,
-        socialLinks: dbTool.social_links,
+        socialLinks: parseJsonField(dbTool.social_links, {}),
 
         // Company Info
         playStoreUrl: dbTool.play_store_url,
         appStoreUrl: dbTool.app_store_url,
 
         // Internal
-        internalNotes: dbTool.internal_notes,
+        internalNotes: parseJsonField(dbTool.internal_notes, []),
 
         // Publishing
         status: dbTool.status,
@@ -315,6 +331,7 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         spotlightPosition: dbTool.spotlight_position,
         spotlightStartDate: dbTool.spotlight_start_date,
         spotlightEndDate: dbTool.spotlight_end_date,
+        premium: dbTool.premium,
 
         // Display
         showScreenshots: dbTool.show_screenshots,
@@ -387,6 +404,9 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         spotlightPosition: 'spotlight_position',
         spotlightStartDate: 'spotlight_start_date',
         spotlightEndDate: 'spotlight_end_date',
+
+        // Premium
+        premium: 'premium',
 
         // Display
         showScreenshots: 'show_screenshots',

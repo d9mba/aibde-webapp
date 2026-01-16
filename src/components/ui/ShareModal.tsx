@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { X, Link2, Check, Mail, Share2 } from 'lucide-react';
+import posthog from 'posthog-js';
 
 interface ShareModalProps {
     isOpen: boolean;
@@ -84,11 +85,35 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
         if (e.target === e.currentTarget) onClose();
     };
 
+    // Add UTM params to share URL for tracking
+    const addShareUtm = (baseUrl: string): string => {
+        try {
+            const urlObj = new URL(baseUrl);
+            urlObj.searchParams.set('ref', 'aibde');
+            urlObj.searchParams.set('utm_source', 'aibde');
+            urlObj.searchParams.set('utm_medium', 'share');
+            return urlObj.toString();
+        } catch {
+            const separator = baseUrl.includes('?') ? '&' : '?';
+            return `${baseUrl}${separator}ref=aibde&utm_source=aibde&utm_medium=share`;
+        }
+    };
+
+    const shareUrl = addShareUtm(url);
+
     const handleCopyLink = async () => {
         try {
-            await navigator.clipboard.writeText(url);
+            await navigator.clipboard.writeText(shareUrl);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
+            // Track share in PostHog
+            if (typeof window !== 'undefined' && posthog) {
+                posthog.capture('share_link_copied', {
+                    share_url: url,
+                    share_title: title,
+                    share_method: 'copy_link',
+                });
+            }
         } catch {
             // Silently fail
         }
@@ -100,8 +125,16 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
                 await navigator.share({
                     title: title,
                     text: description || `Check out ${title}`,
-                    url: url,
+                    url: shareUrl,
                 });
+                // Track share in PostHog
+                if (typeof window !== 'undefined' && posthog) {
+                    posthog.capture('share_completed', {
+                        share_url: url,
+                        share_title: title,
+                        share_method: 'native_share',
+                    });
+                }
             } catch {
                 // User cancelled or error - silently fail
             }
@@ -109,7 +142,8 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
     };
 
     const shareText = `Check out ${title}${description ? ` - ${description}` : ''}`;
-    const encodedUrl = encodeURIComponent(url);
+
+    const encodedUrl = encodeURIComponent(shareUrl);
     const encodedText = encodeURIComponent(shareText);
     const encodedTitle = encodeURIComponent(title);
 
@@ -229,6 +263,15 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
                                     href={option.href}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={() => {
+                                        if (typeof window !== 'undefined' && posthog) {
+                                            posthog.capture('share_social_clicked', {
+                                                share_url: url,
+                                                share_title: title,
+                                                share_method: option.name.toLowerCase(),
+                                            });
+                                        }
+                                    }}
                                     className="flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl bg-bg-secondary hover:bg-bg-tertiary border border-border hover:border-text-tertiary transition-all group"
                                     title={option.name}
                                 >

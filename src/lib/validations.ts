@@ -1,15 +1,12 @@
 import { z } from 'zod';
-import { sanitize } from './sanitize';
 
 /**
  * Zod validation schemas for API input validation
  * Ensures all API inputs are properly validated before processing
+ * 
+ * NOTE: HTML sanitization is done client-side via SafeHtml component
+ * using DOMPurify. Server-side sanitization removed to avoid Edge conflicts.
  */
-
-// SECURITY: Sanitize HTML to prevent XSS attacks
-const sanitizeHtml = (html: string): string => {
-    return sanitize(html);
-};
 
 // Tool creation/update schema - validates tool data
 export const toolSchema = z.object({
@@ -19,10 +16,9 @@ export const toolSchema = z.object({
         .max(100)
         .optional(),
     summary: z.string().max(500, 'Summary too long').optional().nullable(),
-    // SECURITY: Sanitize HTML in description to prevent XSS
+    // HTML sanitization handled client-side via SafeHtml/DOMPurify
     description: z.string()
         .max(10000, 'Description too long')
-        .transform((val) => val ? sanitizeHtml(val) : val)
         .optional()
         .nullable(),
     categoryName: z.array(z.string()).optional().nullable(),

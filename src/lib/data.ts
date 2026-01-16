@@ -10,13 +10,13 @@ import { AdminTool, Category, Task } from '@/types';
 
 /**
  * Fetch published tools for the homepage
- * Only returns tools with status = 'published'
+ * Returns tools with status = 'published' or 'approved'
  */
 export async function getPublishedTools(): Promise<AdminTool[]> {
     const { data, error } = await supabase
         .from('tools')
         .select('*')
-        .eq('status', 'published')
+        .in('status', ['published', 'approved'])
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -34,7 +34,7 @@ export async function getSpotlightTools(limit: number = 8): Promise<AdminTool[]>
     const { data, error } = await supabase
         .from('tools')
         .select('*')
-        .eq('status', 'published')
+        .in('status', ['published', 'approved'])
         .eq('spotlight_enabled', true)
         .order('spotlight_position', { ascending: true })
         .limit(limit);
@@ -100,7 +100,7 @@ export async function getToolBySlug(slug: string): Promise<AdminTool | null> {
         .from('tools')
         .select('*')
         .eq('app_username', slug)
-        .eq('status', 'published')
+        .in('status', ['published', 'approved'])
         .single();
 
     if (error) {

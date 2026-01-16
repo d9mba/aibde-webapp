@@ -113,14 +113,38 @@ export default function SettingsPage() {
                 {/* Analytics */}
                 <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
                     <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
-                        <h2 className="text-sm sm:text-base font-semibold text-text-primary">Analytics</h2>
+                        <h2 className="text-sm sm:text-base font-semibold text-text-primary">Analytics (PostHog)</h2>
                     </div>
                     <div className="px-3 sm:px-5 py-3 sm:py-4">
-                        <div className="p-3 sm:p-4 bg-accent-primary-bg border border-accent-primary/20 rounded-lg">
-                            <p className="text-sm text-text-primary font-medium">PostHog Integration</p>
-                            <p className="text-[10px] sm:text-xs text-text-secondary mt-1">
-                                Analytics will be tracked automatically once PostHog is configured.
+                        <div className="p-3 sm:p-4 bg-accent-green/10 border border-accent-green/20 rounded-lg mb-4">
+                            <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-accent-green rounded-full animate-pulse"></div>
+                                <p className="text-sm text-text-primary font-medium">PostHog Connected</p>
+                            </div>
+                            <p className="text-[10px] sm:text-xs text-text-secondary">
+                                Analytics are tracked automatically via PostHog.
                             </p>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div>
+                                <p className="text-xs font-medium text-text-secondary mb-2">Events Tracked</p>
+                                <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
+                                    <div className="p-2 bg-bg-secondary rounded">📊 Page views</div>
+                                    <div className="p-2 bg-bg-secondary rounded">👀 Tool impressions</div>
+                                    <div className="p-2 bg-bg-secondary rounded">🖱️ Tool clicks</div>
+                                    <div className="p-2 bg-bg-secondary rounded">🔗 Outbound redirects</div>
+                                    <div className="p-2 bg-bg-secondary rounded">🔍 Search queries</div>
+                                    <div className="p-2 bg-bg-secondary rounded">📤 Shares</div>
+                                </div>
+                            </div>
+
+                            <a
+                                href="/dashboard/analytics"
+                                className="inline-flex items-center gap-2 text-sm text-accent-primary hover:underline"
+                            >
+                                View Analytics Dashboard →
+                            </a>
                         </div>
                     </div>
                 </div>

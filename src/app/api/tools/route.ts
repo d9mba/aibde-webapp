@@ -21,15 +21,23 @@ const ALL_FIELDS = `
     internal_notes, scheduled_at, spotlight_start_date, spotlight_end_date
 `;
 
-// SECURITY: Lighter fields for list views - excludes sensitive data
-// Does NOT include: internal_notes, contact details, full descriptions
+// Complete fields for admin tool list and edit form
+// Includes all fields needed for ToolForm to work
 const LIST_FIELDS = `
-    id, name, app_username, summary,
+    id, name, app_username, summary, description,
     category_name, task_name, tags,
     pricing, pricing_label, logo_url,
-    website_url, save_count, is_featured, released_at,
-    status, spotlight_position, spotlight_enabled,
-    created_at, updated_at
+    website_url, affiliate_url, affiliate_enabled,
+    save_count, is_featured, released_at,
+    status, images, videos, spotlight_position, spotlight_enabled,
+    play_store_url, app_store_url, social_links,
+    core_features, use_cases, pros, cons, faq,
+    pricing_tiers, has_free_trial, free_trial_days, discount, billing_frequency,
+    version_history, alternative_tools, tool_references,
+    contact_name, contact_email, contact_company, contact_address, contact_mobile,
+    internal_notes, scheduled_at,
+    created_at, updated_at,
+    spotlight_start_date, spotlight_end_date
 `;
 
 // GET /api/tools - List tools (PROTECTED)

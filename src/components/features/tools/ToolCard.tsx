@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { AITool } from '@/types';
 import ShareModal from '@/components/ui/ShareModal';
+import { trackToolClick, useToolImpression, trackFilterUsed } from '@/hooks/useToolAnalytics';
 
 interface AIToolCardProps {
     tool: AITool;
@@ -35,6 +36,12 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
     const isCompact = variant === 'compact';
     const isFeatured = variant === 'featured';
 
+    // Analytics: Track impressions when card is visible
+    const impressionRef = useToolImpression(
+        { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+        isFeatured ? 'featured' : 'list'
+    );
+
     const handleViewClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         window.location.href = `/app/${tool.slug}`;
@@ -54,11 +61,17 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
     };
 
     const handleCardClick = () => {
+        // Analytics: Track tool click
+        trackToolClick(
+            { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+            isFeatured ? 'featured' : 'card'
+        );
         window.location.href = `/app/${tool.slug}`;
     };
 
     return (
         <div
+            ref={impressionRef}
             className={`
                 flex flex-col gap-3 p-4 bg-bg-card rounded-lg border cursor-pointer relative overflow-hidden min-h-[180px]
                 transition-[border-color,box-shadow,background-color] duration-fast hover:border-text-tertiary hover:shadow-md hover:bg-bg-card-hover group
@@ -111,6 +124,7 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
                                 style={{ color: '#0d9488', backgroundColor: 'rgba(13, 148, 136, 0.08)' }}
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    trackFilterUsed('category', (tool.categoryName || [])[0]);
                                     window.location.href = `/category/${slugify((tool.categoryName || [])[0])}`;
                                 }}
                                 onMouseEnter={(e) => {
@@ -138,6 +152,7 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
                                 style={{ color: '#ea580c', backgroundColor: 'rgba(234, 88, 12, 0.08)' }}
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    trackFilterUsed('task', (tool.taskName || [])[0]);
                                     window.location.href = `/task/${slugify((tool.taskName || [])[0])}`;
                                 }}
                                 onMouseEnter={(e) => {
@@ -169,6 +184,7 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
                     }}
                     onClick={(e) => {
                         e.stopPropagation();
+                        trackFilterUsed('pricing', tool.pricing || 'unknown');
                         window.location.href = `/search?pricing=${tool.pricing}`;
                     }}
                 >

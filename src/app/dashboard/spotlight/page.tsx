@@ -23,8 +23,8 @@ export default function SpotlightPage() {
         if (!search) return availableTools.slice(0, 5);
         const searchLower = search.toLowerCase();
         return availableTools.filter(t =>
-            t.name.toLowerCase().includes(searchLower) ||
-            (t.categoryName || []).some(cat => cat.toLowerCase().includes(searchLower))
+            (t.name || '').toLowerCase().includes(searchLower) ||
+            (t.categoryName || []).some(cat => (cat || '').toLowerCase().includes(searchLower))
         );
     }, [availableTools, search]);
 
@@ -104,7 +104,7 @@ export default function SpotlightPage() {
                                             <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover" />
                                         ) : (
                                             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary text-xs font-bold">
-                                                {tool.name[0]}
+                                                {(tool.name || 'T')[0]}
                                             </div>
                                         )}
                                         <div className="flex-1 min-w-0">
@@ -175,7 +175,7 @@ export default function SpotlightPage() {
                                                 <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover" />
                                             ) : (
                                                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-bg-secondary flex items-center justify-center text-text-tertiary text-xs font-bold">
-                                                    {tool.name[0]}
+                                                    {(tool.name || 'T')[0]}
                                                 </div>
                                             )}
                                             <div className="flex-1 min-w-0">

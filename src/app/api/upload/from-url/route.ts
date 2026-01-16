@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { uploadFile, generateUniqueFilename } from '@/services/storage.service';
 import sharp from 'sharp';
+import dns from 'dns/promises';
 
 // Block private/internal IP ranges to prevent SSRF
+function isPrivateIP(ip: string): boolean {
+    // Block private IP ranges (10.x, 192.168.x, 127.x, 172.16-31.x, 0.x, 169.254.x, ::1)
+    if (/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|0\.|169\.254\.|::1|fc00:|fe80:)/.test(ip)) {
+        return true;
+    }
+    return false;
+}
+
 function isPrivateUrl(urlString: string): boolean {
     try {
         const url = new URL(urlString);
@@ -35,6 +44,21 @@ function isPrivateUrl(urlString: string): boolean {
         return false;
     } catch {
         return true; // Block invalid URLs
+    }
+}
+
+// SECURITY: Resolve DNS and check if IP is private (prevents DNS rebinding)
+async function validateHostname(hostname: string): Promise<void> {
+    try {
+        const { address } = await dns.lookup(hostname);
+        if (isPrivateIP(address)) {
+            throw new Error('Internal IP blocked');
+        }
+    } catch (e) {
+        if (e instanceof Error && e.message === 'Internal IP blocked') {
+            throw e;
+        }
+        throw new Error('DNS resolution failed or blocked');
     }
 }
 
@@ -77,11 +101,23 @@ async function compressImage(input: Uint8Array, mimeType: string): Promise<Uint8
 
 // POST /api/upload/from-url - Download image from URL and upload to R2 (PROTECTED)
 export async function POST(request: NextRequest) {
+    // Import rate limiter at runtime to avoid edge compatibility issues
+    const { checkRateLimit, rateLimits } = await import('@/lib/rate-limit');
+
     try {
         // SECURITY: Require authentication
         const { userId } = await auth();
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // SECURITY: Rate limiting - 10 uploads per minute per user
+        const rateLimit = await checkRateLimit(`upload:${userId}`, rateLimits.upload);
+        if (!rateLimit.success) {
+            return NextResponse.json(
+                { error: 'Rate limit exceeded. Please wait before uploading more.' },
+                { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimit.resetTime - Date.now()) / 1000)) } }
+            );
         }
 
         const { url, type = 'logo', name = '' } = await request.json();
@@ -108,6 +144,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid URL: only HTTP/HTTPS allowed' }, { status: 400 });
         }
 
+        // SECURITY: Validate hostname via DNS resolution to prevent DNS rebinding attacks
+        try {
+            await validateHostname(parsedUrl.hostname);
+        } catch (e) {
+            console.error(`[Security] SSRF blocked: ${e instanceof Error ? e.message : 'Unknown error'} for URL: ${url}`);
+            return NextResponse.json({ error: 'Invalid URL: blocked for security reasons' }, { status: 400 });
+        }
+
         // Fetch image from URL (server-side, bypasses CORS)
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
@@ -119,8 +163,15 @@ export async function POST(request: NextRequest) {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 },
                 signal: controller.signal,
-                redirect: 'follow',
+                // SECURITY: Disable automatic redirects to prevent redirect-based SSRF
+                redirect: 'error',
             });
+        } catch (fetchError) {
+            // Handle redirect errors specifically
+            if (fetchError instanceof Error && fetchError.message.includes('redirect')) {
+                return NextResponse.json({ error: 'URL redirects are not allowed for security reasons' }, { status: 400 });
+            }
+            throw fetchError;
         } finally {
             clearTimeout(timeout);
         }
@@ -140,19 +191,48 @@ export async function POST(request: NextRequest) {
 
         // Check content-length header first if available
         const contentLength = response.headers.get('content-length');
-        if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (contentLength && parseInt(contentLength) > maxSize) {
             return NextResponse.json({ error: 'Image too large (max 10MB)' }, { status: 400 });
         }
 
-        // Get the image buffer
-        const arrayBuffer = await response.arrayBuffer();
-        const originalBuffer = new Uint8Array(arrayBuffer);
-        const originalSize = originalBuffer.length;
-
-        // Validate size (max 10MB)
-        if (originalSize > 10 * 1024 * 1024) {
-            return NextResponse.json({ error: 'Image too large (max 10MB)' }, { status: 400 });
+        // SECURITY: Stream the body with size limit to prevent memory exhaustion (DoS)
+        // This protects against zip bombs and fake Content-Length headers
+        const reader = response.body?.getReader();
+        if (!reader) {
+            return NextResponse.json({ error: 'Failed to read response body' }, { status: 500 });
         }
+
+        const chunks: Uint8Array[] = [];
+        let totalSize = 0;
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                totalSize += value.length;
+
+                // SECURITY: Abort immediately if size exceeds limit
+                if (totalSize > maxSize) {
+                    reader.cancel();
+                    return NextResponse.json({ error: 'Image too large (max 10MB)' }, { status: 400 });
+                }
+
+                chunks.push(value);
+            }
+        } finally {
+            reader.releaseLock();
+        }
+
+        // Combine chunks into single buffer
+        const originalBuffer = new Uint8Array(totalSize);
+        let offset = 0;
+        for (const chunk of chunks) {
+            originalBuffer.set(chunk, offset);
+            offset += chunk.length;
+        }
+        const originalSize = totalSize;
 
         // Compress image
         const isImage = contentType.startsWith('image/') && !contentType.includes('svg');

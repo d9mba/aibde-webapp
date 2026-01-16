@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
@@ -26,7 +26,23 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
     const { searchQuery, setSearchQuery, isMainSearchFocused, setIsMainSearchFocused } = useSearch();
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const typingPlaceholder = useTypingPlaceholder();
-    const debouncedSearchQuery = useDebounce(searchQuery, 300);
+    const debouncedSearchQuery = useDebounce(searchQuery, 150);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Ctrl+K keyboard shortcut to focus hero search (only when at top of page)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Only handle if TopHeader search is not visible (scrolled less than 200px)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k' && window.scrollY < 200) {
+                e.preventDefault();
+                e.stopPropagation();
+                inputRef.current?.focus();
+                setIsMainSearchFocused(true);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+        return () => document.removeEventListener('keydown', handleKeyDown, true);
+    }, [setIsMainSearchFocused]);
 
     const searchResults = useMemo(() => {
         if (debouncedSearchQuery.length === 0) return [];
@@ -42,15 +58,16 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
             <p className="text-text-tertiary text-xs sm:text-sm -mt-2">
                 <Link href="/search" prefetch={false}><span className="text-text-primary font-semibold">{allTools.length.toLocaleString()}</span> AI tools</Link> for <Link href="/tasks" prefetch={false}><span className="text-text-primary font-semibold">{taskCount}</span> tasks</Link> and <Link href="/category" prefetch={false}><span className="text-text-primary font-semibold">{categoryCount}</span> categories</Link>
             </p>
-            <div className="relative w-full max-w-[500px] mt-1 py-1">
+            <div className="relative w-full max-w-[500px] mt-1 py-1 z-50">
                 {/* Search Input */}
-                <div className={`bg-bg-card border rounded-full transition-colors duration-200 ${isMainSearchFocused ? 'border-text-tertiary shadow-[0_0_0_2px_rgba(115,115,115,0.15)]' : 'border-border shadow-lg hover:shadow-xl'}`}>
+                <div className={`bg-bg-card border rounded-full transition-all duration-200 ${isMainSearchFocused ? 'border-accent-primary/50 shadow-[0_0_0_3px_rgba(52,178,123,0.25)]' : 'border-border shadow-lg hover:shadow-xl hover:border-text-tertiary'}`}>
                     <div className="flex items-center gap-3 w-full px-5 py-3.5">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`flex-shrink-0 transition-colors ${isMainSearchFocused ? 'text-text-secondary' : 'text-text-tertiary'}`}>
                             <circle cx="11" cy="11" r="8" />
                             <path d="M21 21l-4.35-4.35" />
                         </svg>
                         <input
+                            ref={inputRef}
                             type="text"
                             autoComplete="off"
                             className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50"
@@ -100,7 +117,7 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
 
                 {/* Search Dropdown */}
                 {searchQuery && isMainSearchFocused && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden z-[100]">
                         {searchResults.slice(0, 5).map((tool, index) => {
                             const logoUrl = tool.logoUrl ? getFullUrl(tool.logoUrl) : '';
                             return (

@@ -168,6 +168,27 @@ img {
     color: white;
 }
 
+/* FAQ Accordion Animations */
+@keyframes faqFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+details[open] summary~* {
+    animation: faqFadeIn 0.3s ease-out;
+}
+
+details summary::-webkit-details-marker {
+    display: none;
+}
+
 /* Focus - Remove default outline and use green border */
 :focus-visible {
     outline: none;

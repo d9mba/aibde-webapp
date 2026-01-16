@@ -120,6 +120,9 @@ export interface AdminTool extends AITool {
     spotlightStartDate?: string;
     spotlightEndDate?: string;
 
+    // Premium - gives dofollow backlinks (SEO value)
+    premium?: boolean;
+
     // Timestamps
     createdAt?: string;
     updatedAt?: string;

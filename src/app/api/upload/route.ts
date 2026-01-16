@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { uploadFile, generateUniqueFilename } from '@/services/storage.service';
 import sharp from 'sharp';
 
@@ -79,10 +79,10 @@ async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer
 // POST /api/upload - Upload file to R2 with compression (protected)
 export async function POST(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        // SECURITY: Strict Admin Check - only admins can upload
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const formData = await request.formData();
@@ -233,10 +233,10 @@ export async function POST(request: NextRequest) {
 // DELETE /api/upload - Delete file from R2 (protected)
 export async function DELETE(request: NextRequest) {
     try {
-        // Check authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        // SECURITY: Strict Admin Check - only admins can delete
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         const { searchParams } = new URL(request.url);

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, dbToolToAdminTool } from '@/lib/supabase';
+// SECURITY: Use anonymous client (not admin) to let RLS act as safety net
+import { supabase, dbToolToAdminTool } from '@/lib/supabase';
+
+// PERFORMANCE: Edge runtime for faster cold starts
+export const runtime = 'edge';
 
 // Light fields for public list views - excludes sensitive/heavy data
 const PUBLIC_LIST_FIELDS = `
@@ -11,6 +15,7 @@ const PUBLIC_LIST_FIELDS = `
 
 // GET /api/public/tools - Public tool listing (NO AUTH REQUIRED)
 // Returns only published tools with limited fields for public consumption
+// Supports pagination: ?page=1&limit=20 (default: 20 per page, max 50)
 export async function GET(request: NextRequest) {
     try {
         // NOTE: This is intentionally public - no auth required
@@ -19,17 +24,35 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const category = searchParams.get('category');
         const task = searchParams.get('task');
-        // SECURITY: Enforce max limit to prevent abuse
-        const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
-        const offset = Math.max(parseInt(searchParams.get('offset') || '0'), 0);
+        const allData = searchParams.get('all') === 'true';
 
-        let query = supabaseAdmin
+        // SECURITY: Enforce max limit to prevent abuse
+        const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
+        const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
+        const offset = (page - 1) * limit;
+
+        // Get total count for pagination
+        let countQuery = supabase
+            .from('tools')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'published');
+
+        if (category) {
+            countQuery = countQuery.contains('category_name', [category]);
+        }
+        if (task) {
+            countQuery = countQuery.contains('task_name', [task]);
+        }
+
+        const { count: totalCount } = await countQuery;
+
+        // Build main query
+        let query = supabase
             .from('tools')
             .select(PUBLIC_LIST_FIELDS)
             .eq('status', 'published') // Only published tools
             .order('is_featured', { ascending: false }) // Featured first
-            .order('created_at', { ascending: false })
-            .range(offset, offset + limit - 1);
+            .order('created_at', { ascending: false });
 
         // Optional filters
         if (category) {
@@ -37,6 +60,11 @@ export async function GET(request: NextRequest) {
         }
         if (task) {
             query = query.contains('task_name', [task]);
+        }
+
+        // Apply pagination only if not fetching all
+        if (!allData) {
+            query = query.range(offset, offset + limit - 1);
         }
 
         const { data, error } = await query;
@@ -50,7 +78,17 @@ export async function GET(request: NextRequest) {
 
         // PERFORMANCE: Cache public responses to reduce DB hits
         // 5 min cache, allow stale for 1 hour while revalidating
-        const response = NextResponse.json(tools);
+        const response = allData
+            ? NextResponse.json(tools)
+            : NextResponse.json({
+                data: tools,
+                pagination: {
+                    page,
+                    limit,
+                    total: totalCount || 0,
+                    totalPages: Math.ceil((totalCount || 0) / limit),
+                }
+            });
         response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
         return response;
     } catch (err) {

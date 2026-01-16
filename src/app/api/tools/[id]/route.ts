@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
 import { toolUpdateSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 // GET /api/tools/:id - Get single tool
-// SECURITY: Unauthenticated users can only view published tools
+// SECURITY: Only admins can view non-published (draft/pending) tools
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { userId } = await auth();
         const { id } = await params;
+
+        // Check if user is Admin (but don't block request yet)
+        const authResult = await requireAdmin();
+        const isAdmin = !isAuthError(authResult);
 
         const { data, error } = await supabaseAdmin
             .from('tools')
@@ -27,8 +29,9 @@ export async function GET(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // SECURITY: Non-authenticated users can only view published tools
-        if (!userId && data?.status !== 'published') {
+        // SECURITY: If tool is NOT published, ONLY admin can view it
+        // Return 404 to hide existence of draft tools from non-admins
+        if (data?.status !== 'published' && !isAdmin) {
             return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
         }
 

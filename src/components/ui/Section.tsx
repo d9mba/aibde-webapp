@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, ReactNode } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SectionProps {
     title: string;
@@ -9,22 +10,24 @@ interface SectionProps {
 }
 
 export default function Section({ title, children, defaultOpen = true }: SectionProps) {
-    const [open, setOpen] = useState(defaultOpen);
+    const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
-        <div className="border border-border rounded-xl bg-bg-card">
+        <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
             <button
                 type="button"
-                onClick={() => setOpen(!open)}
-                className="w-full flex items-center justify-between p-4 hover:bg-bg-secondary text-left rounded-t-xl"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between bg-bg-secondary/50 hover:bg-bg-secondary transition-colors"
             >
-                <h3 className="font-semibold text-text-primary">{title}</h3>
-                <span className={`transition-transform text-text-tertiary ${open ? 'rotate-180' : ''}`}>
-                    ▼
-                </span>
+                <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
+                {isOpen ? (
+                    <ChevronUp className="w-4 h-4 text-text-tertiary" />
+                ) : (
+                    <ChevronDown className="w-4 h-4 text-text-tertiary" />
+                )}
             </button>
-            {open && (
-                <div className="p-4 pt-0 space-y-4 overflow-visible">
+            {isOpen && (
+                <div className="p-4 space-y-4">
                     {children}
                 </div>
             )}

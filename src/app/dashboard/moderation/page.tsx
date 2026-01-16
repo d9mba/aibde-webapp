@@ -7,6 +7,8 @@ import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
+import { SafeHtml } from '@/components/ui/SafeHtml';
+import FullPreview from '@/components/features/admin/ToolForm/FullPreview';
 import { Eye, Pencil } from 'lucide-react';
 
 type TabType = 'pending' | 'approved' | 'rejected' | 'updated';
@@ -30,7 +32,7 @@ const formatTimeAgo = (dateStr: string | undefined): string => {
 
 export default function ModerationPage() {
     const router = useRouter();
-    const { tools, updateTool, isLoaded } = useAdmin();
+    const { tools, categories, tasks, updateTool, isLoaded } = useAdmin();
     const { showToast, updateToast } = useToast();
     const { confirm } = useConfirm();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -390,98 +392,37 @@ export default function ModerationPage() {
                 </div>
             </div>
 
-            {/* Quick Preview Modal */}
+            {/* Quick Preview Modal - Using shared FullPreview component */}
             {previewTool && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPreviewTool(null)}>
-                    <div className="bg-bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                        {/* Header with Logo and Name */}
-                        <div className="p-6 border-b border-border">
-                            <div className="flex items-start gap-4">
-                                {previewTool.logoUrl ? (
-                                    <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-cover" />
-                                ) : (
-                                    <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
-                                        {previewTool.name[0]}
-                                    </div>
-                                )}
-                                <div className="flex-1">
-                                    <h2 className="text-2xl font-bold text-text-primary">{previewTool.name}</h2>
-                                    {previewTool.summary && (
-                                        <p className="text-text-secondary mt-1">{previewTool.summary}</p>
-                                    )}
-                                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                                        <span className={`text-xs px-2 py-1 rounded-full ${previewTool.status === 'published' ? 'bg-green-500/10 text-green-500' : previewTool.status === 'draft' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-purple-500/10 text-purple-500'}`}>
-                                            {previewTool.status}
-                                        </span>
-                                        <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full">{previewTool.pricingLabel || previewTool.pricing}</span>
-                                        {previewTool.isFeatured && <span className="text-xs px-2 py-1 bg-yellow-500/10 text-yellow-600 rounded-full">Featured</span>}
-                                    </div>
-                                </div>
-                                <button onClick={() => setPreviewTool(null)} className="text-text-tertiary hover:text-text-primary">
-                                    {renderIcon('close', 20)}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-6 space-y-4">
-                            {previewTool.description && (
-                                <div>
-                                    <h3 className="text-sm font-medium text-text-tertiary mb-1">Description</h3>
-                                    <div className="text-text-primary text-sm leading-relaxed rich-text" dangerouslySetInnerHTML={{ __html: previewTool.description }} />
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                {(previewTool.categoryName || []).length > 0 && (
-                                    <div>
-                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Category</h3>
-                                        <p className="text-sm text-text-primary">{previewTool.categoryName.join(', ')}</p>
-                                    </div>
-                                )}
-                                {(previewTool.taskName || []).length > 0 && (
-                                    <div>
-                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Task</h3>
-                                        <p className="text-sm text-text-primary">{previewTool.taskName.join(', ')}</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            {previewTool.tags && previewTool.tags.length > 0 && (
-                                <div>
-                                    <h3 className="text-xs font-medium text-text-tertiary mb-2">Tags</h3>
-                                    <div className="flex flex-wrap gap-1">
-                                        {previewTool.tags.map((tag: string) => (
-                                            <span key={tag} className="text-xs px-2 py-1 bg-bg-secondary text-text-secondary rounded">{tag}</span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {previewTool.websiteUrl && (
-                                <div>
-                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Website</h3>
-                                    <a href={previewTool.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline flex items-center gap-1">
-                                        {previewTool.websiteUrl}
-                                        <span className="inline-flex">{renderIcon('external-link', 12)}</span>
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="border-t border-border p-4 flex gap-3">
-                            <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.slug}`); }}
-                                className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
-                                <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
-                            </button>
-                            <button onClick={() => { setPreviewTool(null); router.push(`/dashboard/tools/${previewTool.id}`); }}
-                                className="flex-1 px-4 py-2.5 bg-bg-secondary border border-border text-text-primary rounded-xl text-sm font-medium hover:bg-bg-tertiary flex items-center justify-center gap-2">
-                                <span className="inline-flex">{renderIcon('edit', 16)}</span> Edit Tool
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <FullPreview
+                    data={{
+                        name: previewTool.name,
+                        summary: previewTool.summary,
+                        description: previewTool.description,
+                        logoUrl: previewTool.logoUrl,
+                        status: previewTool.status,
+                        pricing: previewTool.pricing,
+                        pricingLabel: previewTool.pricingLabel,
+                        categoryName: previewTool.categoryName,
+                        taskName: previewTool.taskName,
+                        websiteUrl: previewTool.websiteUrl,
+                        affiliateUrl: previewTool.affiliateUrl,
+                        affiliateEnabled: previewTool.affiliateEnabled,
+                        tags: previewTool.tags,
+                        pros: previewTool.pros,
+                        cons: previewTool.cons,
+                        coreFeatures: previewTool.coreFeatures,
+                        useCases: previewTool.useCases,
+                        faq: previewTool.faq,
+                        images: previewTool.images,
+                        videos: previewTool.videos,
+                        pricingTiers: previewTool.pricingTiers,
+                        socialLinks: previewTool.socialLinks,
+                    }}
+                    categories={categories}
+                    tasks={tasks}
+                    onClose={() => setPreviewTool(null)}
+                />
             )}
         </div>
     );

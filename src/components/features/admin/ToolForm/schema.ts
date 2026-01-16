@@ -93,6 +93,9 @@ export const toolSchema = z.object({
     spotlightStartDate: z.string().default(''),
     spotlightEndDate: z.string().default(''),
 
+    // Premium - gives dofollow backlinks (SEO value)
+    premium: z.boolean().default(false),
+
     // Stats
     saveCount: z.number().default(0),
 });
@@ -146,5 +149,6 @@ export const defaultToolValues: ToolFormData = {
     spotlightPosition: 1,
     spotlightStartDate: '',
     spotlightEndDate: '',
+    premium: false,
     saveCount: 0,
 };

@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { getPublishedTools, getTasks } from '@/lib/data';
 import TaskSlugPageClient from './TaskSlugPageClient';
 
+// PERFORMANCE: ISR - regenerate page every 5 minutes
+export const revalidate = 300;
 interface PageProps {
     params: Promise<{ slug: string }>;
 }

@@ -19,10 +19,10 @@ export default function SearchResultsPage() {
         if (!adminData || !query) return [];
         const q = query.toLowerCase();
         return adminData.getPublishedTools().filter(t =>
-            t.name.toLowerCase().includes(q) ||
-            t.description.toLowerCase().includes(q) ||
-            t.category.toLowerCase().includes(q) ||
-            (t.features || []).some(f => f.toLowerCase().includes(q))
+            (t.name || '').toLowerCase().includes(q) ||
+            (t.description || '').toLowerCase().includes(q) ||
+            (t.category || '').toLowerCase().includes(q) ||
+            (t.features || []).some(f => (f || '').toLowerCase().includes(q))
         );
     };
 

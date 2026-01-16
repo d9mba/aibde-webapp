@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+// SECURITY: Use anonymous client (not admin) to let RLS act as safety net
+import { supabase } from '@/lib/supabase';
+
+// PERFORMANCE: Edge runtime for faster cold starts
+export const runtime = 'edge';
 
 // GET /api/public/tasks - Public tasks listing (NO AUTH REQUIRED)
 export async function GET() {
     try {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('tasks')
             .select('id, task_name, description, count')
             .order('task_name', { ascending: true });

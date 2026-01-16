@@ -21,19 +21,29 @@ const ALL_FIELDS = `
     internal_notes, scheduled_at, spotlight_start_date, spotlight_end_date
 `;
 
-// SECURITY: Lighter fields for list views - excludes sensitive data
-// Does NOT include: internal_notes, contact details, full descriptions
+// Complete fields for admin tool list and edit form
+// Includes all fields needed for ToolForm to work
 const LIST_FIELDS = `
-    id, name, app_username, summary,
+    id, name, app_username, summary, description,
     category_name, task_name, tags,
     pricing, pricing_label, logo_url,
-    website_url, save_count, is_featured, released_at,
-    status, spotlight_position, spotlight_enabled,
-    created_at, updated_at
+    website_url, affiliate_url, affiliate_enabled,
+    save_count, is_featured, released_at,
+    status, images, videos, spotlight_position, spotlight_enabled,
+    play_store_url, app_store_url, social_links,
+    core_features, use_cases, pros, cons, faq,
+    pricing_tiers, has_free_trial, free_trial_days, discount, billing_frequency,
+    version_history, alternative_tools, tool_references,
+    contact_name, contact_email, contact_company, contact_address, contact_mobile,
+    internal_notes, scheduled_at,
+    created_at, updated_at,
+    spotlight_start_date, spotlight_end_date
 `;
 
 // GET /api/tools - List tools (PROTECTED)
 // Requires authentication - use /api/public/tools for public access
+// Supports pagination: ?page=1&limit=50 (default: 50 per page)
+// Use ?all=true to fetch all tools (for export/backup)
 export async function GET(request: NextRequest) {
     try {
         const { userId } = await auth();
@@ -45,27 +55,79 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
+        const allData = searchParams.get('all') === 'true';
+        const page = parseInt(searchParams.get('page') || '1', 10);
+        const limit = parseInt(searchParams.get('limit') || '50', 10);
 
-        let query = supabaseAdmin
+        // Validate pagination params
+        const validPage = Math.max(1, page);
+        const validLimit = Math.min(100, Math.max(1, limit)); // Max 100 per page
+        const offset = (validPage - 1) * validLimit;
+
+        // Get total count for pagination
+        const countResult = await supabaseAdmin
             .from('tools')
-            .select(ALL_FIELDS)
-            .order('created_at', { ascending: false });
+            .select('id', { count: 'exact', head: true });
 
-        // Authenticated users can filter by status
-        if (status) {
-            query = query.eq('status', status);
+        const totalCount = countResult.count || 0;
+
+        // Fetch data - use separate queries to avoid TypeScript type issues
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any[] | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let error: any = null;
+
+        if (allData) {
+            // Fetch all with full fields
+            const result = await supabaseAdmin
+                .from('tools')
+                .select(ALL_FIELDS)
+                .order('created_at', { ascending: false });
+            data = result.data;
+            error = result.error;
+        } else if (status) {
+            // Paginated with status filter
+            const result = await supabaseAdmin
+                .from('tools')
+                .select(LIST_FIELDS)
+                .eq('status', status)
+                .order('created_at', { ascending: false })
+                .range(offset, offset + validLimit - 1);
+            data = result.data;
+            error = result.error;
+        } else {
+            // Paginated without filter
+            const result = await supabaseAdmin
+                .from('tools')
+                .select(LIST_FIELDS)
+                .order('created_at', { ascending: false })
+                .range(offset, offset + validLimit - 1);
+            data = result.data;
+            error = result.error;
         }
-
-        const { data, error } = await query;
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Map to frontend-friendly format using the central mapping function
-        const tools = (data || []).map((tool) => dbToolToAdminTool(tool));
+        // Map to frontend-friendly format
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tools = (data || []).map((tool: any) => dbToolToAdminTool(tool));
 
-        return NextResponse.json(tools);
+        // Return paginated response
+        if (allData) {
+            return NextResponse.json(tools);
+        }
+
+        return NextResponse.json({
+            data: tools,
+            pagination: {
+                page: validPage,
+                limit: validLimit,
+                total: totalCount,
+                totalPages: Math.ceil(totalCount / validLimit),
+            }
+        });
     } catch (err) {
         return NextResponse.json({ error: 'Failed to fetch tools' }, { status: 500 });
     }

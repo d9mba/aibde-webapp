@@ -17,8 +17,8 @@ export default function FeaturedPage() {
         if (!search) return regularTools.slice(0, 5);
         const searchLower = search.toLowerCase();
         return regularTools.filter(t =>
-            t.name.toLowerCase().includes(searchLower) ||
-            (t.categoryName || []).some(cat => cat.toLowerCase().includes(searchLower))
+            (t.name || '').toLowerCase().includes(searchLower) ||
+            (t.categoryName || []).some(cat => (cat || '').toLowerCase().includes(searchLower))
         );
     }, [regularTools, search]);
 

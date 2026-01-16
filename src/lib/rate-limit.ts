@@ -1,0 +1,124 @@
+/**
+ * Redis-based rate limiter using Upstash
+ * 
+ * Production-ready rate limiting with:
+ * - Distributed state (works across serverless instances)
+ * - Sliding window algorithm for smooth rate limiting
+ * - Graceful fallback if Redis unavailable
+ */
+
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+// Initialize Redis client (uses env vars automatically)
+// UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN
+let redis: Redis | null = null;
+
+try {
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        redis = new Redis({
+            url: process.env.UPSTASH_REDIS_REST_URL,
+            token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
+    }
+} catch (error) {
+    console.error('[RateLimit] Failed to initialize Redis:', error);
+}
+
+// Rate limiters for different use cases
+const rateLimiters = redis ? {
+    upload: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(10, '1 m'), // 10 per minute
+        analytics: true,
+        prefix: 'ratelimit:upload',
+    }),
+    standard: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(60, '1 m'), // 60 per minute
+        analytics: true,
+        prefix: 'ratelimit:standard',
+    }),
+    read: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(120, '1 m'), // 120 per minute
+        analytics: true,
+        prefix: 'ratelimit:read',
+    }),
+    sensitive: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(5, '1 m'), // 5 per minute
+        analytics: true,
+        prefix: 'ratelimit:sensitive',
+    }),
+} : null;
+
+// Config interface for backward compatibility
+interface RateLimitConfig {
+    maxRequests: number;
+    windowMs: number;
+}
+
+interface RateLimitResult {
+    success: boolean;
+    remaining: number;
+    resetTime: number;
+}
+
+// Rate limit presets (for reference and fallback)
+export const rateLimits = {
+    upload: { maxRequests: 10, windowMs: 60 * 1000 },
+    standard: { maxRequests: 60, windowMs: 60 * 1000 },
+    read: { maxRequests: 120, windowMs: 60 * 1000 },
+    sensitive: { maxRequests: 5, windowMs: 60 * 1000 },
+};
+
+// Type for preset names
+type RateLimitPreset = keyof typeof rateLimits;
+
+/**
+ * Check rate limit for a given identifier
+ * Uses Redis if available, falls back to allowing request if not
+ */
+export async function checkRateLimit(
+    identifier: string,
+    config: RateLimitConfig
+): Promise<RateLimitResult> {
+    // Determine which preset to use based on config
+    let preset: RateLimitPreset = 'standard';
+    if (config.maxRequests === 10) preset = 'upload';
+    else if (config.maxRequests === 120) preset = 'read';
+    else if (config.maxRequests === 5) preset = 'sensitive';
+
+    // If Redis is available, use it
+    if (rateLimiters && rateLimiters[preset]) {
+        try {
+            const result = await rateLimiters[preset].limit(identifier);
+            return {
+                success: result.success,
+                remaining: result.remaining,
+                resetTime: result.reset,
+            };
+        } catch (error) {
+            console.error('[RateLimit] Redis error, allowing request:', error);
+            // Fall through to allow request
+        }
+    } else if (!redis) {
+        // Log warning once per cold start
+        console.warn('[RateLimit] Redis not configured - rate limiting disabled');
+    }
+
+    // Fallback: allow request but log warning
+    return {
+        success: true,
+        remaining: config.maxRequests,
+        resetTime: Date.now() + config.windowMs,
+    };
+}
+
+/**
+ * Check if Upstash Redis is configured
+ */
+export function isRedisConfigured(): boolean {
+    return redis !== null;
+}

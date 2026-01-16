@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { AdminTool } from '@/types';
 import { getFullUrl, ensureProtocol, getLogoColor, Section } from './utils';
+import { addUtmParams } from '@/lib/url-utils';
 import { Share2 } from 'lucide-react';
+import { trackToolVisit } from '@/hooks/useToolAnalytics';
 
 interface ToolHeaderProps {
     tool: AdminTool;
@@ -51,9 +53,13 @@ export default function ToolHeader({
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                             {tool.websiteUrl && (
                                 <a
-                                    href={ensureProtocol(tool.websiteUrl)}
+                                    href={`/go/${tool.slug}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={() => trackToolVisit(
+                                        { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                                        tool.websiteUrl || ''
+                                    )}
                                     className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-primary text-white sm:bg-bg-secondary sm:text-text-primary sm:border sm:border-border rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 sm:hover:border-text-tertiary transition-colors"
                                 >
                                     Visit

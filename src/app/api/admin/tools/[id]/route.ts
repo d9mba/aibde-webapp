@@ -1,17 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
 import { toolUpdateSchema } from '@/lib/validations';
-
-// Admin auth check helper
-async function requireAdmin() {
-    const { userId } = await auth();
-    if (!userId) {
-        return { error: 'Unauthorized', status: 401, userId: null };
-    }
-    return { error: null, status: 200, userId };
-}
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 // GET /api/admin/tools/[id] - Get single tool (admin)
 export async function GET(
@@ -20,7 +11,7 @@ export async function GET(
 ) {
     try {
         const authResult = await requireAdmin();
-        if (authResult.error) {
+        if (isAuthError(authResult)) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
@@ -53,7 +44,7 @@ export async function PUT(
 ) {
     try {
         const authResult = await requireAdmin();
-        if (authResult.error) {
+        if (isAuthError(authResult)) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
@@ -97,7 +88,7 @@ export async function DELETE(
 ) {
     try {
         const authResult = await requireAdmin();
-        if (authResult.error) {
+        if (isAuthError(authResult)) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 

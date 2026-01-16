@@ -242,7 +242,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     useEffect(() => {
         if (!isEdit) {
             setValue('slug', slugify(watchName || ''));
-            setShowDuplicateWarning(watchName ? !!tools.find(t => t.name.toLowerCase() === watchName.toLowerCase()) : false);
+            setShowDuplicateWarning(watchName ? !!tools.find(t => (t.name || '').toLowerCase() === watchName.toLowerCase()) : false);
         }
     }, [watchName, isEdit, tools, setValue]);
 

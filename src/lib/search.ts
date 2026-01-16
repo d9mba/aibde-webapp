@@ -112,7 +112,7 @@ export function searchTools(tools: AITool[], query: string): AITool[] {
         let score = 0;
         let matchType: SearchResult['matchType'] = 'content';
 
-        const toolName = tool.name.toLowerCase();
+        const toolName = (tool.name || '').toLowerCase();
         const categories = (tool.categoryName || []).map(c => c.toLowerCase());
         const tasks = (tool.taskName || []).map(t => t.toLowerCase());
         // Use type assertion for tags since AITool interface may not include it
@@ -265,7 +265,7 @@ export function searchTools(tools: AITool[], query: string): AITool[] {
         if (b.score !== a.score) {
             return b.score - a.score;
         }
-        return a.tool.name.localeCompare(b.tool.name);
+        return (a.tool.name || '').localeCompare(b.tool.name || '');
     });
 
     return results.map(r => r.tool);

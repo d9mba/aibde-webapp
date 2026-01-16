@@ -64,8 +64,8 @@ export default function Header() {
     const recommendations = debouncedQuery.trim().length >= 1
         ? tools
             .filter(tool =>
-                tool.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-                tool.description?.toLowerCase().includes(debouncedQuery.toLowerCase())
+                (tool.name || '').toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+                (tool.description || '').toLowerCase().includes(debouncedQuery.toLowerCase())
             )
             .slice(0, 8)
         : [];

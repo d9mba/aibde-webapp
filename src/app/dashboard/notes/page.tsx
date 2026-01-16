@@ -47,14 +47,14 @@ export default function NotesPage() {
     // Filtered tools for dropdowns
     const toolFilterOptions = useMemo(() => {
         const filtered = toolFilterSearch
-            ? tools.filter((t: AdminTool) => t.name.toLowerCase().includes(toolFilterSearch.toLowerCase()))
+            ? tools.filter((t: AdminTool) => (t.name || '').toLowerCase().includes(toolFilterSearch.toLowerCase()))
             : tools;
         return [{ id: '', name: 'All Tools', logoUrl: null }, ...filtered];
     }, [tools, toolFilterSearch]);
 
     const linkOptions = useMemo(() => {
         const filtered = linkSearch
-            ? tools.filter((t: AdminTool) => t.name.toLowerCase().includes(linkSearch.toLowerCase()))
+            ? tools.filter((t: AdminTool) => (t.name || '').toLowerCase().includes(linkSearch.toLowerCase()))
             : tools;
         return [{ id: '', name: 'No tool linked', logoUrl: null }, ...filtered];
     }, [tools, linkSearch]);
@@ -79,7 +79,7 @@ export default function NotesPage() {
         let result = notes;
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
-            result = result.filter(n => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q));
+            result = result.filter(n => (n.title || '').toLowerCase().includes(q) || (n.content || '').toLowerCase().includes(q));
         }
         if (filterTool) result = result.filter(n => n.toolId === filterTool);
         if (dateFrom) result = result.filter(n => new Date(n.createdAt) >= new Date(dateFrom));

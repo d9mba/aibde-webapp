@@ -5,38 +5,53 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { useAdminData } from '@/context/AdminContext';
 import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
 import { useDebounce } from '@/hooks/useDebounce';
+import { AdminTool } from '@/types';
 
 export default function TopHeader() {
     const router = useRouter();
     const pathname = usePathname();
-    const adminData = useAdminData();
     const { searchQuery, setSearchQuery, isMainSearchFocused } = useSearch();
     const [showHeaderSearch, setShowHeaderSearch] = useState(false);
     const [showRecommendations, setShowRecommendations] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [recommendations, setRecommendations] = useState<AdminTool[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const typingPlaceholder = useTypingPlaceholder();
 
-    const tools = adminData?.getPublishedTools() || [];
-
     // Debounce search query for recommendations
     const debouncedQuery = useDebounce(searchQuery, 300);
 
-    // Filter recommendations based on debounced search query
-    const recommendations = debouncedQuery.trim().length >= 1
-        ? tools
-            .filter(tool =>
-                tool.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-                tool.description?.toLowerCase().includes(debouncedQuery.toLowerCase())
-            )
-            .slice(0, 6)
-        : [];
+    // Fetch recommendations from server-side search API
+    useEffect(() => {
+        const fetchRecommendations = async () => {
+            if (!debouncedQuery || debouncedQuery.trim().length < 2) {
+                setRecommendations([]);
+                return;
+            }
+
+            setIsSearching(true);
+            try {
+                const response = await fetch(`/api/tools/search?q=${encodeURIComponent(debouncedQuery)}&limit=6`);
+                if (response.ok) {
+                    const tools = await response.json();
+                    setRecommendations(tools);
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                setRecommendations([]);
+            } finally {
+                setIsSearching(false);
+            }
+        };
+
+        fetchRecommendations();
+    }, [debouncedQuery]);
 
     // Pages that have their own search bar
     const pagesWithSearch = ['/', '/search'];

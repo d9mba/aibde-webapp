@@ -34,6 +34,8 @@ const LIST_FIELDS = `
 
 // GET /api/tools - List tools (PROTECTED)
 // Requires authentication - use /api/public/tools for public access
+// Supports pagination: ?page=1&limit=50 (default: 50 per page)
+// Use ?all=true to fetch all tools (for export/backup)
 export async function GET(request: NextRequest) {
     try {
         const { userId } = await auth();
@@ -45,27 +47,79 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
+        const allData = searchParams.get('all') === 'true';
+        const page = parseInt(searchParams.get('page') || '1', 10);
+        const limit = parseInt(searchParams.get('limit') || '50', 10);
 
-        let query = supabaseAdmin
+        // Validate pagination params
+        const validPage = Math.max(1, page);
+        const validLimit = Math.min(100, Math.max(1, limit)); // Max 100 per page
+        const offset = (validPage - 1) * validLimit;
+
+        // Get total count for pagination
+        const countResult = await supabaseAdmin
             .from('tools')
-            .select(ALL_FIELDS)
-            .order('created_at', { ascending: false });
+            .select('id', { count: 'exact', head: true });
 
-        // Authenticated users can filter by status
-        if (status) {
-            query = query.eq('status', status);
+        const totalCount = countResult.count || 0;
+
+        // Fetch data - use separate queries to avoid TypeScript type issues
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any[] | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let error: any = null;
+
+        if (allData) {
+            // Fetch all with full fields
+            const result = await supabaseAdmin
+                .from('tools')
+                .select(ALL_FIELDS)
+                .order('created_at', { ascending: false });
+            data = result.data;
+            error = result.error;
+        } else if (status) {
+            // Paginated with status filter
+            const result = await supabaseAdmin
+                .from('tools')
+                .select(LIST_FIELDS)
+                .eq('status', status)
+                .order('created_at', { ascending: false })
+                .range(offset, offset + validLimit - 1);
+            data = result.data;
+            error = result.error;
+        } else {
+            // Paginated without filter
+            const result = await supabaseAdmin
+                .from('tools')
+                .select(LIST_FIELDS)
+                .order('created_at', { ascending: false })
+                .range(offset, offset + validLimit - 1);
+            data = result.data;
+            error = result.error;
         }
-
-        const { data, error } = await query;
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Map to frontend-friendly format using the central mapping function
-        const tools = (data || []).map((tool) => dbToolToAdminTool(tool));
+        // Map to frontend-friendly format
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tools = (data || []).map((tool: any) => dbToolToAdminTool(tool));
 
-        return NextResponse.json(tools);
+        // Return paginated response
+        if (allData) {
+            return NextResponse.json(tools);
+        }
+
+        return NextResponse.json({
+            data: tools,
+            pagination: {
+                page: validPage,
+                limit: validLimit,
+                total: totalCount,
+                totalPages: Math.ceil(totalCount / validLimit),
+            }
+        });
     } catch (err) {
         return NextResponse.json({ error: 'Failed to fetch tools' }, { status: 500 });
     }

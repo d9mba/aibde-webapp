@@ -167,58 +167,13 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
     // Use pathname hook to detect navigation changes
     const pathname = usePathname();
 
-    // Load published tools for header search on ALL pages (including public)
-    // Skip if initialTools were provided from server-side fetch
-    const [toolsLoadedForSearch, setToolsLoadedForSearch] = useState(!!initialTools?.length);
+    // OPTIMIZATION: Single flag to track if data has been fetched
+    // This prevents double-fetch between search loader and dashboard loader
+    const [dataFetched, setDataFetched] = useState(!!initialTools?.length);
 
-    useEffect(() => {
-        const loadPublishedToolsForSearch = async () => {
-            // Skip if already loaded or have initial tools from SSR
-            if (toolsLoadedForSearch || state.tools.length > 0) return;
+    // Unified data loading effect - only fetches once per session
+    // Uses deduplication to prevent multiple requests
 
-            try {
-                // Use fetch API directly for more reliable browser execution
-                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-                const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-                if (!supabaseUrl || !supabaseKey) {
-                    return;
-                }
-
-                const response = await fetch(
-                    `${supabaseUrl}/rest/v1/tools?status=eq.approved&select=*&order=save_count.desc`,
-                    {
-                        headers: {
-                            'apikey': supabaseKey,
-                            'Authorization': `Bearer ${supabaseKey}`,
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
-
-                if (!response.ok) {
-                    return;
-                }
-
-                const tools = await response.json();
-
-                if (tools && tools.length > 0) {
-                    setState(prev => ({
-                        ...prev,
-                        tools: tools.map(dbToolToAdminTool) as AdminTool[]
-                    }));
-                    setToolsLoadedForSearch(true);
-                }
-            } catch {
-                // Silently fail in production
-            }
-        };
-
-        loadPublishedToolsForSearch();
-    }, [toolsLoadedForSearch]);
-
-    // Load full data when navigating to dashboard pages
-    // All public pages (homepage, /app/*, /search, /category, /tasks) use SSR for their main content
     useEffect(() => {
         // Only dashboard pages need full client-side data fetching (includes notes, drafts, etc.)
         const needsFullData = pathname?.startsWith('/dashboard');
@@ -230,8 +185,10 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             return;
         }
 
-        // Skip if already loaded with data
-        if (isLoaded && state.tools.length > 0) {
+        // OPTIMIZATION: Skip if already fetched (prevents double-fetch)
+        if (dataFetched && state.tools.length > 0) {
+            setIsLoaded(true);
+            setIsLoading(false);
             return;
         }
 
@@ -243,6 +200,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 const apiData = await fetchFromAPI();
                 if (apiData) {
                     setState(apiData);
+                    setDataFetched(true); // Mark as fetched
                     setIsLoaded(true);
                     setIsLoading(false);
                     return;
@@ -278,13 +236,14 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 });
             }
 
+            setDataFetched(true); // Mark as fetched
             setIsLoaded(true);
             setIsLoading(false);
         };
 
         loadData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fetchFromAPI, pathname]);
+    }, [fetchFromAPI, pathname, dataFetched]);
 
     // Save to localStorage as backup (only when not using API)
     useEffect(() => {

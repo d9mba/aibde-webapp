@@ -97,6 +97,7 @@ export default function Footer() {
                     <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
                         <span className="text-xs text-text-tertiary">© {new Date().getFullYear()} AIBDE</span>
                         <Link href="/about" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">About</Link>
+                        <Link href="/contact" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">Contact</Link>
                         <Link href="/privacy" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">Privacy</Link>
                         <Link href="/terms" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">Terms</Link>
                     </div>

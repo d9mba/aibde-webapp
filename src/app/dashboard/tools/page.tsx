@@ -3,18 +3,50 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+
+// SWR fetcher
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
+// Pagination response type
+interface PaginatedToolsResponse {
+    data: AdminTool[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
 
 export default function ToolsListPage() {
     const router = useRouter();
-    const { tools, deleteTool, categories, isLoaded } = useAdmin();
+    const { deleteTool, categories, isLoaded } = useAdmin();
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 50;
+
+    // Build API URL with pagination and status filter
+    const apiUrl = statusFilter === 'all'
+        ? `/api/tools?page=${currentPage}&limit=${ITEMS_PER_PAGE}`
+        : `/api/tools?page=${currentPage}&limit=${ITEMS_PER_PAGE}&status=${statusFilter}`;
+
+    // Fetch tools with SWR
+    const { data: toolsData, error: toolsError, isLoading: toolsLoading, mutate } = useSWR<PaginatedToolsResponse>(
+        apiUrl,
+        fetcher,
+        { revalidateOnFocus: false }
+    );
+
+    const tools = toolsData?.data || [];
+    const pagination = toolsData?.pagination;
 
     const statusOptions = [
         { value: 'all', label: 'All Status' },
@@ -28,24 +60,45 @@ export default function ToolsListPage() {
         ...categories.filter(cat => cat.categoryName).map(cat => ({ value: cat.categoryName, label: cat.categoryName }))
     ];
 
+    // Client-side filtering (for search and category - since API handles status)
     const filteredTools = useMemo(() => {
         return tools.filter(tool => {
             const matchesSearch = !searchQuery.trim() ||
                 (tool.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                tool.summary?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                tool.description?.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesStatus = statusFilter === 'all' || tool.status === statusFilter;
+                tool.summary?.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesCategory = categoryFilter === 'all' || (tool.categoryName || []).includes(categoryFilter);
-            return matchesSearch && matchesStatus && matchesCategory;
+            return matchesSearch && matchesCategory;
         });
-    }, [tools, searchQuery, statusFilter, categoryFilter]);
+    }, [tools, searchQuery, categoryFilter]);
+
+    // Handle delete with cache invalidation
+    const handleDelete = async (toolId: string, toolName: string) => {
+        if (confirm(`Delete "${toolName}"?`)) {
+            await deleteTool(toolId);
+            mutate(); // Refresh data
+        }
+    };
+
+    // Reset page when filters change
+    const handleStatusChange = (value: string) => {
+        setStatusFilter(value);
+        setCurrentPage(1);
+    };
 
 
 
-    if (!isLoaded) {
+    if (toolsLoading && !tools.length) {
         return (
             <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
-                <div className="text-text-secondary">Loading...</div>
+                <div className="text-text-secondary">Loading tools...</div>
+            </div>
+        );
+    }
+
+    if (toolsError) {
+        return (
+            <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
+                <div className="text-accent-red">Failed to load tools</div>
             </div>
         );
     }
@@ -57,7 +110,9 @@ export default function ToolsListPage() {
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Tools</h1>
-                        <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 sm:mt-1">{tools.length} total tools</p>
+                        <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 sm:mt-1">
+                            {pagination ? `${pagination.total} total tools (Page ${pagination.page} of ${pagination.totalPages})` : `${tools.length} tools`}
+                        </p>
                     </div>
                     <Link
                         href="/dashboard/tools/new"
@@ -84,7 +139,7 @@ export default function ToolsListPage() {
                     <div className="flex gap-2 sm:gap-3">
                         <SearchableSelect
                             value={statusFilter}
-                            onChange={setStatusFilter}
+                            onChange={handleStatusChange}
                             options={statusOptions}
                             placeholder="Status"
                             searchPlaceholder="Search status..."
@@ -244,9 +299,7 @@ export default function ToolsListPage() {
                                                     <Pencil className="w-4 h-4" />
                                                 </Link>
                                                 <button
-                                                    onClick={() => {
-                                                        if (confirm(`Delete "${tool.name}"?`)) deleteTool(tool.id);
-                                                    }}
+                                                    onClick={() => handleDelete(tool.id, tool.name)}
                                                     className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors"
                                                     title="Delete"
                                                 >
@@ -260,6 +313,36 @@ export default function ToolsListPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {pagination && pagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 p-3 sm:p-4 bg-bg-card border border-border rounded-xl">
+                        <div className="text-sm text-text-secondary">
+                            Showing {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-text-secondary bg-bg-secondary border border-border rounded-lg hover:bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                            </button>
+                            <span className="px-3 py-2 text-sm font-medium text-text-primary bg-accent-primary/10 rounded-lg">
+                                {currentPage} / {pagination.totalPages}
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                                disabled={currentPage === pagination.totalPages}
+                                className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-text-secondary bg-bg-secondary border border-border rounded-lg hover:bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div >
 
             {/* Quick Preview Modal */}

@@ -14,16 +14,61 @@ export const revalidate = 300;
 
 // Generate dynamic metadata with tool count
 export async function generateMetadata(): Promise<Metadata> {
-    const tools = await getPublishedTools();
+    const [tools, categories, tasks] = await Promise.all([
+        getPublishedTools(),
+        getCategories(),
+        getTasks(),
+    ]);
     const toolCount = tools.length;
+    const categoryCount = categories.length;
+    const taskCount = tasks.length;
+
+    const title = `AiBDE - Browse, Discover, and Explore ${toolCount}+ Top AI Tools`;
+    const description = `Discover ${toolCount}+ AI tools across ${categoryCount} categories for ${taskCount}+ tasks. Find the best AI solutions for writing, design, coding, marketing, and more. Updated daily.`;
 
     return {
-        title: `AiBDE - Browse, Discover, and Explore ${toolCount}+ Top AI Tools`,
-        description: `Browse, discover, and explore ${toolCount}+ top AI tools for your everyday tasks. Find the best AI solutions for writing, design, coding, and more.`,
+        title,
+        description,
+        keywords: [
+            'AI tools',
+            'AI tools directory',
+            'best AI tools',
+            'AI tools 2025',
+            'free AI tools',
+            'AI software',
+            'artificial intelligence tools',
+            'AI for productivity',
+            'AI for writing',
+            'AI for coding',
+            'AI image generator',
+            'ChatGPT alternatives',
+            'AiBDE',
+        ].join(', '),
         openGraph: {
-            title: `AiBDE - Browse, Discover, and Explore ${toolCount}+ top AI tools for your everyday tasks.`,
-            description: `Browse, discover, and explore ${toolCount}+ top AI tools for your everyday tasks.`,
+            title,
+            description,
             type: 'website',
+            siteName: 'AiBDE',
+            url: 'https://aibde.tech',
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+        },
+        alternates: {
+            canonical: 'https://aibde.tech',
+        },
+        robots: {
+            index: true,
+            follow: true,
+            googleBot: {
+                index: true,
+                follow: true,
+                'max-video-preview': -1,
+                'max-image-preview': 'large',
+                'max-snippet': -1,
+            },
         },
     };
 }

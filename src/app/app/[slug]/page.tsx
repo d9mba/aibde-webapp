@@ -23,21 +23,44 @@ export async function generateMetadata({
 
     const description = tool.summary || tool.description?.slice(0, 155) || `Discover ${tool.name} - an AI tool for ${tool.categoryName?.join(', ') || 'various tasks'}`;
     const categoryLabel = tool.categoryName?.[0] || 'AI Tool';
+    const taskLabels = tool.taskName?.slice(0, 3).join(', ') || '';
+    const title = `${tool.name} | ${categoryLabel} | AiBDE`;
 
     return {
-        title: `${tool.name} | ${categoryLabel} | AiBDE`,
+        title,
         description,
-        keywords: [tool.name, ...(tool.categoryName || []), ...(tool.taskName || []), ...(tool.tags || []), 'AI tool', 'AiBDE'].join(', '),
+        keywords: [
+            tool.name,
+            `${tool.name} AI`,
+            `${tool.name} review`,
+            `${tool.name} alternative`,
+            ...(tool.categoryName || []),
+            ...(tool.taskName || []),
+            ...(tool.tags || []),
+            'AI tool',
+            'best AI tools',
+            'AiBDE'
+        ].join(', '),
         openGraph: {
-            title: `${tool.name} | ${categoryLabel} | AiBDE`,
+            title,
             description,
             type: 'website',
-            images: tool.logoUrl ? [tool.logoUrl] : undefined,
+            siteName: 'AiBDE',
+            url: `https://aibde.tech/app/${slug}`,
+            images: tool.logoUrl ? [{ url: tool.logoUrl, alt: tool.name }] : undefined,
         },
         twitter: {
-            card: 'summary',
-            title: `${tool.name} | ${categoryLabel} | AiBDE`,
+            card: 'summary_large_image',
+            title,
             description,
+            images: tool.logoUrl ? [tool.logoUrl] : undefined,
+        },
+        alternates: {
+            canonical: `https://aibde.tech/app/${slug}`,
+        },
+        robots: {
+            index: true,
+            follow: true,
         },
     };
 }

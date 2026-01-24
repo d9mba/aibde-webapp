@@ -1,19 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-
-// CDN URL from env (for display fallback)
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
-
-const getFullUrl = (path: string): string => {
-    if (!path) return '';
-    // Already a full URL - return as-is
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    // Relative path - try to prepend CDN URL
-    if (CDN_URL) return `${CDN_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-    // No CDN URL available - return relative path (may not display)
-    return path;
-};
+import { getFullUrl, CDN_URL } from '@/lib/url';
 
 const getRelativePath = (url: string): string => {
     if (!url) return '';

@@ -72,13 +72,21 @@ export function getPublicUrl(path: string): string {
 }
 
 /**
- * Extract the path from a public URL
+ * Extract the path from a public URL (supports both R2 and CDN URLs)
  * @param url - Full public URL
  * @returns Path in bucket
  */
 export function getPathFromUrl(url: string): string | null {
-    if (!url.startsWith(publicUrl)) return null;
-    return url.replace(`${publicUrl}/`, '');
+    // Check R2 public URL
+    if (url.startsWith(publicUrl)) {
+        return url.replace(`${publicUrl}/`, '');
+    }
+    // Check CDN URL (files uploaded via CDN but stored in R2)
+    const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || '';
+    if (cdnUrl && url.startsWith(cdnUrl)) {
+        return url.replace(`${cdnUrl}/`, '');
+    }
+    return null;
 }
 
 /**

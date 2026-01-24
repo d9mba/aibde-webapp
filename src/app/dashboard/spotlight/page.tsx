@@ -2,11 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import { useAdmin } from '@/context/AdminContext';
-import { Search } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const ITEMS_PER_PAGE = 25;
 
 export default function SpotlightPage() {
     const { tools, updateTool, settings } = useAdmin();
     const [search, setSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
 
     const spotlightTools = useMemo(() => {
         return tools
@@ -15,18 +18,29 @@ export default function SpotlightPage() {
     }, [tools]);
 
     const availableTools = useMemo(() => {
-        return tools.filter(t => !t.spotlightEnabled && t.status === 'published');
+        return tools.filter(t => !t.spotlightEnabled);
     }, [tools]);
 
-    // Filter available tools by search - show only 5 when not searching
+    // Filter available tools by search
     const filteredAvailableTools = useMemo(() => {
-        if (!search) return availableTools.slice(0, 5);
+        if (!search) return availableTools;
         const searchLower = search.toLowerCase();
         return availableTools.filter(t =>
             (t.name || '').toLowerCase().includes(searchLower) ||
             (t.categoryName || []).some(cat => (cat || '').toLowerCase().includes(searchLower))
         );
     }, [availableTools, search]);
+
+    // Pagination
+    const totalPages = Math.ceil(filteredAvailableTools.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedTools = filteredAvailableTools.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    // Reset to page 1 when search changes
+    const handleSearch = (value: string) => {
+        setSearch(value);
+        setCurrentPage(1);
+    };
 
     const handleRemoveFromSpotlight = (toolId: string) => {
         updateTool(toolId, { isFeatured: false, spotlightEnabled: false, spotlightPosition: undefined });
@@ -101,7 +115,7 @@ export default function SpotlightPage() {
                                     <div key={tool.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-bg-secondary transition-colors">
                                         <span className="text-xs font-mono text-text-tertiary w-5 sm:w-6">#{idx + 1}</span>
                                         {tool.logoUrl ? (
-                                            <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover" />
+                                            <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain" />
                                         ) : (
                                             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary text-xs font-bold">
                                                 {(tool.name || 'T')[0]}
@@ -155,48 +169,71 @@ export default function SpotlightPage() {
                                 <input
                                     type="text"
                                     value={search}
-                                    onChange={e => setSearch(e.target.value)}
+                                    onChange={e => handleSearch(e.target.value)}
                                     placeholder="Search tools..."
                                     className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-text-tertiary"
                                 />
                             </div>
                         </div>
 
-                        <div className="divide-y divide-border max-h-[300px] sm:max-h-[400px] overflow-y-auto">
-                            {filteredAvailableTools.length === 0 ? (
+                        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+                            {paginatedTools.length === 0 ? (
                                 <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
                                     {search ? 'No tools match your search' : 'All published tools are in spotlight'}
                                 </div>
                             ) : (
-                                <>
-                                    {filteredAvailableTools.map((tool) => (
-                                        <div key={tool.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-bg-secondary transition-colors">
-                                            {tool.logoUrl ? (
-                                                <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover" />
-                                            ) : (
-                                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-bg-secondary flex items-center justify-center text-text-tertiary text-xs font-bold">
-                                                    {(tool.name || 'T')[0]}
-                                                </div>
-                                            )}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-text-primary text-sm truncate">{tool.name}</div>
+                                paginatedTools.map((tool) => (
+                                    <div key={tool.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-bg-secondary transition-colors">
+                                        {tool.logoUrl ? (
+                                            <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain" />
+                                        ) : (
+                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-bg-secondary flex items-center justify-center text-text-tertiary text-xs font-bold">
+                                                {(tool.name || 'T')[0]}
                                             </div>
-                                            <button
-                                                onClick={() => handleAddToSpotlight(tool.id)}
-                                                className="px-2 py-1 text-xs text-accent-primary bg-accent-primary-bg rounded hover:bg-accent-primary/20"
-                                            >
-                                                + Add
-                                            </button>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-medium text-text-primary text-sm truncate">{tool.name}</div>
                                         </div>
-                                    ))}
-                                    {!search && availableTools.length > 5 && (
-                                        <div className="px-3 sm:px-5 py-2.5 sm:py-3 text-center text-text-tertiary text-xs border-t border-border">
-                                            Showing 5 of {availableTools.length} tools. Search to find more.
-                                        </div>
-                                    )}
-                                </>
+                                        <button
+                                            onClick={() => handleAddToSpotlight(tool.id)}
+                                            className="px-2 py-1 text-xs text-accent-primary bg-accent-primary-bg rounded hover:bg-accent-primary/20"
+                                        >
+                                            + Add
+                                        </button>
+                                    </div>
+                                ))
                             )}
                         </div>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
+                                <span className="text-sm text-text-tertiary">
+                                    Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredAvailableTools.length)} of {filteredAvailableTools.length}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                        Previous
+                                    </button>
+                                    <span className="text-sm text-text-tertiary">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage >= totalPages}
+                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

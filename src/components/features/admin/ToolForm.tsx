@@ -8,6 +8,7 @@ import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { Input, Toggle, Section, ListEditor, Combobox, RichTextEditor, MediaUpload, useToast, SearchableSelect } from '@/components/ui';
 import { toolSchema, ToolFormData, defaultToolValues } from './ToolForm/schema';
 import FullPreview from './ToolForm/FullPreview';
+import { getPricingClass, getPricingLabel } from '@/lib/formatters';
 
 interface ToolFormProps { toolId?: string; }
 
@@ -60,11 +61,17 @@ const PricingTierEditor = ({ tiers, onChange }: { tiers: any[]; onChange: (tiers
                     <div className="grid grid-cols-3 gap-3 mb-3">
                         <input value={tier.name} onChange={e => { const t = [...tiers]; t[i].name = e.target.value; onChange(t); }} placeholder="Tier name" className="px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm" />
                         <input value={tier.price} onChange={e => { const t = [...tiers]; t[i].price = e.target.value; onChange(t); }} placeholder="Price" className="px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm" />
-                        <select value={tier.billingFrequency || 'monthly'} onChange={e => { const t = [...tiers]; t[i].billingFrequency = e.target.value; onChange(t); }} className="px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm">
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
-                            <option value="one-time">One-time</option>
-                        </select>
+                        <SearchableSelect
+                            value={tier.billingFrequency || 'monthly'}
+                            onChange={(value) => { const t = [...tiers]; t[i].billingFrequency = value; onChange(t); }}
+                            options={[
+                                { value: 'monthly', label: 'Monthly' },
+                                { value: 'yearly', label: 'Yearly' },
+                                { value: 'one-time', label: 'One-time' },
+                            ]}
+                            showSearch={false}
+                            className="flex-1"
+                        />
                     </div>
                     <textarea value={(tier.features || []).join('\n')} onChange={e => { const t = [...tiers]; t[i].features = e.target.value.split('\n').filter(Boolean); onChange(t); }} placeholder="Features (one per line)" rows={3} className="w-full px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm resize-none" />
                     <label className="flex items-center gap-2 mt-2 text-sm text-text-secondary cursor-pointer">
@@ -175,8 +182,8 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
                     <div className="flex gap-2 mt-2 flex-wrap">
                         {firstCategory && <span className="px-2 py-0.5 bg-accent-primary/10 text-accent-primary rounded text-xs">{firstCategory}{categoryNames.length > 1 && ` +${categoryNames.length - 1}`}</span>}
                         {values.pricing && (
-                            <span className={`px-2 py-0.5 rounded text-xs ${values.pricing === 'free' ? 'bg-accent-green/10 text-accent-green' : values.pricing === 'freemium' ? 'bg-accent-purple/10 text-accent-purple' : 'bg-accent-yellow/10 text-accent-yellow'}`}>
-                                {values.pricing === 'free' ? 'Free' : values.pricing === 'freemium' ? 'Freemium' : 'Paid'}
+                            <span className={`px-2 py-0.5 rounded text-xs ${getPricingClass(values.pricing)}`}>
+                                {getPricingLabel(values.pricing)}
                             </span>
                         )}
                         {values.hasFreeTrial && <span className="px-2 py-0.5 bg-bg-tertiary text-text-secondary rounded text-xs">{values.freeTrialDays} day trial</span>}
@@ -318,7 +325,13 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             }
         }
 
-        const statusMsg = data.status === 'draft' ? 'Saving draft' : (data.status === 'pending' ? 'Submitting for review' : (isEdit ? 'Updating' : 'Creating'));
+        const statusMessages: Record<string, string> = {
+            draft: 'Saving draft',
+            pending: 'Submitting for review',
+            published: isEdit ? 'Updating' : 'Creating'
+        };
+        const status = data.status || 'published';
+        const statusMsg = statusMessages[status] || (isEdit ? 'Updating' : 'Creating');
         const toastId = showToast(`${statusMsg}...`, 'loading');
         try {
             if (isEdit && toolId) await updateTool(toolId, data);
@@ -470,20 +483,34 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-text-secondary mb-1.5">Pricing Model</label>
-                                <select {...register('pricing')} className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary">
-                                    <option value="free">Free</option>
-                                    <option value="freemium">Freemium</option>
-                                    <option value="paid">Paid</option>
-                                </select>
+                                <Controller name="pricing" control={control} render={({ field }) => (
+                                    <SearchableSelect
+                                        value={field.value || 'free'}
+                                        onChange={field.onChange}
+                                        options={[
+                                            { value: 'free', label: 'Free' },
+                                            { value: 'freemium', label: 'Freemium' },
+                                            { value: 'paid', label: 'Paid' },
+                                        ]}
+                                        showSearch={false}
+                                    />
+                                )} />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-text-secondary mb-1.5">Billing Frequency</label>
-                                <select {...register('billingFrequency')} className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary">
-                                    <option value="monthly">Monthly</option>
-                                    <option value="yearly">Yearly</option>
-                                    <option value="one-time">One-time</option>
-                                    <option value="custom">Custom</option>
-                                </select>
+                                <Controller name="billingFrequency" control={control} render={({ field }) => (
+                                    <SearchableSelect
+                                        value={field.value || 'monthly'}
+                                        onChange={field.onChange}
+                                        options={[
+                                            { value: 'monthly', label: 'Monthly' },
+                                            { value: 'yearly', label: 'Yearly' },
+                                            { value: 'one-time', label: 'One-time' },
+                                            { value: 'custom', label: 'Custom' },
+                                        ]}
+                                        showSearch={false}
+                                    />
+                                )} />
                             </div>
                             <Input label="Pricing Label" {...register('pricingLabel')} placeholder="From $20/mo" />
                             <Input label="Discount" {...register('discount')} placeholder="20% off" />

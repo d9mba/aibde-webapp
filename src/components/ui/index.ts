@@ -1,5 +1,4 @@
 // UI components barrel export
-export { default as Select } from './Select';
 export { default as Skeleton, ToolCardSkeleton, ToolGridSkeleton } from './Skeleton';
 export { default as MediaUpload } from './MediaUpload';
 export { default as RichTextEditor } from './RichTextEditor';

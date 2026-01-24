@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool, Category } from '@/types';
 import { Folder, ArrowLeft, ChevronRight } from 'lucide-react';
+import { useSearch } from '@/context/SearchContext';
 
 interface CategorySlugPageClientProps {
     category: Category | null;
@@ -18,7 +20,15 @@ export default function CategorySlugPageClient({
     allCategories,
     slug
 }: CategorySlugPageClientProps) {
+    const { setSharedTools } = useSearch();
     const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    // Set sharedTools for search recommendations in header
+    useEffect(() => {
+        if (tools.length > 0) {
+            setSharedTools(tools);
+        }
+    }, [tools, setSharedTools]);
 
     // Get tools in this category
     const categoryTools = category

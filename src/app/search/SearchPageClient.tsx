@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AIToolCard from '@/components/features/tools/ToolCard';
-import CustomSelect from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { searchTools } from '@/lib/search';
 import { AdminTool, Category, Task } from '@/types';
+import { trackSearch, trackFilterUsed } from '@/hooks/useToolAnalytics';
 
 const ITEMS_PER_PAGE = 6;
 
@@ -17,6 +18,7 @@ interface SearchPageClientProps {
 
 export default function SearchPageClient({ tools, categories, tasks }: SearchPageClientProps) {
     const searchParams = useSearchParams();
+    const lastTrackedQuery = useRef<string>('');
 
     const [query, setQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -59,6 +61,36 @@ export default function SearchPageClient({ tools, categories, tasks }: SearchPag
 
         return results;
     }, [tools, query, selectedCategory, selectedTask, selectedPricing]);
+
+    // Track search queries (debounced)
+    useEffect(() => {
+        if (query && query.length >= 3 && query !== lastTrackedQuery.current) {
+            const timeoutId = setTimeout(() => {
+                trackSearch(query, filteredTools.length);
+                lastTrackedQuery.current = query;
+            }, 1000);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [query, filteredTools.length]);
+
+    // Track filter usage
+    useEffect(() => {
+        if (selectedCategory) {
+            trackFilterUsed('category', selectedCategory);
+        }
+    }, [selectedCategory]);
+
+    useEffect(() => {
+        if (selectedTask) {
+            trackFilterUsed('task', selectedTask);
+        }
+    }, [selectedTask]);
+
+    useEffect(() => {
+        if (selectedPricing) {
+            trackFilterUsed('pricing', selectedPricing);
+        }
+    }, [selectedPricing]);
 
     // Paginated results
     const visibleTools = filteredTools.slice(0, visibleCount);
@@ -108,36 +140,40 @@ export default function SearchPageClient({ tools, categories, tasks }: SearchPag
             </section>
 
             <div className="flex flex-wrap gap-3 mb-6 justify-center">
-                <CustomSelect
+                <SearchableSelect
                     options={[
                         { value: '', label: 'All Categories' },
                         ...categories.map(cat => ({ value: cat.categoryName, label: cat.categoryName }))
                     ]}
-                    value={selectedCategory}
-                    onChange={setSelectedCategory}
+                    value={selectedCategory || ''}
+                    onChange={(value) => setSelectedCategory(value || null)}
                     placeholder="All Categories"
+                    className="min-w-[160px]"
                 />
 
-                <CustomSelect
+                <SearchableSelect
                     options={[
                         { value: '', label: 'All Tasks' },
                         ...tasks.map(task => ({ value: task.taskName, label: task.taskName }))
                     ]}
-                    value={selectedTask}
-                    onChange={setSelectedTask}
+                    value={selectedTask || ''}
+                    onChange={(value) => setSelectedTask(value || null)}
                     placeholder="All Tasks"
+                    className="min-w-[160px]"
                 />
 
-                <CustomSelect
+                <SearchableSelect
                     options={[
                         { value: '', label: 'All Pricing' },
                         { value: 'free', label: 'Free' },
                         { value: 'freemium', label: 'Freemium' },
-                        { value: 'paid', label: 'Paid' }
+                        { value: 'paid', label: 'Paid' },
                     ]}
-                    value={selectedPricing}
-                    onChange={setSelectedPricing}
+                    value={selectedPricing || ''}
+                    onChange={(value) => setSelectedPricing(value || null)}
                     placeholder="All Pricing"
+                    showSearch={false}
+                    className="min-w-[140px]"
                 />
             </div>
 

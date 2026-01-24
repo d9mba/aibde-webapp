@@ -20,6 +20,9 @@ export interface AITool {
     websiteUrl: string;
     logoUrl?: string;
     saveCount: number;
+    viewCount?: number;
+    upvotes?: number;
+    downvotes?: number;
     releasedAt: string;
     releasedAgo: string;
     isFeatured: boolean;
@@ -122,6 +125,9 @@ export interface AdminTool extends AITool {
 
     // Premium - gives dofollow backlinks (SEO value)
     premium?: boolean;
+
+    // Trending control
+    trendingPosition?: number;
 
     // Timestamps
     createdAt?: string;

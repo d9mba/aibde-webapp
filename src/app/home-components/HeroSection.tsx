@@ -6,15 +6,9 @@ import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
 import { useDebounce } from '@/hooks/useDebounce';
 import { quickSearchTools } from '@/lib/search';
+import { trackToolClick } from '@/hooks/useToolAnalytics';
 import { AdminTool } from '@/types';
-
-// CDN URL helper
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || '';
-const getFullUrl = (path: string): string => {
-    if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return `${CDN_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
+import { getFullUrl } from '@/lib/url';
 
 interface HeroSectionProps {
     allTools: AdminTool[];
@@ -23,11 +17,18 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0 }: HeroSectionProps) {
-    const { searchQuery, setSearchQuery, isMainSearchFocused, setIsMainSearchFocused } = useSearch();
+    const { searchQuery, setSearchQuery, isMainSearchFocused, setIsMainSearchFocused, setSharedTools } = useSearch();
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const typingPlaceholder = useTypingPlaceholder();
     const debouncedSearchQuery = useDebounce(searchQuery, 150);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Share tools with other components (like TopHeader) via context
+    useEffect(() => {
+        if (allTools.length > 0) {
+            setSharedTools(allTools);
+        }
+    }, [allTools, setSharedTools]);
 
     // Ctrl+K keyboard shortcut to focus hero search (only when at top of page)
     useEffect(() => {
@@ -45,7 +46,7 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
     }, [setIsMainSearchFocused]);
 
     const searchResults = useMemo(() => {
-        if (debouncedSearchQuery.length === 0) return [];
+        if (debouncedSearchQuery.length < 3) return [];
         return quickSearchTools(allTools, debouncedSearchQuery, 6);
     }, [allTools, debouncedSearchQuery]);
 
@@ -124,11 +125,14 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
                                 <div
                                     key={tool.id}
                                     className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors ${index === selectedIndex ? 'bg-bg-secondary' : 'hover:bg-bg-secondary'}`}
-                                    onClick={() => window.location.href = `/app/${tool.slug}`}
+                                    onClick={() => {
+                                        trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+                                        window.location.href = `/app/${tool.slug}`;
+                                    }}
                                     onMouseEnter={() => setSelectedIndex(index)}
                                 >
                                     {logoUrl ? (
-                                        <img src={logoUrl} alt={tool.name} className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
+                                        <img src={logoUrl} alt={tool.name} className="w-7 h-7 rounded-md object-contain flex-shrink-0" />
                                     ) : (
                                         <div className="w-7 h-7 rounded-md bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
                                             <span className="text-xs font-semibold text-accent-primary">{tool.name.charAt(0)}</span>

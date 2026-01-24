@@ -155,67 +155,63 @@ export default function NotesPage() {
     };
 
     return (
-        <div className="flex h-screen">
-            {/* Left Sidebar */}
-            <div className="w-96 border-r border-border bg-bg-secondary flex flex-col">
-                <div className="p-4 border-b border-border">
-                    <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col lg:flex-row h-screen lg:h-auto">
+            {/* Left Sidebar - full width on mobile, fixed width on desktop */}
+            {/* On mobile, hide when a note is selected */}
+            <div className={`w-full lg:w-96 border-b lg:border-b-0 lg:border-r border-border bg-bg-secondary flex flex-col ${selectedNote ? 'hidden lg:flex' : 'flex'} max-h-[100vh] lg:max-h-screen lg:h-screen`}>
+                <div className="p-3 lg:p-4 border-b border-border">
+                    {/* Compact Header */}
+                    <div className="flex items-center justify-between mb-3">
                         <h1 className="text-lg font-bold text-text-primary">Notes</h1>
                         <button onClick={createNote} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-sm">+ New</button>
                     </div>
 
-                    {/* Search by Tool */}
-                    <div className="mb-3">
-                        <label className="text-xs text-text-tertiary mb-1 block">Search by Tool</label>
-                        <div ref={toolFilterRef} className="relative">
-                            <button onClick={() => { setShowToolFilter(!showToolFilter); setToolFilterSearch(''); setToolFilterIndex(0); }}
-                                className="w-full flex items-center justify-between px-3 py-2.5 bg-bg-primary border border-border rounded-xl text-sm text-text-primary hover:border-text-tertiary transition-colors">
-                                <span className="flex items-center gap-2">
-                                    {filterTool && getToolLogo(filterTool) && <img src={getToolLogo(filterTool)!} alt="" className="w-5 h-5 rounded-md" />}
-                                    <span className={filterTool ? 'font-medium' : ''}>{filterTool ? getToolName(filterTool) : 'All Tools'}</span>
-                                </span>
-                                <span className="text-text-tertiary">▾</span>
-                            </button>
-                            {showToolFilter && (
-                                <div className="absolute z-20 w-full mt-1 bg-bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                                    <div className="p-2 border-b border-border">
-                                        <input autoFocus value={toolFilterSearch} onChange={e => setToolFilterSearch(e.target.value)} onKeyDown={handleToolFilterKeyDown}
-                                            placeholder="Search tools..." className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary" />
-                                    </div>
-                                    <div ref={toolFilterListRef} className="max-h-48 overflow-y-auto">
-                                        {toolFilterOptions.map((tool, idx) => (
-                                            <button key={tool.id || 'all'} onClick={() => { setFilterTool(tool.id); setShowToolFilter(false); setToolFilterSearch(''); setSelectedNote(null); setIsEditing(false); }}
-                                                className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 ${idx === toolFilterIndex ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'} ${filterTool === tool.id ? 'font-medium text-text-primary' : 'text-text-primary'}`}>
-                                                {tool.id && tool.logoUrl && <img src={tool.logoUrl} alt="" className="w-5 h-5 rounded-md" />}
-                                                <span>{tool.name}</span>
-                                            </button>
-                                        ))}
-                                        {toolFilterOptions.length === 0 && <div className="px-3 py-4 text-center text-text-tertiary text-sm">No tools found</div>}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Search Notes */}
-                    <div className="mb-3">
-                        <label className="text-xs text-text-tertiary mb-1 block">Search Notes</label>
-                        <div className="relative">
+                    {/* Search Notes - combined with tool filter on mobile */}
+                    <div className="flex gap-2 mb-2">
+                        <div className="flex-1 relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary text-sm">{renderIcon('search', 14)}</span>
-                            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by title or content..."
-                                className="w-full pl-9 pr-3 py-2.5 bg-bg-primary border border-border rounded-xl text-sm text-text-primary" />
+                            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search notes..."
+                                className="w-full pl-9 pr-3 py-2 bg-bg-primary border border-border rounded-lg text-sm text-text-primary" />
                         </div>
                     </div>
 
-                    {/* Date Range */}
-                    <div className="flex gap-2 mb-3">
+                    {/* Search by Tool - more compact */}
+                    <div ref={toolFilterRef} className="relative mb-2">
+                        <button onClick={() => { setShowToolFilter(!showToolFilter); setToolFilterSearch(''); setToolFilterIndex(0); }}
+                            className="w-full flex items-center justify-between px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm text-text-primary hover:border-text-tertiary transition-colors">
+                            <span className="flex items-center gap-2">
+                                {filterTool && getToolLogo(filterTool) && <img src={getToolLogo(filterTool)!} alt="" className="w-4 h-4 rounded" />}
+                                <span className={`text-xs ${filterTool ? 'font-medium' : 'text-text-tertiary'}`}>{filterTool ? getToolName(filterTool) : 'All Tools'}</span>
+                            </span>
+                            <span className="text-text-tertiary text-xs">▾</span>
+                        </button>
+                        {showToolFilter && (
+                            <div className="absolute z-20 w-full mt-1 bg-bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                                <div className="p-2 border-b border-border">
+                                    <input autoFocus value={toolFilterSearch} onChange={e => setToolFilterSearch(e.target.value)} onKeyDown={handleToolFilterKeyDown}
+                                        placeholder="Search tools..." className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary" />
+                                </div>
+                                <div ref={toolFilterListRef} className="max-h-48 overflow-y-auto">
+                                    {toolFilterOptions.map((tool, idx) => (
+                                        <button key={tool.id || 'all'} onClick={() => { setFilterTool(tool.id); setShowToolFilter(false); setToolFilterSearch(''); setSelectedNote(null); setIsEditing(false); }}
+                                            className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 ${idx === toolFilterIndex ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'} ${filterTool === tool.id ? 'font-medium text-text-primary' : 'text-text-primary'}`}>
+                                            {tool.id && tool.logoUrl && <img src={tool.logoUrl} alt="" className="w-5 h-5 rounded-md" />}
+                                            <span>{tool.name}</span>
+                                        </button>
+                                    ))}
+                                    {toolFilterOptions.length === 0 && <div className="px-3 py-4 text-center text-text-tertiary text-sm">No tools found</div>}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Date Range - hidden on mobile */}
+                    <div className="hidden sm:flex gap-2 mb-2">
                         <div className="flex-1">
-                            <label className="text-xs text-text-tertiary mb-1 block">From</label>
-                            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-2 py-2 bg-bg-primary border border-border rounded-xl text-xs text-text-primary" />
+                            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} placeholder="From" className="w-full px-2 py-1.5 bg-bg-primary border border-border rounded-lg text-xs text-text-primary" />
                         </div>
                         <div className="flex-1">
-                            <label className="text-xs text-text-tertiary mb-1 block">To</label>
-                            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-2 py-2 bg-bg-primary border border-border rounded-xl text-xs text-text-primary" />
+                            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} placeholder="To" className="w-full px-2 py-1.5 bg-bg-primary border border-border rounded-lg text-xs text-text-primary" />
                         </div>
                     </div>
 
@@ -231,32 +227,38 @@ export default function NotesPage() {
 
                 {/* Selected Tool Display */}
                 {selectedToolData && (
-                    <div className="px-4 py-3 bg-accent-primary/5 border-b border-border flex items-center gap-3">
-                        {selectedToolData.logoUrl ? <img src={selectedToolData.logoUrl} alt="" className="w-8 h-8 rounded-lg object-cover" /> : <div className="w-8 h-8 bg-accent-primary/20 rounded-lg flex items-center justify-center text-accent-primary"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg></div>}
-                        <div><div className="font-medium text-text-primary text-sm">{selectedToolData.name}</div><div className="text-xs text-text-tertiary">{filteredNotes.length} note{filteredNotes.length !== 1 ? 's' : ''}</div></div>
+                    <div className="px-3 lg:px-4 py-2 bg-accent-primary/5 border-b border-border flex items-center gap-2">
+                        {selectedToolData.logoUrl ? <img src={selectedToolData.logoUrl} alt="" className="w-6 h-6 rounded-lg object-contain" /> : <div className="w-6 h-6 bg-accent-primary/20 rounded-lg flex items-center justify-center text-accent-primary"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg></div>}
+                        <div><div className="font-medium text-text-primary text-xs">{selectedToolData.name}</div><div className="text-[10px] text-text-tertiary">{filteredNotes.length} note{filteredNotes.length !== 1 ? 's' : ''}</div></div>
                     </div>
                 )}
 
                 {/* Notes List */}
                 <div className="flex-1 overflow-y-auto p-2">
                     {filteredNotes.length === 0 ? (
-                        <div className="text-center py-12"><svg className="w-8 h-8 text-text-tertiary mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg><p className="text-text-tertiary text-sm mb-3">{filterTool ? `No notes for ${getToolName(filterTool)}` : 'No notes yet'}</p><button onClick={createNote} className="text-accent-primary text-sm hover:underline">+ Add new note</button></div>
+                        <div className="text-center py-8"><svg className="w-8 h-8 text-text-tertiary mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg><p className="text-text-tertiary text-sm mb-2">{filterTool ? `No notes for ${getToolName(filterTool)}` : 'No notes yet'}</p><button onClick={createNote} className="text-accent-primary text-sm hover:underline">+ Add new note</button></div>
                     ) : viewMode === 'list' ? (
                         filteredNotes.map(note => (
-                            <button key={note.id} onClick={() => { setSelectedNote(note); setIsEditing(false); }} className={`w-full text-left p-3 rounded-xl mb-1 transition-all border ${selectedNote?.id === note.id ? 'bg-bg-tertiary border-accent-primary/30' : 'border-transparent hover:bg-bg-tertiary/50'}`}>
+                            <button key={note.id} onClick={() => { setSelectedNote(note); setIsEditing(false); }} className={`w-full text-left p-2.5 rounded-lg mb-1 transition-all border ${selectedNote?.id === note.id ? 'bg-bg-tertiary border-accent-primary/30' : 'border-transparent hover:bg-bg-tertiary/50'}`}>
                                 <div className="font-medium text-text-primary text-sm truncate">{note.title}</div>
-                                <div className="text-xs text-text-tertiary truncate mt-0.5">{note.content.slice(0, 60)}...</div>
-                                <div className="flex items-center gap-2 mt-1.5"><span className="text-[10px] text-text-tertiary">{formatDateTime(note.updatedAt)}</span>{note.toolId && !filterTool && <span className="text-[10px] text-accent-primary">• {getToolName(note.toolId)}</span>}</div>
+                                <div className="text-xs text-text-tertiary truncate mt-0.5">{note.content.slice(0, 50)}...</div>
+                                <div className="flex items-center gap-2 mt-1"><span className="text-[10px] text-text-tertiary">{formatDateTime(note.updatedAt)}</span>{note.toolId && !filterTool && <span className="text-[10px] text-accent-primary">• {getToolName(note.toolId)}</span>}</div>
                             </button>
                         ))
                     ) : (
-                        <div className="grid grid-cols-2 gap-2">{filteredNotes.map(note => (<button key={note.id} onClick={() => { setSelectedNote(note); setIsEditing(false); }} className={`text-left p-3 rounded-xl border transition-all ${selectedNote?.id === note.id ? 'bg-bg-tertiary border-accent-primary/30' : 'border-border hover:border-accent-primary/30'}`}><div className="font-medium text-text-primary text-xs truncate">{note.title}</div><div className="text-[10px] text-text-tertiary line-clamp-2 mt-0.5">{note.content}</div><div className="text-[9px] text-text-tertiary mt-1">{formatDateTime(note.updatedAt)}</div></button>))}</div>
+                        <div className="grid grid-cols-2 gap-2">{filteredNotes.map(note => (<button key={note.id} onClick={() => { setSelectedNote(note); setIsEditing(false); }} className={`text-left p-2.5 rounded-lg border transition-all ${selectedNote?.id === note.id ? 'bg-bg-tertiary border-accent-primary/30' : 'border-border hover:border-accent-primary/30'}`}><div className="font-medium text-text-primary text-xs truncate">{note.title}</div><div className="text-[10px] text-text-tertiary line-clamp-2 mt-0.5">{note.content}</div><div className="text-[9px] text-text-tertiary mt-1">{formatDateTime(note.updatedAt)}</div></button>))}</div>
                     )}
                 </div>
             </div>
 
-            {/* Right Panel */}
-            <div className="flex-1 flex flex-col bg-bg-primary">
+            {/* Right Panel - full screen on mobile when note selected */}
+            <div className={`flex-1 flex flex-col bg-bg-primary ${selectedNote ? 'flex' : 'hidden lg:flex'} min-h-screen lg:min-h-0`}>
+                {/* Mobile back button */}
+                {selectedNote && (
+                    <button onClick={() => setSelectedNote(null)} className="lg:hidden flex items-center gap-2 px-3 py-2 text-sm text-accent-primary border-b border-border">
+                        ← Back to notes
+                    </button>
+                )}
                 {isEditing ? (
                     <>
                         <div className="p-4 border-b border-border flex items-center justify-between">

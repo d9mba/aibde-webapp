@@ -114,10 +114,10 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
         try {
             // Use Promise.allSettled to handle individual failures gracefully
             const results = await Promise.allSettled([
-                fetch('/api/tools'),
-                fetch('/api/categories'),
-                fetch('/api/tasks'),
-                fetch('/api/tags'),
+                fetch('/api/tools?all=true'),
+                fetch('/api/categories?all=true'),
+                fetch('/api/tasks?all=true'),
+                fetch('/api/tags?all=true'),
                 fetch('/api/notes'),
                 fetch('/api/settings'),
             ]);

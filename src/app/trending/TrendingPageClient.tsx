@@ -1,13 +1,24 @@
 'use client';
 
+import { useEffect } from 'react';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool } from '@/types';
+import { useSearch } from '@/context/SearchContext';
 
 interface TrendingPageClientProps {
     tools: AdminTool[];
 }
 
 export default function TrendingPageClient({ tools }: TrendingPageClientProps) {
+    const { setSharedTools } = useSearch();
+
+    // Set sharedTools for search recommendations in header
+    useEffect(() => {
+        if (tools.length > 0) {
+            setSharedTools(tools);
+        }
+    }, [tools, setSharedTools]);
+
     // Sort by save count (popularity)
     const trendingTools = [...tools].sort((a, b) => b.saveCount - a.saveCount);
 

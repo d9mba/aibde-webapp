@@ -12,20 +12,15 @@ import { useEffect } from 'react';
  */
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
-        // Only initialize if the key is provided
-        if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+        // Only initialize if the key is provided AND in production
+        if (process.env.NEXT_PUBLIC_POSTHOG_KEY && process.env.NODE_ENV === 'production') {
             posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-                api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+                api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+                ui_host: 'https://us.posthog.com', // Required for toolbar when using proxy
                 // Capture pageviews automatically
                 capture_pageview: true,
                 // Capture page leave events
                 capture_pageleave: true,
-                // Disable in development for cleaner logs
-                loaded: (posthog) => {
-                    if (process.env.NODE_ENV === 'development') {
-                        posthog.debug();
-                    }
-                },
             });
         }
     }, []);

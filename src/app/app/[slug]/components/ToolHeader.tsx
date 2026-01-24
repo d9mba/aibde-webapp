@@ -4,6 +4,7 @@ import { getFullUrl, ensureProtocol, getLogoColor, Section } from './utils';
 import { addUtmParams } from '@/lib/url-utils';
 import { Share2 } from 'lucide-react';
 import { trackToolVisit } from '@/hooks/useToolAnalytics';
+import VoteButtons from '@/components/ui/VoteButtons';
 
 interface ToolHeaderProps {
     tool: AdminTool;
@@ -30,7 +31,7 @@ export default function ToolHeader({
                     <img
                         src={getFullUrl(tool.logoUrl)}
                         alt={tool.name}
-                        className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl object-cover bg-bg-tertiary flex-shrink-0"
+                        className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl object-contain bg-bg-tertiary flex-shrink-0"
                     />
                 ) : (
                     <div
@@ -60,7 +61,7 @@ export default function ToolHeader({
                                         { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                                         tool.websiteUrl || ''
                                     )}
-                                    className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-primary text-white sm:bg-bg-secondary sm:text-text-primary sm:border sm:border-border rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 sm:hover:border-text-tertiary transition-colors"
+                                    className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
                                 >
                                     Visit
                                 </a>
@@ -150,7 +151,46 @@ export default function ToolHeader({
                 </div>
             )}
 
-            {/* Updated Date - Visible on mobile and desktop */}
+            {/* Stats Row - Impressions, Rating, Voting */}
+            <div className="flex items-center gap-4 mt-3">
+                {/* Impressions */}
+                <div className="flex items-center gap-1.5 text-text-tertiary">
+                    <svg className="w-4 h-4" viewBox="0 0 512 512" fill="currentColor">
+                        <path d="M184 448h48c4.4 0 8-3.6 8-8V72c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v368c0 4.4 3.6 8 8 8z" />
+                        <path d="M88 448h48c4.4 0 8-3.6 8-8V296c0-4.4-3.6-8-8-8H88c-4.4 0-8 3.6-8 8v144c0 4.4 3.6 8 8 8z" />
+                        <path d="M280.1 448h47.8c4.5 0 8.1-3.6 8.1-8.1V232.1c0-4.5-3.6-8.1-8.1-8.1h-47.8c-4.5 0-8.1 3.6-8.1 8.1v207.8c0 4.5 3.6 8.1 8.1 8.1z" />
+                        <path d="M368 136.1v303.8c0 4.5 3.6 8.1 8.1 8.1h47.8c4.5 0 8.1-3.6 8.1-8.1V136.1c0-4.5-3.6-8.1-8.1-8.1h-47.8c-4.5 0-8.1 3.6-8.1 8.1z" />
+                    </svg>
+                    <span className="text-sm font-medium">
+                        {((tool.viewCount || tool.saveCount) >= 1000
+                            ? `${Math.round((tool.viewCount || tool.saveCount) / 1000)}k`
+                            : (tool.viewCount || tool.saveCount || 0)).toLocaleString()}
+                    </span>
+                </div>
+
+                {/* Star Rating */}
+                <div className="flex items-center gap-1 text-text-secondary">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    <span className="text-sm font-medium">
+                        {(tool.upvotes || 0) > 0 ? ((tool.upvotes || 0) / 50).toFixed(1) : '0.0'}
+                        <span className="text-text-tertiary ml-0.5">({tool.upvotes || 0})</span>
+                    </span>
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-4 bg-border" />
+
+                {/* Vote Buttons */}
+                <VoteButtons
+                    toolId={tool.id}
+                    initialUpvotes={tool.upvotes || 0}
+                    initialDownvotes={tool.downvotes || 0}
+                />
+            </div>
+
+            {/* Updated Date - Below stats with clock icon */}
             {(tool.updatedAt || tool.createdAt || tool.releasedAt) && (
                 <div className="flex items-center gap-1 mt-2 text-xs text-text-tertiary">
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

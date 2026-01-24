@@ -50,10 +50,6 @@ export async function requireAdmin(): Promise<AuthResult | AuthError> {
         const publicMetadata = user.publicMetadata as { role?: string } | undefined;
         const role = publicMetadata?.role || 'user';
 
-        console.log('[Auth] userId:', userId);
-        console.log('[Auth] publicMetadata:', JSON.stringify(publicMetadata));
-        console.log('[Auth] Detected role:', role);
-
         // SECURITY: Enforce admin role check
         if (role !== 'admin') {
             console.error(`[Security] Unauthorized admin access attempt by userId: ${userId}`);

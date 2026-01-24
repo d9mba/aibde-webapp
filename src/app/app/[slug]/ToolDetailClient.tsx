@@ -6,6 +6,7 @@ import { AdminTool, Category, Task } from '@/types';
 import ShareModal from '@/components/ui/ShareModal';
 import { useToolPageView, trackToolVisit } from '@/hooks/useToolAnalytics';
 import { addUtmParams } from '@/lib/url-utils';
+import { useSearch } from '@/context/SearchContext';
 
 // Import all modular components
 import {
@@ -44,6 +45,14 @@ export default function ToolDetailClient({
     const [selectedMedia, setSelectedMedia] = useState(0);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const { setSharedTools } = useSearch();
+
+    // Set sharedTools for search recommendations in header
+    useEffect(() => {
+        if (allTools.length > 0) {
+            setSharedTools(allTools);
+        }
+    }, [allTools, setSharedTools]);
 
     // Analytics: Track page view and time spent
     useToolPageView({
@@ -216,7 +225,7 @@ export default function ToolDetailClient({
                     {/* Tool info */}
                     <div className="flex items-center gap-2 flex-1 min-w-0 pl-0.5">
                         {tool.logoUrl ? (
-                            <img src={tool.logoUrl} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                            <img src={tool.logoUrl} alt="" className="w-8 h-8 rounded-lg object-contain flex-shrink-0" />
                         ) : (
                             <div className="w-8 h-8 rounded-lg bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
                                 <span className="text-xs font-semibold text-accent-primary">{tool.name[0]}</span>

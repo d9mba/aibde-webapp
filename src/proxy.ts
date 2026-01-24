@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 // 1. Define Routes
 const isSecretEntry = createRouteMatcher(['/login/:secret']) // Matches /login/super-secret
 const isLoginPage = createRouteMatcher(['/login(.*)', '/sign-in(.*)']) // Matches /login, /login/factor-one
-const isPublicApiRoute = createRouteMatcher(['/api/public(.*)'])
+const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/cron(.*)', '/api/vote', '/api/submit-tool', '/api/contact'])
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api(.*)'])
 
 export const proxy = clerkMiddleware(async (auth, req) => {

@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { AdminTool, Task } from '@/types';
 import { ClipboardEdit, ChevronRight } from 'lucide-react';
+import { useSearch } from '@/context/SearchContext';
 
 interface TasksPageClientProps {
     tasks: Task[];
@@ -10,7 +12,15 @@ interface TasksPageClientProps {
 }
 
 export default function TasksPageClient({ tasks, tools }: TasksPageClientProps) {
+    const { setSharedTools } = useSearch();
     const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    // Set sharedTools for search recommendations in header
+    useEffect(() => {
+        if (tools.length > 0) {
+            setSharedTools(tools);
+        }
+    }, [tools, setSharedTools]);
 
     return (
         <div className="max-w-[1200px] mx-auto px-3 sm:px-6 py-4 sm:py-10">
@@ -63,4 +73,3 @@ export default function TasksPageClient({ tasks, tools }: TasksPageClientProps) 
         </div>
     );
 }
-

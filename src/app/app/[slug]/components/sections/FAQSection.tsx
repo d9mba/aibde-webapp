@@ -11,16 +11,22 @@ interface FAQSectionProps {
     faq: FAQItem[];
 }
 
+const INITIAL_ITEMS = 5;
+
 export default function FAQSection({ faq }: FAQSectionProps) {
     const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
+    const [showAll, setShowAll] = useState(false);
 
     if (faq.length === 0) return null;
+
+    const displayedFAQ = showAll ? faq : faq.slice(0, INITIAL_ITEMS);
+    const remainingCount = faq.length - INITIAL_ITEMS;
 
     return (
         <section id="faq" className="py-6 border-b border-border">
             <h2 className="text-xl font-bold text-text-primary mb-4">Frequently Asked Questions</h2>
             <div className="space-y-3">
-                {faq.map((item, idx) => (
+                {displayedFAQ.map((item, idx) => (
                     <div key={idx} className="bg-bg-tertiary rounded-2xl overflow-hidden">
                         <button
                             onClick={() => setExpandedFAQ(expandedFAQ === idx ? null : idx)}
@@ -46,6 +52,14 @@ export default function FAQSection({ faq }: FAQSectionProps) {
                     </div>
                 ))}
             </div>
+            {!showAll && remainingCount > 0 && (
+                <button
+                    onClick={() => setShowAll(true)}
+                    className="mt-4 w-full py-2.5 text-sm font-medium text-accent-primary hover:text-accent-primary/80 bg-bg-secondary hover:bg-bg-tertiary border border-border rounded-xl transition-colors"
+                >
+                    Show more ({remainingCount})
+                </button>
+            )}
         </section>
     );
 }

@@ -62,11 +62,21 @@ export async function GET(request: NextRequest) {
         const validLimit = Math.min(100, Math.max(1, limit)); // Max 100 per page
         const offset = (validPage - 1) * validLimit;
 
-        // Get total count for pagination
-        const countResult = await supabaseAdmin
+        const search = searchParams.get('search')?.trim();
+
+        // Get total count for pagination (respecting status and search filters)
+        let countQuery = supabaseAdmin
             .from('tools')
             .select('id', { count: 'exact', head: true });
 
+        if (status) {
+            countQuery = countQuery.eq('status', status);
+        }
+        if (search) {
+            countQuery = countQuery.ilike('name', `%${search}%`);
+        }
+
+        const countResult = await countQuery;
         const totalCount = countResult.count || 0;
 
         // Fetch data - use separate queries to avoid TypeScript type issues
@@ -75,31 +85,48 @@ export async function GET(request: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let error: any = null;
 
+
         if (allData) {
             // Fetch all with full fields
-            const result = await supabaseAdmin
+            let query = supabaseAdmin
                 .from('tools')
                 .select(ALL_FIELDS)
                 .order('created_at', { ascending: false });
+
+            if (search) {
+                query = query.ilike('name', `%${search}%`);
+            }
+
+            const result = await query;
             data = result.data;
             error = result.error;
         } else if (status) {
             // Paginated with status filter
-            const result = await supabaseAdmin
+            let query = supabaseAdmin
                 .from('tools')
                 .select(LIST_FIELDS)
                 .eq('status', status)
-                .order('created_at', { ascending: false })
-                .range(offset, offset + validLimit - 1);
+                .order('created_at', { ascending: false });
+
+            if (search) {
+                query = query.ilike('name', `%${search}%`);
+            }
+
+            const result = await query.range(offset, offset + validLimit - 1);
             data = result.data;
             error = result.error;
         } else {
             // Paginated without filter
-            const result = await supabaseAdmin
+            let query = supabaseAdmin
                 .from('tools')
                 .select(LIST_FIELDS)
-                .order('created_at', { ascending: false })
-                .range(offset, offset + validLimit - 1);
+                .order('created_at', { ascending: false });
+
+            if (search) {
+                query = query.ilike('name', `%${search}%`);
+            }
+
+            const result = await query.range(offset, offset + validLimit - 1);
             data = result.data;
             error = result.error;
         }

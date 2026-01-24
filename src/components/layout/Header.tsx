@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/context/ThemeContext';
-import { useAdminData } from '@/context/AdminContext';
+import { useSearch } from '@/context/SearchContext';
 import { useSidebar } from '@/context/SidebarContext';
+import { trackToolClick } from '@/hooks/useToolAnalytics';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
     Home,
@@ -23,6 +24,16 @@ import {
     Monitor,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getNextThemeMode, ThemeMode } from '@/lib/formatters';
+
+// Helper to get theme icon based on current mode
+function getThemeIcon(mode: ThemeMode) {
+    switch (mode) {
+        case 'dark': return <Moon size={18} strokeWidth={1.5} />;
+        case 'light': return <Sun size={18} strokeWidth={1.5} />;
+        case 'system': return <Monitor size={18} strokeWidth={1.5} />;
+    }
+}
 
 // Icon component mapping for navigation
 const iconMap = {
@@ -50,18 +61,19 @@ export default function Header() {
     const pathname = usePathname();
     const router = useRouter();
     const { theme, themeMode, setThemeMode } = useTheme();
-    const adminData = useAdminData();
+    const { sharedTools } = useSearch();
     const { isPinned, setIsPinned } = useSidebar();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    const tools = adminData?.getPublishedTools() || [];
+    // Use sharedTools from SearchContext (set by HeroSection)
+    const tools = sharedTools;
     const debouncedQuery = useDebounce(searchQuery, 300);
 
-    // Filter recommendations
-    const recommendations = debouncedQuery.trim().length >= 1
+    // Filter recommendations - minimum 3 characters
+    const recommendations = debouncedQuery.trim().length >= 3
         ? tools
             .filter(tool =>
                 (tool.name || '').toLowerCase().includes(debouncedQuery.toLowerCase()) ||
@@ -88,8 +100,9 @@ export default function Header() {
     };
 
     // Handle tool click
-    const handleToolClick = (slug: string) => {
-        router.push(`/app/${slug}`);
+    const handleToolClick = (tool: typeof tools[0]) => {
+        trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+        router.push(`/app/${tool.slug}`);
         setSearchOpen(false);
         setSearchQuery('');
     };
@@ -241,11 +254,11 @@ export default function Header() {
                                 {recommendations.map((tool) => (
                                     <button
                                         key={tool.id}
-                                        onClick={() => handleToolClick(tool.slug)}
+                                        onClick={() => handleToolClick(tool)}
                                         className="flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-secondary transition-colors border-b border-border"
                                     >
                                         {tool.logoUrl ? (
-                                            <img src={tool.logoUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                                            <img src={tool.logoUrl} alt="" className="w-10 h-10 rounded-lg object-contain flex-shrink-0" />
                                         ) : (
                                             <div className="w-10 h-10 rounded-lg bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
                                                 <span className="text-sm font-semibold text-accent-primary">{tool.name[0]}</span>
@@ -503,10 +516,10 @@ export default function Header() {
                                 "text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary",
                                 (sidebarOpen || isPinned) ? "hidden" : "flex lg:group-hover:hidden"
                             )}
-                            onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : themeMode === 'light' ? 'system' : 'dark')}
+                            onClick={() => setThemeMode(getNextThemeMode(themeMode as ThemeMode))}
                             title={`Current: ${themeMode}`}
                         >
-                            {themeMode === 'dark' ? <Moon size={18} strokeWidth={1.5} /> : themeMode === 'light' ? <Sun size={18} strokeWidth={1.5} /> : <Monitor size={18} strokeWidth={1.5} />}
+                            {getThemeIcon(themeMode as ThemeMode)}
                         </button>
 
                         {/* Expanded: Three theme options */}

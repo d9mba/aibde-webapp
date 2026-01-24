@@ -14,7 +14,10 @@ const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(
 // Generate dynamic metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { slug } = await params;
-    const tasks = await getTasks();
+    const [tasks, tools] = await Promise.all([
+        getTasks(),
+        getPublishedTools(),
+    ]);
     const task = tasks.find(t => slugify(t.taskName) === slug);
 
     if (!task) {
@@ -24,16 +27,36 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         };
     }
 
-    const description = task.description || `Find the best AI tools for ${task.taskName}. Discover ${task.count || 'top'} AI solutions for this task.`;
+    // Count tools for this task
+    const toolCount = tools.filter(t => t.taskName?.some(tn => slugify(tn) === slug)).length;
+    const title = `${task.taskName} AI Tools (${toolCount}+) | Best AI for ${task.taskName} | AiBDE`;
+    const description = task.description || `Find ${toolCount}+ best AI tools for ${task.taskName}. Compare top-rated AI solutions to automate and enhance your ${task.taskName.toLowerCase()} workflow.`;
 
     return {
-        title: `${task.taskName} | Tasks | AiBDE`,
+        title,
         description,
-        keywords: [task.taskName, 'AI tools', 'AiBDE', 'artificial intelligence'].join(', '),
+        keywords: [
+            task.taskName,
+            `AI for ${task.taskName}`,
+            `${task.taskName} AI tools`,
+            `best ${task.taskName} tools`,
+            'AI automation',
+            'AiBDE',
+        ].join(', '),
         openGraph: {
-            title: `${task.taskName} | Tasks | AiBDE`,
+            title,
             description,
             type: 'website',
+            siteName: 'AiBDE',
+            url: `https://aibde.tech/task/${slug}`,
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+        },
+        alternates: {
+            canonical: `https://aibde.tech/task/${slug}`,
         },
     };
 }

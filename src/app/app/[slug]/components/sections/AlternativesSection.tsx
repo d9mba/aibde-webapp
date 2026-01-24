@@ -30,7 +30,7 @@ export default function AlternativesSection({ toolName, alternatives }: Alternat
                             >
                                 <div className="flex items-center gap-3">
                                     {t.logoUrl ? (
-                                        <img src={getFullUrl(t.logoUrl)} alt={t.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                                        <img src={getFullUrl(t.logoUrl)} alt={t.name} className="w-10 h-10 rounded-xl object-contain flex-shrink-0" />
                                     ) : (
                                         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ backgroundColor: tColor }}>
                                             {t.name[0]}

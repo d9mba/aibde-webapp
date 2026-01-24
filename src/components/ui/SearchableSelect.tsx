@@ -120,7 +120,7 @@ export function SearchableSelect({
             >
                 <span className="flex items-center gap-2 truncate">
                     {selectedOption?.logoUrl && (
-                        <img src={selectedOption.logoUrl} alt="" className="w-5 h-5 rounded-md object-cover" />
+                        <img src={selectedOption.logoUrl} alt="" className="w-5 h-5 rounded-md object-contain" />
                     )}
                     {selectedOption?.icon}
                     <span className={selectedOption ? 'text-text-primary font-medium' : 'text-text-tertiary'}>
@@ -178,7 +178,7 @@ export function SearchableSelect({
                                     >
                                         <div className="flex items-center gap-2 truncate">
                                             {option.logoUrl && (
-                                                <img src={option.logoUrl} alt="" className="w-5 h-5 rounded-md object-cover" />
+                                                <img src={option.logoUrl} alt="" className="w-5 h-5 rounded-md object-contain" />
                                             )}
                                             {option.icon}
                                             <span className={isSelected ? 'font-medium' : ''}>{option.label}</span>

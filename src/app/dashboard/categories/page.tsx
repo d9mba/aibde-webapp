@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
 import { Pencil, Trash2 } from 'lucide-react';
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 25;
 
 // Helper to slugify category name for URLs
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -236,31 +236,34 @@ export default function CategoriesPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-center gap-2 mt-4">
-                <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg border border-border text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium ${currentPage === page ? 'bg-accent-primary text-white' : 'border border-border text-text-secondary hover:bg-bg-secondary'}`}
-                    >
-                        {page}
-                    </button>
-                ))}
-                <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-2 rounded-lg border border-border text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
-                </button>
-            </div>
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 px-1">
+                    <span className="text-sm text-text-tertiary">
+                        Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredCategories.length)} of {filteredCategories.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+                            Previous
+                        </button>
+                        <span className="text-sm text-text-tertiary">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            Next
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

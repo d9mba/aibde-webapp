@@ -8,13 +8,36 @@ export async function generateMetadata(): Promise<Metadata> {
     const tools = await getPublishedTools();
     const toolCount = tools.length;
 
+    const title = `Search ${toolCount}+ AI Tools | Find the Best AI for Any Task | AiBDE`;
+    const description = `Search and discover ${toolCount}+ AI tools for writing, coding, design, marketing, and more. Filter by category, task, or pricing to find your perfect AI solution.`;
+
     return {
-        title: `Search ${toolCount}+ Tools | AiBDE`,
-        description: `Search and discover ${toolCount}+ AI tools for your everyday needs.`,
+        title,
+        description,
+        keywords: [
+            'search AI tools',
+            'find AI tools',
+            'AI tool finder',
+            'best AI tools',
+            'AI search engine',
+            'compare AI tools',
+            'AI tools comparison',
+            'AiBDE search',
+        ].join(', '),
         openGraph: {
-            title: `Search ${toolCount}+ Tools | AiBDE`,
-            description: `Search and discover ${toolCount}+ AI tools for your everyday needs.`,
+            title,
+            description,
             type: 'website',
+            siteName: 'AiBDE',
+            url: 'https://aibde.tech/search',
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+        },
+        alternates: {
+            canonical: 'https://aibde.tech/search',
         },
     };
 }

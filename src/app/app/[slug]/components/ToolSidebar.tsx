@@ -159,7 +159,7 @@ export default function ToolSidebar({
                                         className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                     >
                                         {ft.logoUrl ? (
-                                            <img src={getFullUrl(ft.logoUrl)} alt={ft.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                                            <img src={getFullUrl(ft.logoUrl)} alt={ft.name} className="w-8 h-8 rounded-full object-contain flex-shrink-0" />
                                         ) : (
                                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ backgroundColor: ftColor }}>
                                                 {ft.name[0]}
@@ -188,10 +188,18 @@ export default function ToolSidebar({
                             </div>
                             <div className="p-3 bg-bg-secondary border border-border rounded-2xl flex flex-wrap gap-2">
                                 {tool.categoryName.map((cat, idx) => {
+                                    // Distinct colors that are visually different from each other
                                     const colors = [
-                                        'bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100',
-                                        'bg-cyan-50 border-cyan-100 text-cyan-700 hover:bg-cyan-100',
-                                        'bg-teal-50 border-teal-100 text-teal-700 hover:bg-teal-100',
+                                        'bg-blue-100 border-blue-200 text-blue-800 hover:bg-blue-200',
+                                        'bg-purple-100 border-purple-200 text-purple-800 hover:bg-purple-200',
+                                        'bg-teal-100 border-teal-200 text-teal-800 hover:bg-teal-200',
+                                        'bg-pink-100 border-pink-200 text-pink-800 hover:bg-pink-200',
+                                        'bg-indigo-100 border-indigo-200 text-indigo-800 hover:bg-indigo-200',
+                                        'bg-cyan-100 border-cyan-200 text-cyan-800 hover:bg-cyan-200',
+                                        'bg-fuchsia-100 border-fuchsia-200 text-fuchsia-800 hover:bg-fuchsia-200',
+                                        'bg-violet-100 border-violet-200 text-violet-800 hover:bg-violet-200',
+                                        'bg-sky-100 border-sky-200 text-sky-800 hover:bg-sky-200',
+                                        'bg-emerald-100 border-emerald-200 text-emerald-800 hover:bg-emerald-200',
                                     ];
                                     return (
                                         <Link
@@ -220,10 +228,18 @@ export default function ToolSidebar({
                             </div>
                             <div className="p-3 bg-bg-secondary border border-border rounded-2xl flex flex-wrap gap-2">
                                 {tool.taskName.map((task, idx) => {
+                                    // Distinct colors that are visually very different from each other
                                     const colors = [
-                                        'bg-orange-50 border-orange-100 text-orange-700 hover:bg-orange-100',
-                                        'bg-yellow-50 border-yellow-100 text-yellow-700 hover:bg-yellow-100',
-                                        'bg-lime-50 border-lime-100 text-lime-700 hover:bg-lime-100',
+                                        'bg-orange-100 border-orange-200 text-orange-800 hover:bg-orange-200',
+                                        'bg-rose-100 border-rose-200 text-rose-800 hover:bg-rose-200',
+                                        'bg-green-100 border-green-200 text-green-800 hover:bg-green-200',
+                                        'bg-yellow-100 border-yellow-200 text-yellow-800 hover:bg-yellow-200',
+                                        'bg-red-100 border-red-200 text-red-800 hover:bg-red-200',
+                                        'bg-blue-100 border-blue-200 text-blue-800 hover:bg-blue-200',
+                                        'bg-purple-100 border-purple-200 text-purple-800 hover:bg-purple-200',
+                                        'bg-teal-100 border-teal-200 text-teal-800 hover:bg-teal-200',
+                                        'bg-cyan-100 border-cyan-200 text-cyan-800 hover:bg-cyan-200',
+                                        'bg-lime-100 border-lime-200 text-lime-800 hover:bg-lime-200',
                                     ];
                                     return (
                                         <Link
@@ -260,7 +276,7 @@ export default function ToolSidebar({
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >
                                             {alt.logoUrl ? (
-                                                <img src={getFullUrl(alt.logoUrl)} alt={alt.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                                                <img src={getFullUrl(alt.logoUrl)} alt={alt.name} className="w-8 h-8 rounded-full object-contain flex-shrink-0" />
                                             ) : (
                                                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ backgroundColor: altColor }}>
                                                     {alt.name[0]}
@@ -298,7 +314,7 @@ export default function ToolSidebar({
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >
                                             {rt.logoUrl ? (
-                                                <img src={getFullUrl(rt.logoUrl)} alt={rt.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                                                <img src={getFullUrl(rt.logoUrl)} alt={rt.name} className="w-8 h-8 rounded-full object-contain flex-shrink-0" />
                                             ) : (
                                                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ backgroundColor: rtColor }}>
                                                     {rt.name[0]}

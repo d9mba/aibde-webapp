@@ -47,6 +47,9 @@ export interface DbTool {
 
     // Stats & Display
     save_count: number;
+    view_count?: number;
+    upvotes?: number;
+    downvotes?: number;
     released_at?: string;
     is_featured: boolean;
 
@@ -118,6 +121,9 @@ export interface DbTool {
 
     // Premium - gives dofollow backlinks (SEO value)
     premium?: boolean;
+
+    // Trending control
+    trending_position?: number;
 
     // Legacy fields for backwards compat (may not exist in all DBs)
     screenshots?: string[];
@@ -285,6 +291,9 @@ export function dbToolToAdminTool(dbTool: DbTool) {
 
         // Stats
         saveCount: dbTool.save_count,
+        viewCount: dbTool.view_count || 0,
+        upvotes: dbTool.upvotes || 0,
+        downvotes: dbTool.downvotes || 0,
         releasedAt: dbTool.released_at || null,
         releasedAgo: formatRelativeTime(dbTool.created_at, dbTool.updated_at),
         isFeatured: dbTool.is_featured,
@@ -332,6 +341,7 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         spotlightStartDate: dbTool.spotlight_start_date,
         spotlightEndDate: dbTool.spotlight_end_date,
         premium: dbTool.premium,
+        trendingPosition: dbTool.trending_position,
 
         // Display
         showScreenshots: dbTool.show_screenshots,
@@ -362,6 +372,9 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
         // Stats
         saveCount: 'save_count',
+        viewCount: 'view_count',
+        upvotes: 'upvotes',
+        downvotes: 'downvotes',
         releasedAt: 'released_at',
         isFeatured: 'is_featured',
 
@@ -407,6 +420,9 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
         // Premium
         premium: 'premium',
+
+        // Trending
+        trendingPosition: 'trending_position',
 
         // Display
         showScreenshots: 'show_screenshots',

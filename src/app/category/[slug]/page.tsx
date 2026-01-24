@@ -14,7 +14,10 @@ const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(
 // Generate dynamic metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { slug } = await params;
-    const categories = await getCategories();
+    const [categories, tools] = await Promise.all([
+        getCategories(),
+        getPublishedTools(),
+    ]);
     const category = categories.find(c => slugify(c.categoryName) === slug);
 
     if (!category) {
@@ -24,16 +27,36 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         };
     }
 
-    const description = category.description || `Explore the best AI tools for ${category.categoryName}. Find ${category.count || 'top'} tools in this category.`;
+    // Count tools in this category
+    const toolCount = tools.filter(t => t.categoryName?.some(c => slugify(c) === slug)).length;
+    const title = `${category.categoryName} AI Tools (${toolCount}+) | Best ${category.categoryName} Tools | AiBDE`;
+    const description = category.description || `Discover ${toolCount}+ best ${category.categoryName} AI tools. Compare features, pricing, and find the perfect AI solution for your ${category.categoryName.toLowerCase()} needs.`;
 
     return {
-        title: `${category.categoryName} | Categories | AiBDE`,
+        title,
         description,
-        keywords: [category.categoryName, 'AI tools', 'AiBDE', 'artificial intelligence'].join(', '),
+        keywords: [
+            category.categoryName,
+            `${category.categoryName} AI tools`,
+            `best ${category.categoryName} tools`,
+            `${category.categoryName} software`,
+            'AI tools',
+            'AiBDE',
+        ].join(', '),
         openGraph: {
-            title: `${category.categoryName} | Categories | AiBDE`,
+            title,
             description,
             type: 'website',
+            siteName: 'AiBDE',
+            url: `https://aibde.tech/category/${slug}`,
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+        },
+        alternates: {
+            canonical: `https://aibde.tech/category/${slug}`,
         },
     };
 }

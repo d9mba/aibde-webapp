@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getStatusClass } from '@/lib/formatters';
+import { useConfirm } from '@/components/ui/ConfirmModal';
 
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -25,24 +27,57 @@ interface PaginatedToolsResponse {
 
 export default function ToolsListPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { deleteTool, categories, isLoaded } = useAdmin();
+    const { confirm } = useConfirm();
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState<string>('all');
+    // Read initial status from URL query param
+    const initialStatus = searchParams.get('status') || 'all';
+    const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 50;
+    const [missingDataFilter, setMissingDataFilter] = useState<string>('all');
+    const ITEMS_PER_PAGE = 25;
 
-    // Build API URL with pagination and status filter
-    const apiUrl = statusFilter === 'all'
-        ? `/api/tools?page=${currentPage}&limit=${ITEMS_PER_PAGE}`
-        : `/api/tools?page=${currentPage}&limit=${ITEMS_PER_PAGE}&status=${statusFilter}`;
+    // Update status filter when URL changes
+    useEffect(() => {
+        const urlStatus = searchParams.get('status') || 'all';
+        if (urlStatus !== statusFilter) {
+            setStatusFilter(urlStatus);
+            setCurrentPage(1);
+        }
+    }, [searchParams]);
+
+    // Debounced search for server-side search
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (debouncedSearch !== searchQuery) {
+                setDebouncedSearch(searchQuery);
+                if (searchQuery.trim()) {
+                    setCurrentPage(1); // Reset to first page only when actually searching
+                }
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, debouncedSearch]);
+
+    // Build API URL with pagination, status filter, and search
+    const apiUrl = useMemo(() => {
+        const params = new URLSearchParams();
+        params.set('page', currentPage.toString());
+        params.set('limit', ITEMS_PER_PAGE.toString());
+        if (statusFilter !== 'all') params.set('status', statusFilter);
+        if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+        return `/api/tools?${params.toString()}`;
+    }, [currentPage, statusFilter, debouncedSearch]);
 
     // Fetch tools with SWR
     const { data: toolsData, error: toolsError, isLoading: toolsLoading, mutate } = useSWR<PaginatedToolsResponse>(
         apiUrl,
         fetcher,
-        { revalidateOnFocus: false }
+        { revalidateOnFocus: false, keepPreviousData: true }
     );
 
     const tools = toolsData?.data || [];
@@ -53,6 +88,8 @@ export default function ToolsListPage() {
         { value: 'published', label: 'Published' },
         { value: 'draft', label: 'Draft' },
         { value: 'pending', label: 'Pending' },
+        { value: 'unpublished', label: 'Unpublished' },
+        { value: 'scheduled', label: 'Scheduled' },
     ];
 
     const categoryOptions = [
@@ -60,20 +97,115 @@ export default function ToolsListPage() {
         ...categories.filter(cat => cat.categoryName).map(cat => ({ value: cat.categoryName, label: cat.categoryName }))
     ];
 
-    // Client-side filtering (for search and category - since API handles status)
+    const missingDataOptions = [
+        { value: 'all', label: 'All Tools' },
+        // Basic Info
+        { value: 'no-logo', label: 'Missing Logo' },
+        { value: 'no-summary', label: 'Missing Summary' },
+        { value: 'no-description', label: 'Missing Description' },
+        { value: 'no-website', label: 'Missing Website URL' },
+        { value: 'no-contact', label: 'Missing Contact Info' },
+        // Classification
+        { value: 'no-category', label: 'Missing Category' },
+        { value: 'no-task', label: 'Missing Task' },
+        { value: 'no-tags', label: 'Missing Tags' },
+        // Content
+        { value: 'no-features', label: 'Missing Features' },
+        { value: 'no-use-cases', label: 'Missing Use Cases' },
+        { value: 'no-pros-cons', label: 'Missing Pros/Cons' },
+        { value: 'no-faq', label: 'Missing FAQ' },
+        // Pricing & Media
+        { value: 'no-pricing-tiers', label: 'Missing Pricing Tiers' },
+        { value: 'no-images', label: 'Missing Images' },
+        { value: 'no-videos', label: 'Missing Videos' },
+        // Social & Links
+        { value: 'no-social', label: 'Missing Social Links' },
+        { value: 'no-app-store', label: 'Missing App Store Links' },
+        // Dates
+        { value: 'no-release-date', label: 'Missing Release Date' },
+    ];
+
+    // Client-side filtering (for category and missing data - search is now server-side)
     const filteredTools = useMemo(() => {
         return tools.filter(tool => {
-            const matchesSearch = !searchQuery.trim() ||
-                (tool.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                tool.summary?.toLowerCase().includes(searchQuery.toLowerCase());
+            // Search is now handled server-side via API
             const matchesCategory = categoryFilter === 'all' || (tool.categoryName || []).includes(categoryFilter);
-            return matchesSearch && matchesCategory;
+
+            // Missing data filter
+            let matchesMissingData = true;
+            if (missingDataFilter !== 'all') {
+                switch (missingDataFilter) {
+                    case 'no-logo':
+                        matchesMissingData = !tool.logoUrl || tool.logoUrl.trim() === '';
+                        break;
+                    case 'no-summary':
+                        matchesMissingData = !tool.summary || tool.summary.trim() === '';
+                        break;
+                    case 'no-description':
+                        matchesMissingData = !tool.description || tool.description.trim() === '';
+                        break;
+                    case 'no-website':
+                        matchesMissingData = !tool.websiteUrl || tool.websiteUrl.trim() === '';
+                        break;
+                    case 'no-contact':
+                        matchesMissingData = !tool.contactEmail && !tool.contactMobile && !tool.contactName;
+                        break;
+                    case 'no-category':
+                        matchesMissingData = !tool.categoryName || tool.categoryName.length === 0;
+                        break;
+                    case 'no-task':
+                        matchesMissingData = !tool.taskName || tool.taskName.length === 0;
+                        break;
+                    case 'no-tags':
+                        matchesMissingData = !tool.tags || tool.tags.length === 0;
+                        break;
+                    case 'no-features':
+                        matchesMissingData = !tool.coreFeatures || tool.coreFeatures.length === 0;
+                        break;
+                    case 'no-use-cases':
+                        matchesMissingData = !tool.useCases || tool.useCases.length === 0;
+                        break;
+                    case 'no-pros-cons':
+                        matchesMissingData = (!tool.pros || tool.pros.length === 0) && (!tool.cons || tool.cons.length === 0);
+                        break;
+                    case 'no-faq':
+                        matchesMissingData = !tool.faq || tool.faq.length === 0;
+                        break;
+                    case 'no-pricing-tiers':
+                        matchesMissingData = !tool.pricingTiers || tool.pricingTiers.length === 0;
+                        break;
+                    case 'no-images':
+                        matchesMissingData = !tool.images || tool.images.length === 0;
+                        break;
+                    case 'no-videos':
+                        matchesMissingData = !tool.videos || tool.videos.length === 0;
+                        break;
+                    case 'no-social':
+                        matchesMissingData = !tool.socialLinks || Object.values(tool.socialLinks).every(v => !v);
+                        break;
+                    case 'no-app-store':
+                        matchesMissingData = !tool.playStoreUrl && !tool.appStoreUrl;
+                        break;
+                    case 'no-release-date':
+                        matchesMissingData = !tool.releasedAt || tool.releasedAt.trim() === '';
+                        break;
+                }
+            }
+
+            return matchesCategory && matchesMissingData;
         });
-    }, [tools, searchQuery, categoryFilter]);
+    }, [tools, categoryFilter, missingDataFilter]);
 
     // Handle delete with cache invalidation
     const handleDelete = async (toolId: string, toolName: string) => {
-        if (confirm(`Delete "${toolName}"?`)) {
+        const confirmed = await confirm({
+            title: 'Delete Tool',
+            message: `Are you sure you want to delete "${toolName}"? This action cannot be undone.`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            danger: true
+        });
+        if (confirmed) {
             await deleteTool(toolId);
             mutate(); // Refresh data
         }
@@ -87,7 +219,7 @@ export default function ToolsListPage() {
 
 
 
-    if (toolsLoading && !tools.length) {
+    if (toolsLoading && !toolsData) {
         return (
             <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
                 <div className="text-text-secondary">Loading tools...</div>
@@ -111,7 +243,12 @@ export default function ToolsListPage() {
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Tools</h1>
                         <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 sm:mt-1">
-                            {pagination ? `${pagination.total} total tools (Page ${pagination.page} of ${pagination.totalPages})` : `${tools.length} tools`}
+                            {missingDataFilter !== 'all'
+                                ? `${filteredTools.length} tools ${missingDataOptions.find(o => o.value === missingDataFilter)?.label || ''}`
+                                : pagination
+                                    ? `${pagination.total} total tools (Page ${pagination.page} of ${pagination.totalPages})`
+                                    : `${tools.length} tools`
+                            }
                         </p>
                     </div>
                     <Link
@@ -136,7 +273,7 @@ export default function ToolsListPage() {
                             className="w-full pl-9 pr-4 py-2 sm:py-2.5 text-sm bg-bg-secondary border border-border rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/30"
                         />
                     </div>
-                    <div className="flex gap-2 sm:gap-3">
+                    <div className="flex flex-wrap gap-2 sm:gap-3">
                         <SearchableSelect
                             value={statusFilter}
                             onChange={handleStatusChange}
@@ -153,6 +290,17 @@ export default function ToolsListPage() {
                             placeholder="Category"
                             searchPlaceholder="Search categories..."
                             className="flex-1 sm:min-w-[150px]"
+                        />
+                        <SearchableSelect
+                            value={missingDataFilter}
+                            onChange={(value) => {
+                                setMissingDataFilter(value);
+                                setCurrentPage(1);
+                            }}
+                            options={missingDataOptions}
+                            placeholder="Missing Data"
+                            searchPlaceholder="Search filters..."
+                            className="flex-1 sm:min-w-[180px]"
                         />
                     </div>
                 </div>
@@ -173,7 +321,7 @@ export default function ToolsListPage() {
                             >
                                 <div className="flex items-start gap-3">
                                     {tool.logoUrl ? (
-                                        <img src={tool.logoUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                                        <img src={tool.logoUrl} alt="" className="w-10 h-10 rounded-lg object-contain flex-shrink-0" />
                                     ) : (
                                         <div className="w-10 h-10 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary font-bold text-sm flex-shrink-0">
                                             {tool.name[0]}
@@ -182,10 +330,7 @@ export default function ToolsListPage() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="font-medium text-text-primary truncate">{tool.name}</div>
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${tool.status === 'published' ? 'bg-accent-green-bg text-accent-green' :
-                                                tool.status === 'draft' ? 'bg-accent-yellow/10 text-accent-yellow' :
-                                                    'bg-accent-purple-bg text-accent-purple'
-                                                }`}>
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${getStatusClass(tool.status || 'draft')}`}>
                                                 {tool.status}
                                             </span>
                                         </div>
@@ -215,9 +360,7 @@ export default function ToolsListPage() {
                                         <Pencil className="w-4 h-4" />
                                     </Link>
                                     <button
-                                        onClick={() => {
-                                            if (confirm(`Delete "${tool.name}"?`)) deleteTool(tool.id);
-                                        }}
+                                        onClick={() => handleDelete(tool.id, tool.name)}
                                         className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors"
                                     >
                                         <Trash2 className="w-4 h-4" />
@@ -257,7 +400,7 @@ export default function ToolsListPage() {
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
                                                 {tool.logoUrl ? (
-                                                    <img src={tool.logoUrl} alt="" className="w-9 h-9 rounded-lg object-cover" />
+                                                    <img src={tool.logoUrl} alt="" className="w-9 h-9 rounded-lg object-contain" />
                                                 ) : (
                                                     <div className="w-9 h-9 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary font-bold text-sm">
                                                         {tool.name[0]}
@@ -273,10 +416,7 @@ export default function ToolsListPage() {
                                             {(tool.categoryName || []).length > 0 ? tool.categoryName.join(', ') : '-'}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${tool.status === 'published' ? 'bg-accent-green-bg text-accent-green' :
-                                                tool.status === 'draft' ? 'bg-accent-yellow/10 text-accent-yellow' :
-                                                    'bg-accent-purple-bg text-accent-purple'
-                                                }`}>
+                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusClass(tool.status || 'draft')}`}>
                                                 {tool.status}
                                             </span>
                                         </td>
@@ -354,7 +494,7 @@ export default function ToolsListPage() {
                             <div className="p-6 border-b border-border">
                                 <div className="flex items-start gap-4">
                                     {previewTool.logoUrl ? (
-                                        <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-cover" />
+                                        <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-contain" />
                                     ) : (
                                         <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
                                             {previewTool.name[0]}
@@ -367,7 +507,7 @@ export default function ToolsListPage() {
                                             <p className="text-text-secondary mt-1">{previewTool.summary}</p>
                                         )}
                                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                                            <span className={`text-xs px-2 py-1 rounded-full ${previewTool.status === 'published' ? 'bg-green-500/10 text-green-500' : previewTool.status === 'draft' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusClass(previewTool.status || 'draft')}`}>
                                                 {previewTool.status}
                                             </span>
                                             <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full">{previewTool.pricingLabel}</span>

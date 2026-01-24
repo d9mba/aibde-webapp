@@ -7,14 +7,11 @@ import {
     Search, Eye, MousePointer, Clock, ExternalLink, TrendingUp, BarChart3, X,
     RefreshCw, Loader2, Users, Globe, Tag, Filter, Zap, Activity
 } from 'lucide-react';
-
-// CDN URL helper
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || '';
-const getFullUrl = (path: string): string => {
-    if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return `${CDN_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { getTimeRangeLabel } from '@/lib/formatters';
+import { getFullUrl } from '@/lib/url';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface SummaryStats {
     pageviews: number;
@@ -68,6 +65,7 @@ interface RealtimeEvent {
 }
 
 export default function AnalysisPage() {
+    const router = useRouter();
     const { tools, categories, tasks } = useAdmin();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -75,14 +73,50 @@ export default function AnalysisPage() {
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [selectedTab, setSelectedTab] = useState<'overview' | 'tools' | 'categories' | 'realtime'>('overview');
-    const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month'>('week');
+    const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'custom'>('week');
 
-    // Get days based on time range
+    // Custom date range state
+    const [customStartDate, setCustomStartDate] = useState<string>(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        return d.toISOString().split('T')[0];
+    });
+    const [customEndDate, setCustomEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+
+    // Comparison mode state
+    const [compareMode, setCompareMode] = useState(false);
+    const [compareStartDate, setCompareStartDate] = useState<string>(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 14);
+        return d.toISOString().split('T')[0];
+    });
+    const [compareEndDate, setCompareEndDate] = useState<string>(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        return d.toISOString().split('T')[0];
+    });
+    const [comparisonData, setComparisonData] = useState<SummaryStats | null>(null);
+
+    // Get days/dates based on time range
+    const getDateParams = () => {
+        if (timeRange === 'custom') {
+            return { startDate: customStartDate, endDate: customEndDate };
+        }
+        const days = timeRange === 'today' ? 1 : timeRange === 'week' ? 7 : 30;
+        return { days };
+    };
+
     const getDays = () => {
         switch (timeRange) {
             case 'today': return 1;
             case 'week': return 7;
             case 'month': return 30;
+            case 'custom': {
+                const start = new Date(customStartDate);
+                const end = new Date(customEndDate);
+                return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            }
         }
     };
 
@@ -108,7 +142,7 @@ export default function AnalysisPage() {
         const res = await fetch('/api/analytics/posthog', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type, days: getDays(), ...extraParams }),
+            body: JSON.stringify({ type, ...getDateParams(), ...extraParams }),
         });
         if (!res.ok) {
             const data = await res.json();
@@ -209,6 +243,46 @@ export default function AnalysisPage() {
     const [selectedToolSlug, setSelectedToolSlug] = useState<string | null>(null);
     const selectedToolData = topTools.find(t => t.tool_slug === selectedToolSlug);
 
+    // Tool-specific date filtering
+    const [toolStartDate, setToolStartDate] = useState<string>(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 14);
+        return d.toISOString().split('T')[0];
+    });
+    const [toolEndDate, setToolEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+    const [toolDailyTrend, setToolDailyTrend] = useState<{ date: string; impressions: number; clicks: number; page_views: number; website_visits: number }[]>([]);
+    const [toolLoading, setToolLoading] = useState(false);
+
+    // Fetch tool-specific data when dates change
+    const fetchToolData = useCallback(async (slug: string) => {
+        if (!slug) return;
+        setToolLoading(true);
+        try {
+            const res = await fetch('/api/analytics/posthog', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'tool_daily_trend',
+                    toolSlug: slug,
+                    startDate: toolStartDate,
+                    endDate: toolEndDate,
+                }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setToolDailyTrend(data.results || []);
+            }
+        } catch { /* ignore */ }
+        setToolLoading(false);
+    }, [toolStartDate, toolEndDate]);
+
+    // Load tool data when selected or dates change
+    useEffect(() => {
+        if (selectedToolSlug) {
+            fetchToolData(selectedToolSlug);
+        }
+    }, [selectedToolSlug, fetchToolData]);
+
     // Format time in seconds to readable string
     const formatTime = (seconds: number | null): string => {
         if (!seconds || seconds < 1) return '-';
@@ -234,7 +308,7 @@ export default function AnalysisPage() {
     );
 
     return (
-        <div className="p-3 sm:p-6 max-w-[1600px] mx-auto">
+        <div className="p-3 sm:p-6 max-w-[1600px] mx-auto overflow-x-hidden">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
                 <div>
@@ -253,10 +327,15 @@ export default function AnalysisPage() {
                             { value: 'today', label: 'Today' },
                             { value: 'week', label: 'Week' },
                             { value: 'month', label: 'Month' },
+                            { value: 'custom', label: 'Custom' },
                         ].map(({ value, label }) => (
                             <button
                                 key={value}
-                                onClick={() => setTimeRange(value as typeof timeRange)}
+                                onClick={() => {
+                                    setTimeRange(value as typeof timeRange);
+                                    if (value === 'custom') setShowDatePicker(true);
+                                    else setShowDatePicker(false);
+                                }}
                                 className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${timeRange === value
                                     ? 'bg-accent-primary text-white'
                                     : 'text-text-secondary hover:text-text-primary'
@@ -266,6 +345,43 @@ export default function AnalysisPage() {
                             </button>
                         ))}
                     </div>
+
+                    {/* Custom Date Range Picker */}
+                    {(timeRange === 'custom' || showDatePicker) && (
+                        <div className="flex items-center gap-2 bg-bg-card border border-border rounded-lg px-3 py-1.5">
+                            <input
+                                type="date"
+                                value={customStartDate}
+                                onChange={(e) => setCustomStartDate(e.target.value)}
+                                className="bg-transparent text-text-primary text-xs sm:text-sm focus:outline-none"
+                            />
+                            <span className="text-text-tertiary">to</span>
+                            <input
+                                type="date"
+                                value={customEndDate}
+                                onChange={(e) => setCustomEndDate(e.target.value)}
+                                className="bg-transparent text-text-primary text-xs sm:text-sm focus:outline-none"
+                            />
+                            <button
+                                onClick={() => { setTimeRange('custom'); loadData(); }}
+                                className="px-2 py-1 bg-accent-primary text-white text-xs rounded-md hover:bg-accent-primary/90"
+                            >
+                                Apply
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Compare Mode Toggle */}
+                    <label className="hidden sm:flex items-center gap-2 text-sm text-text-secondary cursor-pointer bg-bg-card border border-border rounded-lg px-3 py-1.5">
+                        <input
+                            type="checkbox"
+                            checked={compareMode}
+                            onChange={(e) => setCompareMode(e.target.checked)}
+                            className="rounded border-border"
+                        />
+                        Compare
+                    </label>
+
                     <label className="hidden sm:flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
                         <input
                             type="checkbox"
@@ -293,6 +409,48 @@ export default function AnalysisPage() {
                     </a>
                 </div>
             </div>
+
+            {/* Compare Mode Period Selector */}
+            {compareMode && (
+                <div className="mb-6 p-4 bg-bg-card border border-accent-primary/30 rounded-xl">
+                    <div className="flex flex-wrap items-center gap-4">
+                        <span className="text-sm font-medium text-text-primary">Compare with:</span>
+                        <div className="flex items-center gap-2 bg-bg-secondary rounded-lg px-3 py-1.5">
+                            <span className="text-xs text-text-tertiary">Period B:</span>
+                            <input
+                                type="date"
+                                value={compareStartDate}
+                                onChange={(e) => setCompareStartDate(e.target.value)}
+                                className="bg-transparent text-text-primary text-xs sm:text-sm focus:outline-none"
+                            />
+                            <span className="text-text-tertiary">to</span>
+                            <input
+                                type="date"
+                                value={compareEndDate}
+                                onChange={(e) => setCompareEndDate(e.target.value)}
+                                className="bg-transparent text-text-primary text-xs sm:text-sm focus:outline-none"
+                            />
+                        </div>
+                        <button
+                            onClick={async () => {
+                                // Fetch comparison data
+                                const res = await fetch('/api/analytics/posthog', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ type: 'summary', startDate: compareStartDate, endDate: compareEndDate }),
+                                });
+                                if (res.ok) {
+                                    const data = await res.json();
+                                    if (data.results?.[0]) setComparisonData(data.results[0]);
+                                }
+                            }}
+                            className="px-3 py-1.5 bg-accent-primary text-white text-sm rounded-lg hover:bg-accent-primary/90"
+                        >
+                            Load Comparison
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Status Banners */}
             {!isConfigured && (
@@ -353,33 +511,134 @@ export default function AnalysisPage() {
                                 <StatCard icon={Search} label="Searches" value={summary?.searches || 0} color="text-accent-yellow" />
                             </div>
 
+                            {/* Comparison Table */}
+                            {compareMode && comparisonData && (
+                                <div className="mb-6 bg-bg-card border border-border rounded-xl overflow-hidden">
+                                    <div className="px-4 py-3 bg-bg-secondary border-b border-border">
+                                        <h3 className="font-semibold text-text-primary flex items-center gap-2">
+                                            <TrendingUp size={18} className="text-accent-primary" />
+                                            Period Comparison
+                                        </h3>
+                                    </div>
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="bg-bg-secondary/50">
+                                                <th className="text-left px-4 py-2 text-sm font-medium text-text-secondary">Metric</th>
+                                                <th className="text-right px-4 py-2 text-sm font-medium text-text-secondary">Current Period</th>
+                                                <th className="text-right px-4 py-2 text-sm font-medium text-text-secondary">Compare Period</th>
+                                                <th className="text-right px-4 py-2 text-sm font-medium text-text-secondary">Change</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {[
+                                                { label: 'Page Views', current: summary?.pageviews || 0, compare: comparisonData.pageviews || 0 },
+                                                { label: 'Unique Visitors', current: summary?.unique_visitors || 0, compare: comparisonData.unique_visitors || 0 },
+                                                { label: 'Impressions', current: summary?.impressions || 0, compare: comparisonData.impressions || 0 },
+                                                { label: 'Clicks', current: summary?.clicks || 0, compare: comparisonData.clicks || 0 },
+                                                { label: 'Tool Views', current: summary?.tool_views || 0, compare: comparisonData.tool_views || 0 },
+                                                { label: 'Website Visits', current: summary?.website_visits || 0, compare: comparisonData.website_visits || 0 },
+                                                { label: 'Searches', current: summary?.searches || 0, compare: comparisonData.searches || 0 },
+                                            ].map((row) => {
+                                                const change = row.compare > 0 ? ((row.current - row.compare) / row.compare) * 100 : 0;
+                                                const isPositive = change >= 0;
+                                                return (
+                                                    <tr key={row.label} className="border-t border-border">
+                                                        <td className="px-4 py-3 text-sm text-text-primary">{row.label}</td>
+                                                        <td className="px-4 py-3 text-sm text-right font-medium text-text-primary">{row.current.toLocaleString()}</td>
+                                                        <td className="px-4 py-3 text-sm text-right text-text-secondary">{row.compare.toLocaleString()}</td>
+                                                        <td className={`px-4 py-3 text-sm text-right font-medium ${isPositive ? 'text-accent-green' : 'text-accent-red'}`}>
+                                                            {isPositive ? '+' : ''}{change.toFixed(1)}%
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
                             {/* Charts Row */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                                 {/* Daily Activity */}
                                 <div className="bg-bg-card border border-border rounded-xl p-5">
                                     <h3 className="font-semibold text-text-primary mb-4 flex items-center gap-2">
-                                        <BarChart3 size={18} className="text-accent-primary" /> Daily Activity ({timeRange === 'today' ? 'Today' : timeRange === 'week' ? 'Last 7 Days' : 'Last 30 Days'})
+                                        <BarChart3 size={18} className="text-accent-primary" /> Daily Activity ({getTimeRangeLabel(timeRange)})
                                     </h3>
                                     {dailyActivity.length > 0 ? (
-                                        <div className="flex items-end justify-between gap-2 h-40">
-                                            {dailyActivity.map((day) => {
-                                                const height = maxDaily > 0 ? (day.events / maxDaily) * 140 : 10;
-                                                const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-                                                return (
-                                                    <div key={day.date} className="flex-1 flex flex-col items-center justify-end h-full">
-                                                        <div className="w-full relative group flex flex-col justify-end" style={{ height: '140px' }}>
-                                                            <div
-                                                                className="w-full bg-gradient-to-t from-accent-primary to-accent-primary/60 rounded-t-md transition-all group-hover:from-accent-primary group-hover:to-accent-primary/80"
-                                                                style={{ height: `${Math.max(height, 10)}px` }}
-                                                            />
-                                                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-bg-tertiary px-2 py-1 rounded text-xs text-text-primary opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                                                {day.events.toLocaleString()}
-                                                            </div>
-                                                        </div>
-                                                        <span className="text-xs text-text-tertiary text-center mt-1">{dateLabel.split(' ')[0]}</span>
+                                        <div className="relative h-48">
+                                            {/* Single day (Today) - show a prominent stat card */}
+                                            {dailyActivity.length === 1 ? (
+                                                <div className="h-full flex flex-col items-center justify-center">
+                                                    <div className="text-5xl font-bold text-accent-primary mb-2">
+                                                        {dailyActivity[0].events.toLocaleString()}
                                                     </div>
-                                                );
-                                            })}
+                                                    <div className="text-sm text-text-secondary">Total Events Today</div>
+                                                    <div className="text-xs text-text-tertiary mt-1">
+                                                        {new Date(dailyActivity[0].date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                                                    </div>
+                                                    {/* Progress bar visualization */}
+                                                    <div className="w-full max-w-xs mt-4">
+                                                        <div className="h-3 bg-bg-tertiary rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-gradient-to-r from-accent-primary to-accent-primary/60 rounded-full transition-all"
+                                                                style={{ width: '100%' }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                /* Multi-day - show bar chart with values */
+                                                <>
+                                                    {/* Y-axis labels */}
+                                                    <div className="absolute left-0 top-0 bottom-8 w-8 flex flex-col justify-between text-xs text-text-tertiary">
+                                                        <span>{maxDaily.toLocaleString()}</span>
+                                                        <span>{Math.round(maxDaily / 2).toLocaleString()}</span>
+                                                        <span>0</span>
+                                                    </div>
+                                                    {/* Chart area */}
+                                                    <div className="ml-10 h-36 flex items-end gap-1">
+                                                        {dailyActivity.map((day) => {
+                                                            const height = maxDaily > 0 ? (day.events / maxDaily) * 100 : 5;
+                                                            return (
+                                                                <div
+                                                                    key={day.date}
+                                                                    className="flex-1 flex flex-col items-center justify-end h-full group"
+                                                                >
+                                                                    {/* Value on hover */}
+                                                                    <div className="text-xs font-medium text-accent-primary opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+                                                                        {day.events.toLocaleString()}
+                                                                    </div>
+                                                                    {/* Bar */}
+                                                                    <div
+                                                                        className="w-full bg-gradient-to-t from-accent-primary to-accent-primary/60 rounded-t-md transition-all hover:from-accent-primary hover:to-accent-primary/80 cursor-pointer relative"
+                                                                        style={{ height: `${Math.max(height, 3)}%` }}
+                                                                    >
+                                                                        {/* Show value on bar if space allows */}
+                                                                        {height > 20 && dailyActivity.length <= 7 && (
+                                                                            <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white">
+                                                                                {day.events}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    {/* X-axis labels */}
+                                                    <div className="ml-10 flex justify-between mt-2">
+                                                        {dailyActivity.map((day) => (
+                                                            <div key={day.date} className="flex-1 text-center">
+                                                                <span className="text-xs text-text-tertiary">
+                                                                    {dailyActivity.length <= 7
+                                                                        ? new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3)
+                                                                        : new Date(day.date).getDate()
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="h-40 flex items-center justify-center text-text-tertiary">No data</div>
@@ -431,7 +690,11 @@ export default function AnalysisPage() {
                                     </h3>
                                     <div className="space-y-2">
                                         {topTools.slice(0, 6).map((tool, i) => (
-                                            <div key={tool.tool_slug} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-bg-secondary transition-colors">
+                                            <div
+                                                key={tool.tool_slug}
+                                                onClick={() => router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
+                                                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-bg-secondary transition-colors cursor-pointer"
+                                            >
                                                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${i < 3 ? 'bg-accent-primary text-white' : 'bg-bg-tertiary text-text-tertiary'}`}>
                                                     {i + 1}
                                                 </span>
@@ -543,165 +806,357 @@ export default function AnalysisPage() {
 
                     {/* TOOLS TAB */}
                     {selectedTab === 'tools' && (
-                        <div className="flex gap-6">
-                            {/* Main table */}
-                            <div className="flex-1 min-w-0">
-                                {/* Search & Filter Bar */}
-                                <div className="flex gap-3 mb-4">
-                                    <div className="flex-1 relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={18} />
-                                        <input
-                                            type="text"
-                                            value={toolsSearch}
-                                            onChange={(e) => { setToolsSearch(e.target.value); setToolsPage(1); }}
-                                            placeholder="Search tools..."
-                                            className="w-full pl-10 pr-4 py-2.5 bg-bg-card border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none"
+                        <>
+                            {/* Mobile Tool Detail Modal */}
+                            {selectedToolData && (
+                                <div className="fixed inset-0 bg-black/50 z-50 lg:hidden flex items-end sm:items-center justify-center" onClick={() => setSelectedToolSlug(null)}>
+                                    <div className="bg-bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                                        <div className="sticky top-0 bg-bg-card px-4 py-3 border-b border-border flex items-center justify-between z-10">
+                                            <h3 className="font-semibold text-text-primary truncate">{selectedToolData.tool_name || selectedToolData.tool_slug}</h3>
+                                            <button onClick={() => setSelectedToolSlug(null)} className="text-text-tertiary hover:text-text-primary p-1">
+                                                <X size={20} />
+                                            </button>
+                                        </div>
+                                        <div className="p-4">
+                                            {/* Date Range Picker */}
+                                            <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-bg-secondary rounded-lg">
+                                                <Clock size={16} className="text-accent-primary" />
+                                                <input
+                                                    type="date"
+                                                    value={toolStartDate}
+                                                    onChange={(e) => setToolStartDate(e.target.value)}
+                                                    className="bg-bg-card border border-border rounded px-2 py-1 text-xs text-text-primary"
+                                                />
+                                                <span className="text-text-tertiary text-xs">to</span>
+                                                <input
+                                                    type="date"
+                                                    value={toolEndDate}
+                                                    onChange={(e) => setToolEndDate(e.target.value)}
+                                                    className="bg-bg-card border border-border rounded px-2 py-1 text-xs text-text-primary"
+                                                />
+                                                <button
+                                                    onClick={() => fetchToolData(selectedToolSlug!)}
+                                                    className="px-2 py-1 bg-accent-primary text-white text-xs rounded"
+                                                >
+                                                    Apply
+                                                </button>
+                                            </div>
+
+                                            {/* Stats Grid */}
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-2xl font-bold text-text-primary">{selectedToolData.impressions.toLocaleString()}</div>
+                                                    <div className="text-xs text-text-tertiary">Impressions</div>
+                                                </div>
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-2xl font-bold text-accent-primary">{selectedToolData.clicks.toLocaleString()}</div>
+                                                    <div className="text-xs text-text-tertiary">Clicks</div>
+                                                </div>
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-2xl font-bold text-accent-blue">{selectedToolData.page_views.toLocaleString()}</div>
+                                                    <div className="text-xs text-text-tertiary">Page Views</div>
+                                                </div>
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-2xl font-bold text-accent-green">{selectedToolData.website_visits.toLocaleString()}</div>
+                                                    <div className="text-xs text-text-tertiary">Outbound</div>
+                                                </div>
+                                            </div>
+
+                                            {/* CTR & Time */}
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-xl font-bold text-accent-yellow">{formatTime(selectedToolData.avg_time_seconds)}</div>
+                                                    <div className="text-xs text-text-tertiary">Avg Time</div>
+                                                </div>
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-xl font-bold text-accent-orange">
+                                                        {selectedToolData.impressions > 0 ? ((selectedToolData.clicks / selectedToolData.impressions) * 100).toFixed(1) + '%' : '0%'}
+                                                    </div>
+                                                    <div className="text-xs text-text-tertiary">CTR</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Daily Trend Chart */}
+                                            <div className="bg-bg-secondary rounded-lg p-3 mb-4">
+                                                <h4 className="text-sm font-medium text-text-primary mb-3 flex items-center gap-2">
+                                                    <BarChart3 size={14} className="text-accent-primary" />
+                                                    Daily Trend
+                                                    {toolLoading && <Loader2 size={14} className="animate-spin text-accent-primary" />}
+                                                </h4>
+                                                {toolDailyTrend.length > 0 ? (
+                                                    <div className="h-24 flex items-end gap-0.5">
+                                                        {toolDailyTrend.map((day) => {
+                                                            const max = Math.max(...toolDailyTrend.map(d => d.impressions), 1);
+                                                            const height = (day.impressions / max) * 100;
+                                                            return (
+                                                                <div key={day.date} className="flex-1 group relative">
+                                                                    <div
+                                                                        className="w-full bg-accent-primary rounded-t transition-all hover:bg-accent-primary/80"
+                                                                        style={{ height: `${Math.max(height, 3)}%` }}
+                                                                    />
+                                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-bg-tertiary px-1.5 py-0.5 rounded text-[10px] opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                                                                        {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {day.impressions}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-24 flex items-center justify-center text-text-tertiary text-sm">
+                                                        {toolLoading ? 'Loading...' : 'No data'}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <a
+                                                href={`https://us.posthog.com/project/291386/events?properties=%5B%7B%22key%22%3A%22tool_slug%22%2C%22value%22%3A%22${selectedToolData.tool_slug}%22%7D%5D`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center justify-center gap-2 w-full py-2.5 bg-accent-teal text-white rounded-lg text-sm font-medium hover:bg-accent-teal/90 transition-colors"
+                                            >
+                                                <ExternalLink size={14} /> View in PostHog
+                                            </a>
+                                            <Link
+                                                href={`/dashboard/analytics/tool/${selectedToolData.tool_slug}`}
+                                                className="flex items-center justify-center gap-2 w-full py-2.5 mt-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 transition-colors"
+                                            >
+                                                <BarChart3 size={14} /> Full Analytics
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+                                {/* Main table */}
+                                <div className="flex-1 min-w-0">
+                                    {/* Search & Filter Bar - stack on mobile */}
+                                    <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                                        <div className="flex-1 relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={18} />
+                                            <input
+                                                type="text"
+                                                value={toolsSearch}
+                                                onChange={(e) => { setToolsSearch(e.target.value); setToolsPage(1); }}
+                                                placeholder="Search tools..."
+                                                className="w-full pl-10 pr-4 py-2.5 bg-bg-card border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none"
+                                            />
+                                        </div>
+                                        <SearchableSelect
+                                            value={toolsSortBy}
+                                            onChange={(value) => setToolsSortBy(value as typeof toolsSortBy)}
+                                            options={[
+                                                { value: 'impressions', label: 'Sort by Impressions' },
+                                                { value: 'clicks', label: 'Sort by Clicks' },
+                                                { value: 'page_views', label: 'Sort by Views' },
+                                                { value: 'ctr', label: 'Sort by CTR' },
+                                            ]}
+                                            showSearch={false}
+                                            className="w-full sm:w-auto sm:min-w-[180px]"
                                         />
                                     </div>
-                                    <select
-                                        value={toolsSortBy}
-                                        onChange={(e) => setToolsSortBy(e.target.value as typeof toolsSortBy)}
-                                        className="px-4 py-2.5 bg-bg-card border border-border rounded-lg text-text-primary focus:border-accent-primary focus:outline-none cursor-pointer"
-                                    >
-                                        <option value="impressions">Sort by Impressions</option>
-                                        <option value="clicks">Sort by Clicks</option>
-                                        <option value="page_views">Sort by Views</option>
-                                        <option value="ctr">Sort by CTR</option>
-                                    </select>
-                                </div>
 
-                                {/* Table */}
-                                <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr className="bg-bg-secondary">
-                                                <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">#</th>
-                                                <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Tool</th>
-                                                <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Impressions</th>
-                                                <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Clicks</th>
-                                                <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Views</th>
-                                                <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Avg Time</th>
-                                                <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Outbound</th>
-                                                <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">CTR</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {paginatedTools.map((tool, i) => (
-                                                <tr
-                                                    key={tool.tool_slug}
-                                                    onClick={() => setSelectedToolSlug(tool.tool_slug)}
-                                                    className={`border-t border-border cursor-pointer transition-colors ${selectedToolSlug === tool.tool_slug ? 'bg-accent-primary/10' : 'hover:bg-bg-secondary/50'}`}
+                                    {/* Responsive Table - fewer columns on mobile */}
+                                    <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead>
+                                                    <tr className="bg-bg-secondary">
+                                                        <th className="text-left px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary">#</th>
+                                                        <th className="text-left px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary">Tool</th>
+                                                        <th className="text-right px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary">Clicks</th>
+                                                        <th className="text-right px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary hidden sm:table-cell">Views</th>
+                                                        <th className="text-right px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary hidden md:table-cell">Outbound</th>
+                                                        <th className="text-right px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary">CTR</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {paginatedTools.map((tool, i) => (
+                                                        <tr
+                                                            key={tool.tool_slug}
+                                                            onClick={() => router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
+                                                            className="border-t border-border cursor-pointer transition-colors hover:bg-bg-secondary/50"
+                                                        >
+                                                            <td className="px-3 py-2.5 text-xs sm:text-sm text-text-tertiary">{(toolsPage - 1) * TOOLS_PER_PAGE + i + 1}</td>
+                                                            <td className="px-3 py-2.5">
+                                                                <span className="font-medium text-xs sm:text-sm text-text-primary line-clamp-1">{tool.tool_name || tool.tool_slug}</span>
+                                                            </td>
+                                                            <td className="px-3 py-2.5 text-right text-xs sm:text-sm text-accent-primary font-medium">{tool.clicks.toLocaleString()}</td>
+                                                            <td className="px-3 py-2.5 text-right text-xs sm:text-sm text-text-secondary hidden sm:table-cell">{tool.page_views.toLocaleString()}</td>
+                                                            <td className="px-3 py-2.5 text-right text-xs sm:text-sm text-accent-green hidden md:table-cell">{tool.website_visits.toLocaleString()}</td>
+                                                            <td className="px-3 py-2.5 text-right text-xs sm:text-sm font-medium text-accent-orange">
+                                                                {tool.impressions > 0 ? ((tool.clicks / tool.impressions) * 100).toFixed(1) + '%' : '0%'}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                            {paginatedTools.length === 0 && (
+                                                <div className="p-8 text-center text-text-tertiary">
+                                                    {toolsSearch ? `No tools matching "${toolsSearch}"` : 'No tool data yet'}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Pagination */}
+                                    {totalToolPages > 1 && (
+                                        <div className="flex items-center justify-between mt-4">
+                                            <span className="text-sm text-text-tertiary">
+                                                Showing {(toolsPage - 1) * TOOLS_PER_PAGE + 1}-{Math.min(toolsPage * TOOLS_PER_PAGE, filteredTools.length)} of {filteredTools.length}
+                                            </span>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setToolsPage(p => Math.max(1, p - 1))}
+                                                    disabled={toolsPage === 1}
+                                                    className="px-3 py-1.5 bg-bg-card border border-border rounded-lg text-sm disabled:opacity-50 hover:bg-bg-secondary transition-colors"
                                                 >
-                                                    <td className="px-4 py-3 text-text-tertiary">{(toolsPage - 1) * TOOLS_PER_PAGE + i + 1}</td>
-                                                    <td className="px-4 py-3">
-                                                        <span className="font-medium text-text-primary">{tool.tool_name || tool.tool_slug}</span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right text-text-primary">{tool.impressions.toLocaleString()}</td>
-                                                    <td className="px-4 py-3 text-right text-accent-primary">{tool.clicks.toLocaleString()}</td>
-                                                    <td className="px-4 py-3 text-right text-text-secondary">{tool.page_views.toLocaleString()}</td>
-                                                    <td className="px-4 py-3 text-right text-accent-blue">{formatTime(tool.avg_time_seconds)}</td>
-                                                    <td className="px-4 py-3 text-right text-accent-green">{tool.website_visits.toLocaleString()}</td>
-                                                    <td className="px-4 py-3 text-right font-medium text-accent-orange">
-                                                        {tool.impressions > 0 ? ((tool.clicks / tool.impressions) * 100).toFixed(1) + '%' : '0%'}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                    {paginatedTools.length === 0 && (
-                                        <div className="p-8 text-center text-text-tertiary">
-                                            {toolsSearch ? `No tools matching "${toolsSearch}"` : 'No tool data yet'}
+                                                    Previous
+                                                </button>
+                                                <span className="px-3 py-1.5 text-sm text-text-secondary">
+                                                    Page {toolsPage} of {totalToolPages}
+                                                </span>
+                                                <button
+                                                    onClick={() => setToolsPage(p => Math.min(totalToolPages, p + 1))}
+                                                    disabled={toolsPage === totalToolPages}
+                                                    className="px-3 py-1.5 bg-bg-card border border-border rounded-lg text-sm disabled:opacity-50 hover:bg-bg-secondary transition-colors"
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Pagination */}
-                                {totalToolPages > 1 && (
-                                    <div className="flex items-center justify-between mt-4">
-                                        <span className="text-sm text-text-tertiary">
-                                            Showing {(toolsPage - 1) * TOOLS_PER_PAGE + 1}-{Math.min(toolsPage * TOOLS_PER_PAGE, filteredTools.length)} of {filteredTools.length}
-                                        </span>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => setToolsPage(p => Math.max(1, p - 1))}
-                                                disabled={toolsPage === 1}
-                                                className="px-3 py-1.5 bg-bg-card border border-border rounded-lg text-sm disabled:opacity-50 hover:bg-bg-secondary transition-colors"
-                                            >
-                                                Previous
-                                            </button>
-                                            <span className="px-3 py-1.5 text-sm text-text-secondary">
-                                                Page {toolsPage} of {totalToolPages}
-                                            </span>
-                                            <button
-                                                onClick={() => setToolsPage(p => Math.min(totalToolPages, p + 1))}
-                                                disabled={toolsPage === totalToolPages}
-                                                className="px-3 py-1.5 bg-bg-card border border-border rounded-lg text-sm disabled:opacity-50 hover:bg-bg-secondary transition-colors"
-                                            >
-                                                Next
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                                {/* Tool Detail Panel - Desktop only */}
+                                <div className="hidden lg:block w-96 flex-shrink-0">
+                                    {selectedToolData ? (
+                                        <div className="bg-bg-card border border-border rounded-xl p-5 sticky top-4 max-h-[calc(100vh-100px)] overflow-y-auto">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="font-semibold text-text-primary truncate">{selectedToolData.tool_name || selectedToolData.tool_slug}</h3>
+                                                <button onClick={() => setSelectedToolSlug(null)} className="text-text-tertiary hover:text-text-primary">
+                                                    <X size={18} />
+                                                </button>
+                                            </div>
 
-                            {/* Tool Detail Panel */}
-                            <div className="w-80 flex-shrink-0">
-                                {selectedToolData ? (
-                                    <div className="bg-bg-card border border-border rounded-xl p-5 sticky top-4">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="font-semibold text-text-primary truncate">{selectedToolData.tool_name || selectedToolData.tool_slug}</h3>
-                                            <button onClick={() => setSelectedToolSlug(null)} className="text-text-tertiary hover:text-text-primary">
-                                                <X size={18} />
-                                            </button>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3 mb-4">
-                                            <div className="bg-bg-secondary rounded-lg p-3 text-center">
-                                                <div className="text-2xl font-bold text-text-primary">{selectedToolData.impressions.toLocaleString()}</div>
-                                                <div className="text-xs text-text-tertiary">Impressions</div>
+                                            {/* Date Range Picker */}
+                                            <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-bg-secondary rounded-lg">
+                                                <Clock size={16} className="text-accent-primary" />
+                                                <input
+                                                    type="date"
+                                                    value={toolStartDate}
+                                                    onChange={(e) => setToolStartDate(e.target.value)}
+                                                    className="bg-bg-card border border-border rounded px-2 py-1 text-xs text-text-primary flex-1"
+                                                />
+                                                <span className="text-text-tertiary text-xs">to</span>
+                                                <input
+                                                    type="date"
+                                                    value={toolEndDate}
+                                                    onChange={(e) => setToolEndDate(e.target.value)}
+                                                    className="bg-bg-card border border-border rounded px-2 py-1 text-xs text-text-primary flex-1"
+                                                />
+                                                <button
+                                                    onClick={() => fetchToolData(selectedToolSlug!)}
+                                                    className="px-2 py-1 bg-accent-primary text-white text-xs rounded hover:bg-accent-primary/90"
+                                                >
+                                                    Apply
+                                                </button>
                                             </div>
-                                            <div className="bg-bg-secondary rounded-lg p-3 text-center">
-                                                <div className="text-2xl font-bold text-accent-primary">{selectedToolData.clicks.toLocaleString()}</div>
-                                                <div className="text-xs text-text-tertiary">Clicks</div>
-                                            </div>
-                                            <div className="bg-bg-secondary rounded-lg p-3 text-center">
-                                                <div className="text-2xl font-bold text-accent-blue">{selectedToolData.page_views.toLocaleString()}</div>
-                                                <div className="text-xs text-text-tertiary">Page Views</div>
-                                            </div>
-                                            <div className="bg-bg-secondary rounded-lg p-3 text-center">
-                                                <div className="text-2xl font-bold text-accent-green">{selectedToolData.website_visits.toLocaleString()}</div>
-                                                <div className="text-xs text-text-tertiary">Outbound</div>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3 mb-4">
-                                            <div className="bg-bg-secondary rounded-lg p-3 text-center">
-                                                <div className="text-xl font-bold text-accent-yellow">{formatTime(selectedToolData.avg_time_seconds)}</div>
-                                                <div className="text-xs text-text-tertiary">Avg Time</div>
-                                            </div>
-                                            <div className="bg-bg-secondary rounded-lg p-3 text-center">
-                                                <div className="text-xl font-bold text-accent-orange">
-                                                    {selectedToolData.impressions > 0 ? ((selectedToolData.clicks / selectedToolData.impressions) * 100).toFixed(1) + '%' : '0%'}
+
+                                            {/* Stats Grid */}
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-2xl font-bold text-text-primary">{selectedToolData.impressions.toLocaleString()}</div>
+                                                    <div className="text-xs text-text-tertiary">Impressions</div>
                                                 </div>
-                                                <div className="text-xs text-text-tertiary">CTR</div>
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-2xl font-bold text-accent-primary">{selectedToolData.clicks.toLocaleString()}</div>
+                                                    <div className="text-xs text-text-tertiary">Clicks</div>
+                                                </div>
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-2xl font-bold text-accent-blue">{selectedToolData.page_views.toLocaleString()}</div>
+                                                    <div className="text-xs text-text-tertiary">Page Views</div>
+                                                </div>
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-2xl font-bold text-accent-green">{selectedToolData.website_visits.toLocaleString()}</div>
+                                                    <div className="text-xs text-text-tertiary">Outbound</div>
+                                                </div>
+                                            </div>
+
+                                            {/* CTR & Time */}
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-xl font-bold text-accent-yellow">{formatTime(selectedToolData.avg_time_seconds)}</div>
+                                                    <div className="text-xs text-text-tertiary">Avg Time</div>
+                                                </div>
+                                                <div className="bg-bg-secondary rounded-lg p-3 text-center">
+                                                    <div className="text-xl font-bold text-accent-orange">
+                                                        {selectedToolData.impressions > 0 ? ((selectedToolData.clicks / selectedToolData.impressions) * 100).toFixed(1) + '%' : '0%'}
+                                                    </div>
+                                                    <div className="text-xs text-text-tertiary">CTR</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Daily Trend Chart */}
+                                            <div className="bg-bg-secondary rounded-lg p-3 mb-4">
+                                                <h4 className="text-sm font-medium text-text-primary mb-3 flex items-center gap-2">
+                                                    <BarChart3 size={14} className="text-accent-primary" />
+                                                    Daily Trend
+                                                    {toolLoading && <Loader2 size={14} className="animate-spin text-accent-primary" />}
+                                                </h4>
+                                                {toolDailyTrend.length > 0 ? (
+                                                    <div className="h-28 flex items-end gap-0.5">
+                                                        {toolDailyTrend.map((day) => {
+                                                            const max = Math.max(...toolDailyTrend.map(d => d.impressions), 1);
+                                                            const height = (day.impressions / max) * 100;
+                                                            return (
+                                                                <div key={day.date} className="flex-1 group relative">
+                                                                    <div
+                                                                        className="w-full bg-accent-primary rounded-t transition-all hover:bg-accent-primary/80"
+                                                                        style={{ height: `${Math.max(height, 3)}%` }}
+                                                                    />
+                                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-bg-tertiary px-1.5 py-0.5 rounded text-[10px] opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                                                                        {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {day.impressions}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-28 flex items-center justify-center text-text-tertiary text-sm">
+                                                        {toolLoading ? 'Loading...' : 'No data'}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="space-y-2">
+                                                <a
+                                                    href={`https://us.posthog.com/project/291386/events?properties=%5B%7B%22key%22%3A%22tool_slug%22%2C%22value%22%3A%22${selectedToolData.tool_slug}%22%7D%5D`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center justify-center gap-2 w-full py-2 bg-accent-teal text-white rounded-lg text-sm font-medium hover:bg-accent-teal/90 transition-colors"
+                                                >
+                                                    <ExternalLink size={14} /> View in PostHog
+                                                </a>
+                                                <Link
+                                                    href={`/dashboard/analytics/tool/${selectedToolData.tool_slug}`}
+                                                    className="flex items-center justify-center gap-2 w-full py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 transition-colors"
+                                                >
+                                                    <BarChart3 size={14} /> Full Analytics
+                                                </Link>
                                             </div>
                                         </div>
-                                        <a
-                                            href={`https://us.posthog.com/project/291386/events?properties=%5B%7B%22key%22%3A%22tool_slug%22%2C%22value%22%3A%22${selectedToolData.tool_slug}%22%7D%5D`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-2 w-full py-2 bg-accent-teal text-white rounded-lg text-sm font-medium hover:bg-accent-teal/90 transition-colors"
-                                        >
-                                            <ExternalLink size={14} /> View in PostHog
-                                        </a>
-                                    </div>
-                                ) : (
-                                    <div className="bg-bg-card border border-border rounded-xl p-8 text-center sticky top-4">
-                                        <BarChart3 className="mx-auto mb-3 text-text-tertiary" size={40} />
-                                        <p className="text-text-secondary font-medium">Select a Tool</p>
-                                        <p className="text-xs text-text-tertiary mt-1">Click any row to see details</p>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div className="bg-bg-card border border-border rounded-xl p-8 text-center sticky top-4">
+                                            <BarChart3 className="mx-auto mb-3 text-text-tertiary" size={40} />
+                                            <p className="text-text-secondary font-medium">Select a Tool</p>
+                                            <p className="text-xs text-text-tertiary mt-1">Click any row to see details</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        </>
                     )}
 
                     {/* CATEGORIES & TASKS TAB */}

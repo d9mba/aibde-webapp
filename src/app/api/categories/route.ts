@@ -3,18 +3,73 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { categorySchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
-// GET /api/categories - List all categories (ADMIN ONLY)
-export async function GET() {
+// GET /api/categories - List categories with pagination (ADMIN ONLY)
+export async function GET(request: NextRequest) {
     try {
         const authResult = await requireAdmin();
         if (isAuthError(authResult)) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
+        const { searchParams } = new URL(request.url);
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '25');
+        const all = searchParams.get('all') === 'true';
+
+        // If all=true, fetch all records (for dashboard stats, etc.)
+        if (all) {
+            const PAGE_SIZE = 1000;
+            let allData: Array<{ id: string; category_name: string; description: string; count: number; icon: string }> = [];
+            let pageNum = 0;
+            let hasMore = true;
+
+            while (hasMore) {
+                const { data, error } = await supabaseAdmin
+                    .from('categories')
+                    .select('*')
+                    .order('category_name', { ascending: true })
+                    .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+
+                if (error) {
+                    return NextResponse.json({ error: error.message }, { status: 500 });
+                }
+
+                if (data && data.length > 0) {
+                    allData = [...allData, ...data];
+                    hasMore = data.length === PAGE_SIZE;
+                    pageNum++;
+                } else {
+                    hasMore = false;
+                }
+            }
+
+            const mappedData = allData.map(row => ({
+                id: row.id,
+                categoryName: row.category_name,
+                description: row.description,
+                count: row.count,
+                icon: row.icon,
+            }));
+
+            return NextResponse.json(mappedData);
+        }
+
+        // Get total count
+        const { count: totalCount, error: countError } = await supabaseAdmin
+            .from('categories')
+            .select('*', { count: 'exact', head: true });
+
+        if (countError) {
+            return NextResponse.json({ error: countError.message }, { status: 500 });
+        }
+
+        // Get paginated data
+        const offset = (page - 1) * limit;
         const { data, error } = await supabaseAdmin
             .from('categories')
             .select('*')
-            .order('category_name', { ascending: true });
+            .order('category_name', { ascending: true })
+            .range(offset, offset + limit - 1);
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
@@ -29,7 +84,15 @@ export async function GET() {
             icon: row.icon,
         }));
 
-        return NextResponse.json(mappedData);
+        return NextResponse.json({
+            data: mappedData,
+            pagination: {
+                page,
+                limit,
+                total: totalCount || 0,
+                totalPages: Math.ceil((totalCount || 0) / limit),
+            },
+        });
     } catch (err) {
         return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
     }

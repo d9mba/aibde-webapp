@@ -3,18 +3,71 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { tagSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
-// GET /api/tags - List all tags (ADMIN ONLY)
-export async function GET() {
+// GET /api/tags - List tags with pagination (ADMIN ONLY)
+export async function GET(request: NextRequest) {
     try {
         const authResult = await requireAdmin();
         if (isAuthError(authResult)) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
+        const { searchParams } = new URL(request.url);
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '25');
+        const all = searchParams.get('all') === 'true';
+
+        // If all=true, fetch all records (for dashboard stats, etc.)
+        if (all) {
+            const PAGE_SIZE = 1000;
+            let allData: Array<{ id: string; tag_name: string; count: number }> = [];
+            let pageNum = 0;
+            let hasMore = true;
+
+            while (hasMore) {
+                const { data, error } = await supabaseAdmin
+                    .from('tags')
+                    .select('*')
+                    .order('tag_name', { ascending: true })
+                    .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+
+                if (error) {
+                    return NextResponse.json({ error: error.message }, { status: 500 });
+                }
+
+                if (data && data.length > 0) {
+                    allData = [...allData, ...data];
+                    hasMore = data.length === PAGE_SIZE;
+                    pageNum++;
+                } else {
+                    hasMore = false;
+                }
+            }
+
+            const mappedData = allData.map(row => ({
+                id: row.id,
+                tagName: row.tag_name,
+                count: row.count,
+            }));
+
+            return NextResponse.json(mappedData);
+        }
+
+        // Get total count
+        const { count: totalCount, error: countError } = await supabaseAdmin
+            .from('tags')
+            .select('*', { count: 'exact', head: true });
+
+        if (countError) {
+            return NextResponse.json({ error: countError.message }, { status: 500 });
+        }
+
+        // Get paginated data
+        const offset = (page - 1) * limit;
         const { data, error } = await supabaseAdmin
             .from('tags')
             .select('*')
-            .order('tag_name', { ascending: true });
+            .order('tag_name', { ascending: true })
+            .range(offset, offset + limit - 1);
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
@@ -27,7 +80,15 @@ export async function GET() {
             count: row.count,
         }));
 
-        return NextResponse.json(mappedData);
+        return NextResponse.json({
+            data: mappedData,
+            pagination: {
+                page,
+                limit,
+                total: totalCount || 0,
+                totalPages: Math.ceil((totalCount || 0) / limit),
+            },
+        });
     } catch (err) {
         return NextResponse.json({ error: 'Failed to fetch tags' }, { status: 500 });
     }

@@ -34,7 +34,26 @@ export async function POST(request: NextRequest) {
             }, { status: 500 });
         }
 
-        const { type, toolSlug, days = 7 } = await request.json();
+        let body: { type?: string; toolSlug?: string; days?: number; startDate?: string; endDate?: string } = {};
+        try {
+            body = await request.json();
+        } catch {
+            return NextResponse.json({ error: 'Invalid or empty request body' }, { status: 400 });
+        }
+
+        const { type, toolSlug, days = 7, startDate, endDate } = body;
+
+        if (!type) {
+            return NextResponse.json({ error: 'Missing required field: type' }, { status: 400 });
+        }
+
+        // Build time filter - support both days (relative) and startDate/endDate (absolute)
+        let timeFilter: string;
+        if (startDate && endDate) {
+            timeFilter = `timestamp >= toDateTime('${startDate} 00:00:00') AND timestamp <= toDateTime('${endDate} 23:59:59')`;
+        } else {
+            timeFilter = `timestamp >= now() - interval ${days} day`;
+        }
 
         let hogqlQuery = '';
 
@@ -48,7 +67,7 @@ export async function POST(request: NextRequest) {
                         count() as count
                     FROM events
                     WHERE 
-                        timestamp >= now() - interval ${days} day
+                        ${timeFilter}
                         AND properties.tool_slug = '${toolSlug}'
                         AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed', 'tool_website_visited')
                     GROUP BY properties.tool_slug, event
@@ -61,7 +80,7 @@ export async function POST(request: NextRequest) {
                 hogqlQuery = `
                     SELECT 
                         properties.tool_slug as tool_slug,
-                        properties.tool_name as tool_name,
+                        any(properties.tool_name) as tool_name,
                         countIf(event = 'tool_impression') as impressions,
                         countIf(event = 'tool_clicked') as clicks,
                         countIf(event = 'tool_page_viewed') as page_views,
@@ -69,9 +88,9 @@ export async function POST(request: NextRequest) {
                         avgIf(properties.time_spent_seconds, event = 'tool_page_left' AND properties.time_spent_seconds > 0) as avg_time_seconds
                     FROM events
                     WHERE 
-                        timestamp >= now() - interval ${days} day
+                        ${timeFilter}
                         AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed', 'tool_website_visited', 'tool_page_left')
-                    GROUP BY properties.tool_slug, properties.tool_name
+                    GROUP BY properties.tool_slug
                     ORDER BY impressions DESC
                     LIMIT 25
                 `;
@@ -85,7 +104,7 @@ export async function POST(request: NextRequest) {
                         count() as events
                     FROM events
                     WHERE 
-                        timestamp >= now() - interval ${days} day
+                        ${timeFilter}
                     GROUP BY date
                     ORDER BY date ASC
                 `;
@@ -113,7 +132,7 @@ export async function POST(request: NextRequest) {
                         avg(properties.time_spent_seconds) as avg_time
                     FROM events
                     WHERE 
-                        timestamp >= now() - interval ${days} day
+                        ${timeFilter}
                         AND event = 'tool_page_left'
                         AND properties.time_spent_seconds > 0
                     GROUP BY properties.tool_slug
@@ -132,7 +151,7 @@ export async function POST(request: NextRequest) {
                         countIf(event = 'tool_page_viewed') as page_views
                     FROM events
                     WHERE 
-                        timestamp >= now() - interval ${days} day
+                        ${timeFilter}
                         AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed')
                         AND properties.tool_category IS NOT NULL
                     GROUP BY properties.tool_category
@@ -150,7 +169,7 @@ export async function POST(request: NextRequest) {
                         count() as uses
                     FROM events
                     WHERE 
-                        timestamp >= now() - interval ${days} day
+                        ${timeFilter}
                         AND event = 'filter_used'
                     GROUP BY properties.filter_type, properties.filter_value
                     ORDER BY uses DESC
@@ -166,7 +185,7 @@ export async function POST(request: NextRequest) {
                         count() as searches
                     FROM events
                     WHERE 
-                        timestamp >= now() - interval ${days} day
+                        ${timeFilter}
                         AND event = 'search_performed'
                         AND properties.search_query IS NOT NULL
                     GROUP BY properties.search_query
@@ -189,7 +208,7 @@ export async function POST(request: NextRequest) {
                         count(DISTINCT properties.distinct_id) as unique_visitors,
                         avgIf(properties.time_spent_seconds, event = 'tool_page_left' AND properties.time_spent_seconds > 0) as avg_time_on_site
                     FROM events
-                    WHERE timestamp >= now() - interval ${days} day
+                    WHERE ${timeFilter}
                 `;
                 break;
 
@@ -218,7 +237,7 @@ export async function POST(request: NextRequest) {
                         count() as visits
                     FROM events
                     WHERE 
-                        timestamp >= now() - interval ${days} day
+                        ${timeFilter}
                         AND event = '$pageview'
                     GROUP BY referrer
                     ORDER BY visits DESC
@@ -234,7 +253,7 @@ export async function POST(request: NextRequest) {
                         count() as views
                     FROM events
                     WHERE 
-                        timestamp >= now() - interval ${days} day
+                        ${timeFilter}
                         AND event = '$pageview'
                         AND properties.$pathname IS NOT NULL
                     GROUP BY properties.$pathname
@@ -243,32 +262,67 @@ export async function POST(request: NextRequest) {
                 `;
                 break;
 
+            case 'tool_daily_trend':
+                // Get daily trend for a specific tool
+                if (!toolSlug) {
+                    return NextResponse.json({ error: 'toolSlug required for tool_daily_trend' }, { status: 400 });
+                }
+                hogqlQuery = `
+                    SELECT 
+                        toDate(timestamp) as date,
+                        countIf(event = 'tool_impression') as impressions,
+                        countIf(event = 'tool_clicked') as clicks,
+                        countIf(event = 'tool_page_viewed') as page_views,
+                        countIf(event = 'tool_website_visited') as website_visits,
+                        avgIf(properties.time_spent_seconds, event = 'tool_page_left' AND properties.time_spent_seconds > 0) as avg_time_seconds
+                    FROM events
+                    WHERE 
+                        ${timeFilter}
+                        AND properties.tool_slug = '${toolSlug}'
+                        AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed', 'tool_website_visited', 'tool_page_left')
+                    GROUP BY date
+                    ORDER BY date ASC
+                `;
+                break;
+
             default:
                 return NextResponse.json({ error: 'Invalid query type' }, { status: 400 });
         }
 
-        // Make request to PostHog API
-        const response = await fetch(`${POSTHOG_HOST}/api/projects/${POSTHOG_PROJECT_ID}/query/`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${POSTHOG_API_KEY}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                query: {
-                    kind: 'HogQLQuery',
-                    query: hogqlQuery,
+        // Make request to PostHog API with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        let response: Response;
+        try {
+            response = await fetch(`${POSTHOG_HOST}/api/projects/${POSTHOG_PROJECT_ID}/query/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${POSTHOG_API_KEY}`,
+                    'Content-Type': 'application/json',
                 },
-            }),
-        });
+                body: JSON.stringify({
+                    query: {
+                        kind: 'HogQLQuery',
+                        query: hogqlQuery,
+                    },
+                }),
+                signal: controller.signal,
+            });
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+                return NextResponse.json({ error: 'PostHog API timeout' }, { status: 504 });
+            }
+            return NextResponse.json({ error: 'PostHog API connection failed' }, { status: 502 });
+        }
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[PostHog API] Error:', response.status, errorText);
+            // Don't log full HTML error pages
             return NextResponse.json({
                 error: 'PostHog API error',
                 status: response.status,
-                details: errorText,
             }, { status: response.status });
         }
 

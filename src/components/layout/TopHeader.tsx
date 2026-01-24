@@ -6,17 +6,15 @@ import { Search } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { useSearch } from '@/context/SearchContext';
-import { useAdminData } from '@/context/AdminContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
 import { useDebounce } from '@/hooks/useDebounce';
 import { quickSearchTools } from '@/lib/search';
-import { AdminTool } from '@/types';
+import { trackToolClick } from '@/hooks/useToolAnalytics';
 
 export default function TopHeader() {
     const router = useRouter();
     const pathname = usePathname();
-    const { searchQuery, setSearchQuery, isMainSearchFocused } = useSearch();
-    const adminData = useAdminData();
+    const { searchQuery, setSearchQuery, isMainSearchFocused, sharedTools } = useSearch();
     const [showHeaderSearch, setShowHeaderSearch] = useState(false);
     const [showRecommendations, setShowRecommendations] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -28,10 +26,12 @@ export default function TopHeader() {
     // Debounce search query for recommendations
     const debouncedQuery = useDebounce(searchQuery, 150);
 
-    // Get tools from AdminContext and filter client-side (no API calls!)
-    const tools = adminData?.getPublishedTools() || [];
+    // Use sharedTools from SearchContext (set by HeroSection or other pages)
+    const tools = sharedTools;
+
+    // Calculate recommendations based on debounced query
     const recommendations = useMemo(() => {
-        if (!debouncedQuery || debouncedQuery.trim().length < 2) {
+        if (!debouncedQuery || debouncedQuery.trim().length < 3 || tools.length === 0) {
             return [];
         }
         return quickSearchTools(tools, debouncedQuery, 6);
@@ -119,7 +119,9 @@ export default function TopHeader() {
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (selectedIndex >= 0 && selectedIndex < recommendations.length) {
-                // Selected a tool
+                // Selected a tool - track the click
+                const tool = recommendations[selectedIndex];
+                trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
                 router.push(`/app/${recommendations[selectedIndex].slug}`);
                 setShowRecommendations(false);
                 setSearchQuery('');
@@ -134,7 +136,8 @@ export default function TopHeader() {
     };
 
     // Handle tool click
-    const handleToolClick = (slug: string) => {
+    const handleToolClick = (slug: string, tool: typeof recommendations[0]) => {
+        trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
         router.push(`/app/${slug}`);
         setShowRecommendations(false);
         setSearchQuery('');
@@ -214,7 +217,7 @@ export default function TopHeader() {
                                 {recommendations.map((tool, index) => (
                                     <button
                                         key={tool.id}
-                                        onClick={() => handleToolClick(tool.slug)}
+                                        onClick={() => handleToolClick(tool.slug, tool)}
                                         className={cn(
                                             "flex items-center gap-3 w-full px-4 py-2.5 text-left transition-colors",
                                             index === selectedIndex
@@ -228,7 +231,7 @@ export default function TopHeader() {
                                             <img
                                                 src={tool.logoUrl}
                                                 alt=""
-                                                className="w-7 h-7 rounded-md object-cover flex-shrink-0"
+                                                className="w-7 h-7 rounded-md object-contain flex-shrink-0"
                                             />
                                         ) : (
                                             <div className="w-7 h-7 rounded-md bg-accent-primary/20 flex items-center justify-center flex-shrink-0">

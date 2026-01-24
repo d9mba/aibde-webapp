@@ -52,38 +52,46 @@ export default async function RootLayout({
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-                {/* Google Tag Manager */}
-                <Script id="gtm-script" strategy="afterInteractive">
-                    {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-                    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-                    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-                    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-                    })(window,document,'script','dataLayer','GTM-MJ4WCNXC');`}
-                </Script>
+                {/* Google Tag Manager - Production only */}
+                {process.env.NODE_ENV === 'production' && (
+                    <Script id="gtm-script" strategy="afterInteractive">
+                        {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+                        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+                        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+                        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+                        })(window,document,'script','dataLayer','GTM-MJ4WCNXC');`}
+                    </Script>
+                )}
 
-                {/* Google Analytics */}
-                <Script
-                    src="https://www.googletagmanager.com/gtag/js?id=G-HT35EHF7PQ"
-                    strategy="afterInteractive"
-                />
-                <Script id="ga-script" strategy="afterInteractive">
-                    {`window.dataLayer = window.dataLayer || [];
-                    function gtag(){dataLayer.push(arguments);}
-                    gtag('js', new Date());
-                    gtag('config', 'G-HT35EHF7PQ');`}
-                </Script>
+                {/* Google Analytics - Production only */}
+                {process.env.NODE_ENV === 'production' && (
+                    <>
+                        <Script
+                            src="https://www.googletagmanager.com/gtag/js?id=G-HT35EHF7PQ"
+                            strategy="afterInteractive"
+                        />
+                        <Script id="ga-script" strategy="afterInteractive">
+                            {`window.dataLayer = window.dataLayer || [];
+                            function gtag(){dataLayer.push(arguments);}
+                            gtag('js', new Date());
+                            gtag('config', 'G-HT35EHF7PQ');`}
+                        </Script>
+                    </>
+                )}
 
             </head>
             <body className="bg-bg-primary text-text-primary antialiased transition-colors duration-normal" suppressHydrationWarning>
-                {/* Google Tag Manager (noscript) */}
-                <noscript>
-                    <iframe
-                        src="https://www.googletagmanager.com/ns.html?id=GTM-MJ4WCNXC"
-                        height="0"
-                        width="0"
-                        style={{ display: 'none', visibility: 'hidden' }}
-                    />
-                </noscript>
+                {/* Google Tag Manager (noscript) - Production only */}
+                {process.env.NODE_ENV === 'production' && (
+                    <noscript>
+                        <iframe
+                            src="https://www.googletagmanager.com/ns.html?id=GTM-MJ4WCNXC"
+                            height="0"
+                            width="0"
+                            style={{ display: 'none', visibility: 'hidden' }}
+                        />
+                    </noscript>
+                )}
 
                 <Providers>
                     <LayoutWrapper>{children}</LayoutWrapper>

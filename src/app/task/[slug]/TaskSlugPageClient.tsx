@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool, Task } from '@/types';
 import { Target, ArrowLeft, ChevronRight } from 'lucide-react';
+import { useSearch } from '@/context/SearchContext';
 
 interface TaskSlugPageClientProps {
     task: Task | null;
@@ -18,7 +20,15 @@ export default function TaskSlugPageClient({
     allTasks,
     slug
 }: TaskSlugPageClientProps) {
+    const { setSharedTools } = useSearch();
     const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    // Set sharedTools for search recommendations in header
+    useEffect(() => {
+        if (tools.length > 0) {
+            setSharedTools(tools);
+        }
+    }, [tools, setSharedTools]);
 
     // Get tools for this task
     const taskTools = task

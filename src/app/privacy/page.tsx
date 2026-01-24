@@ -1,3 +1,26 @@
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Privacy Policy | AiBDE - AI Tools Directory',
+    description: 'Read the AiBDE Privacy Policy. Learn how we collect, use, and protect your personal information when using our AI tools directory.',
+    keywords: 'AiBDE privacy policy, data protection, cookie policy, personal data, AI tools directory privacy',
+    openGraph: {
+        title: 'Privacy Policy | AiBDE',
+        description: 'Read the AiBDE Privacy Policy. Learn how we protect your data.',
+        type: 'website',
+        siteName: 'AiBDE',
+        url: 'https://aibde.tech/privacy',
+    },
+    twitter: {
+        card: 'summary',
+        title: 'Privacy Policy | AiBDE',
+        description: 'Read the AiBDE Privacy Policy.',
+    },
+    alternates: {
+        canonical: 'https://aibde.tech/privacy',
+    },
+};
+
 export default function PrivacyPage() {
     return (
         <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-12 sm:py-16">

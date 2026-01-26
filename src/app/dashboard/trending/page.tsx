@@ -126,6 +126,34 @@ export default function TrendingManagementPage() {
         }
     };
 
+    const handleSetPosition = (toolId: string, newPosition: number) => {
+        if (newPosition < 1 || newPosition > trendingTools.length) {
+            showToast(`Position must be between 1 and ${trendingTools.length}`, 'error');
+            return;
+        }
+
+        const currentIdx = trendingTools.findIndex(t => t.id === toolId);
+        if (currentIdx === -1) return;
+
+        const targetIdx = newPosition - 1;
+        if (currentIdx === targetIdx) return;
+
+        // Reorder the tools array
+        const reordered = [...trendingTools];
+        const [movedTool] = reordered.splice(currentIdx, 1);
+        reordered.splice(targetIdx, 0, movedTool);
+
+        // Update positions for all tools
+        const newPositions: Record<string, number> = {};
+        reordered.forEach((tool, idx) => {
+            newPositions[tool.id] = idx + 1;
+        });
+
+        setPendingPositions(newPositions);
+        setHasChanges(true);
+        showToast(`Moved to position #${newPosition} - Click Save to apply`, 'info');
+    };
+
     const handleSaveAll = async () => {
         setSaving(true);
         try {
@@ -245,7 +273,21 @@ export default function TrendingManagementPage() {
                                             const globalIdx = (trendingPage - 1) * ITEMS_PER_PAGE + idx;
                                             return (
                                                 <div key={tool.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-bg-secondary transition-colors">
-                                                    <span className="text-xs font-mono text-text-tertiary w-5 sm:w-6">#{globalIdx + 1}</span>
+                                                    {/* Editable Position Input */}
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        max={trendingTools.length}
+                                                        value={globalIdx + 1}
+                                                        onChange={(e) => {
+                                                            const newPos = parseInt(e.target.value);
+                                                            if (!isNaN(newPos)) {
+                                                                handleSetPosition(tool.id, newPos);
+                                                            }
+                                                        }}
+                                                        className="w-10 sm:w-12 px-1 py-0.5 text-xs font-mono text-center bg-bg-tertiary border border-border rounded text-text-primary focus:outline-none focus:border-accent-primary"
+                                                        title="Set position"
+                                                    />
                                                     {tool.logoUrl ? (
                                                         <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain" />
                                                     ) : (

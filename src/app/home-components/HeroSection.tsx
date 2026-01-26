@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
 import { AdminTool } from '@/types';
+import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
 
 interface HeroSectionProps {
     toolCount: number;
@@ -22,7 +23,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const searchTimeout = useRef<NodeJS.Timeout>();
 
-    // Fetch suggestions from API
+    // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = useCallback(async (query: string) => {
         if (!query || query.length < 2) {
             setSuggestions([]);
@@ -30,11 +31,9 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
         }
 
         try {
-            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=5`);
-            if (response.ok) {
-                const data = await response.json();
-                setSuggestions(data.tools || []);
-            }
+            const { getSearchSuggestionsAction } = await import('@/lib/actions');
+            const tools = await getSearchSuggestionsAction(query, 5);
+            setSuggestions(tools);
         } catch (error) {
             console.error('Search suggestions failed:', error);
         }
@@ -160,55 +159,14 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                     </div>
                 </div>
 
-                {/* Search Suggestions Dropdown - Matching old style */}
+                {/* Search Suggestions Dropdown */}
                 {showSuggestions && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50">
-                        {suggestions.map((tool, index) => (
-                            <a
-                                key={tool.id}
-                                href={`/app/${tool.slug}`}
-                                className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${index === selectedIndex
-                                    ? 'bg-bg-secondary'
-                                    : 'hover:bg-bg-secondary'
-                                    }`}
-                                onMouseEnter={() => setSelectedIndex(index)}
-                            >
-                                {tool.logoUrl ? (
-                                    <img
-                                        src={tool.logoUrl}
-                                        alt=""
-                                        className="w-6 h-6 rounded object-contain flex-shrink-0"
-                                    />
-                                ) : (
-                                    <div className="w-6 h-6 rounded bg-accent-primary/20 flex items-center justify-center text-accent-primary font-semibold text-xs flex-shrink-0">
-                                        {tool.name[0]}
-                                    </div>
-                                )}
-                                <span className="text-sm text-text-primary truncate">
-                                    {tool.name}
-                                </span>
-                            </a>
-                        ))}
-                        {/* Search for option */}
-                        {searchQuery.length >= 2 && (
-                            <a
-                                href={`/search?q=${encodeURIComponent(searchQuery)}`}
-                                className={`flex items-center gap-3 px-4 py-2.5 transition-colors border-t border-border ${selectedIndex === suggestions.length
-                                    ? 'bg-bg-secondary'
-                                    : 'hover:bg-bg-secondary'
-                                    }`}
-                                onMouseEnter={() => setSelectedIndex(suggestions.length)}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-tertiary flex-shrink-0">
-                                    <circle cx="11" cy="11" r="8" />
-                                    <path d="M21 21l-4.35-4.35" />
-                                </svg>
-                                <span className="text-sm text-text-secondary">
-                                    Search for &quot;<span className="text-text-primary">{searchQuery}</span>&quot;...
-                                </span>
-                            </a>
-                        )}
-                    </div>
+                    <SearchSuggestionsDropdown
+                        suggestions={suggestions}
+                        query={searchQuery}
+                        selectedIndex={selectedIndex}
+                        onHoverItem={setSelectedIndex}
+                    />
                 )}
             </div>
 

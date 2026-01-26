@@ -27,7 +27,7 @@ export default function TopHeader() {
     const [isLoading, setIsLoading] = useState(false);
     const searchTimeout = useRef<NodeJS.Timeout>();
 
-    // Fetch suggestions from API
+    // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = useCallback(async (query: string) => {
         if (!query || query.length < 2) {
             setSuggestions([]);
@@ -36,11 +36,9 @@ export default function TopHeader() {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=6`);
-            if (response.ok) {
-                const data = await response.json();
-                setSuggestions(data.tools || []);
-            }
+            const { getSearchSuggestionsAction } = await import('@/lib/actions');
+            const tools = await getSearchSuggestionsAction(query, 6);
+            setSuggestions(tools);
         } catch (error) {
             console.error('Search suggestions failed:', error);
         } finally {

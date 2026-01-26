@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 // 1. Define Routes
 const isSecretEntry = createRouteMatcher(['/login/:secret']) // Matches /login/super-secret
 const isLoginPage = createRouteMatcher(['/login(.*)', '/sign-in(.*)']) // Matches /login, /login/factor-one
-const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/cron(.*)', '/api/vote', '/api/submit-tool', '/api/contact'])
+const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/cron(.*)', '/api/vote', '/api/submit-tool', '/api/contact', '/api/search'])
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api(.*)'])
 
 export const proxy = clerkMiddleware(async (auth, req) => {
@@ -64,8 +64,31 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     // 🛡️ STANDARD ROUTE PROTECTION
     // ----------------------------------------------------------------
 
-    // Allow Public APIs
+    // Allow Public APIs - but block direct browser access AND CLI access for non-admins
     if (isPublicApiRoute(req)) {
+        // SECURITY: Block direct browser navigation AND CLI/non-browser access
+        // Browsers always send Sec-Fetch-Mode header, CLI tools don't
+        const fetchDest = req.headers.get('sec-fetch-dest');
+        const fetchMode = req.headers.get('sec-fetch-mode');
+
+        // If user is logged in (admin), allow all access
+        if (userId) {
+            return NextResponse.next();
+        }
+
+        // Block CLI/non-browser access (missing Sec-Fetch-Mode header)
+        if (!fetchMode) {
+            return NextResponse.json({ error: 'access denied' }, { status: 403 });
+        }
+
+        // Block direct browser navigation (document request)
+        // Allow: fetch calls (cors, same-origin with fetchDest=empty)
+        if (fetchDest === 'document' && fetchMode === 'navigate') {
+            // Redirect to search page with full original path as query (readable format)
+            const fullPath = (path.slice(1) + req.nextUrl.search).replace(/\//g, ' ').replace(/[?=&]/g, ' ');
+            return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(fullPath)}`, req.url));
+        }
+
         return NextResponse.next();
     }
 

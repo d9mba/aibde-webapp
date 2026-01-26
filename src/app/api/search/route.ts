@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, dbToolToAdminTool } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 /**
  * GET /api/search - Search tools on demand
@@ -15,10 +15,18 @@ export async function GET(request: NextRequest) {
         const pricing = searchParams.get('pricing');
         const limit = parseInt(searchParams.get('limit') || '100');
 
+        // SECURITY: Only select public-safe fields, not all data
+        const PUBLIC_SEARCH_FIELDS = `
+            id, name, app_username, logo_url, summary, description,
+            category_name, task_name, tags,
+            pricing, pricing_label, save_count, is_featured,
+            status, created_at, updated_at
+        `;
+
         // Build the query
         let dbQuery = supabase
             .from('tools')
-            .select('*')
+            .select(PUBLIC_SEARCH_FIELDS)
             .in('status', ['published', 'approved']);
 
         // Apply text search if query provided
@@ -53,7 +61,37 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Search failed' }, { status: 500 });
         }
 
-        let tools = (data || []).map(tool => dbToolToAdminTool(tool));
+        // SECURITY: Use light transformation - only return essential public fields
+        // Don't use dbToolToAdminTool as it adds internal fields like internalNotes
+        interface PublicTool {
+            id: string;
+            name: string;
+            slug: string;
+            logoUrl: string | null;
+            summary: string;
+            categoryName: string[];
+            taskName: string[];
+            tags: string[];
+            pricing: string;
+            saveCount: number;
+            isFeatured: boolean;
+        }
+
+        const toPublicTool = (tool: Record<string, unknown>): PublicTool => ({
+            id: tool.id as string,
+            name: tool.name as string,
+            slug: tool.app_username as string,
+            logoUrl: tool.logo_url as string | null,
+            summary: tool.summary as string,
+            categoryName: tool.category_name as string[],
+            taskName: tool.task_name as string[],
+            tags: tool.tags as string[],
+            pricing: tool.pricing as string,
+            saveCount: (tool.save_count as number) || 0,
+            isFeatured: tool.is_featured as boolean,
+        });
+
+        let tools = (data || []).map(tool => toPublicTool(tool));
 
         // Sort: Name matches first, then by save_count
         if (query) {

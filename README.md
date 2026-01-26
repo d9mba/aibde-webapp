@@ -1,6 +1,6 @@
 # AIBDE - AI Tool Directory
 
-A modern, production-ready AI tool directory built with Next.js, Supabase, and Clerk authentication.
+A modern, production-ready AI tool directory built with Next.js 16, Supabase, and Clerk authentication. Features 10,000+ AI tools with advanced search, categories, and admin dashboard.
 
 **Live Site:** https://www.aibde.tech
 
@@ -15,7 +15,7 @@ A modern, production-ready AI tool directory built with Next.js, Supabase, and C
 | **Supabase** | PostgreSQL database with Row Level Security |
 | **Clerk** | Authentication (admin dashboard protection) |
 | **Cloudflare R2** | Image/video storage CDN |
-| **Tailwind CSS** | Utility-first styling |
+| **Tailwind CSS** | Utility-first styling with CSS variables |
 | **Sharp** | Image optimization (WebP conversion) |
 
 ---
@@ -24,108 +24,250 @@ A modern, production-ready AI tool directory built with Next.js, Supabase, and C
 
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   ├── (public pages)      # /, /about, /privacy, /terms, /search
-│   ├── app/[slug]/         # Tool detail pages
-│   ├── category/[slug]/    # Category pages
-│   ├── task/[slug]/        # Task pages
-│   ├── dashboard/          # Admin dashboard (protected)
-│   ├── api/                # API routes
-│   ├── sitemap.ts          # Dynamic sitemap generation
-│   └── robots.ts           # robots.txt configuration
+├── app/                            # Next.js App Router
+│   ├── page.tsx                    # Homepage
+│   ├── layout.tsx                  # Root layout with analytics
+│   ├── HomePageClient.tsx          # Client-side homepage logic
+│   ├── home-components/            # Homepage sections
+│   │   ├── HeroSection.tsx         # Hero with search
+│   │   ├── SpotlightSection.tsx    # Featured tools
+│   │   ├── TrendingSection.tsx     # Trending tools
+│   │   ├── CategoriesSection.tsx   # Category grid
+│   │   └── TasksSection.tsx        # Task grid
+│   │
+│   ├── app/[slug]/                 # Tool detail pages
+│   ├── category/                   # Category pages
+│   │   ├── page.tsx                # All categories grid
+│   │   └── [slug]/                 # Single category
+│   ├── task/[slug]/                # Task detail pages
+│   ├── tasks/                      # All tasks page
+│   ├── search/                     # Search page
+│   │   ├── page.tsx                # SSR search page
+│   │   └── SearchPageClient.tsx    # Client-side search logic
+│   ├── trending/                   # Trending tools page
+│   │
+│   ├── dashboard/                  # Admin dashboard (protected)
+│   │   ├── page.tsx                # Dashboard home
+│   │   ├── tools/                  # Tool management
+│   │   ├── categories/             # Category management
+│   │   ├── tasks/                  # Task management
+│   │   ├── tags/                   # Tag management
+│   │   ├── settings/               # Site settings
+│   │   └── notes/                  # Admin notes
+│   │
+│   ├── api/                        # API Routes
+│   │   ├── public/                 # Public APIs (rate limited)
+│   │   │   ├── tools/              # Tool listing & detail
+│   │   │   ├── search/             # Public search
+│   │   │   └── categories/         # Category data
+│   │   ├── tools/                  # Protected tool CRUD
+│   │   ├── categories/             # Protected category CRUD
+│   │   ├── tasks/                  # Protected task CRUD
+│   │   ├── tags/                   # Protected tag CRUD
+│   │   ├── upload/                 # Media upload (images/videos)
+│   │   ├── analytics/              # Analytics tracking
+│   │   ├── vote/                   # Tool voting
+│   │   ├── submit-tool/            # Public tool submission
+│   │   ├── contact/                # Contact form
+│   │   └── settings/               # Site settings
+│   │
+│   ├── submit/                     # Public tool submission page
+│   ├── contact/                    # Contact page
+│   ├── go/[slug]/                  # Affiliate redirect
+│   ├── login/                      # Hidden admin login
+│   ├── about/                      # About page
+│   ├── privacy/                    # Privacy policy
+│   ├── terms/                      # Terms of service
+│   ├── new/                        # New tools page
+│   │
+│   ├── sitemap.ts                  # Dynamic sitemap (10k+ pages)
+│   ├── robots.ts                   # robots.txt
+│   ├── not-found.tsx               # 404 page
+│   └── global-error.tsx            # Error boundary
+│
 ├── components/
-│   ├── features/           # Feature-specific components
-│   │   ├── admin/          # Dashboard components (ToolForm, etc.)
-│   │   └── tools/          # Tool cards, lists
-│   ├── layout/             # Header, Footer, Sidebar, TopHeader
-│   └── ui/                 # Reusable UI components
-├── context/                # React contexts
-│   ├── AdminContext.tsx    # Admin data management
-│   ├── SidebarContext.tsx  # Sidebar pin state
-│   └── ThemeContext.tsx    # Dark/light/system theme
-├── lib/                    # Utilities
-│   ├── supabase.ts         # Supabase client & data mapping
-│   ├── data.ts             # Server-side data fetching
-│   ├── search.ts           # Fuzzy search algorithm
-│   └── auth-utils.ts       # Authentication helpers
+│   ├── features/
+│   │   ├── admin/                  # Dashboard components
+│   │   │   ├── ToolForm.tsx        # Multi-step tool form
+│   │   │   └── ToolTable.tsx       # Tool management table
+│   │   └── tools/
+│   │       ├── ToolCard.tsx        # Tool card component
+│   │       └── ToolGrid.tsx        # Tool grid layout
+│   ├── layout/
+│   │   ├── Header.tsx              # Main header with search
+│   │   ├── Footer.tsx              # Site footer
+│   │   ├── Sidebar.tsx             # Desktop sidebar
+│   │   ├── MobileNav.tsx           # Mobile bottom navigation
+│   │   └── TopHeader.tsx           # Announcement bar
+│   ├── ui/                         # Reusable UI components
+│   │   ├── SearchSuggestionsDropdown.tsx  # Shared search dropdown
+│   │   ├── SearchableSelect.tsx    # Searchable dropdown
+│   │   ├── RichTextEditor.tsx      # WYSIWYG editor
+│   │   ├── MediaUpload.tsx         # Image/video upload
+│   │   ├── ShareModal.tsx          # Social sharing modal
+│   │   ├── VoteButtons.tsx         # Upvote/downvote
+│   │   ├── Toast.tsx               # Toast notifications
+│   │   ├── ConfirmModal.tsx        # Confirmation dialogs
+│   │   ├── Combobox.tsx            # Autocomplete input
+│   │   ├── ListEditor.tsx          # Dynamic list editor
+│   │   ├── Skeleton.tsx            # Loading skeletons
+│   │   └── SafeHtml.tsx            # XSS-safe HTML renderer
+│   ├── providers/
+│   │   └── PostHogProvider.tsx     # Analytics provider
+│   ├── Providers.tsx               # Combined providers
+│   └── ConditionalClerkProvider.tsx # Clerk SSR wrapper
+│
+├── context/
+│   ├── AdminContext.tsx            # Admin data management
+│   ├── SearchContext.tsx           # Global search state
+│   ├── SidebarContext.tsx          # Sidebar pin state
+│   └── ThemeContext.tsx            # Dark/light/system theme
+│
+├── hooks/
+│   ├── useToolAnalytics.ts         # GA4 analytics tracking
+│   ├── usePostHogAnalytics.ts      # PostHog tracking
+│   ├── useTypingPlaceholder.ts     # Animated placeholder
+│   └── useDebounce.ts              # Debounce hook
+│
+├── lib/                            # Utilities & Data Layer
+│   ├── supabase.ts                 # Supabase client & mapping
+│   ├── supabase/                   # Supabase helpers
+│   │   ├── client.ts               # Browser client
+│   │   ├── server.ts               # Server client
+│   │   └── admin.ts                # Service role client
+│   ├── data.ts                     # Re-exports from data/
+│   ├── data/                       # Modular data layer
+│   │   ├── index.ts                # Central exports
+│   │   ├── counts.ts               # Count queries
+│   │   ├── categories.ts           # Category/Task queries
+│   │   ├── tools.ts                # Tool fetching
+│   │   ├── related.ts              # Related/suggested tools
+│   │   └── search.ts               # Search with scoring
+│   ├── actions.ts                  # Server Actions (hidden APIs)
+│   ├── search.ts                   # Legacy fuzzy search
+│   ├── validations.ts              # Zod schemas
+│   ├── rate-limit.ts               # API rate limiting
+│   ├── formatters.ts               # Data formatters
+│   ├── url.ts                      # URL utilities
+│   ├── url-utils.ts                # Additional URL helpers
+│   ├── utils.ts                    # General utilities
+│   └── auth-utils.ts               # Auth helpers
+│
+├── services/
+│   └── storage.service.ts          # R2 storage service
+│
+├── types/
+│   ├── index.ts                    # TypeScript types
+│   └── css.d.ts                    # CSS module types
+│
 ├── styles/
-│   └── globals.css         # CSS variables, theme, global styles
-└── middleware.ts           # Clerk authentication middleware
+│   └── globals.css                 # CSS variables & global styles
+│
+├── proxy.ts                        # Security middleware
+└── middleware.ts                   # Next.js middleware entry
+```
+
+---
+
+## 🔍 Search System
+
+### Features
+- **Search-on-Enter**: Full search triggers only on Enter key
+- **Live Suggestions**: 6 suggestions while typing (2+ chars)
+- **Arrow Key Navigation**: ↑↓ to navigate, Enter to select
+- **Pricing Detection**: "free video editing" → filters Free pricing
+- **Relevance Scoring**: Name > Summary > Category > Tags
+- **Total Count**: Real database count (e.g., "Found 1,172 results")
+- **Load More**: Paginated with "Load More" button
+
+### Server Actions (Hidden from Network Tab)
+```typescript
+// src/lib/actions.ts
+searchToolsAction(params)           // Search with filters
+searchWithCountAction(params)       // Search + total count
+searchCountAction(params)           // Count only
+getSearchSuggestionsAction(query)   // Quick suggestions
+```
+
+### Data Layer Modules (`src/lib/data/`)
+| Module | Functions |
+|--------|-----------|
+| `counts.ts` | `getToolsCount`, `getCategoriesCount`, `getTasksCount`, `getTagsCount`, `getToolsCountByCategory`, `getToolsCountByTask` |
+| `categories.ts` | `getCategories`, `getTasks`, `getTags` |
+| `tools.ts` | `getPublishedTools`, `getSpotlightTools`, `getTrendingTools`, `getToolsByCategory`, `getToolsByTask`, `getToolBySlug`, `getHomeSettings`, `getFeaturedTools`, `getRecentlyAddedTools` |
+| `related.ts` | `getRelatedTools`, `getSuggestedTools` |
+| `search.ts` | `searchTools`, `searchToolsCount` |
+
+---
+
+## 🔐 Security (proxy.ts)
+
+### Hidden Admin Login Flow
+1. Admin visits `/login/[SECRET]` (secret URL)
+2. Secret validated → `admin_access` cookie set (1 hour)
+3. Redirect to `/login` → Clerk sign-in form shown
+4. Invalid secret → Silent redirect to homepage
+
+### API Protection
+- **Public APIs**: Blocked for direct browser/CLI access
+- **Protected APIs**: Require Clerk authentication
+- **Rate Limiting**: Per-IP limits on public endpoints
+
+### Environment Variable
+```env
+ADMIN_LOGIN_SECRET=your-secret-string
 ```
 
 ---
 
 ## 🎨 Design System
 
-### Color Variables (CSS Custom Properties)
-
-#### Light Mode (default)
+### CSS Variables (Light/Dark Mode)
 ```css
---bg-primary: #ffffff      /* Main background */
---bg-secondary: #f5f5f5    /* Secondary sections */
---bg-card: #ffffff         /* Card backgrounds */
---text-primary: #171717    /* Main text */
---text-secondary: #525252  /* Secondary text */
---accent-blue: #34b27b     /* Brand green (Supabase) */
+/* Light Mode */
+--bg-primary: #ffffff
+--bg-secondary: #f5f5f5
+--bg-card: #ffffff
+--text-primary: #171717
+--text-secondary: #525252
+--accent-primary: #34b27b
+
+/* Dark Mode */
+--bg-primary: #191a1a
+--bg-secondary: #202222
+--bg-card: #232525
+--text-primary: #ececec
 ```
 
-#### Dark Mode
-```css
---bg-primary: #191a1a      /* Dark charcoal background */
---bg-secondary: #202222    /* Slightly lighter */
---bg-card: #232525         /* Card background */
---text-primary: #ececec    /* Light text */
-```
-
-### Brand Colors
-- **Primary Accent:** `#34b27b` (Supabase Green)
-- **Tailwind equivalent:** `emerald-500` (#10b981)
+### UI Components
+| Component | Purpose |
+|-----------|---------|
+| `SearchSuggestionsDropdown` | Shared search dropdown (Hero + Search page) |
+| `RichTextEditor` | WYSIWYG with formatting toolbar |
+| `MediaUpload` | Drag-drop image/video upload with compression |
+| `ShareModal` | Social sharing with copy link |
+| `VoteButtons` | Upvote/downvote with localStorage tracking |
+| `Toast` | Stackable notifications |
+| `Combobox` | Autocomplete with keyboard navigation |
 
 ---
 
-## 🔐 Authentication
+## 📊 Analytics
 
-### Clerk Setup
-1. Protected routes: `/dashboard/*`
-2. Login routes: `/login/*` (secret login URL)
-3. Middleware file: `src/middleware.ts`
-
-### 🔒 Secure Admin Login URL
-The admin login is hidden from public. To access:
-```
-https://www.aibde.tech/login/[YOUR_SECRET]
-```
-
-Set in environment variables:
-```env
-ADMIN_LOGIN_SECRET=your-secret-string-here
-```
-
-> **Note:** The `/login` page shows a fake 404. Only `/login/[correct-secret]` shows the Clerk sign-in form.
-
-### Admin Access
-- Admin users need `role: "admin"` in Clerk public metadata
-- Currently bypassed for development (check `auth-utils.ts`)
-
----
-
-## 📊 Analytics Integration
-
-All analytics are loaded via `next/script` with `afterInteractive` strategy:
-
-| Service | ID | Purpose |
-|---------|-----|---------|
-| Google Analytics 4 | `G-HT35EHF7PQ` | Traffic analytics |
-| Google Tag Manager | `GTM-MJ4WCNXC` | Tag management |
-| Microsoft Clarity | `v19ejk4063` | Session recordings & heatmaps |
-
-Scripts are in `src/app/layout.tsx`.
+| Service | Purpose |
+|---------|---------|
+| Google Analytics 4 | Traffic & events |
+| Google Tag Manager | Tag management |
+| Microsoft Clarity | Session recordings & heatmaps |
+| PostHog | Product analytics (optional) |
 
 ---
 
 ## 🗄️ Database Schema (Supabase)
 
-### Table: `tools` (Main Table)
+### Table: `tools` (Main Table - 50+ columns)
+
+**Basic Info:**
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | uuid | Primary key |
@@ -133,39 +275,84 @@ Scripts are in `src/app/layout.tsx`.
 | `app_username` | text | URL slug (unique) |
 | `summary` | text | Short description |
 | `description` | text | Full HTML description |
-| `category_name` | text[] | Categories array |
-| `task_name` | text[] | Tasks array |
-| `tags` | text[] | Tags array |
-| `pricing` | text | 'free' / 'freemium' / 'paid' |
-| `pricing_label` | text | e.g., "From $20/mo" |
 | `website_url` | text | Main website URL |
 | `affiliate_url` | text | Affiliate link |
 | `affiliate_enabled` | boolean | Use affiliate URL |
-| `logo_url` | text | Logo path/URL |
-| `images` | text[] | Screenshot paths |
-| `videos` | text[] | Video paths |
-| `save_count` | integer | Bookmark count |
-| `released_at` | date | Founded date |
-| `is_featured` | boolean | Featured flag |
+
+**Classification:**
+| Column | Type | Description |
+|--------|------|-------------|
+| `category_name` | text[] | Categories array |
+| `task_name` | text[] | Tasks array |
+| `tags` | text[] | Tags array |
+
+**Pricing:**
+| Column | Type | Description |
+|--------|------|-------------|
+| `pricing` | text | 'Free' / 'Freemium' / 'Paid' |
+| `pricing_label` | text | e.g., "From $20/mo" |
+| `pricing_tiers` | jsonb | Pricing plans array |
+| `has_free_trial` | boolean | Free trial available |
+| `free_trial_days` | integer | Trial duration |
+| `discount` | text | Current offers |
+| `billing_frequency` | text | monthly/yearly/one-time |
+
+**Content:**
+| Column | Type | Description |
+|--------|------|-------------|
 | `core_features` | text[] | Feature list |
 | `use_cases` | text[] | Use case list |
 | `pros` | text[] | Pros list |
 | `cons` | text[] | Cons list |
-| `faq` | jsonb | FAQ array |
-| `pricing_tiers` | jsonb | Pricing plans |
-| `has_free_trial` | boolean | Free trial available |
-| `free_trial_days` | integer | Trial duration |
-| `social_links` | jsonb | Social media URLs |
-| `play_store_url` | text | Android app link |
-| `app_store_url` | text | iOS app link |
+| `faq` | jsonb | FAQ array [{question, answer}] |
+
+**Media:**
+| Column | Type | Description |
+|--------|------|-------------|
+| `logo_url` | text | Logo path |
+| `images` | text[] | Screenshot paths |
+| `videos` | text[] | Video paths |
+
+**Engagement:**
+| Column | Type | Description |
+|--------|------|-------------|
+| `save_count` | integer | Bookmark count |
+| `view_count` | integer | View count |
+| `upvotes` | integer | Upvote count |
+| `downvotes` | integer | Downvote count |
+
+**Contact & Social:**
+| Column | Type | Description |
+|--------|------|-------------|
 | `contact_name` | text | Contact person |
 | `contact_email` | text | Contact email |
-| `internal_notes` | jsonb | Admin notes |
-| `status` | text | draft/pending/published/unpublished |
-| `spotlight_enabled` | boolean | Show in spotlight |
-| `spotlight_position` | integer | Display order |
+| `contact_company` | text | Company name |
+| `contact_mobile` | text | Phone number |
+| `social_links` | jsonb | {instagram, facebook, twitter, linkedin, discord, youtube, tiktok} |
+| `play_store_url` | text | Android app link |
+| `app_store_url` | text | iOS app link |
+
+**Display & Status:**
+| Column | Type | Description |
+|--------|------|-------------|
+| `status` | text | draft/pending/published/approved/scheduled |
+| `spotlight_enabled` | boolean | Featured flag |
+| `spotlight_position` | integer | Spotlight order |
+| `trending_position` | integer | Trending order (0 = not trending) |
+| `premium` | boolean | Premium listing (dofollow backlinks) |
+| `released_at` | date | Founded date |
+| `scheduled_at` | timestamp | Scheduled publish date |
 | `created_at` | timestamp | Record created |
 | `updated_at` | timestamp | Last modified |
+
+**Admin:**
+| Column | Type | Description |
+|--------|------|-------------|
+| `internal_notes` | jsonb | Admin notes [{note, createdAt}] |
+| `alternative_tools` | text[] | Related tool slugs |
+| `version_history` | jsonb | Version changelog |
+
+---
 
 ### Table: `categories`
 | Column | Type | Description |
@@ -187,6 +374,14 @@ Scripts are in `src/app/layout.tsx`.
 | `count` | integer | Tool count |
 | `created_at` | timestamp | Record created |
 
+### Table: `tags`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `tag_name` | text | Tag name (unique) |
+| `description` | text | Tag description |
+| `count` | integer | Tool count |
+
 ### Table: `settings`
 | Column | Type | Description |
 |--------|------|-------------|
@@ -195,15 +390,39 @@ Scripts are in `src/app/layout.tsx`.
 | `show_spotlight_on_home` | boolean | Show spotlight section |
 | `show_categories_on_home` | boolean | Show categories section |
 | `show_tasks_on_home` | boolean | Show tasks section |
-| `updated_at` | timestamp | Last modified |
+| `show_top10_on_home` | boolean | Show top 10 section |
+| `show_featured_alternatives` | boolean | Show alternatives |
 
 ### Table: `notes`
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | uuid | Primary key |
+| `title` | text | Note title |
 | `content` | text | Note content |
-| `user_id` | text | Creator user ID |
+| `tool_id` | uuid | Associated tool (optional) |
 | `created_at` | timestamp | Record created |
+| `updated_at` | timestamp | Last modified |
+
+### Table: `contacts`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `name` | text | Sender name |
+| `email` | text | Sender email |
+| `subject` | text | Message subject |
+| `message` | text | Message content |
+| `created_at` | timestamp | Submission date |
+
+### Table: `submissions`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `tool_name` | text | Submitted tool name |
+| `website_url` | text | Tool website |
+| `description` | text | Tool description |
+| `submitter_email` | text | Submitter email |
+| `status` | text | pending/approved/rejected |
+| `created_at` | timestamp | Submission date |
 
 ### Key Fields Mapping (snake_case → camelCase)
 ```
@@ -213,62 +432,13 @@ task_name → taskName
 website_url → websiteUrl
 logo_url → logoUrl
 released_at → releasedAt
+save_count → saveCount
+pricing_tiers → pricingTiers
 ```
-
----
-
-## 🖼️ Media Storage (Cloudflare R2)
-
-### Environment Variables
-```env
-NEXT_PUBLIC_R2_PUBLIC_URL=https://cdn.aibde.tech
-R2_ACCOUNT_ID=your_account_id
-R2_ACCESS_KEY_ID=your_access_key
-R2_SECRET_ACCESS_KEY=your_secret_key
-R2_BUCKET_NAME=aibde
-```
-
-### Upload Folders
-- `/logos/` - Tool logos (auto-compressed to WebP)
-- `/images/` - Screenshots
-- `/videos/` - Video files
-
----
-
-## 🛠️ Key Features
-
-### 1. Tool Management (Dashboard)
-- Add/Edit/Delete tools
-- Multi-step form with validation
-- Live preview while editing
-- Media upload with compression
-- Change detection (prevents unnecessary saves)
-
-### 2. Search
-- Fuzzy search with priority ranking
-- Filter by category, task, pricing
-- URL parameters support
-
-### 3. SEO
-- Dynamic sitemap (`/sitemap.xml`)
-- robots.txt (`/robots.txt`)
-- Meta tags for all pages
-
-### 4. Theme System
-- Light / Dark / System modes
-- Persistent via localStorage
-- Smooth transitions
-
-### 5. Responsive Design
-- Mobile-first approach
-- Collapsible sidebar (desktop)
-- Bottom navigation (mobile)
 
 ---
 
 ## 📝 Environment Variables
-
-Create `.env.local`:
 
 ```env
 # Supabase
@@ -280,68 +450,55 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_xxx
 CLERK_SECRET_KEY=sk_xxx
 
-# R2 Storage
-NEXT_PUBLIC_R2_PUBLIC_URL=https://cdn.aibde.tech
-NEXT_PUBLIC_CDN_URL=https://cdn.aibde.tech
+# Cloudflare R2 Storage
 R2_ACCOUNT_ID=xxx
 R2_ACCESS_KEY_ID=xxx
 R2_SECRET_ACCESS_KEY=xxx
-R2_BUCKET_NAME=aibde
+R2_BUCKET_NAME=aibde-webapp-prod
+R2_DEV_URL=https://pub-xxx.r2.dev
+NEXT_PUBLIC_CDN_URL=https://cdn.aibde.tech
 
-# Site
-NEXT_PUBLIC_SITE_URL=https://www.aibde.tech
+# PostHog Analytics
+NEXT_PUBLIC_POSTHOG_KEY=phc_xxx
+NEXT_PUBLIC_POSTHOG_HOST=https://e.aibde.tech
+POSTHOG_PERSONAL_API_KEY=phx_xxx
+POSTHOG_PROJECT_ID=xxx
+
+# Upstash Redis (Rate Limiting)
+UPSTASH_REDIS_REST_URL="https://xxx.upstash.io"
+UPSTASH_REDIS_REST_TOKEN="xxx"
+
+# Cloudflare Turnstile (CAPTCHA)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x4xxx
+TURNSTILE_SECRET_KEY=0x4xxx
+
+# Google Apps Script Integrations
+GOOGLE_APPS_SCRIPT_URL=https://script.google.com/macros/s/xxx/exec
+GOOGLE_APPS_SCRIPT_TOOL_SUBMISSIONS_URL=https://script.google.com/macros/s/xxx/exec
+
+# Admin Configuration
+ADMIN_LOGIN_SECRET=your-secret-string
 ```
 
 ---
 
-## 🚀 Deployment
+## 🚀 Commands
 
-### Build Commands
 ```bash
+npm run dev      # Development (Turbopack)
 npm run build    # Production build
 npm run start    # Start production server
-npm run dev      # Development server
+npm run lint     # ESLint check
 ```
 
-### Deployment Platforms
-- **Vercel** (recommended for Next.js)
-- **Cloudflare Pages**
-- **Self-hosted** (Node.js server)
-
----
-
-## 📋 Development Notes
-
-### Adding New Tools
-1. Navigate to `/dashboard/tools/new`
-2. Fill required fields (name, summary, description, website)
-3. Add categories and tasks
-4. Upload logo and screenshots
-5. Save as Draft or Submit for Review
-
-### Modifying Theme
-Edit `src/styles/globals.css`:
-- Light mode: `:root { ... }`
-- Dark mode: `[data-theme='dark'] { ... }`
-
-### API Routes
-- `GET /api/tools` - List all tools (auth required)
-- `POST /api/tools` - Create tool (auth required)
-- `GET /api/public/tools` - Public tool listing
-- `GET /api/public/tools/[id]` - Public tool detail
-
----
-
-## 🔧 Maintenance
-
-### Clearing Cache
+### Clear Cache
 ```bash
-Remove-Item -Path .next -Recurse -Force
-npm run dev
-```
+# Windows
+Remove-Item -Path .next -Recurse -Force; npm run dev
 
-### Database Migrations
-Run SQL directly in Supabase SQL Editor.
+# macOS/Linux
+rm -rf .next && npm run dev
+```
 
 ---
 

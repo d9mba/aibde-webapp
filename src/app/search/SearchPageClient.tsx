@@ -4,8 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
 import { Category, Task } from '@/types';
 import { trackSearch, trackFilterUsed } from '@/hooks/useToolAnalytics';
+import { searchWithCountAction, getSearchSuggestionsAction } from '@/lib/actions';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -30,6 +32,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
 
     // Search state
     const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [totalCount, setTotalCount] = useState(0); // Total matching results
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
@@ -48,43 +51,65 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // Read URL parameters on mount
+    // Read URL parameters on mount and trigger search if query exists
     useEffect(() => {
         const q = searchParams.get('q');
         const pricing = searchParams.get('pricing');
         const category = searchParams.get('category');
         const task = searchParams.get('task');
 
-        if (q) setQuery(q);
+        if (q) {
+            setQuery(q);
+            setCommittedQuery(q); // Auto-search if URL has query
+        }
         if (pricing) setSelectedPricing(pricing);
         if (category) setSelectedCategory(category);
         if (task) setSelectedTask(task);
     }, [searchParams]);
 
-    // Search function using API
+    // Suggestions state (shown while typing)
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [committedQuery, setCommittedQuery] = useState(''); // Query that triggers full search
+    const [selectedIndex, setSelectedIndex] = useState(-1); // For arrow key navigation
+
+    // Fetch suggestions while typing (small list)
+    const fetchSuggestions = useCallback(async (q: string) => {
+        if (!q || q.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+        try {
+            const tools = await getSearchSuggestionsAction(q, 6);
+            setSuggestions(tools);
+        } catch (error) {
+            console.error('Suggestions failed:', error);
+        }
+    }, []);
+
+    // Search function using Server Action (hidden from Network tab)
     const performSearch = useCallback(async (searchQuery: string, category: string | null, task: string | null, pricing: string | null) => {
-        // Only search if there's a query (min 3 chars) or filter
+        // Only search if there's a committed query (min 3 chars) or filter
         if ((!searchQuery || searchQuery.length < 3) && !category && !task && !pricing) {
             setSearchResults([]);
+            setTotalCount(0);
             setHasSearched(false);
             return;
         }
 
         setIsSearching(true);
+        setShowSuggestions(false);
         try {
-            const params = new URLSearchParams();
-            if (searchQuery && searchQuery.length >= 3) params.append('q', searchQuery);
-            if (category) params.append('category', category);
-            if (task) params.append('task', task);
-            if (pricing) params.append('pricing', pricing);
-            params.append('limit', '100'); // Limit results
-
-            const response = await fetch(`/api/search?${params.toString()}`);
-            if (response.ok) {
-                const data = await response.json();
-                setSearchResults(data.tools || []);
-                setHasSearched(true);
-            }
+            const { tools, totalCount } = await searchWithCountAction({
+                query: searchQuery && searchQuery.length >= 3 ? searchQuery : undefined,
+                category: category || undefined,
+                task: task || undefined,
+                pricing: pricing || undefined,
+                limit: 500, // Fetch more, display fewer with Load More
+            });
+            setSearchResults(tools);
+            setTotalCount(totalCount);
+            setHasSearched(true);
         } catch (error) {
             console.error('Search failed:', error);
         } finally {
@@ -92,22 +117,64 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         }
     }, []);
 
-    // Debounced search on query/filter change
+    // Debounced suggestions on query change (NOT full search)
     useEffect(() => {
         if (searchTimeout.current) {
             clearTimeout(searchTimeout.current);
         }
 
-        searchTimeout.current = setTimeout(() => {
-            performSearch(query, selectedCategory, selectedTask, selectedPricing);
-        }, 300);
+        if (query.length >= 2) {
+            searchTimeout.current = setTimeout(() => {
+                fetchSuggestions(query);
+                setShowSuggestions(true);
+            }, 200);
+        } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
 
         return () => {
             if (searchTimeout.current) {
                 clearTimeout(searchTimeout.current);
             }
         };
-    }, [query, selectedCategory, selectedTask, selectedPricing, performSearch]);
+    }, [query, fetchSuggestions]);
+
+    // Trigger full search when committed query or filters change
+    useEffect(() => {
+        performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing);
+    }, [committedQuery, selectedCategory, selectedTask, selectedPricing, performSearch]);
+
+    // Handle keyboard navigation (arrows, Enter, Escape)
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const maxIndex = suggestions.length; // suggestions + "Search for" button
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedIndex(prev => Math.min(prev + 1, maxIndex));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIndex(prev => Math.max(prev - 1, -1));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+                // Navigate to selected tool
+                window.location.href = `/app/${suggestions[selectedIndex].slug}`;
+            } else {
+                // Trigger search
+                setCommittedQuery(query);
+                setShowSuggestions(false);
+            }
+        } else if (e.key === 'Escape') {
+            setShowSuggestions(false);
+            setSelectedIndex(-1);
+        }
+    };
+
+    // Reset selected index when suggestions change
+    useEffect(() => {
+        setSelectedIndex(-1);
+    }, [suggestions]);
 
     // Reset visible count when results change
     useEffect(() => {
@@ -179,9 +246,12 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 type="text"
                                 autoComplete="off"
                                 className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50"
-                                placeholder="Search AI tools... (min 3 characters)"
+                                placeholder="Search AI tools... (press Enter to search)"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                onFocus={() => query.length >= 2 && setShowSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                             />
                             {isSearching && (
                                 <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
@@ -195,7 +265,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                             {query && !isSearching && (
                                 <button
                                     className="flex items-center justify-center p-1 bg-transparent border-none cursor-pointer text-text-tertiary transition-colors hover:text-text-primary"
-                                    onClick={() => setQuery('')}
+                                    onClick={() => { setQuery(''); setCommittedQuery(''); setSearchResults([]); setHasSearched(false); }}
                                 >
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M18 6L6 18M6 6l12 12" />
@@ -204,14 +274,28 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                             )}
                         </div>
                     </div>
+
+                    {/* Suggestions Dropdown */}
+                    {showSuggestions && (
+                        <SearchSuggestionsDropdown
+                            suggestions={suggestions}
+                            query={query}
+                            selectedIndex={selectedIndex}
+                            onHoverItem={setSelectedIndex}
+                            onSearchAll={() => { setCommittedQuery(query); setShowSuggestions(false); }}
+                        />
+                    )}
                 </div>
 
-                {query && query.length < 3 && (
-                    <p className="text-xs text-text-tertiary">Type at least 3 characters to search</p>
+                {query && query.length < 3 && !showSuggestions && (
+                    <p className="text-xs text-text-tertiary">Type at least 3 characters and press Enter</p>
                 )}
-                {query && query.length >= 3 && hasSearched && (
+                {query && query.length >= 2 && !hasSearched && !showSuggestions && (
+                    <p className="text-xs text-text-tertiary">Press Enter to search</p>
+                )}
+                {committedQuery && hasSearched && (
                     <p className="text-sm text-text-secondary">
-                        Found <span className="font-medium text-text-primary">{searchResults.length}</span> results for &ldquo;<span className="font-medium text-text-primary">{query}</span>&rdquo;
+                        Found <span className="font-medium text-text-primary">{totalCount.toLocaleString()}</span> results for &ldquo;<span className="font-medium text-text-primary">{committedQuery}</span>&rdquo;
                     </p>
                 )}
             </section>
@@ -308,7 +392,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             {hasSearched && (
                 <div className="mb-12">
                     <p className="text-sm text-text-tertiary mb-4">
-                        {searchResults.length} tool{searchResults.length !== 1 ? 's' : ''} found
+                        Showing {Math.min(visibleCount, searchResults.length)} of {totalCount.toLocaleString()} tool{totalCount !== 1 ? 's' : ''}
                         {query && ` for "${query}"`}
                     </p>
 
@@ -343,7 +427,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                         onClick={handleLoadMore}
                                         className="px-6 py-3 bg-bg-card border border-border rounded-full text-sm font-medium text-text-primary transition-all duration-200 hover:border-text-tertiary hover:shadow-md"
                                     >
-                                        Load more ({searchResults.length - visibleCount} remaining)
+                                        Load more ({Math.min(searchResults.length - visibleCount, totalCount - visibleCount)} remaining)
                                     </button>
                                 </div>
                             )}

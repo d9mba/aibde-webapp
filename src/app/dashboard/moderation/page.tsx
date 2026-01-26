@@ -454,7 +454,9 @@ export default function ModerationPage() {
                         images: previewTool.images,
                         videos: previewTool.videos,
                         pricingTiers: previewTool.pricingTiers,
-                        socialLinks: previewTool.socialLinks,
+                        socialLinks: previewTool.socialLinks ? Object.fromEntries(
+                            Object.entries(previewTool.socialLinks).filter(([_, v]) => v != null)
+                        ) as Record<string, string> : undefined,
                     }}
                     categories={categories}
                     tasks={tasks}

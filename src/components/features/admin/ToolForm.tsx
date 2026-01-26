@@ -961,7 +961,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                         images: watch('images'),
                         videos: watch('videos'),
                         pricingTiers: watch('pricingTiers'),
-                        socialLinks: watch('socialLinks'),
+                        socialLinks: watch('socialLinks') ? Object.fromEntries(
+                            Object.entries(watch('socialLinks') || {}).filter(([_, v]) => v != null)
+                        ) as Record<string, string> : undefined,
                     }}
                     categories={categories}
                     tasks={tasks}

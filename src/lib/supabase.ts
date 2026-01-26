@@ -165,7 +165,7 @@ export interface DbSettings {
 }
 
 // CDN URL for production, fallback to R2 for dev (server-side)
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_PUBLIC_URL || process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
+const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL || '';
 
 // Helper to reconstruct full URL from relative path (server-side only)
 function toFullUrl(path: string | undefined | null): string | undefined {
@@ -284,9 +284,9 @@ export function dbToolToAdminTool(dbTool: DbTool) {
 
         // Media - reconstruct full URLs from relative paths
         logoUrl: toFullUrl(dbTool.logo_url),
-        images: (dbTool.images || dbTool.screenshots)?.map(img => toFullUrl(img)).filter(Boolean),
+        images: (dbTool.images || dbTool.screenshots)?.map(img => toFullUrl(img)).filter((x): x is string => Boolean(x)) || [],
         videos: dbTool.videos,
-        screenshots: dbTool.screenshots?.map(s => toFullUrl(s)).filter(Boolean),
+        screenshots: dbTool.screenshots?.map(s => toFullUrl(s)).filter((x): x is string => Boolean(x)) || [],
         videoUrl: dbTool.video_url,
 
         // Stats
@@ -294,7 +294,7 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         viewCount: dbTool.view_count || 0,
         upvotes: dbTool.upvotes || 0,
         downvotes: dbTool.downvotes || 0,
-        releasedAt: dbTool.released_at || null,
+        releasedAt: dbTool.released_at || '',
         releasedAgo: formatRelativeTime(dbTool.created_at, dbTool.updated_at),
         isFeatured: dbTool.is_featured,
 

@@ -5,8 +5,7 @@
 
 // CDN URL for assets - supports multiple environment variable names
 export const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL ||
-    process.env.R2_PUBLIC_URL ||
-    process.env.NEXT_PUBLIC_R2_PUBLIC_URL ||
+    process.env.R2_DEV_URL ||
     '';
 
 /**

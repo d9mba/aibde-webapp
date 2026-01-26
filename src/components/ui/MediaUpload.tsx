@@ -14,7 +14,7 @@ const getRelativePath = (url: string): string => {
     }
 
     // Check known CDN domains
-    const domains = [CDN_URL, process.env.R2_PUBLIC_URL || ''].filter(Boolean);
+    const domains = [CDN_URL, process.env.R2_DEV_URL || ''].filter(Boolean);
     for (const domain of domains) {
         if (url.startsWith(domain)) return url.replace(domain, '');
     }
@@ -30,7 +30,7 @@ const isUploadedFile = (url: string): boolean => {
     if (r2Pattern.test(url)) return true;
 
     // Check known CDN domains
-    const cdnDomains = [CDN_URL, process.env.NEXT_PUBLIC_R2_PUBLIC_URL || ''].filter(Boolean);
+    const cdnDomains = [CDN_URL, process.env.R2_DEV_URL || ''].filter(Boolean);
     return cdnDomains.some(domain => url.startsWith(domain));
 };
 

@@ -137,6 +137,12 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                             onKeyDown={handleKeyDown}
                             suppressHydrationWarning
                         />
+                        {!searchQuery && (
+                            <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
+                                <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
+                                <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
+                            </span>
+                        )}
                         {searchQuery && (
                             <button
                                 className="flex items-center justify-center p-1 bg-transparent border-none cursor-pointer text-text-tertiary transition-colors hover:text-text-primary"
@@ -162,8 +168,8 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                                 key={tool.id}
                                 href={`/app/${tool.slug}`}
                                 className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${index === selectedIndex
-                                        ? 'bg-bg-secondary'
-                                        : 'hover:bg-bg-secondary'
+                                    ? 'bg-bg-secondary'
+                                    : 'hover:bg-bg-secondary'
                                     }`}
                                 onMouseEnter={() => setSelectedIndex(index)}
                             >
@@ -188,8 +194,8 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                             <a
                                 href={`/search?q=${encodeURIComponent(searchQuery)}`}
                                 className={`flex items-center gap-3 px-4 py-2.5 transition-colors border-t border-border ${selectedIndex === suggestions.length
-                                        ? 'bg-bg-secondary'
-                                        : 'hover:bg-bg-secondary'
+                                    ? 'bg-bg-secondary'
+                                    : 'hover:bg-bg-secondary'
                                     }`}
                                 onMouseEnter={() => setSelectedIndex(suggestions.length)}
                             >
@@ -204,6 +210,52 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                         )}
                     </div>
                 )}
+            </div>
+
+            {/* Tagline */}
+            <div className="mt-3">
+                <p className="text-xs sm:text-sm text-text-secondary">
+                    🚀 <span className="text-text-primary font-medium">Your #1 destination</span> for discovering the best AI tools, updated daily for <span className="text-text-primary font-medium">Real Humans</span>
+                </p>
+            </div>
+
+            {/* Quick Filter Capsules */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+                <Link
+                    href="/search?pricing=free"
+                    prefetch={false}
+                    className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
+                >
+                    Free
+                </Link>
+                <Link
+                    href="/search?pricing=freemium"
+                    prefetch={false}
+                    className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
+                >
+                    Freemium
+                </Link>
+                <Link
+                    href="/tasks"
+                    prefetch={false}
+                    className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                    </svg>
+                    Browse by Task
+                </Link>
+                <Link
+                    href="/category"
+                    prefetch={false}
+                    className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70">
+                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                    </svg>
+                    Browse by Category
+                </Link>
             </div>
         </section>
     );

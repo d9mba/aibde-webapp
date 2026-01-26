@@ -5,7 +5,7 @@ const r2AccountId = process.env.R2_ACCOUNT_ID;
 const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
 const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 const bucketName = process.env.R2_BUCKET_NAME || '';
-const publicUrl = process.env.R2_PUBLIC_URL || '';
+const publicUrl = process.env.R2_DEV_URL || '';
 
 // Warn if R2 is not configured (but don't throw - storage is optional)
 if (!r2AccountId || !r2AccessKeyId || !r2SecretAccessKey || !bucketName) {

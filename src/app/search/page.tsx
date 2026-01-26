@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
-import { getToolsCount, getCategoriesCount, getTasksCount, getCategories, getTasks, getSpotlightTools } from '@/lib/data';
+import { getToolsCount, getCategoriesCount, getTasksCount, getCategories, getTasks } from '@/lib/data';
 import SearchPageClient from './SearchPageClient';
 
 // Generate dynamic metadata with tool count (uses fast count query)
@@ -43,15 +43,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Search Page - Optimized Server Component
- * Fetches initial 100 tools + categories, tasks for filters
- * Full search uses API calls on demand
+ * Fetches categories, tasks for filters - tools load on search
  */
 export default async function SearchPage() {
-    // Fetch metadata and counts (same as main page) - no initial tools
-    const [categories, tasks, spotlightTools, toolCount, categoryCount, taskCount] = await Promise.all([
+    const [categories, tasks, toolCount, categoryCount, taskCount] = await Promise.all([
         getCategories(),
         getTasks(),
-        getSpotlightTools(),
         getToolsCount(['published', 'approved']),
         getCategoriesCount(),
         getTasksCount(),
@@ -62,7 +59,6 @@ export default async function SearchPage() {
             <SearchPageClient
                 categories={categories}
                 tasks={tasks}
-                spotlightTools={spotlightTools}
                 toolCount={toolCount}
                 taskCount={taskCount}
                 categoryCount={categoryCount}

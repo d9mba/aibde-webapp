@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Mail, MessageSquare, HelpCircle, ChevronDown, Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -45,10 +45,8 @@ function FAQItem({ question, children }: { question: string; children: React.Rea
     );
 }
 
-export default function ContactPage() {
-    const searchParams = useSearchParams();
-    const isPreview = searchParams.get('preview') === 'success';
-
+// Wrapper component to read search params with Suspense
+function ContactPageContent({ isPreview }: { isPreview: boolean }) {
     const [formData, setFormData] = useState<FormData>({
         firstName: isPreview ? '{FirstName}' : '',
         lastName: isPreview ? '{LastName}' : '',
@@ -286,5 +284,21 @@ export default function ContactPage() {
                 </FAQItem>
             </div>
         </div>
+    );
+}
+
+// Inner component that uses useSearchParams
+function ContactPageInner() {
+    const searchParams = useSearchParams();
+    const isPreview = searchParams.get('preview') === 'success';
+    return <ContactPageContent isPreview={isPreview} />;
+}
+
+// Default export wrapped in Suspense
+export default function ContactPage() {
+    return (
+        <Suspense fallback={<div className="max-w-[1000px] mx-auto px-4 py-12 text-center text-text-secondary">Loading...</div>}>
+            <ContactPageInner />
+        </Suspense>
     );
 }

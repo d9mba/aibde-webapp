@@ -51,7 +51,7 @@ const r2Client = new S3Client({
 });
 
 const R2_BUCKET = process.env.R2_BUCKET_NAME;
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_PUBLIC_URL;
+const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL;
 
 // ============== Cleanup/Rollback Functions ==============
 

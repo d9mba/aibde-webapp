@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Send, Loader2, CheckCircle, AlertCircle, Info, Plus, X, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
@@ -51,10 +51,8 @@ interface FormData {
     videoUrls: string;
 }
 
-export default function SubmitToolPage() {
-    const searchParams = useSearchParams();
-    const isPreview = searchParams.get('preview') === 'success';
-
+// Main content component that receives isPreview as prop
+function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
     const [formData, setFormData] = useState<FormData>({
         submitterName: isPreview ? '{Name}' : '',
         submitterEmail: isPreview ? '{Email}' : '',
@@ -428,5 +426,21 @@ function FAQItem({ question, children }: { question: string; children: React.Rea
                 </div>
             </div>
         </details>
+    );
+}
+
+// Inner component that uses useSearchParams
+function SubmitToolInner() {
+    const searchParams = useSearchParams();
+    const isPreview = searchParams.get('preview') === 'success';
+    return <SubmitToolContent isPreview={isPreview} />;
+}
+
+// Default export wrapped in Suspense
+export default function SubmitToolPage() {
+    return (
+        <Suspense fallback={<div className="max-w-[800px] mx-auto px-4 py-8 text-center text-text-secondary">Loading...</div>}>
+            <SubmitToolInner />
+        </Suspense>
     );
 }

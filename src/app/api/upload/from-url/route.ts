@@ -241,7 +241,14 @@ export async function POST(request: NextRequest) {
             : originalBuffer;
 
         // Determine folder based on type
-        const folder = type === 'logo' ? 'logos' : type === 'image' ? 'images' : 'uploads';
+        function getUploadFolder(uploadType: string): string {
+            switch (uploadType) {
+                case 'logo': return 'logos';
+                case 'image': return 'images';
+                default: return 'uploads';
+            }
+        }
+        const folder = getUploadFolder(type);
 
         // Generate filename - use custom name if provided
         const urlPath = new URL(url).pathname;
@@ -261,8 +268,8 @@ export async function POST(request: NextRequest) {
         // Upload to R2
         await uploadFile(processedBuffer, `${folder}/${filename}`, contentType);
 
-        // Construct full URL using CDN_URL for production, fallback to R2_PUBLIC_URL
-        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_PUBLIC_URL || '';
+        // Construct full URL using CDN_URL for production, fallback to R2_DEV_URL
+        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL || '';
         const fullUrl = cdnUrl ? `${cdnUrl}/${folder}/${filename}` : relativePath;
 
         return NextResponse.json({

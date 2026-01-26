@@ -10,23 +10,22 @@ export default function Footer() {
     return (
         <>
             <footer
-                className={`bg-bg-primary mt-16 transition-[margin-left] duration-200 ${isPinned ? 'lg:ml-[220px]' : 'lg:ml-14'}`}
+                className={`bg-bg-primary mt-20 transition-[margin-left] duration-200 ${isPinned ? 'lg:ml-[220px]' : 'lg:ml-14'}`}
             >
-                {/* Top Section - Tagline + Nav */}
-                <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-16 pb-12">
-                    <div className="grid grid-cols-12 gap-8">
-                        {/* Left - Tagline + Social Icons - centered on mobile */}
-                        <div className="col-span-12 md:col-span-4 flex flex-col gap-4 items-center md:items-start text-center md:text-left">
-                            <div className="flex flex-col gap-1">
-                                <h2 className="text-lg font-medium text-text-primary m-0">
-                                    Browse, Explore & Discover
-                                </h2>
-                                <p className="text-sm text-text-secondary m-0">
-                                    Top AI tools for your everyday tasks.
-                                </p>
-                            </div>
+                {/* Main Footer Content */}
+                <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
+                    <div className="grid grid-cols-12 gap-8 lg:gap-12">
+                        {/* Left - Tagline + Social */}
+                        <div className="col-span-12 lg:col-span-4 text-center lg:text-left">
+                            <h2 className="text-2xl lg:text-3xl font-bold text-text-primary mb-2 font-orbitron">
+                                Browse, Explore & Discover
+                            </h2>
+                            <p className="text-sm text-text-secondary mb-4">
+                                Top AI tools for your everyday tasks.
+                            </p>
+
                             {/* Social Icons */}
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-4 justify-center lg:justify-start">
                                 <a href="mailto:support@aibde.tech" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Email">
                                     <Mail size={18} />
                                 </a>
@@ -47,42 +46,53 @@ export default function Footer() {
                             </div>
                         </div>
 
-                        {/* Spacer - pushes nav to the right on desktop */}
-                        <div className="hidden md:block md:col-span-5"></div>
+                        {/* Spacer for desktop layout */}
+                        <div className="hidden lg:block lg:col-span-2"></div>
 
-                        {/* Navigation Columns - centered on mobile, right aligned on desktop */}
-                        <div className="col-span-12 md:col-span-3 flex gap-12 sm:gap-16 justify-center md:justify-end">
-                            {/* Explore */}
-                            <div className="flex flex-col gap-4">
-                                <span className="text-sm font-medium text-text-primary">Explore</span>
-                                <nav className="flex flex-col gap-2">
-                                    <Link href="/" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Home</Link>
-                                    <Link href="/search" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Search</Link>
-                                    <Link href="/trending" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Trending</Link>
-                                    <Link href="/new" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">New Tools</Link>
-                                </nav>
-                            </div>
+                        {/* Navigation - Explore */}
+                        <div className="col-span-6 lg:col-span-3 text-center lg:text-left">
+                            <h3 className="text-sm font-semibold text-text-primary mb-4">Explore</h3>
+                            <nav className="flex flex-col gap-3">
+                                <Link href="/" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
+                                    Home
+                                </Link>
+                                <Link href="/search" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
+                                    Search
+                                </Link>
+                                <Link href="/trending" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
+                                    Trending
+                                </Link>
+                                <Link href="/new" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
+                                    New Tools
+                                </Link>
+                            </nav>
+                        </div>
 
-                            {/* Resources */}
-                            <div className="flex flex-col gap-4">
-                                <span className="text-sm font-medium text-text-primary">Resources</span>
-                                <nav className="flex flex-col gap-2">
-                                    <Link href="/category" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Categories</Link>
-                                    <Link href="/tasks" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Tasks</Link>
-                                    <Link href="/submit" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">Submit Tool</Link>
-                                </nav>
-                            </div>
+                        {/* Navigation - Resources */}
+                        <div className="col-span-6 lg:col-span-3 text-center lg:text-left">
+                            <h3 className="text-sm font-semibold text-text-primary mb-4">Resources</h3>
+                            <nav className="flex flex-col gap-3">
+                                <Link href="/category" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
+                                    Categories
+                                </Link>
+                                <Link href="/tasks" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
+                                    Tasks
+                                </Link>
+                                <Link href="/submit" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
+                                    Submit Tool
+                                </Link>
+                            </nav>
                         </div>
                     </div>
                 </div>
 
                 {/* Giant Wordmark */}
-                <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-4 text-center">
+                <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8 text-center">
                     <Link href="/" prefetch={false} className="inline-block no-underline focus:outline-none">
                         <span
                             className="block text-text-primary leading-[0.85] select-none font-orbitron"
                             style={{
-                                fontSize: 'clamp(4rem, 15vw, 14rem)',
+                                fontSize: 'clamp(3.5rem, 12vw, 12rem)',
                                 fontWeight: 700,
                                 letterSpacing: '0.15em'
                             }}
@@ -92,8 +102,8 @@ export default function Footer() {
                     </Link>
                 </div>
 
-                {/* Bottom Bar */}
-                <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pb-48 lg:pb-6 pt-6">
+                {/* Bottom Bar - Legal Links */}
+                <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-48 lg:pb-8 pt-6">
                     <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
                         <span className="text-xs text-text-tertiary">© {new Date().getFullYear()} AIBDE</span>
                         <Link href="/about" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">About</Link>

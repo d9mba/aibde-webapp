@@ -199,8 +199,8 @@ export async function POST(request: NextRequest) {
         // Upload to R2
         await uploadFile(finalBuffer, `${folder}/${filename}`, finalMimeType);
 
-        // Construct full URL using CDN_URL for production, fallback to R2_PUBLIC_URL
-        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_PUBLIC_URL || '';
+        // Construct full URL using CDN_URL for production, fallback to R2_DEV_URL
+        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL || '';
         const fullUrl = cdnUrl ? `${cdnUrl}/${folder}/${filename}` : relativePath;
 
         // Return result with full URL for display

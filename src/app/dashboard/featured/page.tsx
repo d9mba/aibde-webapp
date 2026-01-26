@@ -8,7 +8,7 @@ import { Search, ChevronLeft, ChevronRight, Save } from 'lucide-react';
 const ITEMS_PER_PAGE = 25;
 
 export default function FeaturedPage() {
-    const { tools, updateTool } = useAdmin();
+    const { tools, updateTool, isLoaded } = useAdmin();
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [featuredSearch, setFeaturedSearch] = useState('');
@@ -140,6 +140,17 @@ export default function FeaturedPage() {
         }
     };
 
+    if (!isLoaded) {
+        return (
+            <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
+                <div className="flex items-center gap-3 text-text-secondary">
+                    <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
+                    Loading featured tools...
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen p-3 sm:p-6 bg-bg-primary">
             <div className="max-w-[1200px] mx-auto">
@@ -157,8 +168,8 @@ export default function FeaturedPage() {
                             onClick={handleSaveAll}
                             disabled={saving || !hasChanges}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${hasChanges
-                                    ? 'bg-accent-primary text-white hover:opacity-90'
-                                    : 'bg-bg-secondary text-text-tertiary border border-border'
+                                ? 'bg-accent-primary text-white hover:opacity-90'
+                                : 'bg-bg-secondary text-text-tertiary border border-border'
                                 } disabled:opacity-50`}
                         >
                             <Save className="w-4 h-4" />

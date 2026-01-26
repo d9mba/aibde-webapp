@@ -146,7 +146,6 @@ export async function DELETE(
             for (const path of filesToDelete) {
                 try {
                     await deleteFile(path);
-                    console.log(`[DELETE] Deleted R2 file: ${path}`);
                 } catch (r2Error) {
                     console.error(`[DELETE] Failed to delete R2 file ${path}:`, r2Error);
                     // Continue with deletion even if R2 cleanup fails

@@ -55,7 +55,8 @@ export default function DashboardHome() {
     const pendingTools = tools.filter(t => t.status === 'pending');
     const unpublishedTools = tools.filter(t => t.status === 'unpublished');
     const scheduledTools = tools.filter(t => t.status === 'scheduled');
-    const spotlightTools = tools.filter(t => t.spotlightPosition && t.spotlightPosition > 0);
+    const spotlightTools = tools.filter(t => t.spotlightEnabled && t.spotlightPosition && t.spotlightPosition > 0);
+    const featuredTools = tools.filter(t => t.isFeatured);
 
     const stats = [
         { label: 'Total Tools', value: tools.length, icon: 'tools', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', href: '/dashboard/tools' },
@@ -67,6 +68,7 @@ export default function DashboardHome() {
         { label: 'Categories', value: categories.length, icon: 'categories', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10', href: '/dashboard/categories' },
         { label: 'Tasks', value: tasks.length, icon: 'tasks', color: 'text-orange-500', bgColor: 'bg-orange-500/10', href: '/dashboard/tasks' },
         { label: 'Spotlight', value: spotlightTools.length, icon: 'spotlight', color: 'text-amber-500', bgColor: 'bg-amber-500/10', href: '/dashboard/spotlight' },
+        { label: 'Featured', value: featuredTools.length, icon: 'spotlight', color: 'text-purple-500', bgColor: 'bg-purple-500/10', href: '/dashboard/featured' },
     ];
 
     const quickActions = [

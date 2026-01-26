@@ -22,6 +22,8 @@ import {
     Pin,
     X,
     Monitor,
+    Info,
+    Mail,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getNextThemeMode, ThemeMode } from '@/lib/formatters';
@@ -47,6 +49,8 @@ const iconMap = {
     sun: Sun,
     moon: Moon,
     menu: Menu,
+    info: Info,
+    mail: Mail,
 } as const;
 
 type IconName = keyof typeof iconMap;
@@ -138,6 +142,11 @@ export default function Header() {
 
     const actionNav: NavItem[] = [
         { href: '/submit', label: 'Submit', icon: 'plus' },
+    ];
+
+    const moreNav: NavItem[] = [
+        { href: '/about', label: 'About', icon: 'info' },
+        { href: '/contact', label: 'Contact', icon: 'mail' },
     ];
 
     const handleLinkClick = () => {
@@ -353,7 +362,25 @@ export default function Header() {
                                 key={item.href}
                                 href={item.href}
                                 prefetch={false}
-                                className="flex items-center gap-3 px-4 py-3 text-base font-medium text-accent-primary rounded-lg transition-colors hover:bg-bg-tertiary"
+                                className="flex items-center gap-3 px-4 py-3 text-base font-bold text-accent-primary rounded-lg transition-colors hover:bg-bg-tertiary"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                {renderIcon(item.icon)}
+                                {item.label}
+                            </Link>
+                        ))}
+
+                        {moreNav.map((item) => (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                prefetch={false}
+                                className={cn(
+                                    "flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-colors",
+                                    isActive(item.href)
+                                        ? 'bg-border text-text-primary'
+                                        : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+                                )}
                                 onClick={() => setSidebarOpen(false)}
                             >
                                 {renderIcon(item.icon)}
@@ -481,7 +508,35 @@ export default function Header() {
                                 key={item.href}
                                 href={item.href}
                                 prefetch={false}
-                                className="flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] text-accent-primary no-underline rounded-md transition-all duration-fast whitespace-nowrap hover:bg-bg-tertiary focus:outline-none"
+                                className="flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-bold text-accent-primary no-underline rounded-md transition-all duration-fast whitespace-nowrap hover:bg-bg-tertiary focus:outline-none"
+                                onClick={handleLinkClick}
+                                title={item.label}
+                            >
+                                <span className="flex items-center justify-center w-5 h-5 flex-shrink-0">
+                                    {renderIcon(item.icon)}
+                                </span>
+                                <span className={cn(
+                                    "whitespace-nowrap transition-opacity duration-150",
+                                    (sidebarOpen || isPinned) ? 'opacity-100' : 'opacity-0 lg:group-hover:opacity-100'
+                                )}>
+                                    {item.label}
+                                </span>
+                            </Link>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col gap-px">
+                        {moreNav.map((item) => (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                prefetch={false}
+                                className={cn(
+                                    "flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] no-underline rounded-md transition-all duration-fast whitespace-nowrap focus:outline-none",
+                                    isActive(item.href)
+                                        ? 'bg-border text-text-primary font-medium'
+                                        : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+                                )}
                                 onClick={handleLinkClick}
                                 title={item.label}
                             >

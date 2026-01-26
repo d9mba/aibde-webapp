@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { AdminTool, Category, Task } from '@/types';
+import { Category, Task } from '@/types';
 import { trackSearch, trackFilterUsed } from '@/hooks/useToolAnalytics';
 
 const ITEMS_PER_PAGE = 20;
@@ -12,13 +12,12 @@ const ITEMS_PER_PAGE = 20;
 interface SearchPageClientProps {
     categories: Category[];
     tasks: Task[];
-    spotlightTools: AdminTool[];
     toolCount: number;
     taskCount: number;
     categoryCount: number;
 }
 
-export default function SearchPageClient({ categories, tasks, spotlightTools, toolCount, taskCount, categoryCount }: SearchPageClientProps) {
+export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount }: SearchPageClientProps) {
     const searchParams = useSearchParams();
     const lastTrackedQuery = useRef<string>('');
     const searchTimeout = useRef<NodeJS.Timeout>();
@@ -30,9 +29,24 @@ export default function SearchPageClient({ categories, tasks, spotlightTools, to
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
     // Search state
-    const [searchResults, setSearchResults] = useState<AdminTool[]>([]);
+    const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
+
+    // Search input ref for Ctrl+K focus
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Ctrl+K keyboard shortcut to focus search
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                inputRef.current?.focus();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     // Read URL parameters on mount
     useEffect(() => {
@@ -161,6 +175,7 @@ export default function SearchPageClient({ categories, tasks, spotlightTools, to
                                 <path d="M21 21l-4.35-4.35" />
                             </svg>
                             <input
+                                ref={inputRef}
                                 type="text"
                                 autoComplete="off"
                                 className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50"
@@ -170,6 +185,12 @@ export default function SearchPageClient({ categories, tasks, spotlightTools, to
                             />
                             {isSearching && (
                                 <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
+                            )}
+                            {!query && !isSearching && (
+                                <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
+                                    <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
+                                    <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
+                                </span>
                             )}
                             {query && !isSearching && (
                                 <button

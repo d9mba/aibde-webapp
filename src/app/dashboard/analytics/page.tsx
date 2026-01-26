@@ -103,7 +103,13 @@ export default function AnalysisPage() {
         if (timeRange === 'custom') {
             return { startDate: customStartDate, endDate: customEndDate };
         }
-        const days = timeRange === 'today' ? 1 : timeRange === 'week' ? 7 : 30;
+        let days: number;
+        switch (timeRange) {
+            case 'today': days = 1; break;
+            case 'week': days = 7; break;
+            case 'month': days = 30; break;
+            default: days = 7;
+        }
         return { days };
     };
 

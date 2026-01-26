@@ -169,10 +169,10 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
                 </div>
             </div>
 
-            <div className={`relative flex justify-between items-center ${isCompact ? 'pt-1.5' : 'pt-2'} border-t border-border`}>
-                <span className="text-[0.625rem] text-text-tertiary leading-none">{tool.releasedAgo}</span>
-                {/* Stats - Absolute Center */}
-                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+            <div className={`flex justify-between items-center gap-2 ${isCompact ? 'pt-1.5' : 'pt-2'} border-t border-border`}>
+                <span className="text-[0.625rem] text-text-tertiary leading-none flex-shrink-0">{tool.releasedAgo}</span>
+                {/* Stats - Center with flex-1 */}
+                <div className="flex items-center justify-center gap-2 flex-1 min-w-0">
                     {/* Impressions indicator */}
                     <span className="inline-flex items-center gap-0.5 text-[0.625rem] text-text-tertiary leading-none">
                         <svg width="12" height="12" viewBox="0 0 512 512" fill="currentColor" className="opacity-70 flex-shrink-0">
@@ -200,7 +200,7 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
                 </div>
                 {/* Pricing - Right */}
                 <span
-                    className="text-[0.625rem] font-medium cursor-pointer transition-opacity hover:opacity-70"
+                    className="text-[0.625rem] font-medium cursor-pointer transition-opacity hover:opacity-70 flex-shrink-0"
                     style={{ color: getPricingColor(tool.pricing || '') }}
                     onClick={(e) => {
                         e.stopPropagation();

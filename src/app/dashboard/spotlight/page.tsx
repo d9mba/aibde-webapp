@@ -15,7 +15,7 @@ interface SpotlightChange {
 }
 
 export default function SpotlightPage() {
-    const { tools, updateTool, settings } = useAdmin();
+    const { tools, updateTool, settings, isLoaded } = useAdmin();
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -179,6 +179,17 @@ export default function SpotlightPage() {
             setSaving(false);
         }
     };
+
+    if (!isLoaded) {
+        return (
+            <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
+                <div className="flex items-center gap-3 text-text-secondary">
+                    <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
+                    Loading spotlight tools...
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen p-3 sm:p-6 bg-bg-primary">

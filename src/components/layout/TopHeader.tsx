@@ -235,6 +235,12 @@ export default function TopHeader() {
                                     {isLoading && (
                                         <span className="w-4 h-4 border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0"></span>
                                     )}
+                                    {!searchQuery && !isLoading && (
+                                        <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
+                                            <kbd className="px-1 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
+                                            <kbd className="px-1 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
+                                        </span>
+                                    )}
                                     {searchQuery && !isLoading && (
                                         <button
                                             type="button"

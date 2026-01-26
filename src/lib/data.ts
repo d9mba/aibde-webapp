@@ -444,42 +444,48 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
     // Query 1: Category matches (highest priority) - fetch more for diversity
     if (categories.length > 0) {
         queries.push(
-            supabase
-                .from('tools')
-                .select('*')
-                .in('status', ['published', 'approved'])
-                .neq('app_username', tool.slug)
-                .overlaps('category_name', categories)
-                .limit(limit * 5)
-                .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'category' })))
+            Promise.resolve(
+                supabase
+                    .from('tools')
+                    .select('*')
+                    .in('status', ['published', 'approved'])
+                    .neq('app_username', tool.slug)
+                    .overlaps('category_name', categories)
+                    .limit(limit * 5)
+                    .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'category' })))
+            )
         );
     }
 
     // Query 2: Task matches
     if (tasks.length > 0) {
         queries.push(
-            supabase
-                .from('tools')
-                .select('*')
-                .in('status', ['published', 'approved'])
-                .neq('app_username', tool.slug)
-                .overlaps('task_name', tasks)
-                .limit(limit * 5)
-                .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'task' })))
+            Promise.resolve(
+                supabase
+                    .from('tools')
+                    .select('*')
+                    .in('status', ['published', 'approved'])
+                    .neq('app_username', tool.slug)
+                    .overlaps('task_name', tasks)
+                    .limit(limit * 5)
+                    .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'task' })))
+            )
         );
     }
 
     // Query 3: Tag matches
     if (tags.length > 0) {
         queries.push(
-            supabase
-                .from('tools')
-                .select('*')
-                .in('status', ['published', 'approved'])
-                .neq('app_username', tool.slug)
-                .overlaps('tags', tags)
-                .limit(limit * 5)
-                .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'tag' })))
+            Promise.resolve(
+                supabase
+                    .from('tools')
+                    .select('*')
+                    .in('status', ['published', 'approved'])
+                    .neq('app_username', tool.slug)
+                    .overlaps('tags', tags)
+                    .limit(limit * 5)
+                    .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'tag' })))
+            )
         );
     }
 
@@ -496,12 +502,18 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
     // Deduplicate and score
     const toolMap = new Map<string, { tool: any, score: number }>();
 
+    function getMatchScore(matchType: string): number {
+        switch (matchType) {
+            case 'category': return 5;
+            case 'task': return 4;
+            case 'tag': return 3;
+            default: return 1;
+        }
+    }
+
     allMatches.forEach(t => {
         const existing = toolMap.get(t.app_username);
-        const matchScore = t._matchType === 'category' ? 5
-            : t._matchType === 'task' ? 4
-                : t._matchType === 'tag' ? 3
-                    : 1;
+        const matchScore = getMatchScore(t._matchType);
 
         if (existing) {
             existing.score += matchScore;

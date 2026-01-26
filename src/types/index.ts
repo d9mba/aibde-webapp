@@ -87,15 +87,15 @@ export interface AdminTool extends AITool {
     contactAddress?: string;
     contactMobile?: string;
     socialLinks?: {
-        instagram?: string;
-        facebook?: string;
-        twitter?: string;
-        linkedin?: string;
-        discord?: string;
-        youtube?: string;
-        tiktok?: string;
-        other?: string;
-    };
+        instagram?: string | null;
+        facebook?: string | null;
+        twitter?: string | null;
+        linkedin?: string | null;
+        discord?: string | null;
+        youtube?: string | null;
+        tiktok?: string | null;
+        other?: string | null;
+    } | null;
 
     // Company Info
     playStoreUrl?: string;

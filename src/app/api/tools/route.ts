@@ -21,7 +21,17 @@ const ALL_FIELDS = `
     internal_notes, scheduled_at, spotlight_start_date, spotlight_end_date
 `;
 
-// Complete fields for admin tool list and edit form
+// Light fields for dashboard table view (OPTIMIZED: no heavy HTML content)
+// Saves ~250KB per 50 tools by excluding description, faq, etc.
+const TABLE_FIELDS = `
+    id, name, app_username, logo_url, summary,
+    category_name, task_name, tags,
+    pricing, pricing_label, save_count, is_featured,
+    status, spotlight_enabled, spotlight_position, trending_position,
+    created_at, updated_at
+`;
+
+// Complete fields for edit form (fetched via GET /api/tools/[id])
 // Includes all fields needed for ToolForm to work
 const LIST_FIELDS = `
     id, name, app_username, summary, description,
@@ -176,9 +186,10 @@ export async function GET(request: NextRequest) {
             error = error || null;
         } else {
             // Paginated query with all filters
+            // OPTIMIZATION: Use TABLE_FIELDS for list view (no heavy HTML content)
             let query = supabaseAdmin
                 .from('tools')
-                .select(LIST_FIELDS)
+                .select(TABLE_FIELDS)
                 .order('created_at', { ascending: false });
 
             query = applyFilters(query, { search, category, missingData, status });

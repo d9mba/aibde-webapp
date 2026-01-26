@@ -31,9 +31,10 @@ export async function GET(request: NextRequest) {
 
         // Apply text search if query provided
         if (query) {
-            // Use ilike for prefix search (allows index usage)
-            // Note: Removed leading % to enable index optimization
-            dbQuery = dbQuery.or(`name.ilike.${query}%,summary.ilike.${query}%,description.ilike.${query}%`);
+            // Use ilike for prefix search on short text fields only
+            // NOTE: Removed description - prefix search is useless on long text
+            // (descriptions rarely start with the search term)
+            dbQuery = dbQuery.or(`name.ilike.${query}%,summary.ilike.${query}%`);
         }
 
         // Apply category filter

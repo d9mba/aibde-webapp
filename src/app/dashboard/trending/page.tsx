@@ -1,123 +1,172 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
-import { usePostHogAnalytics } from '@/hooks/usePostHogAnalytics';
 import { useToast } from '@/components/ui/Toast';
-import { TrendingUp, Save, ArrowLeft, GripVertical, Eye, MousePointer, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Save, TrendingUp, AlertTriangle } from 'lucide-react';
 
-const ITEMS_PER_PAGE = 50;
+const ITEMS_PER_PAGE = 25;
+const MAX_TRENDING_TOOLS = 100; // Maximum trending tools allowed
 
 export default function TrendingManagementPage() {
     const { tools, updateTool, isLoaded } = useAdmin();
-    const { topTools, loading: analyticsLoading, isConfigured, refresh: refreshAnalytics } = usePostHogAnalytics();
     const { showToast } = useToast();
-    const [trendingPositions, setTrendingPositions] = useState<Record<string, number>>({});
-    const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
+    const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [trendingPage, setTrendingPage] = useState(1);
+    const [saving, setSaving] = useState(false);
 
-    // Build a map of slug -> impressions from PostHog data
-    const impressionsMap = useMemo(() => {
-        const map: Record<string, { impressions: number; clicks: number; pageViews: number }> = {};
-        for (const item of topTools) {
-            map[item.tool_slug] = {
-                impressions: item.impressions || 0,
-                clicks: item.clicks || 0,
-                pageViews: item.page_views || 0,
-            };
-        }
-        return map;
-    }, [topTools]);
+    // Local state for pending changes
+    const [pendingTrendingIds, setPendingTrendingIds] = useState<string[]>([]);
+    const [pendingPositions, setPendingPositions] = useState<Record<string, number>>({});
+    const [hasChanges, setHasChanges] = useState(false);
 
-    // Get only published tools, sorted by trendingPosition (if set) or impressions
-    const sortedTools = useMemo(() => {
-        const publishedTools = tools.filter(t => t.status === 'published');
-        return [...publishedTools].sort((a, b) => {
-            // Priority: manual trendingPosition > impressions
-            const posA = trendingPositions[a.id] ?? a.trendingPosition ?? 0;
-            const posB = trendingPositions[b.id] ?? b.trendingPosition ?? 0;
+    // Initialize from current data
+    useEffect(() => {
+        const currentTrending = tools
+            .filter(t => t.trendingPosition && t.trendingPosition > 0 && t.status === 'published')
+            .sort((a, b) => (a.trendingPosition ?? 999) - (b.trendingPosition ?? 999));
 
-            // If both have manual positions, sort by position (lower = higher rank)
-            if (posA > 0 && posB > 0) return posA - posB;
-            // If only one has position, it ranks higher
-            if (posA > 0) return -1;
-            if (posB > 0) return 1;
-
-            // Otherwise sort by impressions (higher = higher rank)
-            const impressionsA = impressionsMap[a.slug]?.impressions || 0;
-            const impressionsB = impressionsMap[b.slug]?.impressions || 0;
-            if (impressionsA !== impressionsB) return impressionsB - impressionsA;
-
-            // Fallback to saveCount
-            return b.saveCount - a.saveCount;
+        const ids = currentTrending.map(t => t.id);
+        const positions: Record<string, number> = {};
+        currentTrending.forEach(t => {
+            positions[t.id] = t.trendingPosition ?? 0;
         });
-    }, [tools, trendingPositions, impressionsMap]);
+
+        if (pendingTrendingIds.length === 0) {
+            setPendingTrendingIds(ids);
+            setPendingPositions(positions);
+        }
+    }, [tools]);
+
+    // Current trending tools based on pending changes
+    const trendingTools = useMemo(() => {
+        return pendingTrendingIds
+            .map(id => tools.find(t => t.id === id))
+            .filter((t): t is AdminTool => t !== undefined)
+            .sort((a, b) => (pendingPositions[a.id] ?? 999) - (pendingPositions[b.id] ?? 999));
+    }, [tools, pendingTrendingIds, pendingPositions]);
+
+    const availableTools = useMemo(() => {
+        return tools.filter(t => !pendingTrendingIds.includes(t.id) && t.status === 'published');
+    }, [tools, pendingTrendingIds]);
+
+    // Filter available tools by search
+    const filteredAvailableTools = useMemo(() => {
+        if (!search) return availableTools;
+        const searchLower = search.toLowerCase();
+        return availableTools.filter(t =>
+            (t.name || '').toLowerCase().includes(searchLower) ||
+            (t.categoryName || []).some(cat => (cat || '').toLowerCase().includes(searchLower))
+        );
+    }, [availableTools, search]);
 
     // Pagination
-    const totalPages = Math.ceil(sortedTools.length / ITEMS_PER_PAGE);
-    const paginatedTools = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return sortedTools.slice(start, start + ITEMS_PER_PAGE);
-    }, [sortedTools, currentPage]);
+    const totalPages = Math.ceil(filteredAvailableTools.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedTools = filteredAvailableTools.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-    // Initialize positions from tool data
-    useEffect(() => {
-        const initialPositions: Record<string, number> = {};
-        tools.forEach(tool => {
-            if (tool.trendingPosition && tool.trendingPosition > 0) {
-                initialPositions[tool.id] = tool.trendingPosition;
-            }
+    const handleSearch = (value: string) => {
+        setSearch(value);
+        setCurrentPage(1);
+    };
+
+    const handleRemoveFromTrending = (toolId: string) => {
+        const tool = tools.find(t => t.id === toolId);
+        setPendingTrendingIds(prev => prev.filter(id => id !== toolId));
+        setPendingPositions(prev => {
+            const updated = { ...prev };
+            delete updated[toolId];
+            return updated;
         });
-        if (Object.keys(initialPositions).length > 0 && Object.keys(trendingPositions).length === 0) {
-            setTrendingPositions(initialPositions);
-        }
-    }, [tools, trendingPositions]);
+        setHasChanges(true);
+        showToast(`Removed "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
+    };
 
-    const handlePositionChange = (toolId: string, value: string) => {
-        const numValue = parseInt(value) || 0;
-        setTrendingPositions(prev => ({
-            ...prev,
-            [toolId]: numValue
-        }));
-        setSaved(false);
+    const handleAddToTrending = (toolId: string) => {
+        if (pendingTrendingIds.length >= MAX_TRENDING_TOOLS) {
+            showToast(`Maximum ${MAX_TRENDING_TOOLS} trending tools allowed! Remove one before adding.`, 'error');
+            return;
+        }
+        const tool = tools.find(t => t.id === toolId);
+        const maxPos = Math.max(...Object.values(pendingPositions), 0);
+        setPendingTrendingIds(prev => [...prev, toolId]);
+        setPendingPositions(prev => ({ ...prev, [toolId]: maxPos + 1 }));
+        setHasChanges(true);
+        showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
+    };
+
+    const handleMoveUp = (toolId: string) => {
+        const idx = trendingTools.findIndex(t => t.id === toolId);
+        if (idx > 0) {
+            const tool = trendingTools[idx];
+            const prevTool = trendingTools[idx - 1];
+            setPendingPositions(prev => ({
+                ...prev,
+                [tool.id]: prev[prevTool.id],
+                [prevTool.id]: prev[tool.id]
+            }));
+            setHasChanges(true);
+            showToast('Moved up - Click Save to apply', 'info');
+        }
+    };
+
+    const handleMoveDown = (toolId: string) => {
+        const idx = trendingTools.findIndex(t => t.id === toolId);
+        if (idx < trendingTools.length - 1) {
+            const tool = trendingTools[idx];
+            const nextTool = trendingTools[idx + 1];
+            setPendingPositions(prev => ({
+                ...prev,
+                [tool.id]: prev[nextTool.id],
+                [nextTool.id]: prev[tool.id]
+            }));
+            setHasChanges(true);
+            showToast('Moved down - Click Save to apply', 'info');
+        }
     };
 
     const handleSaveAll = async () => {
         setSaving(true);
         try {
-            // Update all tools with changed positions
-            const updates = Object.entries(trendingPositions).map(async ([toolId, position]) => {
-                const tool = tools.find(t => t.id === toolId);
-                if (tool && tool.trendingPosition !== position) {
-                    await updateTool(toolId, { trendingPosition: position });
+            const currentTrending = tools.filter(t => t.trendingPosition && t.trendingPosition > 0);
+            const currentIds = new Set(currentTrending.map(t => t.id));
+            const pendingSet = new Set(pendingTrendingIds);
+
+            const updates: Promise<void>[] = [];
+
+            // Remove tools
+            for (const tool of currentTrending) {
+                if (!pendingSet.has(tool.id)) {
+                    updates.push(updateTool(tool.id, { trendingPosition: 0 }));
                 }
-            });
+            }
+
+            // Add/update tools
+            for (const toolId of pendingTrendingIds) {
+                const position = pendingPositions[toolId];
+                const tool = tools.find(t => t.id === toolId);
+                if (tool) {
+                    if (!currentIds.has(toolId) || tool.trendingPosition !== position) {
+                        updates.push(updateTool(toolId, { trendingPosition: position }));
+                    }
+                }
+            }
+
             await Promise.all(updates);
-            setSaved(true);
-            showToast('Trending positions saved successfully!', 'success');
-            setTimeout(() => setSaved(false), 3000);
+            setHasChanges(false);
+            showToast('Trending tools saved successfully!', 'success');
         } catch (error) {
-            console.error('Failed to save trending positions:', error);
-            showToast('Failed to save trending positions. Please try again.', 'error');
+            console.error('Failed to save trending:', error);
+            showToast('Failed to save. Please try again.', 'error');
         } finally {
             setSaving(false);
         }
     };
 
-    const clearPosition = (toolId: string) => {
-        setTrendingPositions(prev => {
-            const updated = { ...prev };
-            delete updated[toolId];
-            return updated;
-        });
-        setSaved(false);
-    };
-
     if (!isLoaded) {
         return (
-            <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
+            <div className="min-h-screen p-6 bg-bg-primary flex items-center justify-center">
                 <div className="text-text-secondary">Loading...</div>
             </div>
         );
@@ -127,197 +176,232 @@ export default function TrendingManagementPage() {
         <div className="min-h-screen p-3 sm:p-6 bg-bg-primary">
             <div className="max-w-[1200px] mx-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <Link
-                            href="/dashboard"
-                            prefetch={false}
-                            className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-lg transition-colors"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-bold text-text-primary flex items-center gap-2">
-                                <TrendingUp className="w-6 h-6 text-accent-primary" />
-                                Trending Management
-                            </h1>
-                            <p className="text-xs sm:text-sm text-text-tertiary mt-0.5">
-                                {sortedTools.length} published tools • Page {currentPage} of {totalPages}
-                            </p>
-                        </div>
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Trending</h1>
+                        <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 sm:mt-1">Manage trending tools on /trending page</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={refreshAnalytics}
-                            disabled={analyticsLoading}
-                            className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:text-text-primary bg-bg-secondary border border-border rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                        >
-                            <RefreshCw className={`w-4 h-4 ${analyticsLoading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </button>
+                        {hasChanges && (
+                            <span className="text-xs text-amber-400">Unsaved changes</span>
+                        )}
                         <button
                             onClick={handleSaveAll}
-                            disabled={saving}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-accent-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                            disabled={saving || !hasChanges}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${hasChanges
+                                ? 'bg-accent-primary text-white hover:opacity-90'
+                                : 'bg-bg-secondary text-text-tertiary border border-border'
+                                } disabled:opacity-50`}
                         >
                             <Save className="w-4 h-4" />
-                            {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
+                            {saving ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
                 </div>
 
-                {/* Info Box */}
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-6">
-                    <p className="text-sm text-blue-400">
-                        <strong>How it works:</strong> Tools are ranked by their manual position first (lower number = higher rank).
-                        Tools without a position are ranked by <strong>PostHog impressions</strong> automatically.
-                        Set position to <strong>0</strong> or clear to reset to automatic ranking.
-                    </p>
-                    {!isConfigured && (
-                        <p className="text-sm text-yellow-400 mt-2">
-                            ⚠️ PostHog analytics not configured. Falling back to save count for auto-ranking.
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                    <div className={`bg-bg-card border rounded-xl p-3 sm:p-4 text-center ${trendingTools.length >= MAX_TRENDING_TOOLS ? 'border-amber-500/50' : 'border-border'}`}>
+                        <div className={`text-xl sm:text-2xl font-bold ${trendingTools.length >= MAX_TRENDING_TOOLS ? 'text-amber-500' : 'text-accent-primary'}`}>{trendingTools.length}/{MAX_TRENDING_TOOLS}</div>
+                        <div className="text-[10px] sm:text-xs text-text-tertiary">Active</div>
+                    </div>
+                    <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
+                        <div className="text-xl sm:text-2xl font-bold text-text-primary">{trendingTools.length}</div>
+                        <div className="text-[10px] sm:text-xs text-text-tertiary">Display</div>
+                    </div>
+                    <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
+                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{availableTools.length}</div>
+                        <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
+                    </div>
+                </div>
+
+                {/* Limit Warning */}
+                {trendingTools.length >= MAX_TRENDING_TOOLS && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 flex items-center gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                        <p className="text-sm text-amber-400">
+                            <strong>Maximum reached!</strong> You have {trendingTools.length} trending tools. Remove one before adding more.
                         </p>
-                    )}
-                </div>
-
-                {/* Tools List */}
-                <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
-                    <div className="grid grid-cols-[auto_1fr_100px_100px_100px_80px] gap-4 px-4 py-3 bg-bg-secondary border-b border-border text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                        <span>Rank</span>
-                        <span>Tool</span>
-                        <span className="text-center flex items-center justify-center gap-1">
-                            <Eye className="w-3 h-3" /> Views
-                        </span>
-                        <span className="text-center flex items-center justify-center gap-1">
-                            <MousePointer className="w-3 h-3" /> Clicks
-                        </span>
-                        <span className="text-center">Position</span>
-                        <span className="text-center">Pin/Reset</span>
-                    </div>
-                    <div className="divide-y divide-border">
-                        {paginatedTools.map((tool, index) => {
-                            const globalIndex = (currentPage - 1) * ITEMS_PER_PAGE + index;
-                            const currentPosition = trendingPositions[tool.id] ?? tool.trendingPosition ?? 0;
-                            const hasManualPosition = currentPosition > 0;
-                            const analytics = impressionsMap[tool.slug] || { impressions: 0, clicks: 0, pageViews: 0 };
-
-                            return (
-                                <div
-                                    key={tool.id}
-                                    className={`grid grid-cols-[auto_1fr_100px_100px_100px_80px] gap-4 px-4 py-3 items-center ${hasManualPosition ? 'bg-accent-primary/5' : ''
-                                        }`}
-                                >
-                                    {/* Rank */}
-                                    <div className="flex items-center gap-2">
-                                        <GripVertical className="w-4 h-4 text-text-tertiary" />
-                                        <span className={`text-sm font-bold ${hasManualPosition ? 'text-accent-primary' : 'text-text-tertiary'}`}>
-                                            #{globalIndex + 1}
-                                        </span>
-                                    </div>
-
-                                    {/* Tool Info */}
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        {tool.logoUrl ? (
-                                            <img src={tool.logoUrl} alt="" className="w-9 h-9 rounded-lg object-contain flex-shrink-0" />
-                                        ) : (
-                                            <div className="w-9 h-9 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm flex-shrink-0">
-                                                {tool.name[0]}
-                                            </div>
-                                        )}
-                                        <div className="min-w-0">
-                                            <div className="font-medium text-text-primary truncate">{tool.name}</div>
-                                            <div className="text-xs text-text-tertiary truncate">{tool.summary}</div>
-                                        </div>
-                                    </div>
-
-                                    {/* Impressions */}
-                                    <div className="text-center">
-                                        <span className="text-sm text-text-secondary">{analytics.impressions.toLocaleString()}</span>
-                                    </div>
-
-                                    {/* Clicks */}
-                                    <div className="text-center">
-                                        <span className="text-sm text-text-secondary">{analytics.clicks.toLocaleString()}</span>
-                                    </div>
-
-                                    {/* Position Input */}
-                                    <div className="flex justify-center">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={currentPosition || ''}
-                                            onChange={(e) => handlePositionChange(tool.id, e.target.value)}
-                                            placeholder="Auto"
-                                            className={`w-16 px-2 py-1.5 text-sm text-center rounded-lg border ${hasManualPosition
-                                                ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
-                                                : 'bg-bg-secondary border-border text-text-secondary'
-                                                } focus:outline-none focus:ring-2 focus:ring-accent-primary/30`}
-                                        />
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="flex justify-center gap-1">
-                                        {hasManualPosition ? (
-                                            <button
-                                                onClick={() => clearPosition(tool.id)}
-                                                className="px-2 py-1 text-xs text-accent-red bg-accent-red/10 rounded hover:bg-accent-red/20 transition-colors"
-                                                title="Reset to auto"
-                                            >
-                                                Reset
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => handlePositionChange(tool.id, String(globalIndex + 1))}
-                                                className="px-2 py-1 text-xs text-accent-primary bg-accent-primary/10 rounded hover:bg-accent-primary/20 transition-colors"
-                                                title="Set manual position"
-                                            >
-                                                Pin #{globalIndex + 1}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="flex items-center justify-between px-4 py-3 bg-bg-secondary border-t border-border">
-                            <span className="text-sm text-text-tertiary">
-                                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, sortedTools.length)} of {sortedTools.length}
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    disabled={currentPage === 1}
-                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-text-secondary bg-bg-card border border-border rounded-lg hover:bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                    Previous
-                                </button>
-                                <span className="text-sm text-text-primary px-2">
-                                    {currentPage} / {totalPages}
-                                </span>
-                                <button
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage === totalPages}
-                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-text-secondary bg-bg-card border border-border rounded-lg hover:bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Next
-                                    <ChevronRight className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {sortedTools.length === 0 && (
-                    <div className="text-center py-12 text-text-tertiary">
-                        No published tools found.
                     </div>
                 )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                    {/* Current Trending */}
+                    <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
+                        <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-accent-primary" />
+                            <h2 className="text-sm sm:text-base font-semibold text-text-primary">Current Trending</h2>
+                        </div>
+                        <div className="divide-y divide-border">
+                            {trendingTools.length === 0 ? (
+                                <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
+                                    No trending tools. Add from below.
+                                </div>
+                            ) : (
+                                <>
+                                    {trendingTools
+                                        .slice((trendingPage - 1) * ITEMS_PER_PAGE, trendingPage * ITEMS_PER_PAGE)
+                                        .map((tool, idx) => {
+                                            const globalIdx = (trendingPage - 1) * ITEMS_PER_PAGE + idx;
+                                            return (
+                                                <div key={tool.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-bg-secondary transition-colors">
+                                                    <span className="text-xs font-mono text-text-tertiary w-5 sm:w-6">#{globalIdx + 1}</span>
+                                                    {tool.logoUrl ? (
+                                                        <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain" />
+                                                    ) : (
+                                                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary text-xs font-bold">
+                                                            {(tool.name || 'T')[0]}
+                                                        </div>
+                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-medium text-text-primary text-sm truncate">{tool.name}</div>
+                                                    </div>
+                                                    <div className="flex items-center gap-0.5 sm:gap-1">
+                                                        <button
+                                                            onClick={() => handleMoveUp(tool.id)}
+                                                            disabled={globalIdx === 0}
+                                                            className="p-1 text-text-tertiary hover:text-text-primary disabled:opacity-30"
+                                                            title="Move Up"
+                                                        >
+                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleMoveDown(tool.id)}
+                                                            disabled={globalIdx === trendingTools.length - 1}
+                                                            className="p-1 text-text-tertiary hover:text-text-primary disabled:opacity-30"
+                                                            title="Move Down"
+                                                        >
+                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleRemoveFromTrending(tool.id)}
+                                                            className="p-1 text-text-tertiary hover:text-accent-red"
+                                                            title="Remove"
+                                                        >
+                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+
+                                    {/* Pagination for Current Trending */}
+                                    {trendingTools.length > ITEMS_PER_PAGE && (
+                                        <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border text-xs">
+                                            <span className="text-text-tertiary">
+                                                Showing {((trendingPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(trendingPage * ITEMS_PER_PAGE, trendingTools.length)} of {trendingTools.length}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => setTrendingPage(p => Math.max(1, p - 1))}
+                                                    disabled={trendingPage === 1}
+                                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                                >
+                                                    <ChevronLeft className="w-4 h-4" />
+                                                    Previous
+                                                </button>
+                                                <span className="text-sm text-text-tertiary">
+                                                    Page {trendingPage} of {Math.ceil(trendingTools.length / ITEMS_PER_PAGE)}
+                                                </span>
+                                                <button
+                                                    onClick={() => setTrendingPage(p => Math.min(Math.ceil(trendingTools.length / ITEMS_PER_PAGE), p + 1))}
+                                                    disabled={trendingPage >= Math.ceil(trendingTools.length / ITEMS_PER_PAGE)}
+                                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                                >
+                                                    Next
+                                                    <ChevronRight className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Available Tools */}
+                    <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
+                        <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border flex items-center gap-2">
+                            <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
+                            <h2 className="text-sm sm:text-base font-semibold text-text-primary">Available Tools</h2>
+                        </div>
+
+                        {/* Search Input */}
+                        <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+                                <input
+                                    type="text"
+                                    value={search}
+                                    onChange={e => handleSearch(e.target.value)}
+                                    placeholder="Search tools..."
+                                    className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-text-tertiary"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+                            {paginatedTools.length === 0 ? (
+                                <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
+                                    {search ? 'No tools match your search' : 'All published tools are in trending'}
+                                </div>
+                            ) : (
+                                paginatedTools.map((tool) => (
+                                    <div key={tool.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-bg-secondary transition-colors">
+                                        {tool.logoUrl ? (
+                                            <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain" />
+                                        ) : (
+                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-bg-secondary flex items-center justify-center text-text-tertiary text-xs font-bold">
+                                                {(tool.name || 'T')[0]}
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-medium text-text-primary text-sm truncate">{tool.name}</div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleAddToTrending(tool.id)}
+                                            disabled={trendingTools.length >= MAX_TRENDING_TOOLS}
+                                            className="px-2 py-1 text-xs text-accent-primary bg-accent-primary-bg rounded hover:bg-accent-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            + Add
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
+                                <span className="text-sm text-text-tertiary">
+                                    Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredAvailableTools.length)} of {filteredAvailableTools.length}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                        Previous
+                                    </button>
+                                    <span className="text-sm text-text-tertiary">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage >= totalPages}
+                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );
 }
-

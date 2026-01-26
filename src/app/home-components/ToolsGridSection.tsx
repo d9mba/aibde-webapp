@@ -12,9 +12,10 @@ const MAX_TRENDING = 50;           // Maximum 50 for "Trending"
 
 interface ToolsGridSectionProps {
     tools: AdminTool[];
+    trendingTools: AdminTool[];
 }
 
-export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
+export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSectionProps) {
     const [activeTab, setActiveTab] = useState<'latest' | 'trending'>('latest');
     const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD);
     const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -25,14 +26,7 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
         );
     }, [tools]);
 
-    const trendingTools = useMemo(() => {
-        // Only show tools with manual trendingPosition set, sorted by position (lower = higher rank)
-        return [...tools]
-            .filter(t => t.trendingPosition && t.trendingPosition > 0)
-            .sort((a, b) => (a.trendingPosition || 0) - (b.trendingPosition || 0))
-            .slice(0, MAX_TRENDING);
-    }, [tools]);
-
+    // Use trendingTools directly from server - already filtered and sorted
     const displayTools = activeTab === 'latest' ? newTools : trendingTools;
     const maxItems = activeTab === 'latest' ? MAX_LATEST : MAX_TRENDING;
     const hasMore = visibleCount < Math.min(displayTools.length, maxItems);
@@ -107,8 +101,12 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {displayTools.slice(0, visibleCount).map((tool) => (
-                    <AIToolCard key={tool.id} tool={tool} />
+                {displayTools.slice(0, visibleCount).map((tool, index) => (
+                    <AIToolCard
+                        key={tool.id}
+                        tool={tool}
+                        ranking={activeTab === 'trending' ? index + 1 : undefined}
+                    />
                 ))}
             </div>
 

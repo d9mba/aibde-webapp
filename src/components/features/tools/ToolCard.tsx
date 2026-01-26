@@ -10,6 +10,7 @@ import { getFullUrl } from '@/lib/url';
 interface AIToolCardProps {
     tool: AITool;
     variant?: 'default' | 'compact' | 'featured';
+    ranking?: number; // Optional ranking position for trending lists
 }
 
 // Array of colors for logo backgrounds
@@ -21,7 +22,7 @@ const logoColors = [
 // Slugify helper for category/task URLs
 const slugify = (str: string): string => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProps) {
+export default function AIToolCard({ tool, variant = 'default', ranking }: AIToolCardProps) {
     const [showShareModal, setShowShareModal] = useState(false);
     const colorIndex = tool.name.charCodeAt(0) % logoColors.length;
     const logoColor = logoColors[colorIndex];
@@ -74,6 +75,21 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
             `}
             onClick={handleCardClick}
         >
+            {/* Ranking Badge - Merges with card border at top-right */}
+            {ranking && (
+                <div className={`absolute -top-0 -right-0 px-2.5 py-1 rounded-bl-lg rounded-tr-lg font-bold flex items-center gap-1 ${ranking === 1
+                    ? 'bg-white text-yellow-600 shadow-md border border-yellow-200'
+                    : ranking === 2
+                        ? 'bg-white text-gray-500 shadow-md border border-gray-200'
+                        : ranking === 3
+                            ? 'bg-white text-amber-700 shadow-md border border-amber-200'
+                            : 'bg-gradient-to-br from-slate-200 to-slate-300 text-slate-700 shadow-sm'
+                    }`}>
+                    <span className={ranking <= 3 ? 'text-base leading-none' : 'text-xs leading-none'}>
+                        {ranking === 1 ? '🏆' : ranking === 2 ? '🥈' : ranking === 3 ? '🥉' : `#${ranking}`}
+                    </span>
+                </div>
+            )}
             <div className="flex gap-3 items-start flex-1">
                 {logoUrl ? (
                     <img

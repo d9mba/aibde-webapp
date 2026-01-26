@@ -129,22 +129,29 @@ export async function POST(request: NextRequest) {
         };
 
         // If Google Apps Script URL is configured, send to Google Sheets
+        // Use waitUntil to make it non-blocking (user doesn't wait for Google)
         if (GOOGLE_APPS_SCRIPT_URL) {
-            try {
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+            // Dynamic import to avoid issues in non-Vercel environments
+            import('@vercel/functions').then(({ waitUntil }) => {
+                waitUntil(
+                    fetch(GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(sheetData),
+                    }).catch(err => {
+                        console.error('[Submit Tool API] Background Google Sheets sync failed:', err);
+                    })
+                );
+            }).catch(() => {
+                // Fallback for non-Vercel environments (development)
+                fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(sheetData),
+                }).catch(err => {
+                    console.error('[Submit Tool API] Google Sheets sync failed:', err);
                 });
-
-                if (!response.ok) {
-                    console.error('[Submit Tool API] Google Apps Script error:', response.status);
-                }
-            } catch (err) {
-                console.error('[Submit Tool API] Failed to send to Google Apps Script:', err);
-            }
-        } else {
-            // No Google Apps Script URL configured - submission still saved in database
+            });
         }
 
         return NextResponse.json({

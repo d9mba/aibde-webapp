@@ -15,6 +15,7 @@ interface HomePageClientProps {
     categoryCount: number;
     taskCount: number;
     recentTools: AdminTool[];
+    trendingTools: AdminTool[];
     spotlightTools: AdminTool[];
     categories: Category[];
     tasks: Task[];
@@ -32,6 +33,7 @@ export default function HomePageClient({
     categoryCount,
     taskCount,
     recentTools,
+    trendingTools,
     spotlightTools,
     categories,
     tasks,
@@ -53,7 +55,7 @@ export default function HomePageClient({
                 showSpotlight={settings.showSpotlightOnHome !== false}
             />
 
-            <ToolsGridSection tools={recentTools} />
+            <ToolsGridSection tools={recentTools} trendingTools={trendingTools} />
 
             <CategoriesSection
                 categories={categories}

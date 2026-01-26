@@ -63,15 +63,17 @@ export default function ToolsListPage() {
         return () => clearTimeout(timer);
     }, [searchQuery, debouncedSearch]);
 
-    // Build API URL with pagination, status filter, and search
+    // Build API URL with pagination, status filter, search, AND client filters
     const apiUrl = useMemo(() => {
         const params = new URLSearchParams();
         params.set('page', currentPage.toString());
         params.set('limit', ITEMS_PER_PAGE.toString());
         if (statusFilter !== 'all') params.set('status', statusFilter);
+        if (categoryFilter !== 'all') params.set('category', categoryFilter);
+        if (missingDataFilter !== 'all') params.set('missing', missingDataFilter);
         if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
         return `/api/tools?${params.toString()}`;
-    }, [currentPage, statusFilter, debouncedSearch]);
+    }, [currentPage, statusFilter, categoryFilter, missingDataFilter, debouncedSearch]);
 
     // Fetch tools with SWR
     const { data: toolsData, error: toolsError, isLoading: toolsLoading, mutate } = useSWR<PaginatedToolsResponse>(
@@ -82,6 +84,8 @@ export default function ToolsListPage() {
 
     const tools = toolsData?.data || [];
     const pagination = toolsData?.pagination;
+
+    // No client-side filtering needed - all filtering is now server-side
 
     const statusOptions = [
         { value: 'all', label: 'All Status' },
@@ -125,77 +129,6 @@ export default function ToolsListPage() {
         { value: 'no-release-date', label: 'Missing Release Date' },
     ];
 
-    // Client-side filtering (for category and missing data - search is now server-side)
-    const filteredTools = useMemo(() => {
-        return tools.filter(tool => {
-            // Search is now handled server-side via API
-            const matchesCategory = categoryFilter === 'all' || (tool.categoryName || []).includes(categoryFilter);
-
-            // Missing data filter
-            let matchesMissingData = true;
-            if (missingDataFilter !== 'all') {
-                switch (missingDataFilter) {
-                    case 'no-logo':
-                        matchesMissingData = !tool.logoUrl || tool.logoUrl.trim() === '';
-                        break;
-                    case 'no-summary':
-                        matchesMissingData = !tool.summary || tool.summary.trim() === '';
-                        break;
-                    case 'no-description':
-                        matchesMissingData = !tool.description || tool.description.trim() === '';
-                        break;
-                    case 'no-website':
-                        matchesMissingData = !tool.websiteUrl || tool.websiteUrl.trim() === '';
-                        break;
-                    case 'no-contact':
-                        matchesMissingData = !tool.contactEmail && !tool.contactMobile && !tool.contactName;
-                        break;
-                    case 'no-category':
-                        matchesMissingData = !tool.categoryName || tool.categoryName.length === 0;
-                        break;
-                    case 'no-task':
-                        matchesMissingData = !tool.taskName || tool.taskName.length === 0;
-                        break;
-                    case 'no-tags':
-                        matchesMissingData = !tool.tags || tool.tags.length === 0;
-                        break;
-                    case 'no-features':
-                        matchesMissingData = !tool.coreFeatures || tool.coreFeatures.length === 0;
-                        break;
-                    case 'no-use-cases':
-                        matchesMissingData = !tool.useCases || tool.useCases.length === 0;
-                        break;
-                    case 'no-pros-cons':
-                        matchesMissingData = (!tool.pros || tool.pros.length === 0) && (!tool.cons || tool.cons.length === 0);
-                        break;
-                    case 'no-faq':
-                        matchesMissingData = !tool.faq || tool.faq.length === 0;
-                        break;
-                    case 'no-pricing-tiers':
-                        matchesMissingData = !tool.pricingTiers || tool.pricingTiers.length === 0;
-                        break;
-                    case 'no-images':
-                        matchesMissingData = !tool.images || tool.images.length === 0;
-                        break;
-                    case 'no-videos':
-                        matchesMissingData = !tool.videos || tool.videos.length === 0;
-                        break;
-                    case 'no-social':
-                        matchesMissingData = !tool.socialLinks || Object.values(tool.socialLinks).every(v => !v);
-                        break;
-                    case 'no-app-store':
-                        matchesMissingData = !tool.playStoreUrl && !tool.appStoreUrl;
-                        break;
-                    case 'no-release-date':
-                        matchesMissingData = !tool.releasedAt || tool.releasedAt.trim() === '';
-                        break;
-                }
-            }
-
-            return matchesCategory && matchesMissingData;
-        });
-    }, [tools, categoryFilter, missingDataFilter]);
-
     // Handle delete with cache invalidation
     const handleDelete = async (toolId: string, toolName: string) => {
         const confirmed = await confirm({
@@ -214,6 +147,16 @@ export default function ToolsListPage() {
     // Reset page when filters change
     const handleStatusChange = (value: string) => {
         setStatusFilter(value);
+        setCurrentPage(1);
+    };
+
+    const handleCategoryChange = (value: string) => {
+        setCategoryFilter(value);
+        setCurrentPage(1);
+    };
+
+    const handleMissingDataChange = (value: string) => {
+        setMissingDataFilter(value);
         setCurrentPage(1);
     };
 
@@ -243,11 +186,9 @@ export default function ToolsListPage() {
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Tools</h1>
                         <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 sm:mt-1">
-                            {missingDataFilter !== 'all'
-                                ? `${filteredTools.length} tools ${missingDataOptions.find(o => o.value === missingDataFilter)?.label || ''}`
-                                : pagination
-                                    ? `${pagination.total} total tools (Page ${pagination.page} of ${pagination.totalPages})`
-                                    : `${tools.length} tools`
+                            {pagination
+                                ? `${pagination.total} total tools (Page ${pagination.page} of ${pagination.totalPages})`
+                                : `${tools.length} tools`
                             }
                         </p>
                     </div>
@@ -285,7 +226,7 @@ export default function ToolsListPage() {
                         />
                         <SearchableSelect
                             value={categoryFilter}
-                            onChange={setCategoryFilter}
+                            onChange={handleCategoryChange}
                             options={categoryOptions}
                             placeholder="Category"
                             searchPlaceholder="Search categories..."
@@ -293,10 +234,7 @@ export default function ToolsListPage() {
                         />
                         <SearchableSelect
                             value={missingDataFilter}
-                            onChange={(value) => {
-                                setMissingDataFilter(value);
-                                setCurrentPage(1);
-                            }}
+                            onChange={handleMissingDataChange}
                             options={missingDataOptions}
                             placeholder="Missing Data"
                             searchPlaceholder="Search filters..."
@@ -308,12 +246,12 @@ export default function ToolsListPage() {
 
                 {/* Mobile Card View */}
                 <div className="sm:hidden space-y-3">
-                    {filteredTools.length === 0 ? (
+                    {tools.length === 0 ? (
                         <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary">
                             No tools found. <Link href="/dashboard/tools/new" prefetch={false} className="text-accent-primary hover:underline">Add your first tool</Link>
                         </div>
                     ) : (
-                        filteredTools.map((tool) => (
+                        tools.map((tool) => (
                             <div
                                 key={tool.id}
                                 className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary transition-colors"
@@ -384,14 +322,14 @@ export default function ToolsListPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {filteredTools.length === 0 ? (
+                            {tools.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-12 text-center text-text-tertiary">
                                         No tools found. <Link href="/dashboard/tools/new" prefetch={false} className="text-accent-primary hover:underline">Add your first tool</Link>
                                     </td>
                                 </tr>
                             ) : (
-                                filteredTools.map((tool) => (
+                                tools.map((tool) => (
                                     <tr
                                         key={tool.id}
                                         className="hover:bg-bg-secondary cursor-pointer transition-colors"
@@ -629,3 +567,4 @@ export default function ToolsListPage() {
         </div >
     );
 }
+

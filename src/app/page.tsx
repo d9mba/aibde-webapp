@@ -12,6 +12,7 @@ import {
     getTasksCount,
     getRecentlyReleasedTools,
     getSpotlightTools,
+    getTrendingTools,
     getCategories,
     getTasks,
     getHomeSettings
@@ -81,12 +82,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function HomePage() {
     // OPTIMIZED: Fetch only what's needed - counts + limited tools
-    const [toolCount, categoryCount, taskCount, recentTools, spotlightTools, categories, tasks, settings] = await Promise.all([
+    const [toolCount, categoryCount, taskCount, recentTools, spotlightTools, trendingTools, categories, tasks, settings] = await Promise.all([
         getToolsCount(['published', 'approved']),
         getCategoriesCount(),
         getTasksCount(),
         getRecentlyReleasedTools(90), // Fetch 90 tools to support Load More up to max
         getSpotlightTools(),
+        getTrendingTools(50), // Fetch top 50 trending tools
         getCategories(),
         getTasks(),
         getHomeSettings(),
@@ -99,6 +101,7 @@ export default async function HomePage() {
             categoryCount={categoryCount}
             taskCount={taskCount}
             recentTools={recentTools}
+            trendingTools={trendingTools}
             spotlightTools={spotlightTools}
             categories={categories}
             tasks={tasks}

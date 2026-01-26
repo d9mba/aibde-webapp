@@ -101,7 +101,6 @@ const navGroups: NavGroup[] = [
             { href: '/dashboard/moderation', label: 'Moderation', icon: 'shield' },
             { href: '/dashboard/analytics', label: 'Analytics', icon: 'chart' },
             { href: '/dashboard/notes', label: 'Notes', icon: 'notes' },
-            { href: '/dashboard/contacts', label: 'Contacts', icon: 'mail' },
             { href: '/dashboard/settings', label: 'Page Settings', icon: 'settings' },
         ]
     },

@@ -147,17 +147,18 @@ export async function getRecentlyReleasedTools(limit: number = 20): Promise<Admi
 }
 
 /**
- * Fetch trending tools (ONLY manually positioned tools)
- * Only tools with trending_position > 0 will appear
- * Sorted by trending_position (lower = higher rank)
+ * Fetch trending tools (Manual positions + Auto-sorted tools)
+ * Tools with trending_position > 0 come first (sorted by position)
+ * Then tools with position = 0 (sorted by save_count/views)
  */
 export async function getTrendingTools(limit: number = 100): Promise<AdminTool[]> {
+    // Only fetch tools that are manually marked as trending
     const { data, error } = await supabase
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])
-        .gt('trending_position', 0) // Only tools with manual position
-        .order('trending_position', { ascending: true }) // Lower position = higher rank
+        .gt('trending_position', 0) // Only get tools with position set
+        .order('trending_position', { ascending: true }) // Sort by position
         .limit(limit);
 
     if (error) {

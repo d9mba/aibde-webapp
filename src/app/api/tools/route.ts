@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
+import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool, DbTool } from '@/lib/supabase';
 import { toolSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
@@ -40,6 +40,63 @@ const LIST_FIELDS = `
     spotlight_start_date, spotlight_end_date
 `;
 
+// Helper function to apply missing data filters
+// Using simple .is(null) checks since complex OR queries cause 500 errors
+function applyMissingDataFilter(query: any, filter: string) {
+    switch (filter) {
+        case 'no-logo':
+            return query.is('logo_url', null);
+        case 'no-summary':
+            return query.is('summary', null);
+        case 'no-description':
+            return query.is('description', null);
+        case 'no-website':
+            return query.is('website_url', null);
+        case 'no-contact':
+            return query.is('contact_email', null).is('contact_mobile', null).is('contact_name', null);
+        case 'no-category':
+            return query.is('category_name', null);
+        case 'no-task':
+            return query.is('task_name', null);
+        case 'no-tags':
+            return query.is('tags', null);
+        case 'no-features':
+            return query.is('core_features', null);
+        case 'no-use-cases':
+            return query.is('use_cases', null);
+        case 'no-faq':
+            return query.is('faq', null);
+        case 'no-pricing-tiers':
+            return query.is('pricing_tiers', null);
+        case 'no-images':
+            return query.is('images', null);
+        case 'no-videos':
+            return query.is('videos', null);
+        case 'no-release-date':
+            return query.is('released_at', null);
+        default:
+            return query;
+    }
+}
+
+// Helper to apply all common filters
+function applyFilters(query: any, filters: { search?: string | null, category?: string | null, missingData?: string | null, status?: string | null }) {
+    if (filters.status) {
+        query = query.eq('status', filters.status);
+    }
+    if (filters.search) {
+        query = query.ilike('name', `%${filters.search}%`);
+    }
+    if (filters.category && filters.category !== 'all') {
+        query = query.contains('category_name', [filters.category]);
+    }
+    if (filters.missingData && filters.missingData !== 'all') {
+        query = applyMissingDataFilter(query, filters.missingData);
+    }
+    return query;
+}
+
+
 // GET /api/tools - List tools (ADMIN ONLY)
 // Requires admin role - use /api/public/tools for public access
 // Supports pagination: ?page=1&limit=50 (default: 50 per page)
@@ -63,31 +120,28 @@ export async function GET(request: NextRequest) {
         const offset = (validPage - 1) * validLimit;
 
         const search = searchParams.get('search')?.trim();
+        const category = searchParams.get('category');
+        const missingData = searchParams.get('missing');
 
-        // Get total count for pagination (respecting status and search filters)
+        // Get total count for pagination with ALL filters applied
         let countQuery = supabaseAdmin
             .from('tools')
-            .select('id', { count: 'exact', head: true });
+            .select('*', { count: 'exact', head: true });
 
-        if (status) {
-            countQuery = countQuery.eq('status', status);
-        }
-        if (search) {
-            countQuery = countQuery.ilike('name', `%${search}%`);
-        }
+        // Apply all filters to count query (must match data query filters)
+        countQuery = applyFilters(countQuery, { search, category, missingData, status });
 
         const countResult = await countQuery;
         const totalCount = countResult.count || 0;
 
-        // Fetch data - use separate queries to avoid TypeScript type issues
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let data: any[] | null = null;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // Fetch data with proper typing
+        let data: DbTool[] | null = null;
         let error: any = null;
 
 
         if (allData) {
             // Fetch all tools using pagination (Supabase has max ~1000 per query)
+            // OPTIMIZATION: Only select essential fields for dropdown/export
             const PAGE_SIZE = 1000;
             let allTools: any[] = [];
             let pageNum = 0;
@@ -96,13 +150,11 @@ export async function GET(request: NextRequest) {
             while (hasMore) {
                 let query = supabaseAdmin
                     .from('tools')
-                    .select(ALL_FIELDS)
+                    .select('id, name, app_username, status, spotlight_enabled, spotlight_position, is_featured, trending_position, logo_url, summary, category_name') // Essential + dashboard fields
                     .order('created_at', { ascending: false })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
-                if (search) {
-                    query = query.ilike('name', `%${search}%`);
-                }
+                query = applyFilters(query, { search, category, missingData, status });
 
                 const { data: pageData, error: pageError } = await query;
 
@@ -122,31 +174,14 @@ export async function GET(request: NextRequest) {
 
             data = allTools;
             error = error || null;
-        } else if (status) {
-            // Paginated with status filter
-            let query = supabaseAdmin
-                .from('tools')
-                .select(LIST_FIELDS)
-                .eq('status', status)
-                .order('created_at', { ascending: false });
-
-            if (search) {
-                query = query.ilike('name', `%${search}%`);
-            }
-
-            const result = await query.range(offset, offset + validLimit - 1);
-            data = result.data;
-            error = result.error;
         } else {
-            // Paginated without filter
+            // Paginated query with all filters
             let query = supabaseAdmin
                 .from('tools')
                 .select(LIST_FIELDS)
                 .order('created_at', { ascending: false });
 
-            if (search) {
-                query = query.ilike('name', `%${search}%`);
-            }
+            query = applyFilters(query, { search, category, missingData, status });
 
             const result = await query.range(offset, offset + validLimit - 1);
             data = result.data;

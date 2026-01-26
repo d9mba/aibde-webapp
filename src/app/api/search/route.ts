@@ -23,8 +23,9 @@ export async function GET(request: NextRequest) {
 
         // Apply text search if query provided
         if (query) {
-            // Use ilike for fuzzy search on name, summary, description
-            dbQuery = dbQuery.or(`name.ilike.%${query}%,summary.ilike.%${query}%,description.ilike.%${query}%`);
+            // Use ilike for prefix search (allows index usage)
+            // Note: Removed leading % to enable index optimization
+            dbQuery = dbQuery.or(`name.ilike.${query}%,summary.ilike.${query}%,description.ilike.${query}%`);
         }
 
         // Apply category filter

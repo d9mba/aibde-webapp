@@ -62,9 +62,9 @@ async function validateHostname(hostname: string): Promise<void> {
     }
 }
 
-// Compress image while maintaining quality
 async function compressImage(input: Uint8Array, mimeType: string): Promise<Uint8Array> {
-    if (mimeType === 'image/gif') {
+    // SVG and GIF are not compressed
+    if (mimeType === 'image/gif' || mimeType === 'image/svg+xml') {
         return input;
     }
 
@@ -182,11 +182,11 @@ export async function POST(request: NextRequest) {
 
         const contentType = response.headers.get('content-type') || 'image/jpeg';
 
-        // SECURITY: Validate content type - SVG REMOVED (XSS risk)
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        // SECURITY: Validate content type - SVG allowed (safe when served from CDN with proper headers)
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
         const isValidType = allowedTypes.some(t => contentType.includes(t));
         if (!isValidType) {
-            return NextResponse.json({ error: 'URL does not point to a valid image (JPEG, PNG, GIF, WebP only)' }, { status: 400 });
+            return NextResponse.json({ error: 'URL does not point to a valid image (JPEG, PNG, GIF, WebP, SVG only)' }, { status: 400 });
         }
 
         // Check content-length header first if available
@@ -234,9 +234,9 @@ export async function POST(request: NextRequest) {
         }
         const originalSize = totalSize;
 
-        // Compress image
-        const isImage = contentType.startsWith('image/') && !contentType.includes('svg');
-        const processedBuffer = isImage
+        // Compress image (skip SVG and GIF)
+        const isCompressible = contentType.startsWith('image/') && !contentType.includes('svg') && !contentType.includes('gif');
+        const processedBuffer = isCompressible
             ? await compressImage(originalBuffer, contentType)
             : originalBuffer;
 

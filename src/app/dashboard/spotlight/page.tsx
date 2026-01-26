@@ -1,25 +1,60 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useAdmin } from '@/context/AdminContext';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { useAdmin, AdminTool } from '@/context/AdminContext';
+import { useToast } from '@/components/ui/Toast';
+import { Search, ChevronLeft, ChevronRight, AlertTriangle, Save } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
+const MAX_SPOTLIGHT_TOOLS = 8; // Maximum spotlight tools allowed
+
+interface SpotlightChange {
+    toolId: string;
+    action: 'add' | 'remove' | 'reorder';
+    position?: number;
+}
 
 export default function SpotlightPage() {
     const { tools, updateTool, settings } = useAdmin();
+    const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [saving, setSaving] = useState(false);
 
-    const spotlightTools = useMemo(() => {
-        return tools
+    // Local state for pending changes
+    const [pendingSpotlightIds, setPendingSpotlightIds] = useState<string[]>([]);
+    const [pendingPositions, setPendingPositions] = useState<Record<string, number>>({});
+    const [hasChanges, setHasChanges] = useState(false);
+
+    // Initialize from current data
+    useEffect(() => {
+        const currentSpotlights = tools
             .filter(t => t.spotlightEnabled && t.spotlightPosition && t.status === 'published')
             .sort((a, b) => (a.spotlightPosition ?? 999) - (b.spotlightPosition ?? 999));
+
+        const ids = currentSpotlights.map(t => t.id);
+        const positions: Record<string, number> = {};
+        currentSpotlights.forEach(t => {
+            positions[t.id] = t.spotlightPosition ?? 0;
+        });
+
+        if (pendingSpotlightIds.length === 0) {
+            setPendingSpotlightIds(ids);
+            setPendingPositions(positions);
+        }
     }, [tools]);
 
+    // Current spotlight tools based on pending changes
+    const spotlightTools = useMemo(() => {
+        return pendingSpotlightIds
+            .map(id => tools.find(t => t.id === id))
+            .filter((t): t is AdminTool => t !== undefined)
+            .sort((a, b) => (pendingPositions[a.id] ?? 999) - (pendingPositions[b.id] ?? 999));
+    }, [tools, pendingSpotlightIds, pendingPositions]);
+
     const availableTools = useMemo(() => {
-        return tools.filter(t => !t.spotlightEnabled);
-    }, [tools]);
+        return tools.filter(t => !pendingSpotlightIds.includes(t.id));
+    }, [tools, pendingSpotlightIds]);
 
     // Filter available tools by search
     const filteredAvailableTools = useMemo(() => {
@@ -36,19 +71,34 @@ export default function SpotlightPage() {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const paginatedTools = filteredAvailableTools.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-    // Reset to page 1 when search changes
     const handleSearch = (value: string) => {
         setSearch(value);
         setCurrentPage(1);
     };
 
     const handleRemoveFromSpotlight = (toolId: string) => {
-        updateTool(toolId, { isFeatured: false, spotlightEnabled: false, spotlightPosition: undefined });
+        const tool = tools.find(t => t.id === toolId);
+        setPendingSpotlightIds(prev => prev.filter(id => id !== toolId));
+        setPendingPositions(prev => {
+            const updated = { ...prev };
+            delete updated[toolId];
+            return updated;
+        });
+        setHasChanges(true);
+        showToast(`Removed "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
     };
 
     const handleAddToSpotlight = (toolId: string) => {
-        const maxPos = Math.max(...spotlightTools.map(t => t.spotlightPosition ?? 0), 0);
-        updateTool(toolId, { isFeatured: true, spotlightEnabled: true, spotlightPosition: maxPos + 1 });
+        if (pendingSpotlightIds.length >= MAX_SPOTLIGHT_TOOLS) {
+            showToast(`Maximum ${MAX_SPOTLIGHT_TOOLS} spotlight tools allowed! Remove one before adding.`, 'error');
+            return;
+        }
+        const tool = tools.find(t => t.id === toolId);
+        const maxPos = Math.max(...Object.values(pendingPositions), 0);
+        setPendingSpotlightIds(prev => [...prev, toolId]);
+        setPendingPositions(prev => ({ ...prev, [toolId]: maxPos + 1 }));
+        setHasChanges(true);
+        showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
     };
 
     const handleMoveUp = (toolId: string) => {
@@ -56,8 +106,13 @@ export default function SpotlightPage() {
         if (idx > 0) {
             const tool = spotlightTools[idx];
             const prevTool = spotlightTools[idx - 1];
-            updateTool(tool.id, { spotlightPosition: prevTool.spotlightPosition });
-            updateTool(prevTool.id, { spotlightPosition: tool.spotlightPosition });
+            setPendingPositions(prev => ({
+                ...prev,
+                [tool.id]: prev[prevTool.id],
+                [prevTool.id]: prev[tool.id]
+            }));
+            setHasChanges(true);
+            showToast('Moved up - Click Save to apply', 'info');
         }
     };
 
@@ -66,8 +121,62 @@ export default function SpotlightPage() {
         if (idx < spotlightTools.length - 1) {
             const tool = spotlightTools[idx];
             const nextTool = spotlightTools[idx + 1];
-            updateTool(tool.id, { spotlightPosition: nextTool.spotlightPosition });
-            updateTool(nextTool.id, { spotlightPosition: tool.spotlightPosition });
+            setPendingPositions(prev => ({
+                ...prev,
+                [tool.id]: prev[nextTool.id],
+                [nextTool.id]: prev[tool.id]
+            }));
+            setHasChanges(true);
+            showToast('Moved down - Click Save to apply', 'info');
+        }
+    };
+
+    const handleSaveAll = async () => {
+        // Show warning if at max capacity before saving
+        if (pendingSpotlightIds.length >= MAX_SPOTLIGHT_TOOLS) {
+            showToast(`Saving with maximum ${MAX_SPOTLIGHT_TOOLS} spotlight tools.`, 'warning');
+        }
+
+        setSaving(true);
+        try {
+            // Get current DB state
+            const currentSpotlights = tools.filter(t => t.spotlightEnabled);
+            const currentIds = new Set(currentSpotlights.map(t => t.id));
+            const pendingSet = new Set(pendingSpotlightIds);
+
+            const updates: Promise<void>[] = [];
+
+            // Remove tools that were in spotlight but no longer are
+            for (const tool of currentSpotlights) {
+                if (!pendingSet.has(tool.id)) {
+                    // Keep featured when removing from spotlight
+                    updates.push(updateTool(tool.id, { spotlightEnabled: false, spotlightPosition: undefined }));
+                }
+            }
+
+            // Add/update tools in spotlight
+            for (const toolId of pendingSpotlightIds) {
+                const position = pendingPositions[toolId];
+                const tool = tools.find(t => t.id === toolId);
+                if (tool) {
+                    if (!currentIds.has(toolId)) {
+                        // New spotlight
+                        updates.push(updateTool(toolId, { isFeatured: true, spotlightEnabled: true, spotlightPosition: position }));
+                    } else if (tool.spotlightPosition !== position) {
+                        // Position changed
+                        updates.push(updateTool(toolId, { spotlightPosition: position }));
+                    }
+                }
+            }
+
+            await Promise.all(updates);
+            setHasChanges(false);
+            showToast('Spotlight saved successfully!', 'success');
+        } catch (error) {
+            console.error('Failed to save spotlight:', error);
+            showToast('Failed to save. Please try again.', 'error');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -80,23 +189,49 @@ export default function SpotlightPage() {
                         <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Spotlight</h1>
                         <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 sm:mt-1">Manage featured tools on homepage</p>
                     </div>
+                    <div className="flex items-center gap-2">
+                        {hasChanges && (
+                            <span className="text-xs text-amber-400">Unsaved changes</span>
+                        )}
+                        <button
+                            onClick={handleSaveAll}
+                            disabled={saving || !hasChanges}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${hasChanges
+                                ? 'bg-accent-primary text-white hover:opacity-90'
+                                : 'bg-bg-secondary text-text-tertiary border border-border'
+                                } disabled:opacity-50`}
+                        >
+                            <Save className="w-4 h-4" />
+                            {saving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                    <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-accent-primary">{spotlightTools.length}</div>
+                    <div className={`bg-bg-card border rounded-xl p-3 sm:p-4 text-center ${spotlightTools.length >= MAX_SPOTLIGHT_TOOLS ? 'border-amber-500/50' : 'border-border'}`}>
+                        <div className={`text-xl sm:text-2xl font-bold ${spotlightTools.length >= MAX_SPOTLIGHT_TOOLS ? 'text-amber-500' : 'text-accent-primary'}`}>{spotlightTools.length}/{MAX_SPOTLIGHT_TOOLS}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Active</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
                         <div className="text-xl sm:text-2xl font-bold text-text-primary">{settings.spotlightCount}</div>
-                        <div className="text-[10px] sm:text-xs text-text-tertiary">Max</div>
+                        <div className="text-[10px] sm:text-xs text-text-tertiary">Display</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
                         <div className="text-xl sm:text-2xl font-bold text-accent-green">{availableTools.length}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>
+
+                {/* Limit Warning */}
+                {spotlightTools.length >= MAX_SPOTLIGHT_TOOLS && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 flex items-center gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                        <p className="text-sm text-amber-400">
+                            <strong>Maximum reached!</strong> You have {spotlightTools.length} spotlight tools. Remove one before adding more.
+                        </p>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                     {/* Current Spotlight */}
@@ -196,7 +331,8 @@ export default function SpotlightPage() {
                                         </div>
                                         <button
                                             onClick={() => handleAddToSpotlight(tool.id)}
-                                            className="px-2 py-1 text-xs text-accent-primary bg-accent-primary-bg rounded hover:bg-accent-primary/20"
+                                            disabled={spotlightTools.length >= MAX_SPOTLIGHT_TOOLS}
+                                            className="px-2 py-1 text-xs text-accent-primary bg-accent-primary-bg rounded hover:bg-accent-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             + Add
                                         </button>

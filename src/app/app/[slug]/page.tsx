@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getToolBySlug, getPublishedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
+import { getToolBySlug, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
 import ToolDetailClient from './ToolDetailClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
@@ -72,23 +72,31 @@ export default async function ToolDetailPage({
 }) {
     const { slug } = await params;
 
-    // Fetch data on the server - not visible in browser network tab
-    const [tool, allTools, categories, tasks, settings] = await Promise.all([
-        getToolBySlug(slug),
-        getPublishedTools(),
-        getCategories(),
-        getTasks(),
-        getHomeSettings(),
-    ]);
+    // Fetch tool first
+    const tool = await getToolBySlug(slug);
 
     if (!tool) {
         notFound();
     }
 
+    // Fetch only the necessary related data in parallel
+    const [relatedTools, suggestedTools, featuredTools, recentlyAdded, categories, tasks, settings] = await Promise.all([
+        getRelatedTools(tool, 6),
+        getSuggestedTools(tool, 6),
+        getFeaturedTools(tool.slug, 6),
+        getRecentlyAddedTools(tool.slug, 5),
+        getCategories(),
+        getTasks(),
+        getHomeSettings(),
+    ]);
+
     return (
         <ToolDetailClient
             tool={tool}
-            allTools={allTools}
+            relatedTools={relatedTools}
+            suggestedTools={suggestedTools}
+            featuredTools={featuredTools}
+            recentlyAdded={recentlyAdded}
             categories={categories}
             tasks={tasks}
             showFeaturedAlternatives={settings.showFeaturedAlternatives}

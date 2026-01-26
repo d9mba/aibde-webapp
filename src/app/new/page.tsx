@@ -1,23 +1,15 @@
 import { Metadata } from 'next';
-import { getPublishedTools } from '@/lib/data';
+import { getRecentlyReleasedTools, getToolsCount } from '@/lib/data';
 import NewPageClient from './NewPageClient';
 
 /**
  * Dynamic SEO Metadata for New/Just Released Page
  */
 export async function generateMetadata(): Promise<Metadata> {
-    const tools = await getPublishedTools();
+    const toolCount = await getToolsCount(['published', 'approved']);
 
-    // Count tools released in last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const newToolsCount = tools.filter(t => {
-        const releaseDate = new Date(t.releasedAt || t.createdAt || 0);
-        return releaseDate >= thirtyDaysAgo;
-    }).length;
-
-    const title = `New AI Tools (${newToolsCount}+ This Month) | Latest AI Releases | AiBDE`;
-    const description = `Discover ${newToolsCount}+ newly released AI tools this month. Stay ahead with the latest AI innovations in writing, coding, design, marketing, and more.`;
+    const title = `New AI Tools | Latest AI Releases | AiBDE`;
+    const description = `Discover the newest AI tools launched recently. Stay ahead with the latest AI innovations in writing, coding, design, marketing, and more. Browse ${toolCount.toLocaleString()}+ tools.`;
 
     return {
         title,
@@ -50,11 +42,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * New/Just Released Page - Server Component with SSR
- * Fetches all data on the server, hides API calls from network tab
+ * New/Just Released Page - Optimized
+ * Only fetches 100 most recent tools instead of all 10K+
  */
 export default async function NewPage() {
-    const tools = await getPublishedTools();
+    // Fetch only 100 recent tools (not all 10K+)
+    const tools = await getRecentlyReleasedTools(100);
 
     return <NewPageClient tools={tools} />;
 }

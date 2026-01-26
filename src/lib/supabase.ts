@@ -440,14 +440,22 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
     // Fields that should be null instead of empty string for PostgreSQL timestamps
     const timestampFields = ['scheduled_at', 'spotlight_start_date', 'spotlight_end_date', 'released_at'];
 
-    // Helper to extract relative path from full URL
+    // Helper to extract relative path from full URL (converts CDN URLs to relative paths for storage)
     const extractRelativePath = (url: string | undefined | null): string | null => {
         if (!url) return null;
-        // If it's already a relative path, return as is
-        if (url.startsWith('/uploads/')) return url;
-        // Extract /uploads/... from full URL
-        const match = url.match(/\/uploads\/[^?#]+/);
-        return match ? match[0] : url;
+        // Already a relative path starting with /, return as is
+        if (url.startsWith('/') && !url.startsWith('//')) return url;
+        // Strip CDN URL if present
+        if (CDN_URL && url.startsWith(CDN_URL)) {
+            return url.substring(CDN_URL.length);
+        }
+        // Try to extract pathname from full URL
+        try {
+            const urlObj = new URL(url);
+            return urlObj.pathname;
+        } catch {
+            return url;
+        }
     };
 
     for (const [key, value] of Object.entries(tool)) {

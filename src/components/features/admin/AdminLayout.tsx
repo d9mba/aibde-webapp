@@ -24,6 +24,7 @@ import {
     LogOut,
     Plus,
     Mail,
+    TrendingUp,
     LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,7 @@ const iconMap: Record<string, LucideIcon> = {
     search: Search,
     plus: Plus,
     mail: Mail,
+    trending: TrendingUp,
 };
 
 // Render icon helper - replaces the old icons.tsx
@@ -76,6 +78,7 @@ const navGroups: NavGroup[] = [
         items: [
             { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
             { href: '/dashboard/tools', label: 'Tools', icon: 'tools' },
+            { href: '/dashboard/trending', label: 'Trending', icon: 'trending' },
         ]
     },
     {

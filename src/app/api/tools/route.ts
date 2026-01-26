@@ -87,19 +87,41 @@ export async function GET(request: NextRequest) {
 
 
         if (allData) {
-            // Fetch all with full fields
-            let query = supabaseAdmin
-                .from('tools')
-                .select(ALL_FIELDS)
-                .order('created_at', { ascending: false });
+            // Fetch all tools using pagination (Supabase has max ~1000 per query)
+            const PAGE_SIZE = 1000;
+            let allTools: any[] = [];
+            let pageNum = 0;
+            let hasMore = true;
 
-            if (search) {
-                query = query.ilike('name', `%${search}%`);
+            while (hasMore) {
+                let query = supabaseAdmin
+                    .from('tools')
+                    .select(ALL_FIELDS)
+                    .order('created_at', { ascending: false })
+                    .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+
+                if (search) {
+                    query = query.ilike('name', `%${search}%`);
+                }
+
+                const { data: pageData, error: pageError } = await query;
+
+                if (pageError) {
+                    error = pageError;
+                    break;
+                }
+
+                if (pageData && pageData.length > 0) {
+                    allTools = [...allTools, ...pageData];
+                    hasMore = pageData.length === PAGE_SIZE;
+                    pageNum++;
+                } else {
+                    hasMore = false;
+                }
             }
 
-            const result = await query;
-            data = result.data;
-            error = result.error;
+            data = allTools;
+            error = error || null;
         } else if (status) {
             // Paginated with status filter
             let query = supabaseAdmin

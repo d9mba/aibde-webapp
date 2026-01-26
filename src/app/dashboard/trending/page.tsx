@@ -4,14 +4,19 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { usePostHogAnalytics } from '@/hooks/usePostHogAnalytics';
-import { TrendingUp, Save, ArrowLeft, GripVertical, Eye, MousePointer, RefreshCw } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
+import { TrendingUp, Save, ArrowLeft, GripVertical, Eye, MousePointer, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const ITEMS_PER_PAGE = 50;
 
 export default function TrendingManagementPage() {
     const { tools, updateTool, isLoaded } = useAdmin();
     const { topTools, loading: analyticsLoading, isConfigured, refresh: refreshAnalytics } = usePostHogAnalytics();
+    const { showToast } = useToast();
     const [trendingPositions, setTrendingPositions] = useState<Record<string, number>>({});
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
 
     // Build a map of slug -> impressions from PostHog data
     const impressionsMap = useMemo(() => {
@@ -50,6 +55,13 @@ export default function TrendingManagementPage() {
         });
     }, [tools, trendingPositions, impressionsMap]);
 
+    // Pagination
+    const totalPages = Math.ceil(sortedTools.length / ITEMS_PER_PAGE);
+    const paginatedTools = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return sortedTools.slice(start, start + ITEMS_PER_PAGE);
+    }, [sortedTools, currentPage]);
+
     // Initialize positions from tool data
     useEffect(() => {
         const initialPositions: Record<string, number> = {};
@@ -84,9 +96,11 @@ export default function TrendingManagementPage() {
             });
             await Promise.all(updates);
             setSaved(true);
+            showToast('Trending positions saved successfully!', 'success');
             setTimeout(() => setSaved(false), 3000);
         } catch (error) {
             console.error('Failed to save trending positions:', error);
+            showToast('Failed to save trending positions. Please try again.', 'error');
         } finally {
             setSaving(false);
         }
@@ -128,7 +142,7 @@ export default function TrendingManagementPage() {
                                 Trending Management
                             </h1>
                             <p className="text-xs sm:text-sm text-text-tertiary mt-0.5">
-                                Control trending rankings - tools with manual positions rank first
+                                {sortedTools.length} published tools • Page {currentPage} of {totalPages}
                             </p>
                         </div>
                     </div>
@@ -178,10 +192,11 @@ export default function TrendingManagementPage() {
                             <MousePointer className="w-3 h-3" /> Clicks
                         </span>
                         <span className="text-center">Position</span>
-                        <span className="text-center">Actions</span>
+                        <span className="text-center">Pin/Reset</span>
                     </div>
                     <div className="divide-y divide-border">
-                        {sortedTools.map((tool, index) => {
+                        {paginatedTools.map((tool, index) => {
+                            const globalIndex = (currentPage - 1) * ITEMS_PER_PAGE + index;
                             const currentPosition = trendingPositions[tool.id] ?? tool.trendingPosition ?? 0;
                             const hasManualPosition = currentPosition > 0;
                             const analytics = impressionsMap[tool.slug] || { impressions: 0, clicks: 0, pageViews: 0 };
@@ -196,7 +211,7 @@ export default function TrendingManagementPage() {
                                     <div className="flex items-center gap-2">
                                         <GripVertical className="w-4 h-4 text-text-tertiary" />
                                         <span className={`text-sm font-bold ${hasManualPosition ? 'text-accent-primary' : 'text-text-tertiary'}`}>
-                                            #{index + 1}
+                                            #{globalIndex + 1}
                                         </span>
                                     </div>
 
@@ -234,20 +249,29 @@ export default function TrendingManagementPage() {
                                             onChange={(e) => handlePositionChange(tool.id, e.target.value)}
                                             placeholder="Auto"
                                             className={`w-16 px-2 py-1.5 text-sm text-center rounded-lg border ${hasManualPosition
-                                                    ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
-                                                    : 'bg-bg-secondary border-border text-text-secondary'
+                                                ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
+                                                : 'bg-bg-secondary border-border text-text-secondary'
                                                 } focus:outline-none focus:ring-2 focus:ring-accent-primary/30`}
                                         />
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex justify-center">
-                                        {hasManualPosition && (
+                                    <div className="flex justify-center gap-1">
+                                        {hasManualPosition ? (
                                             <button
                                                 onClick={() => clearPosition(tool.id)}
-                                                className="text-xs text-text-tertiary hover:text-accent-red transition-colors"
+                                                className="px-2 py-1 text-xs text-accent-red bg-accent-red/10 rounded hover:bg-accent-red/20 transition-colors"
+                                                title="Reset to auto"
                                             >
-                                                Clear
+                                                Reset
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => handlePositionChange(tool.id, String(globalIndex + 1))}
+                                                className="px-2 py-1 text-xs text-accent-primary bg-accent-primary/10 rounded hover:bg-accent-primary/20 transition-colors"
+                                                title="Set manual position"
+                                            >
+                                                Pin #{globalIndex + 1}
                                             </button>
                                         )}
                                     </div>
@@ -255,6 +279,36 @@ export default function TrendingManagementPage() {
                             );
                         })}
                     </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-4 py-3 bg-bg-secondary border-t border-border">
+                            <span className="text-sm text-text-tertiary">
+                                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, sortedTools.length)} of {sortedTools.length}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-text-secondary bg-bg-card border border-border rounded-lg hover:bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                    Previous
+                                </button>
+                                <span className="text-sm text-text-primary px-2">
+                                    {currentPage} / {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-text-secondary bg-bg-card border border-border rounded-lg hover:bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Next
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {sortedTools.length === 0 && (
@@ -266,3 +320,4 @@ export default function TrendingManagementPage() {
         </div>
     );
 }
+

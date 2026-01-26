@@ -11,11 +11,14 @@ import {
 } from './home-components';
 
 interface HomePageClientProps {
-    initialTools: AdminTool[];
-    initialSpotlightTools: AdminTool[];
-    initialCategories: Category[];
-    initialTasks: Task[];
-    initialSettings: {
+    toolCount: number;
+    categoryCount: number;
+    taskCount: number;
+    recentTools: AdminTool[];
+    spotlightTools: AdminTool[];
+    categories: Category[];
+    tasks: Task[];
+    settings: {
         spotlightCount: number;
         showSpotlightOnHome: boolean;
         showCategoriesOnHome: boolean;
@@ -25,40 +28,43 @@ interface HomePageClientProps {
 }
 
 export default function HomePageClient({
-    initialTools,
-    initialSpotlightTools,
-    initialCategories,
-    initialTasks,
-    initialSettings,
+    toolCount,
+    categoryCount,
+    taskCount,
+    recentTools,
+    spotlightTools,
+    categories,
+    tasks,
+    settings,
 }: HomePageClientProps) {
-    const topCategories = initialCategories.slice(0, 8);
-    const topTasks = initialTasks.slice(0, 8);
+    const topCategories = categories.slice(0, 8);
+    const topTasks = tasks.slice(0, 8);
 
     return (
         <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10 flex flex-col gap-10 sm:gap-12">
             <HeroSection
-                allTools={initialTools}
-                categoryCount={initialCategories.length}
-                taskCount={initialTasks.length}
+                toolCount={toolCount}
+                categoryCount={categoryCount}
+                taskCount={taskCount}
             />
 
             <SpotlightSection
-                tools={initialSpotlightTools}
-                showSpotlight={initialSettings.showSpotlightOnHome !== false}
+                tools={spotlightTools}
+                showSpotlight={settings.showSpotlightOnHome !== false}
             />
 
-            <ToolsGridSection tools={initialTools} />
+            <ToolsGridSection tools={recentTools} />
 
             <CategoriesSection
-                categories={topCategories}
-                allTools={initialTools}
-                showCategories={initialSettings.showCategoriesOnHome !== false}
+                categories={categories}
+                categoryCount={categoryCount}
+                showCategories={settings.showCategoriesOnHome !== false}
             />
 
             <TasksSection
-                tasks={topTasks}
-                allTools={initialTools}
-                showTasks={initialSettings.showTasksOnHome !== false}
+                tasks={tasks}
+                taskCount={taskCount}
+                showTasks={settings.showTasksOnHome !== false}
             />
 
             <SubmitCTA />

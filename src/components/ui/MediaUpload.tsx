@@ -157,14 +157,13 @@ export default function MediaUpload({
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to fetch');
-            const fullUrl = result.url; // Store full URL for display
-            const relativePath = getRelativePath(result.url);
-            trackUpload(relativePath); // Track relative path for cleanup
+            const relativePath = result.path; // Store relative path for DB
+            trackUpload(relativePath); // Track for cleanup
             if (!multiple && currentItems.length > 0) {
                 await cleanupFile(currentItems[0]);
-                setItems([fullUrl]);
+                setItems([relativePath]);
             } else {
-                setItems([...currentItems, fullUrl]);
+                setItems([...currentItems, relativePath]);
                 setAlts([...currentAlts, '']);
             }
             setUrl('');
@@ -190,10 +189,9 @@ export default function MediaUpload({
                 const response = await fetch('/api/upload', { method: 'POST', body: formData });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Upload failed');
-                const fullUrl = result.url; // Store full URL for display
-                const relativePath = getRelativePath(result.url);
-                trackUpload(relativePath); // Track relative path for cleanup
-                newItems.push(fullUrl);
+                const relativePath = result.path; // Store relative path for DB
+                trackUpload(relativePath); // Track for cleanup
+                newItems.push(relativePath);
             }
             if (!multiple) {
                 if (currentItems.length > 0) await cleanupFile(currentItems[0]);

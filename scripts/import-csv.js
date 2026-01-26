@@ -23,7 +23,7 @@ const { createClient } = require('@supabase/supabase-js');
 const sharp = require('sharp');
 
 // ============== Configuration ==============
-const CSV_PATH = path.join(__dirname, '..', 'top_500_tools.csv');
+const CSV_PATH = path.join(__dirname, '..', 'fullDB_logo_with_faq.csv');
 const BATCH_SIZE = 50; // Insert in batches
 const LOGO_FOLDER = 'logos';
 const MAX_RETRIES = 3;
@@ -105,6 +105,14 @@ process.on('SIGINT', () => {
     console.log('\n\nReceived SIGINT (Ctrl+C)...');
     cleanupOnCancel();
 });
+
+// Handle SIGTERM for graceful cleanup
+process.on('SIGTERM', () => {
+    console.log('\n\nReceived SIGTERM...');
+    cleanupOnCancel();
+});
+
+// Note: Ctrl+C cleanup handled by process.on('SIGINT') above
 
 // ============== Utility Functions ==============
 
@@ -309,7 +317,7 @@ async function uploadToR2(buffer, filename, contentType) {
     // Track uploaded key for rollback
     uploadedR2Keys.push(key);
 
-    return `${CDN_URL}/${key}`;
+    return `/${key}`; // Return relative path, CDN URL is prepended at display time
 }
 
 async function processLogo(logoUrl, appUsername, options) {
@@ -321,9 +329,15 @@ async function processLogo(logoUrl, appUsername, options) {
         return logoUrl; // Return original URL if skipping cloud upload
     }
 
-    // Skip if already on our CDN
-    if (logoUrl.startsWith(CDN_URL)) {
-        console.log(`    Logo already on CDN, skipping`);
+    // Skip if already on our CDN - convert to relative path
+    if (CDN_URL && logoUrl.startsWith(CDN_URL)) {
+        console.log(`    Logo already on CDN, converting to relative path`);
+        return logoUrl.substring(CDN_URL.length); // Return relative path
+    }
+
+    // If already a relative path, return as-is
+    if (logoUrl.startsWith('/') && !logoUrl.startsWith('//')) {
+        console.log(`    Logo already relative path, skipping`);
         return logoUrl;
     }
 
@@ -367,11 +381,30 @@ async function processLogo(logoUrl, appUsername, options) {
 function transformRowToDbTool(row, cloudLogoUrl) {
     const appUsername = row.app_username || generateSlug(row.name);
 
-    // Parse FAQ if it exists
+    // Parse FAQ if it exists - format is pipe-separated JSON objects with escaped quotes
     let faqData = null;
-    if (row.faq) {
+    if (row.faq && row.faq.trim()) {
         try {
-            faqData = JSON.parse(row.faq);
+            // First try parsing as JSON array directly
+            const trimmed = row.faq.trim();
+            if (trimmed.startsWith('[')) {
+                faqData = JSON.parse(trimmed);
+            } else {
+                // Split by ' | ' and parse each object
+                const faqItems = row.faq.split(' | ').map(item => {
+                    try {
+                        // Replace doubled quotes with single quotes for JSON parsing
+                        const cleaned = item.trim().replace(/""/g, '"');
+                        return JSON.parse(cleaned);
+                    } catch (e) {
+                        return null;
+                    }
+                }).filter(Boolean);
+
+                if (faqItems.length > 0) {
+                    faqData = faqItems;
+                }
+            }
         } catch (e) {
             faqData = null;
         }
@@ -398,7 +431,7 @@ function transformRowToDbTool(row, cloudLogoUrl) {
         pricing: parsePricing(row.pricing),
         pricing_label: row.pricing_label || null,
         website_url: row.website_url || null,
-        logo_url: cloudLogoUrl || row.logo_url || null,
+        logo_url: null, // Skip logo URLs
         core_features: parseStringArray(row.core_features),
         use_cases: parseStringArray(row.use_cases),
         pros: parseStringArray(row.pros),
@@ -420,9 +453,23 @@ async function insertBatch(tools, options) {
         return { inserted: tools.length, errors: [] };
     }
 
+    // Deduplicate within the batch by app_username (keep last occurrence)
+    const uniqueTools = [];
+    const seen = new Map();
+    for (const tool of tools) {
+        seen.set(tool.app_username, tool);
+    }
+    for (const tool of seen.values()) {
+        uniqueTools.push(tool);
+    }
+
+    if (uniqueTools.length < tools.length) {
+        console.log(`  Deduplicated: ${tools.length} → ${uniqueTools.length} tools`);
+    }
+
     const { data, error } = await supabase
         .from('tools')
-        .upsert(tools, {
+        .upsert(uniqueTools, {
             onConflict: 'app_username',
             ignoreDuplicates: false
         })

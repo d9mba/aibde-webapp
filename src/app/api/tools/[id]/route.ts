@@ -83,11 +83,13 @@ export async function PUT(
             .single();
 
         if (error) {
+            console.error('[PUT API] Supabase update error:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
         return NextResponse.json(dbToolToAdminTool(data));
     } catch (err) {
+        console.error('[PUT API] Unexpected error:', err);
         return NextResponse.json({ error: 'Failed to update tool' }, { status: 500 });
     }
 }

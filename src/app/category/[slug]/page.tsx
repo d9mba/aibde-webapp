@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { getPublishedTools, getCategories } from '@/lib/data';
+import { getCategories, getToolsByCategory, getToolsCountByCategory } from '@/lib/data';
 import CategorySlugPageClient from './CategorySlugPageClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
@@ -14,10 +14,7 @@ const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(
 // Generate dynamic metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { slug } = await params;
-    const [categories, tools] = await Promise.all([
-        getCategories(),
-        getPublishedTools(),
-    ]);
+    const categories = await getCategories();
     const category = categories.find(c => slugify(c.categoryName) === slug);
 
     if (!category) {
@@ -27,8 +24,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         };
     }
 
-    // Count tools in this category
-    const toolCount = tools.filter(t => t.categoryName?.some(c => slugify(c) === slug)).length;
+    // Get count efficiently (not loading all tools)
+    const toolCount = await getToolsCountByCategory(category.categoryName);
     const title = `${category.categoryName} AI Tools (${toolCount}+) | Best ${category.categoryName} Tools | AiBDE`;
     const description = category.description || `Discover ${toolCount}+ best ${category.categoryName} AI tools. Compare features, pricing, and find the perfect AI solution for your ${category.categoryName.toLowerCase()} needs.`;
 
@@ -62,22 +59,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 /**
- * Category Detail Page - Server Component with SSR
- * Fetches all data on the server, hides API calls from network tab
+ * Category Detail Page - Optimized with pagination
+ * Initially loads 100 tools, more loaded on demand
  */
 export default async function CategoryPage({ params }: PageProps) {
     const { slug } = await params;
-
-    const [tools, categories] = await Promise.all([
-        getPublishedTools(),
-        getCategories(),
-    ]);
-
-    // Helper to slugify category name for comparison
-    const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const categories = await getCategories();
 
     // Find category by matching against slugified version of category name
     const category = categories.find(c => slugify(c.categoryName) === slug) || null;
+
+    // Fetch initial tools and total count
+    const [tools, totalCount] = await Promise.all([
+        category ? getToolsByCategory(category.categoryName, 100) : Promise.resolve([]),
+        category ? getToolsCountByCategory(category.categoryName) : Promise.resolve(0)
+    ]);
 
     return (
         <CategorySlugPageClient
@@ -85,6 +81,7 @@ export default async function CategoryPage({ params }: PageProps) {
             tools={tools}
             allCategories={categories}
             slug={slug}
+            totalCount={totalCount}
         />
     );
 }

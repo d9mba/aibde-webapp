@@ -1,39 +1,86 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool, Category } from '@/types';
 import { Folder, ArrowLeft, ChevronRight } from 'lucide-react';
-import { useSearch } from '@/context/SearchContext';
 
 interface CategorySlugPageClientProps {
     category: Category | null;
     tools: AdminTool[];
     allCategories: Category[];
     slug: string;
+    totalCount: number;
 }
+
+const ITEMS_PER_PAGE = 12;
 
 export default function CategorySlugPageClient({
     category,
     tools,
     allCategories,
-    slug
+    slug,
+    totalCount
 }: CategorySlugPageClientProps) {
-    const { setSharedTools } = useSearch();
     const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-    // Set sharedTools for search recommendations in header
-    useEffect(() => {
-        if (tools.length > 0) {
-            setSharedTools(tools);
-        }
-    }, [tools, setSharedTools]);
+    const [allTools, setAllTools] = useState<AdminTool[]>(tools);
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+    const [isLoading, setIsLoading] = useState(false);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    // Get tools in this category
-    const categoryTools = category
-        ? tools.filter(t => (t.categoryName || []).includes(category.categoryName))
-        : [];
+    // Get visible tools
+    const visibleTools = allTools.slice(0, visibleCount);
+    const hasMore = visibleCount < allTools.length || allTools.length < totalCount;
+
+    // Load more tools from API
+    const loadMoreTools = useCallback(async () => {
+        if (isLoading || !category) return;
+
+        // If we have more tools in state, just show them
+        if (visibleCount < allTools.length) {
+            setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, allTools.length));
+            return;
+        }
+
+        // If we've shown all loaded tools but more exist, fetch from API
+        if (allTools.length < totalCount) {
+            setIsLoading(true);
+            try {
+                const response = await fetch(`/api/tools/by-category?category=${encodeURIComponent(category.categoryName)}&offset=${allTools.length}&limit=50`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.tools && data.tools.length > 0) {
+                        setAllTools(prev => [...prev, ...data.tools]);
+                        setVisibleCount(prev => prev + ITEMS_PER_PAGE);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load more tools:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    }, [allTools.length, category, isLoading, totalCount, visibleCount]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !isLoading) {
+                    loadMoreTools();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (loadMoreRef.current) {
+            observer.observe(loadMoreRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, isLoading, loadMoreTools]);
 
     if (!category) {
         return (
@@ -67,7 +114,7 @@ export default function CategorySlugPageClient({
                     </div>
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold text-text-primary">{category.categoryName}</h1>
-                        <p className="text-sm text-text-secondary">{categoryTools.length} AI tool{categoryTools.length !== 1 ? 's' : ''}</p>
+                        <p className="text-sm text-text-secondary">{totalCount} AI tool{totalCount !== 1 ? 's' : ''}</p>
                     </div>
                 </div>
                 {category.description && (
@@ -76,9 +123,9 @@ export default function CategorySlugPageClient({
             </div>
 
             {/* Tools Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-12">
-                {categoryTools.length > 0 ? (
-                    categoryTools.map((tool) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
+                {visibleTools.length > 0 ? (
+                    visibleTools.map((tool) => (
                         <AIToolCard key={tool.id} tool={tool} />
                     ))
                 ) : (
@@ -88,6 +135,25 @@ export default function CategorySlugPageClient({
                         <Link href="/category" prefetch={false} className="text-accent-primary hover:underline text-sm">Browse other categories</Link>
                     </div>
                 )}
+            </div>
+
+            {/* Loading indicator */}
+            <div ref={loadMoreRef} className="py-6 text-center">
+                {isLoading ? (
+                    <div className="flex items-center justify-center gap-2 text-text-tertiary">
+                        <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
+                        <span className="text-sm">Loading more tools...</span>
+                    </div>
+                ) : hasMore ? (
+                    <button
+                        onClick={loadMoreTools}
+                        className="px-6 py-2.5 bg-bg-card border border-border rounded-full text-sm font-medium text-text-primary transition-all hover:border-accent-primary"
+                    >
+                        Load more tools
+                    </button>
+                ) : visibleTools.length > ITEMS_PER_PAGE ? (
+                    <p className="text-sm text-text-tertiary">Showing all {totalCount} tools</p>
+                ) : null}
             </div>
 
             {/* Other Categories Section */}

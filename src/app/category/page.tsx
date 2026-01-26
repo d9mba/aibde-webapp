@@ -1,13 +1,12 @@
 import { Metadata } from 'next';
-import { getPublishedTools, getCategories } from '@/lib/data';
+import { getCategories, getCategoriesCount } from '@/lib/data';
 import CategoryPageClient from './CategoryPageClient';
 
 /**
  * Dynamic SEO Metadata for Categories Page
  */
 export async function generateMetadata(): Promise<Metadata> {
-    const categories = await getCategories();
-    const categoryCount = categories.length;
+    const categoryCount = await getCategoriesCount();
 
     const title = `Browse ${categoryCount}+ AI Categories | AI Tools Directory | AiBDE`;
     const description = `Explore ${categoryCount}+ categories of AI tools including chatbots, image generators, writing assistants, code tools, video editors, and more. Find the best AI for any use case.`;
@@ -24,7 +23,6 @@ export async function generateMetadata(): Promise<Metadata> {
             'AI code assistant',
             'AI video tools',
             'best AI tools',
-            ...categories.slice(0, 10).map(c => c.categoryName),
         ].join(', '),
         openGraph: {
             title,
@@ -46,18 +44,15 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Categories Listing Page - Server Component with SSR
- * Fetches all data on the server, hides API calls from network tab
+ * Fetches categories and count from database
  */
 export default async function CategoriesPage() {
-    const [tools, categories] = await Promise.all([
-        getPublishedTools(),
+    const [categories, totalCount] = await Promise.all([
         getCategories(),
+        getCategoriesCount()
     ]);
 
     return (
-        <CategoryPageClient
-            categories={categories}
-            tools={tools}
-        />
+        <CategoryPageClient categories={categories} totalCount={totalCount} />
     );
 }

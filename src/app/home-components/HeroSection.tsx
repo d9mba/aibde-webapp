@@ -1,34 +1,70 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
-import { useDebounce } from '@/hooks/useDebounce';
-import { quickSearchTools } from '@/lib/search';
-import { trackToolClick } from '@/hooks/useToolAnalytics';
 import { AdminTool } from '@/types';
-import { getFullUrl } from '@/lib/url';
 
 interface HeroSectionProps {
-    allTools: AdminTool[];
-    categoryCount?: number;
-    taskCount?: number;
+    toolCount: number;
+    categoryCount: number;
+    taskCount: number;
 }
 
-export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0 }: HeroSectionProps) {
-    const { searchQuery, setSearchQuery, isMainSearchFocused, setIsMainSearchFocused, setSharedTools } = useSearch();
-    const [selectedIndex, setSelectedIndex] = useState(-1);
+export default function HeroSection({ toolCount, categoryCount, taskCount }: HeroSectionProps) {
+    const { searchQuery, setSearchQuery, isMainSearchFocused, setIsMainSearchFocused } = useSearch();
     const typingPlaceholder = useTypingPlaceholder();
-    const debouncedSearchQuery = useDebounce(searchQuery, 150);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Share tools with other components (like TopHeader) via context
-    useEffect(() => {
-        if (allTools.length > 0) {
-            setSharedTools(allTools);
+    // API-based search suggestions
+    const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+    const searchTimeout = useRef<NodeJS.Timeout>();
+
+    // Fetch suggestions from API
+    const fetchSuggestions = useCallback(async (query: string) => {
+        if (!query || query.length < 2) {
+            setSuggestions([]);
+            return;
         }
-    }, [allTools, setSharedTools]);
+
+        try {
+            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=5`);
+            if (response.ok) {
+                const data = await response.json();
+                setSuggestions(data.tools || []);
+            }
+        } catch (error) {
+            console.error('Search suggestions failed:', error);
+        }
+    }, []);
+
+    // Debounced search
+    useEffect(() => {
+        if (searchTimeout.current) {
+            clearTimeout(searchTimeout.current);
+        }
+
+        if (searchQuery.length >= 2) {
+            searchTimeout.current = setTimeout(() => {
+                fetchSuggestions(searchQuery);
+            }, 200);
+        } else {
+            setSuggestions([]);
+        }
+
+        return () => {
+            if (searchTimeout.current) {
+                clearTimeout(searchTimeout.current);
+            }
+        };
+    }, [searchQuery, fetchSuggestions]);
+
+    // Reset selected index when suggestions change
+    useEffect(() => {
+        setSelectedIndex(-1);
+    }, [suggestions]);
 
     // Ctrl+K keyboard shortcut to focus hero search (only when at top of page)
     useEffect(() => {
@@ -45,10 +81,28 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
         return () => document.removeEventListener('keydown', handleKeyDown, true);
     }, [setIsMainSearchFocused]);
 
-    const searchResults = useMemo(() => {
-        if (debouncedSearchQuery.length < 3) return [];
-        return quickSearchTools(allTools, debouncedSearchQuery, 6);
-    }, [allTools, debouncedSearchQuery]);
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        const maxIndex = suggestions.length; // Last index is "Search for..." option
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedIndex(prev => prev < maxIndex ? prev + 1 : 0);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIndex(prev => prev > 0 ? prev - 1 : maxIndex);
+        } else if (e.key === 'Enter') {
+            if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+                window.location.href = `/app/${suggestions[selectedIndex].slug}`;
+            } else if (searchQuery.trim()) {
+                window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+            }
+        } else if (e.key === 'Escape') {
+            setSearchQuery('');
+            setSuggestions([]);
+        }
+    };
+
+    const showSuggestions = isMainSearchFocused && (suggestions.length > 0 || searchQuery.length >= 2);
 
     return (
         <section className="text-center flex flex-col items-center gap-4 py-8">
@@ -57,7 +111,7 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
             </h1>
             <p className="font-orbitron text-text-secondary text-sm sm:text-base -mt-2 tracking-wide">Browse, Discover, Explore</p>
             <p className="text-text-tertiary text-xs sm:text-sm -mt-2">
-                <Link href="/search" prefetch={false}><span className="text-text-primary font-semibold">{allTools.length.toLocaleString()}</span> AI tools</Link> for <Link href="/tasks" prefetch={false}><span className="text-text-primary font-semibold">{taskCount}</span> tasks</Link> and <Link href="/category" prefetch={false}><span className="text-text-primary font-semibold">{categoryCount}</span> categories</Link>
+                <Link href="/search" prefetch={false}><span className="text-text-primary font-semibold">{toolCount.toLocaleString()}</span> AI tools</Link> for <Link href="/tasks" prefetch={false}><span className="text-text-primary font-semibold">{taskCount}</span> tasks</Link> and <Link href="/category" prefetch={false}><span className="text-text-primary font-semibold">{categoryCount}</span> categories</Link>
             </p>
             <div className="relative w-full max-w-[500px] mt-1 py-1 z-50">
                 {/* Search Input */}
@@ -79,33 +133,17 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
                                 setSelectedIndex(-1);
                             }}
                             onFocus={() => setIsMainSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsMainSearchFocused(false), 150)}
-                            onKeyDown={(e) => {
-                                const results = searchResults.slice(0, 5);
-                                const maxIndex = results.length;
-                                if (e.key === 'ArrowDown') {
-                                    e.preventDefault();
-                                    setSelectedIndex(prev => prev < maxIndex ? prev + 1 : prev);
-                                } else if (e.key === 'ArrowUp') {
-                                    e.preventDefault();
-                                    setSelectedIndex(prev => prev > 0 ? prev - 1 : prev);
-                                } else if (e.key === 'Enter') {
-                                    if (selectedIndex >= 0 && selectedIndex < results.length && results[selectedIndex]) {
-                                        window.location.href = `/app/${results[selectedIndex].slug}`;
-                                    } else if (searchQuery.trim()) {
-                                        window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
-                                    }
-                                } else if (e.key === 'Escape') {
-                                    setSearchQuery('');
-                                    setSelectedIndex(-1);
-                                }
-                            }}
+                            onBlur={() => setTimeout(() => setIsMainSearchFocused(false), 200)}
+                            onKeyDown={handleKeyDown}
                             suppressHydrationWarning
                         />
                         {searchQuery && (
                             <button
                                 className="flex items-center justify-center p-1 bg-transparent border-none cursor-pointer text-text-tertiary transition-colors hover:text-text-primary"
-                                onClick={() => setSearchQuery('')}
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setSuggestions([]);
+                                }}
                                 suppressHydrationWarning
                             >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -116,45 +154,54 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
                     </div>
                 </div>
 
-                {/* Search Dropdown */}
-                {searchQuery && isMainSearchFocused && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden z-[100]">
-                        {searchResults.slice(0, 5).map((tool, index) => {
-                            const logoUrl = tool.logoUrl ? getFullUrl(tool.logoUrl) : '';
-                            return (
-                                <div
-                                    key={tool.id}
-                                    className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors ${index === selectedIndex ? 'bg-bg-secondary' : 'hover:bg-bg-secondary'}`}
-                                    onClick={() => {
-                                        trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-                                        window.location.href = `/app/${tool.slug}`;
-                                    }}
-                                    onMouseEnter={() => setSelectedIndex(index)}
-                                >
-                                    {logoUrl ? (
-                                        <img src={logoUrl} alt={tool.name} className="w-7 h-7 rounded-md object-contain flex-shrink-0" />
-                                    ) : (
-                                        <div className="w-7 h-7 rounded-md bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
-                                            <span className="text-xs font-semibold text-accent-primary">{tool.name.charAt(0)}</span>
-                                        </div>
-                                    )}
-                                    <span className="text-sm text-text-primary truncate">{tool.name}</span>
-                                </div>
-                            );
-                        })}
-                        <div
-                            className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors border-t border-border ${selectedIndex === searchResults.slice(0, 5).length ? 'bg-bg-secondary' : 'hover:bg-bg-secondary'}`}
-                            onClick={() => window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`}
-                            onMouseEnter={() => setSelectedIndex(searchResults.slice(0, 5).length)}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-tertiary flex-shrink-0">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="M21 21l-4.35-4.35" />
-                            </svg>
-                            <span className="text-sm text-text-secondary">
-                                Search for <span className="font-medium text-text-primary">&quot;{searchQuery}&quot;</span>...
-                            </span>
-                        </div>
+                {/* Search Suggestions Dropdown - Matching old style */}
+                {showSuggestions && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50">
+                        {suggestions.map((tool, index) => (
+                            <a
+                                key={tool.id}
+                                href={`/app/${tool.slug}`}
+                                className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${index === selectedIndex
+                                        ? 'bg-bg-secondary'
+                                        : 'hover:bg-bg-secondary'
+                                    }`}
+                                onMouseEnter={() => setSelectedIndex(index)}
+                            >
+                                {tool.logoUrl ? (
+                                    <img
+                                        src={tool.logoUrl}
+                                        alt=""
+                                        className="w-6 h-6 rounded object-contain flex-shrink-0"
+                                    />
+                                ) : (
+                                    <div className="w-6 h-6 rounded bg-accent-primary/20 flex items-center justify-center text-accent-primary font-semibold text-xs flex-shrink-0">
+                                        {tool.name[0]}
+                                    </div>
+                                )}
+                                <span className="text-sm text-text-primary truncate">
+                                    {tool.name}
+                                </span>
+                            </a>
+                        ))}
+                        {/* Search for option */}
+                        {searchQuery.length >= 2 && (
+                            <a
+                                href={`/search?q=${encodeURIComponent(searchQuery)}`}
+                                className={`flex items-center gap-3 px-4 py-2.5 transition-colors border-t border-border ${selectedIndex === suggestions.length
+                                        ? 'bg-bg-secondary'
+                                        : 'hover:bg-bg-secondary'
+                                    }`}
+                                onMouseEnter={() => setSelectedIndex(suggestions.length)}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-tertiary flex-shrink-0">
+                                    <circle cx="11" cy="11" r="8" />
+                                    <path d="M21 21l-4.35-4.35" />
+                                </svg>
+                                <span className="text-sm text-text-secondary">
+                                    Search for &quot;<span className="text-text-primary">{searchQuery}</span>&quot;...
+                                </span>
+                            </a>
+                        )}
                     </div>
                 )}
             </div>

@@ -6,20 +6,15 @@
  */
 
 import Link from 'next/link';
-import { getPublishedTools, getSpotlightTools } from '@/lib/data';
+import { getSpotlightTools, getRecentlyReleasedTools } from '@/lib/data';
 import AIToolCard from '@/components/features/tools/ToolCard';
 
 export default async function ToolNotFound() {
-    // Fetch featured and recent tools
-    const [spotlightTools, allTools] = await Promise.all([
+    // Fetch only limited featured and recent tools (not all 10K+)
+    const [spotlightTools, recentTools] = await Promise.all([
         getSpotlightTools(6),
-        getPublishedTools(),
+        getRecentlyReleasedTools(6),
     ]);
-
-    // Get the 6 most recently added tools (matches search page)
-    const recentTools = [...allTools]
-        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-        .slice(0, 6);
 
     return (
         <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10">

@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { getPublishedTools, getTasks } from '@/lib/data';
+import { getTasks, getToolsByTask, getToolsCountByTask } from '@/lib/data';
 import TaskSlugPageClient from './TaskSlugPageClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
@@ -14,10 +14,7 @@ const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(
 // Generate dynamic metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { slug } = await params;
-    const [tasks, tools] = await Promise.all([
-        getTasks(),
-        getPublishedTools(),
-    ]);
+    const tasks = await getTasks();
     const task = tasks.find(t => slugify(t.taskName) === slug);
 
     if (!task) {
@@ -27,8 +24,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         };
     }
 
-    // Count tools for this task
-    const toolCount = tools.filter(t => t.taskName?.some(tn => slugify(tn) === slug)).length;
+    // Get count efficiently (not loading all tools)
+    const toolCount = await getToolsCountByTask(task.taskName);
     const title = `${task.taskName} AI Tools (${toolCount}+) | Best AI for ${task.taskName} | AiBDE`;
     const description = task.description || `Find ${toolCount}+ best AI tools for ${task.taskName}. Compare top-rated AI solutions to automate and enhance your ${task.taskName.toLowerCase()} workflow.`;
 
@@ -62,22 +59,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 /**
- * Task Detail Page - Server Component with SSR
- * Fetches all data on the server, hides API calls from network tab
+ * Task Detail Page - Optimized with pagination
+ * Initially loads 100 tools, more loaded on demand
  */
 export default async function TaskPage({ params }: PageProps) {
     const { slug } = await params;
-
-    const [tools, tasks] = await Promise.all([
-        getPublishedTools(),
-        getTasks(),
-    ]);
-
-    // Helper to slugify task name for comparison
-    const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const tasks = await getTasks();
 
     // Find task by matching against slugified version of task name
     const task = tasks.find(t => slugify(t.taskName) === slug) || null;
+
+    // Fetch initial tools and total count
+    const [tools, totalCount] = await Promise.all([
+        task ? getToolsByTask(task.taskName, 100) : Promise.resolve([]),
+        task ? getToolsCountByTask(task.taskName) : Promise.resolve(0)
+    ]);
 
     return (
         <TaskSlugPageClient
@@ -85,6 +81,7 @@ export default async function TaskPage({ params }: PageProps) {
             tools={tools}
             allTasks={tasks}
             slug={slug}
+            totalCount={totalCount}
         />
     );
 }

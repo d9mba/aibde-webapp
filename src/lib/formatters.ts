@@ -21,12 +21,8 @@ export function getPricingLabel(pricing: PricingType): string {
 }
 
 export function getPricingColor(pricing: PricingType): string {
-    switch (pricing) {
-        case 'free': return '#059669';
-        case 'freemium': return '#d97706';
-        case 'paid': return '#2563eb';
-        default: return '#737373';
-    }
+    // Single consistent color for all pricing types
+    return '#737373';
 }
 
 export function getPricingClass(pricing: PricingType): string {

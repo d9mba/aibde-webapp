@@ -84,14 +84,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
-        // SECURITY: SVG removed - it can contain JavaScript and is an XSS vector
+        // SECURITY: SVG allowed (safe when served from CDN with proper Content-Type headers)
         const allowedTypes = [
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
             'video/mp4', 'video/webm', 'video/quicktime'
         ];
         if (!allowedTypes.includes(file.type)) {
             return NextResponse.json({
-                error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP, MP4, WebM'
+                error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP, SVG, MP4, WebM'
             }, { status: 400 });
         }
 

@@ -111,23 +111,23 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
 
                     {/* Tags - 1 Category and 1 Task with different colors */}
                     <div className="flex flex-wrap gap-1 mt-1">
-                        {/* Category tag - Teal color */}
+                        {/* Category tag - Light green color */}
                         {(tool.categoryName || [])[0] && (
                             <span
                                 className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full cursor-pointer transition-all duration-fast"
-                                style={{ color: '#0d9488', backgroundColor: 'rgba(13, 148, 136, 0.08)' }}
+                                style={{ color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.08)' }}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     trackFilterUsed('category', (tool.categoryName || [])[0]);
                                     window.location.href = `/category/${slugify((tool.categoryName || [])[0])}`;
                                 }}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#0d9488';
+                                    e.currentTarget.style.backgroundColor = '#10b981';
                                     e.currentTarget.style.color = 'white';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(13, 148, 136, 0.08)';
-                                    e.currentTarget.style.color = '#0d9488';
+                                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.08)';
+                                    e.currentTarget.style.color = '#10b981';
                                 }}
                             >
                                 <svg className="opacity-70" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -139,23 +139,23 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
                                 {(tool.categoryName || [])[0]}
                             </span>
                         )}
-                        {/* Task tag - Orange color */}
+                        {/* Task tag - Amber color */}
                         {(tool.taskName || [])[0] && (
                             <span
                                 className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full cursor-pointer transition-all duration-fast"
-                                style={{ color: '#ea580c', backgroundColor: 'rgba(234, 88, 12, 0.08)' }}
+                                style={{ color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.08)' }}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     trackFilterUsed('task', (tool.taskName || [])[0]);
                                     window.location.href = `/task/${slugify((tool.taskName || [])[0])}`;
                                 }}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#ea580c';
+                                    e.currentTarget.style.backgroundColor = '#f59e0b';
                                     e.currentTarget.style.color = 'white';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(234, 88, 12, 0.08)';
-                                    e.currentTarget.style.color = '#ea580c';
+                                    e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.08)';
+                                    e.currentTarget.style.color = '#f59e0b';
                                 }}
                             >
                                 <svg className="opacity-70" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

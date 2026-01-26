@@ -36,17 +36,44 @@ export function getFullUrl(path: string): string {
 }
 
 /**
- * Extract relative path from a full URL
+ * Extract relative path from a full URL by stripping CDN domain
  * @param url - Full URL or relative path
- * @returns Relative path starting with /uploads/ or the original if not matching
+ * @returns Relative path starting with / or the original if not matching
  */
 export function extractRelativePath(url: string | undefined | null): string | null {
     if (!url) return null;
-    // If it's already a relative path, return as is
-    if (url.startsWith('/uploads/')) return url;
-    // Extract /uploads/... from full URL
-    const match = url.match(/\/uploads\/[^?#]+/);
-    return match ? match[0] : url;
+    // If it's already a relative path starting with /, return as is
+    if (url.startsWith('/') && !url.startsWith('//')) return url;
+
+    try {
+        const urlObj = new URL(url);
+        // Return just the pathname (relative path)
+        return urlObj.pathname;
+    } catch {
+        // Not a valid URL, return as-is
+        return url;
+    }
+}
+
+/**
+ * Convert full URL to relative path for database storage
+ * Strips the CDN domain and returns just the path
+ */
+export function toRelativePath(url: string | undefined | null): string {
+    if (!url) return '';
+    // Already relative
+    if (url.startsWith('/') && !url.startsWith('//')) return url;
+    // Strip CDN URL if present
+    if (CDN_URL && url.startsWith(CDN_URL)) {
+        return url.substring(CDN_URL.length);
+    }
+    // Try to extract pathname from full URL
+    try {
+        const urlObj = new URL(url);
+        return urlObj.pathname;
+    } catch {
+        return url;
+    }
 }
 
 /**

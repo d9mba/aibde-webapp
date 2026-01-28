@@ -1,31 +1,58 @@
 import { Metadata } from 'next';
-import { getPublishedTools, getCategories } from '@/lib/data';
+import { getCategories, getCategoriesCount } from '@/lib/data';
 import CategoryPageClient from './CategoryPageClient';
 
-export const metadata: Metadata = {
-    title: 'Categories | AiBDE',
-    description: 'Browse AI tools by category. Find the perfect AI solution organized by use case - from writing and coding to image generation and more.',
-    openGraph: {
-        title: 'Categories | AiBDE',
-        description: 'Browse AI tools by category. Find the perfect AI solution organized by use case.',
-        type: 'website',
-    },
-};
+/**
+ * Dynamic SEO Metadata for Categories Page
+ */
+export async function generateMetadata(): Promise<Metadata> {
+    const categoryCount = await getCategoriesCount();
+
+    const title = `Browse ${categoryCount}+ AI Categories | AI Tools Directory | AiBDE`;
+    const description = `Explore ${categoryCount}+ categories of AI tools including chatbots, image generators, writing assistants, code tools, video editors, and more. Find the best AI for any use case.`;
+
+    return {
+        title,
+        description,
+        keywords: [
+            'AI categories',
+            'AI tools directory',
+            'AI chatbots',
+            'AI image generator',
+            'AI writing tools',
+            'AI code assistant',
+            'AI video tools',
+            'best AI tools',
+        ].join(', '),
+        openGraph: {
+            title,
+            description,
+            type: 'website',
+            siteName: 'AiBDE',
+            url: 'https://aibde.tech/category',
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+        },
+        alternates: {
+            canonical: 'https://aibde.tech/category',
+        },
+    };
+}
 
 /**
  * Categories Listing Page - Server Component with SSR
- * Fetches all data on the server, hides API calls from network tab
+ * Fetches categories and count from database
  */
 export default async function CategoriesPage() {
-    const [tools, categories] = await Promise.all([
-        getPublishedTools(),
+    const [categories, totalCount] = await Promise.all([
         getCategories(),
+        getCategoriesCount()
     ]);
 
     return (
-        <CategoryPageClient
-            categories={categories}
-            tools={tools}
-        />
+        <CategoryPageClient categories={categories} totalCount={totalCount} />
     );
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
+import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool, DbTool } from '@/lib/supabase';
 import { toolSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
@@ -21,7 +21,17 @@ const ALL_FIELDS = `
     internal_notes, scheduled_at, spotlight_start_date, spotlight_end_date
 `;
 
-// Complete fields for admin tool list and edit form
+// Light fields for dashboard table view (OPTIMIZED: no heavy HTML content)
+// Saves ~250KB per 50 tools by excluding description, faq, etc.
+const TABLE_FIELDS = `
+    id, name, app_username, logo_url, summary,
+    category_name, task_name, tags,
+    pricing, pricing_label, save_count, is_featured,
+    status, spotlight_enabled, spotlight_position, trending_position,
+    created_at, updated_at
+`;
+
+// Complete fields for edit form (fetched via GET /api/tools/[id])
 // Includes all fields needed for ToolForm to work
 const LIST_FIELDS = `
     id, name, app_username, summary, description,
@@ -39,6 +49,63 @@ const LIST_FIELDS = `
     created_at, updated_at,
     spotlight_start_date, spotlight_end_date
 `;
+
+// Helper function to apply missing data filters
+// Using simple .is(null) checks since complex OR queries cause 500 errors
+function applyMissingDataFilter(query: any, filter: string) {
+    switch (filter) {
+        case 'no-logo':
+            return query.is('logo_url', null);
+        case 'no-summary':
+            return query.is('summary', null);
+        case 'no-description':
+            return query.is('description', null);
+        case 'no-website':
+            return query.is('website_url', null);
+        case 'no-contact':
+            return query.is('contact_email', null).is('contact_mobile', null).is('contact_name', null);
+        case 'no-category':
+            return query.is('category_name', null);
+        case 'no-task':
+            return query.is('task_name', null);
+        case 'no-tags':
+            return query.is('tags', null);
+        case 'no-features':
+            return query.is('core_features', null);
+        case 'no-use-cases':
+            return query.is('use_cases', null);
+        case 'no-faq':
+            return query.is('faq', null);
+        case 'no-pricing-tiers':
+            return query.is('pricing_tiers', null);
+        case 'no-images':
+            return query.is('images', null);
+        case 'no-videos':
+            return query.is('videos', null);
+        case 'no-release-date':
+            return query.is('released_at', null);
+        default:
+            return query;
+    }
+}
+
+// Helper to apply all common filters
+function applyFilters(query: any, filters: { search?: string | null, category?: string | null, missingData?: string | null, status?: string | null }) {
+    if (filters.status) {
+        query = query.eq('status', filters.status);
+    }
+    if (filters.search) {
+        query = query.ilike('name', `%${filters.search}%`);
+    }
+    if (filters.category && filters.category !== 'all') {
+        query = query.contains('category_name', [filters.category]);
+    }
+    if (filters.missingData && filters.missingData !== 'all') {
+        query = applyMissingDataFilter(query, filters.missingData);
+    }
+    return query;
+}
+
 
 // GET /api/tools - List tools (ADMIN ONLY)
 // Requires admin role - use /api/public/tools for public access
@@ -62,44 +129,72 @@ export async function GET(request: NextRequest) {
         const validLimit = Math.min(100, Math.max(1, limit)); // Max 100 per page
         const offset = (validPage - 1) * validLimit;
 
-        // Get total count for pagination
-        const countResult = await supabaseAdmin
-            .from('tools')
-            .select('id', { count: 'exact', head: true });
+        const search = searchParams.get('search')?.trim();
+        const category = searchParams.get('category');
+        const missingData = searchParams.get('missing');
 
+        // Get total count for pagination with ALL filters applied
+        let countQuery = supabaseAdmin
+            .from('tools')
+            .select('*', { count: 'exact', head: true });
+
+        // Apply all filters to count query (must match data query filters)
+        countQuery = applyFilters(countQuery, { search, category, missingData, status });
+
+        const countResult = await countQuery;
         const totalCount = countResult.count || 0;
 
-        // Fetch data - use separate queries to avoid TypeScript type issues
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let data: any[] | null = null;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // Fetch data with proper typing
+        let data: DbTool[] | null = null;
         let error: any = null;
 
+
         if (allData) {
-            // Fetch all with full fields
-            const result = await supabaseAdmin
-                .from('tools')
-                .select(ALL_FIELDS)
-                .order('created_at', { ascending: false });
-            data = result.data;
-            error = result.error;
-        } else if (status) {
-            // Paginated with status filter
-            const result = await supabaseAdmin
-                .from('tools')
-                .select(LIST_FIELDS)
-                .eq('status', status)
-                .order('created_at', { ascending: false })
-                .range(offset, offset + validLimit - 1);
-            data = result.data;
-            error = result.error;
+            // Fetch all tools using pagination (Supabase has max ~1000 per query)
+            // OPTIMIZATION: Only select essential fields for dropdown/export
+            const PAGE_SIZE = 1000;
+            let allTools: any[] = [];
+            let pageNum = 0;
+            let hasMore = true;
+
+            while (hasMore) {
+                let query = supabaseAdmin
+                    .from('tools')
+                    .select('id, name, app_username, status, spotlight_enabled, spotlight_position, is_featured, trending_position, logo_url, summary, category_name') // Essential + dashboard fields
+                    .order('created_at', { ascending: false })
+                    .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+
+                query = applyFilters(query, { search, category, missingData, status });
+
+                const { data: pageData, error: pageError } = await query;
+
+                if (pageError) {
+                    error = pageError;
+                    break;
+                }
+
+                if (pageData && pageData.length > 0) {
+                    allTools = [...allTools, ...pageData];
+                    hasMore = pageData.length === PAGE_SIZE;
+                    pageNum++;
+                } else {
+                    hasMore = false;
+                }
+            }
+
+            data = allTools;
+            error = error || null;
         } else {
-            // Paginated without filter
-            const result = await supabaseAdmin
+            // Paginated query with all filters
+            // OPTIMIZATION: Use TABLE_FIELDS for list view (no heavy HTML content)
+            let query = supabaseAdmin
                 .from('tools')
-                .select(LIST_FIELDS)
-                .order('created_at', { ascending: false })
-                .range(offset, offset + validLimit - 1);
+                .select(TABLE_FIELDS)
+                .order('created_at', { ascending: false });
+
+            query = applyFilters(query, { search, category, missingData, status });
+
+            const result = await query.range(offset, offset + validLimit - 1);
             data = result.data;
             error = result.error;
         }

@@ -114,10 +114,10 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
         try {
             // Use Promise.allSettled to handle individual failures gracefully
             const results = await Promise.allSettled([
-                fetch('/api/tools'),
-                fetch('/api/categories'),
-                fetch('/api/tasks'),
-                fetch('/api/tags'),
+                fetch('/api/tools?all=true'),
+                fetch('/api/categories?all=true'),
+                fetch('/api/tasks?all=true'),
+                fetch('/api/tags?all=true'),
                 fetch('/api/notes'),
                 fetch('/api/settings'),
             ]);
@@ -301,7 +301,17 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 body: JSON.stringify(updates),
             });
             const updatedTool = await res.json();
-            if (!res.ok) throw new Error(updatedTool.error || 'Failed to update tool');
+            if (!res.ok) {
+                // Extract detailed validation errors if available
+                let errorMessage = updatedTool.error || 'Failed to update tool';
+                if (updatedTool.details?.fieldErrors) {
+                    const fields = Object.entries(updatedTool.details.fieldErrors)
+                        .map(([field, errors]: [string, any]) => `${field}: ${errors.join(', ')}`)
+                        .join('; ');
+                    errorMessage = `Validation failed: ${fields}`;
+                }
+                throw new Error(errorMessage);
+            }
             setState((prev) => ({
                 ...prev,
                 tools: prev.tools.map((t) => (t.id === id ? updatedTool : t)),

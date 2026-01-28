@@ -4,10 +4,13 @@ import { useState } from 'react';
 import { AITool } from '@/types';
 import ShareModal from '@/components/ui/ShareModal';
 import { trackToolClick, useToolImpression, trackFilterUsed } from '@/hooks/useToolAnalytics';
+import { getPricingColor, getPricingLabel } from '@/lib/formatters';
+import { getFullUrl } from '@/lib/url';
 
 interface AIToolCardProps {
     tool: AITool;
     variant?: 'default' | 'compact' | 'featured';
+    ranking?: number; // Optional ranking position for trending lists
 }
 
 // Array of colors for logo backgrounds
@@ -16,18 +19,10 @@ const logoColors = [
     '#ef4444', '#06b6d4', '#eab308', '#14b8a6', '#6366f1',
 ];
 
-// CDN URL helper
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || '';
-const getFullUrl = (path: string): string => {
-    if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return `${CDN_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
-
 // Slugify helper for category/task URLs
 const slugify = (str: string): string => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProps) {
+export default function AIToolCard({ tool, variant = 'default', ranking }: AIToolCardProps) {
     const [showShareModal, setShowShareModal] = useState(false);
     const colorIndex = tool.name.charCodeAt(0) % logoColors.length;
     const logoColor = logoColors[colorIndex];
@@ -44,7 +39,7 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
 
     const handleViewClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        window.location.href = `/app/${tool.slug}`;
+        window.open(`/go/${tool.slug}`, '_blank', 'noopener,noreferrer');
     };
 
     const handleShareClick = (e: React.MouseEvent) => {
@@ -80,12 +75,27 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
             `}
             onClick={handleCardClick}
         >
+            {/* Ranking Badge - Merges with card border at top-right */}
+            {ranking && (
+                <div className={`absolute -top-0 -right-0 px-2.5 py-1 rounded-bl-lg rounded-tr-lg font-bold flex items-center gap-1 ${ranking === 1
+                    ? 'bg-white text-yellow-600 shadow-md border border-yellow-200'
+                    : ranking === 2
+                        ? 'bg-white text-gray-500 shadow-md border border-gray-200'
+                        : ranking === 3
+                            ? 'bg-white text-amber-700 shadow-md border border-amber-200'
+                            : 'bg-gradient-to-br from-slate-200 to-slate-300 text-slate-700 shadow-sm'
+                    }`}>
+                    <span className={ranking <= 3 ? 'text-base leading-none' : 'text-xs leading-none'}>
+                        {ranking === 1 ? '🏆' : ranking === 2 ? '🥈' : ranking === 3 ? '🥉' : `#${ranking}`}
+                    </span>
+                </div>
+            )}
             <div className="flex gap-3 items-start flex-1">
                 {logoUrl ? (
                     <img
                         src={logoUrl}
                         alt={tool.name}
-                        className={`${isCompact ? 'w-[38px] h-[38px]' : 'w-11 h-11'} rounded-md object-cover flex-shrink-0`}
+                        className={`${isCompact ? 'w-[38px] h-[38px]' : 'w-11 h-11'} rounded-md object-contain flex-shrink-0`}
                         onError={(e) => {
                             e.currentTarget.style.display = 'none';
                             const fallback = e.currentTarget.nextElementSibling as HTMLElement;
@@ -117,23 +127,23 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
 
                     {/* Tags - 1 Category and 1 Task with different colors */}
                     <div className="flex flex-wrap gap-1 mt-1">
-                        {/* Category tag - Teal color */}
+                        {/* Category tag - Light green color */}
                         {(tool.categoryName || [])[0] && (
                             <span
                                 className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full cursor-pointer transition-all duration-fast"
-                                style={{ color: '#0d9488', backgroundColor: 'rgba(13, 148, 136, 0.08)' }}
+                                style={{ color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.08)' }}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     trackFilterUsed('category', (tool.categoryName || [])[0]);
                                     window.location.href = `/category/${slugify((tool.categoryName || [])[0])}`;
                                 }}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#0d9488';
+                                    e.currentTarget.style.backgroundColor = '#10b981';
                                     e.currentTarget.style.color = 'white';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(13, 148, 136, 0.08)';
-                                    e.currentTarget.style.color = '#0d9488';
+                                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.08)';
+                                    e.currentTarget.style.color = '#10b981';
                                 }}
                             >
                                 <svg className="opacity-70" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -145,23 +155,23 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
                                 {(tool.categoryName || [])[0]}
                             </span>
                         )}
-                        {/* Task tag - Orange color */}
+                        {/* Task tag - Amber color */}
                         {(tool.taskName || [])[0] && (
                             <span
                                 className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full cursor-pointer transition-all duration-fast"
-                                style={{ color: '#ea580c', backgroundColor: 'rgba(234, 88, 12, 0.08)' }}
+                                style={{ color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.08)' }}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     trackFilterUsed('task', (tool.taskName || [])[0]);
                                     window.location.href = `/task/${slugify((tool.taskName || [])[0])}`;
                                 }}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#ea580c';
+                                    e.currentTarget.style.backgroundColor = '#f59e0b';
                                     e.currentTarget.style.color = 'white';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(234, 88, 12, 0.08)';
-                                    e.currentTarget.style.color = '#ea580c';
+                                    e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.08)';
+                                    e.currentTarget.style.color = '#f59e0b';
                                 }}
                             >
                                 <svg className="opacity-70" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -175,20 +185,46 @@ export default function AIToolCard({ tool, variant = 'default' }: AIToolCardProp
                 </div>
             </div>
 
-            <div className={`flex justify-between items-center ${isCompact ? 'pt-1.5' : 'pt-2'} border-t border-border`}>
-                <span className="text-[0.625rem] text-text-tertiary">{tool.releasedAgo}</span>
+            <div className={`flex justify-between items-center gap-2 ${isCompact ? 'pt-1.5' : 'pt-2'} border-t border-border`}>
+                <span className="text-[0.625rem] text-text-tertiary leading-none flex-shrink-0">{tool.releasedAgo}</span>
+                {/* Stats - Center with flex-1 */}
+                <div className="flex items-center justify-center gap-2 flex-1 min-w-0">
+                    {/* Impressions indicator */}
+                    <span className="inline-flex items-center gap-0.5 text-[0.625rem] text-text-tertiary leading-none">
+                        <svg width="12" height="12" viewBox="0 0 512 512" fill="currentColor" className="opacity-70 flex-shrink-0">
+                            <path d="M184 448h48c4.4 0 8-3.6 8-8V72c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v368c0 4.4 3.6 8 8 8z" />
+                            <path d="M88 448h48c4.4 0 8-3.6 8-8V296c0-4.4-3.6-8-8-8H88c-4.4 0-8 3.6-8 8v144c0 4.4 3.6 8 8 8z" />
+                            <path d="M280.1 448h47.8c4.5 0 8.1-3.6 8.1-8.1V232.1c0-4.5-3.6-8.1-8.1-8.1h-47.8c-4.5 0-8.1 3.6-8.1 8.1v207.8c0 4.5 3.6 8.1 8.1 8.1z" />
+                            <path d="M368 136.1v303.8c0 4.5 3.6 8.1 8.1 8.1h47.8c4.5 0 8.1-3.6 8.1-8.1V136.1c0-4.5-3.6-8.1-8.1-8.1h-47.8c-4.5 0-8.1 3.6-8.1 8.1z" />
+                        </svg>
+                        <span>{(() => {
+                            const count = tool.viewCount || tool.saveCount || 0;
+                            return count >= 1000 ? `${Math.round(count / 1000)}k` : count.toLocaleString();
+                        })()}</span>
+                    </span>
+                    {/* Upvotes + Star Rating */}
+                    <span className="inline-flex items-center gap-0.5 text-[0.625rem] text-text-secondary leading-none">
+                        <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" className="opacity-70 flex-shrink-0">
+                            <path d="M10 19a3.966 3.966 0 01-3.96-3.962V10.98H2.838a1.731 1.731 0 01-1.605-1.073 1.734 1.734 0 01.377-1.895L9.364.254a.925.925 0 011.272 0l7.754 7.759c.498.499.646 1.242.376 1.894-.27.652-.9 1.073-1.605 1.073h-3.202v4.058A3.965 3.965 0 019.999 19H10zM2.989 9.179H7.84v5.731c0 1.13.81 2.163 1.934 2.278a2.163 2.163 0 002.386-2.15V9.179h4.851L10 2.163 2.989 9.179z" />
+                        </svg>
+                        <span>{tool.upvotes ?? 0}</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="opacity-70 flex-shrink-0 ml-1">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                        <span>{((tool.upvotes ?? 0) / 50).toFixed(1)}</span>
+                    </span>
+                </div>
+                {/* Pricing - Right */}
                 <span
-                    className="text-[0.625rem] font-medium cursor-pointer transition-opacity hover:opacity-70"
-                    style={{
-                        color: tool.pricing === 'free' ? '#059669' : tool.pricing === 'freemium' ? '#d97706' : tool.pricing === 'paid' ? '#2563eb' : '#737373'
-                    }}
+                    className="text-[0.625rem] font-medium cursor-pointer transition-opacity hover:opacity-70 flex-shrink-0"
+                    style={{ color: getPricingColor(tool.pricing || '') }}
                     onClick={(e) => {
                         e.stopPropagation();
                         trackFilterUsed('pricing', tool.pricing || 'unknown');
                         window.location.href = `/search?pricing=${tool.pricing}`;
                     }}
                 >
-                    {tool.pricingLabel || (tool.pricing === 'free' ? 'Free' : tool.pricing === 'freemium' ? 'Freemium' : tool.pricing === 'paid' ? 'Paid' : '')}
+                    {tool.pricingLabel || getPricingLabel(tool.pricing || '')}
                 </span>
             </div>
 

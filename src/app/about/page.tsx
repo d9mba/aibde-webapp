@@ -1,12 +1,29 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'About | AiBDE',
-    description: 'Learn about AiBDE - your go-to directory for discovering the best AI tools. Our mission is to make AI accessible to everyone.',
+    title: 'About AiBDE | AI Tools Directory Mission & Vision',
+    description: 'Learn about AiBDE - your trusted AI tools directory. Our mission is to make AI accessible by curating the best AI tools for writing, design, coding, marketing, and productivity.',
+    keywords: [
+        'about AiBDE',
+        'AI tools directory',
+        'AI discovery platform',
+        'find AI tools',
+        'AI tools mission',
+    ].join(', '),
     openGraph: {
-        title: 'About | AiBDE',
-        description: 'Learn about AiBDE - your go-to directory for discovering the best AI tools.',
+        title: 'About AiBDE | AI Tools Directory',
+        description: 'Learn about AiBDE - your trusted AI tools directory. Our mission is to make AI accessible to everyone.',
         type: 'website',
+        siteName: 'AiBDE',
+        url: 'https://aibde.tech/about',
+    },
+    twitter: {
+        card: 'summary',
+        title: 'About AiBDE | AI Tools Directory',
+        description: 'Learn about AiBDE - your trusted AI tools directory.',
+    },
+    alternates: {
+        canonical: 'https://aibde.tech/about',
     },
 };
 

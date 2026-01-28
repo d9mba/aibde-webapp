@@ -3,18 +3,8 @@
 import { useWatch } from 'react-hook-form';
 import type { Control } from 'react-hook-form';
 import { Category } from '@/types';
-
-// CDN URL from env (for display fallback)
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
-
-const getFullUrl = (path: string): string => {
-    if (!path) return '';
-    // Already a full URL (including R2 dev URLs)
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    // Relative path - prepend CDN URL
-    if (!CDN_URL) return path;
-    return `${CDN_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
+import { getPricingClass, getPricingLabel } from '@/lib/formatters';
+import { getFullUrl } from '@/lib/url';
 
 interface LivePreviewProps {
     control: Control<any>;
@@ -70,11 +60,8 @@ export default function LivePreview({ control, categories, onExpand }: LivePrevi
                             </span>
                         )}
                         {pricing && (
-                            <span className={`px-2 py-0.5 rounded text-xs ${pricing === 'free' ? 'bg-accent-green/10 text-accent-green' :
-                                pricing === 'freemium' ? 'bg-accent-purple/10 text-accent-purple' :
-                                    'bg-accent-yellow/10 text-accent-yellow'
-                                }`}>
-                                {pricing === 'free' ? 'Free' : pricing === 'freemium' ? 'Freemium' : 'Paid'}
+                            <span className={`px-2 py-0.5 rounded text-xs ${getPricingClass(pricing)}`}>
+                                {getPricingLabel(pricing)}
                             </span>
                         )}
                         {hasFreeTrial && (

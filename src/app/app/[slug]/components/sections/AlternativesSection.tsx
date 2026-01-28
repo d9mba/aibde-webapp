@@ -26,11 +26,11 @@ export default function AlternativesSection({ toolName, alternatives }: Alternat
                             <Link
                                 prefetch={false} key={t.id}
                                 href={`/app/${t.slug}`}
-                                className="flex flex-col p-3 bg-bg-tertiary border border-border rounded-2xl hover:bg-bg-secondary no-underline transition-colors group"
+                                className="flex flex-col justify-between p-3 bg-bg-tertiary border border-border rounded-2xl hover:bg-bg-secondary no-underline transition-colors group h-full min-h-[120px]"
                             >
                                 <div className="flex items-center gap-3">
                                     {t.logoUrl ? (
-                                        <img src={getFullUrl(t.logoUrl)} alt={t.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                                        <img src={getFullUrl(t.logoUrl)} alt={t.name} className="w-10 h-10 rounded-xl object-contain flex-shrink-0" />
                                     ) : (
                                         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ backgroundColor: tColor }}>
                                             {t.name[0]}
@@ -41,14 +41,16 @@ export default function AlternativesSection({ toolName, alternatives }: Alternat
                                         <div className="text-xs text-text-tertiary line-clamp-1">{t.summary}</div>
                                     </div>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                                    {t.categoryName?.[0] && (
-                                        <span className="px-2 py-0.5 bg-accent-primary/10 text-accent-primary rounded-full text-[10px] font-medium">{t.categoryName[0]}</span>
-                                    )}
-                                    {t.taskName?.[0] && (
-                                        <span className="px-2 py-0.5 bg-accent-green/10 text-accent-green rounded-full text-[10px] font-medium">{t.taskName[0]}</span>
-                                    )}
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${pricingColors}`}>{t.pricing || 'freemium'}</span>
+                                <div className="flex items-center justify-between mt-2">
+                                    <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                                        {t.categoryName?.[0] && (
+                                            <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[10px] font-medium">{t.categoryName[0]}</span>
+                                        )}
+                                        {t.taskName?.[0] && (
+                                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-medium">{t.taskName[0]}</span>
+                                        )}
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium capitalize flex-shrink-0 ${pricingColors}`}>{t.pricing || 'freemium'}</span>
                                 </div>
                             </Link>
                         );

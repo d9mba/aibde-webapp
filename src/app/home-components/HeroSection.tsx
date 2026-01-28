@@ -1,33 +1,69 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
-import { useDebounce } from '@/hooks/useDebounce';
-import { quickSearchTools } from '@/lib/search';
 import { AdminTool } from '@/types';
-
-// CDN URL helper
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || '';
-const getFullUrl = (path: string): string => {
-    if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return `${CDN_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
+import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
 
 interface HeroSectionProps {
-    allTools: AdminTool[];
-    categoryCount?: number;
-    taskCount?: number;
+    toolCount: number;
+    categoryCount: number;
+    taskCount: number;
 }
 
-export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0 }: HeroSectionProps) {
+export default function HeroSection({ toolCount, categoryCount, taskCount }: HeroSectionProps) {
     const { searchQuery, setSearchQuery, isMainSearchFocused, setIsMainSearchFocused } = useSearch();
-    const [selectedIndex, setSelectedIndex] = useState(-1);
     const typingPlaceholder = useTypingPlaceholder();
-    const debouncedSearchQuery = useDebounce(searchQuery, 150);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // API-based search suggestions
+    const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+    const searchTimeout = useRef<NodeJS.Timeout>();
+
+    // Fetch suggestions using Server Action (hidden from Network tab)
+    const fetchSuggestions = useCallback(async (query: string) => {
+        if (!query || query.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+
+        try {
+            const { getSearchSuggestionsAction } = await import('@/lib/actions');
+            const tools = await getSearchSuggestionsAction(query, 5);
+            setSuggestions(tools);
+        } catch (error) {
+            console.error('Search suggestions failed:', error);
+        }
+    }, []);
+
+    // Debounced search
+    useEffect(() => {
+        if (searchTimeout.current) {
+            clearTimeout(searchTimeout.current);
+        }
+
+        if (searchQuery.length >= 2) {
+            searchTimeout.current = setTimeout(() => {
+                fetchSuggestions(searchQuery);
+            }, 200);
+        } else {
+            setSuggestions([]);
+        }
+
+        return () => {
+            if (searchTimeout.current) {
+                clearTimeout(searchTimeout.current);
+            }
+        };
+    }, [searchQuery, fetchSuggestions]);
+
+    // Reset selected index when suggestions change
+    useEffect(() => {
+        setSelectedIndex(-1);
+    }, [suggestions]);
 
     // Ctrl+K keyboard shortcut to focus hero search (only when at top of page)
     useEffect(() => {
@@ -44,10 +80,28 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
         return () => document.removeEventListener('keydown', handleKeyDown, true);
     }, [setIsMainSearchFocused]);
 
-    const searchResults = useMemo(() => {
-        if (debouncedSearchQuery.length === 0) return [];
-        return quickSearchTools(allTools, debouncedSearchQuery, 6);
-    }, [allTools, debouncedSearchQuery]);
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        const maxIndex = suggestions.length; // Last index is "Search for..." option
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedIndex(prev => prev < maxIndex ? prev + 1 : 0);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIndex(prev => prev > 0 ? prev - 1 : maxIndex);
+        } else if (e.key === 'Enter') {
+            if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+                window.location.href = `/app/${suggestions[selectedIndex].slug}`;
+            } else if (searchQuery.trim()) {
+                window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+            }
+        } else if (e.key === 'Escape') {
+            setSearchQuery('');
+            setSuggestions([]);
+        }
+    };
+
+    const showSuggestions = isMainSearchFocused && (suggestions.length > 0 || searchQuery.length >= 2);
 
     return (
         <section className="text-center flex flex-col items-center gap-4 py-8">
@@ -56,7 +110,7 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
             </h1>
             <p className="font-orbitron text-text-secondary text-sm sm:text-base -mt-2 tracking-wide">Browse, Discover, Explore</p>
             <p className="text-text-tertiary text-xs sm:text-sm -mt-2">
-                <Link href="/search" prefetch={false}><span className="text-text-primary font-semibold">{allTools.length.toLocaleString()}</span> AI tools</Link> for <Link href="/tasks" prefetch={false}><span className="text-text-primary font-semibold">{taskCount}</span> tasks</Link> and <Link href="/category" prefetch={false}><span className="text-text-primary font-semibold">{categoryCount}</span> categories</Link>
+                <Link href="/search" prefetch={false}><span className="text-text-primary font-semibold">{toolCount.toLocaleString()}</span> AI tools</Link> for <Link href="/tasks" prefetch={false}><span className="text-text-primary font-semibold">{taskCount}</span> tasks</Link> and <Link href="/category" prefetch={false}><span className="text-text-primary font-semibold">{categoryCount}</span> categories</Link>
             </p>
             <div className="relative w-full max-w-[500px] mt-1 py-1 z-50">
                 {/* Search Input */}
@@ -78,33 +132,23 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
                                 setSelectedIndex(-1);
                             }}
                             onFocus={() => setIsMainSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsMainSearchFocused(false), 150)}
-                            onKeyDown={(e) => {
-                                const results = searchResults.slice(0, 5);
-                                const maxIndex = results.length;
-                                if (e.key === 'ArrowDown') {
-                                    e.preventDefault();
-                                    setSelectedIndex(prev => prev < maxIndex ? prev + 1 : prev);
-                                } else if (e.key === 'ArrowUp') {
-                                    e.preventDefault();
-                                    setSelectedIndex(prev => prev > 0 ? prev - 1 : prev);
-                                } else if (e.key === 'Enter') {
-                                    if (selectedIndex >= 0 && selectedIndex < results.length && results[selectedIndex]) {
-                                        window.location.href = `/app/${results[selectedIndex].slug}`;
-                                    } else if (searchQuery.trim()) {
-                                        window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
-                                    }
-                                } else if (e.key === 'Escape') {
-                                    setSearchQuery('');
-                                    setSelectedIndex(-1);
-                                }
-                            }}
+                            onBlur={() => setTimeout(() => setIsMainSearchFocused(false), 200)}
+                            onKeyDown={handleKeyDown}
                             suppressHydrationWarning
                         />
+                        {!searchQuery && (
+                            <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
+                                <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
+                                <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
+                            </span>
+                        )}
                         {searchQuery && (
                             <button
                                 className="flex items-center justify-center p-1 bg-transparent border-none cursor-pointer text-text-tertiary transition-colors hover:text-text-primary"
-                                onClick={() => setSearchQuery('')}
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setSuggestions([]);
+                                }}
                                 suppressHydrationWarning
                             >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -115,44 +159,61 @@ export default function HeroSection({ allTools, categoryCount = 0, taskCount = 0
                     </div>
                 </div>
 
-                {/* Search Dropdown */}
-                {searchQuery && isMainSearchFocused && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden z-[100]">
-                        {searchResults.slice(0, 5).map((tool, index) => {
-                            const logoUrl = tool.logoUrl ? getFullUrl(tool.logoUrl) : '';
-                            return (
-                                <div
-                                    key={tool.id}
-                                    className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors ${index === selectedIndex ? 'bg-bg-secondary' : 'hover:bg-bg-secondary'}`}
-                                    onClick={() => window.location.href = `/app/${tool.slug}`}
-                                    onMouseEnter={() => setSelectedIndex(index)}
-                                >
-                                    {logoUrl ? (
-                                        <img src={logoUrl} alt={tool.name} className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
-                                    ) : (
-                                        <div className="w-7 h-7 rounded-md bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
-                                            <span className="text-xs font-semibold text-accent-primary">{tool.name.charAt(0)}</span>
-                                        </div>
-                                    )}
-                                    <span className="text-sm text-text-primary truncate">{tool.name}</span>
-                                </div>
-                            );
-                        })}
-                        <div
-                            className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors border-t border-border ${selectedIndex === searchResults.slice(0, 5).length ? 'bg-bg-secondary' : 'hover:bg-bg-secondary'}`}
-                            onClick={() => window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`}
-                            onMouseEnter={() => setSelectedIndex(searchResults.slice(0, 5).length)}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-tertiary flex-shrink-0">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="M21 21l-4.35-4.35" />
-                            </svg>
-                            <span className="text-sm text-text-secondary">
-                                Search for <span className="font-medium text-text-primary">&quot;{searchQuery}&quot;</span>...
-                            </span>
-                        </div>
-                    </div>
+                {/* Search Suggestions Dropdown */}
+                {showSuggestions && (
+                    <SearchSuggestionsDropdown
+                        suggestions={suggestions}
+                        query={searchQuery}
+                        selectedIndex={selectedIndex}
+                        onHoverItem={setSelectedIndex}
+                    />
                 )}
+            </div>
+
+            {/* Tagline */}
+            <div className="mt-3">
+                <p className="text-xs sm:text-sm text-text-secondary">
+                    🚀 <span className="text-text-primary font-medium">Your #1 destination</span> for discovering the best AI tools, updated daily for <span className="text-text-primary font-medium">Real Humans</span>
+                </p>
+            </div>
+
+            {/* Quick Filter Capsules */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+                <Link
+                    href="/search?pricing=free"
+                    prefetch={false}
+                    className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
+                >
+                    Free
+                </Link>
+                <Link
+                    href="/search?pricing=freemium"
+                    prefetch={false}
+                    className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
+                >
+                    Freemium
+                </Link>
+                <Link
+                    href="/tasks"
+                    prefetch={false}
+                    className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                    </svg>
+                    Browse by Task
+                </Link>
+                <Link
+                    href="/category"
+                    prefetch={false}
+                    className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70">
+                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                    </svg>
+                    Browse by Category
+                </Link>
             </div>
         </section>
     );

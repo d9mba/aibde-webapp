@@ -19,6 +19,7 @@ coverage/
 .env.test.local
 .env.production.local
 .env.production
+.env.development
 
 # Debug logs
 npm-debug.log*
@@ -58,3 +59,6 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# docs
+docs

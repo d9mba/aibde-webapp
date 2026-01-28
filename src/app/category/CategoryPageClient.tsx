@@ -1,62 +1,213 @@
 'use client';
 
 import Link from 'next/link';
-import { AdminTool, Category } from '@/types';
-import { Folder, ChevronRight } from 'lucide-react';
+import { Category } from '@/types';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 
 interface CategoryPageClientProps {
     categories: Category[];
-    tools: AdminTool[];
+    totalCount: number;
 }
 
-export default function CategoryPageClient({ categories, tools }: CategoryPageClientProps) {
+const ITEMS_PER_LOAD = 50;
+
+export default function CategoryPageClient({ categories, totalCount }: CategoryPageClientProps) {
     const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_LOAD);
+    const [activeLetter, setActiveLetter] = useState<string>('');
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+
+    // Sort categories alphabetically and filter those with tools
+    const sortedCategories = useMemo(() => {
+        return categories
+            .filter(cat => (cat.count || 0) > 0)
+            .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+    }, [categories]);
+
+    // Get visible categories
+    const visibleCategories = sortedCategories.slice(0, visibleCount);
+    const hasMore = visibleCount < sortedCategories.length;
+
+    // Group visible categories by first letter
+    const groupedCategories = useMemo(() => {
+        const groups: { [key: string]: Category[] } = {};
+
+        visibleCategories.forEach(category => {
+            const firstLetter = category.categoryName[0].toUpperCase();
+            if (!groups[firstLetter]) {
+                groups[firstLetter] = [];
+            }
+            groups[firstLetter].push(category);
+        });
+
+        return groups;
+    }, [visibleCategories]);
+
+    // All available letters (from all categories, not just visible)
+    const allLetters = useMemo(() => {
+        const letters = new Set<string>();
+        sortedCategories.forEach(cat => {
+            letters.add(cat.categoryName[0].toUpperCase());
+        });
+        return Array.from(letters).sort();
+    }, [sortedCategories]);
+
+    const sortedLetters = Object.keys(groupedCategories).sort();
+
+    // Track active letter based on scroll position (debounced to prevent jitter)
+    useEffect(() => {
+        let ticking = false;
+
+        const handleScroll = () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    const sections = sortedLetters.map(letter => ({
+                        letter,
+                        element: document.getElementById(`section-${letter}`)
+                    })).filter(s => s.element);
+
+                    // Find which section is currently in view
+                    for (let i = sections.length - 1; i >= 0; i--) {
+                        const { letter, element } = sections[i];
+                        if (element) {
+                            const rect = element.getBoundingClientRect();
+                            if (rect.top <= 150) {
+                                setActiveLetter(letter);
+                                ticking = false;
+                                return;
+                            }
+                        }
+                    }
+
+                    // Default to first letter if none in view
+                    if (sections.length > 0) {
+                        setActiveLetter(sections[0].letter);
+                    }
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll(); // Initial check
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [sortedLetters]);
+
+    // Scroll to letter section
+    const scrollToLetter = (letter: string) => {
+        // First, load all categories if clicking on a letter not yet visible
+        if (!groupedCategories[letter]) {
+            setVisibleCount(sortedCategories.length);
+            // Wait for render then scroll
+            setTimeout(() => {
+                const element = document.getElementById(`section-${letter}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+        } else {
+            const element = document.getElementById(`section-${letter}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    };
+
+    // Infinite scroll - load more when reaching bottom
+    const loadMore = useCallback(() => {
+        if (hasMore) {
+            setVisibleCount(prev => Math.min(prev + ITEMS_PER_LOAD, sortedCategories.length));
+        }
+    }, [hasMore, sortedCategories.length]);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore) {
+                    loadMore();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (loadMoreRef.current) {
+            observer.observe(loadMoreRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, loadMore]);
 
     return (
         <div className="max-w-[1200px] mx-auto px-3 sm:px-6 py-4 sm:py-10">
             {/* Hero Section */}
             <section className="text-center py-6 sm:py-8 mb-6 sm:mb-8">
-                <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-accent-primary/10 text-accent-primary mb-4">
-                    <Folder className="w-6 h-6 sm:w-7 sm:h-7" />
-                </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">Browse by Category</h1>
-                <p className="text-sm sm:text-base text-text-secondary max-w-md mx-auto">Explore {categories.length} categories with AI tools for every need</p>
+                <p className="text-sm sm:text-base text-text-secondary max-w-lg mx-auto mb-2">
+                    Browse all {totalCount.toLocaleString()} AI categories in alphabetical order.
+                </p>
+                <p className="text-xs sm:text-sm text-text-tertiary max-w-lg mx-auto">
+                    💡 Protip: you can also find them using the search bar at the top of this page.
+                </p>
             </section>
 
-            {/* Categories Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {categories.map((category) => {
-                    const count = tools.filter(t => (t.categoryName || []).includes(category.categoryName)).length;
-                    return (
-                        <Link
-                            key={category.categoryName}
-                            href={`/category/${slugify(category.categoryName)}`}
-                            prefetch={false}
-                            className="group p-4 sm:p-5 bg-bg-card border border-border rounded-xl no-underline transition-all duration-200 hover:border-accent-primary/50 hover:shadow-lg hover:shadow-accent-primary/5 active:scale-[0.98]"
+            <div className="flex gap-4">
+                {/* Alphabet Sidebar - Fixed on desktop */}
+                <div className="hidden lg:flex flex-col items-center gap-0 sticky top-20 max-h-[calc(100vh-120px)] overflow-y-auto py-1 px-0.5 bg-bg-secondary/50 border border-border rounded-lg">
+                    {allLetters.map(letter => (
+                        <button
+                            key={letter}
+                            onClick={() => scrollToLetter(letter)}
+                            className={`w-7 h-7 flex items-center justify-center text-xs font-medium rounded transition-colors ${activeLetter === letter
+                                ? 'bg-accent-primary text-white'
+                                : groupedCategories[letter]
+                                    ? 'text-text-primary hover:bg-accent-primary/10 hover:text-accent-primary'
+                                    : 'text-text-tertiary hover:bg-bg-secondary'
+                                }`}
                         >
-                            <div className="flex items-start gap-3">
-                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center text-accent-primary flex-shrink-0 group-hover:bg-accent-primary group-hover:text-white transition-colors">
-                                    <Folder className="w-4 h-4 sm:w-5 sm:h-5" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-sm sm:text-base font-semibold text-text-primary mb-0.5 sm:mb-1 group-hover:text-accent-primary transition-colors truncate">{category.categoryName}</h3>
-                                    <p className="text-xs sm:text-sm text-text-tertiary line-clamp-2">{category.description || 'No description'}</p>
-                                </div>
-                                <ChevronRight className="w-4 h-4 text-text-tertiary group-hover:text-accent-primary group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1" />
+                            {letter}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-1 space-y-6">
+                    {sortedLetters.map(letter => (
+                        <div key={letter} id={`section-${letter}`}>
+                            <h2 className="text-lg font-bold text-text-primary mb-3 pb-2 border-b border-border">{letter}</h2>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                {groupedCategories[letter].map((category) => (
+                                    <Link
+                                        key={category.categoryName}
+                                        href={`/category/${slugify(category.categoryName)}`}
+                                        prefetch={false}
+                                        className="flex flex-col gap-0.5 px-3 py-2.5 bg-bg-card border border-border rounded-lg no-underline transition-all duration-200 hover:border-accent-primary/50 hover:bg-bg-secondary"
+                                    >
+                                        <span className="text-sm font-medium text-text-primary truncate">{category.categoryName}</span>
+                                        <span className="text-xs text-text-tertiary">{category.count || 0} tools</span>
+                                    </Link>
+                                ))}
                             </div>
-                            <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
-                                <span className="text-xs text-text-tertiary">{count} tool{count !== 1 ? 's' : ''}</span>
-                                <span className="text-xs text-accent-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">Explore →</span>
+                        </div>
+                    ))}
+
+                    {/* Loading indicator / Load more trigger */}
+                    <div ref={loadMoreRef} className="py-8 text-center">
+                        {hasMore ? (
+                            <div className="flex items-center justify-center gap-2 text-text-tertiary">
+                                <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
+                                <span className="text-sm">Loading more categories...</span>
                             </div>
-                        </Link>
-                    );
-                })}
+                        ) : sortedCategories.length > 0 ? (
+                            <p className="text-sm text-text-tertiary">Showing all {totalCount.toLocaleString()} categories</p>
+                        ) : null}
+                    </div>
+                </div>
             </div>
 
             {/* Empty State */}
             {categories.length === 0 && (
                 <div className="text-center py-12">
-                    <Folder className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
                     <p className="text-text-tertiary">No categories found</p>
                 </div>
             )}

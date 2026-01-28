@@ -26,7 +26,10 @@ import {
 
 interface ToolDetailClientProps {
     tool: AdminTool;
-    allTools: AdminTool[];
+    relatedTools: AdminTool[];
+    suggestedTools: AdminTool[];
+    featuredTools: AdminTool[];
+    recentlyAdded: AdminTool[];
     categories: Category[];
     tasks: Task[];
     showFeaturedAlternatives?: boolean;
@@ -34,7 +37,10 @@ interface ToolDetailClientProps {
 
 export default function ToolDetailClient({
     tool,
-    allTools,
+    relatedTools,
+    suggestedTools,
+    featuredTools,
+    recentlyAdded,
     categories,
     tasks,
     showFeaturedAlternatives = true,
@@ -53,67 +59,6 @@ export default function ToolDetailClient({
         category: (tool.categoryName || [])[0],
         pricing: tool.pricing,
     });
-
-    // Get related/alternative tools
-    const relatedTools = useMemo(() => {
-        const manualSlugs = tool.alternativeTools || [];
-        const manualAlternatives = allTools.filter(t =>
-            manualSlugs.includes(t.slug) && t.status === 'published'
-        );
-
-        const toolCategories = tool.categoryName || [];
-        const toolTasks = tool.taskName || [];
-        const autoAlternatives = allTools
-            .filter(t => {
-                if (t.slug === tool.slug || t.status !== 'published') return false;
-                if (manualSlugs.includes(t.slug)) return false;
-                const tCategories = t.categoryName || [];
-                const tTasks = t.taskName || [];
-                return tCategories.some(cat => toolCategories.includes(cat)) ||
-                    tTasks.some(task => toolTasks.includes(task));
-            })
-            .slice(0, 6 - manualAlternatives.length);
-
-        return [...manualAlternatives, ...autoAlternatives].slice(0, 6);
-    }, [allTools, tool]);
-
-    // Get featured tools
-    const featuredTools = useMemo(() => {
-        return allTools
-            .filter(t => t.status === 'published' && t.slug !== tool.slug)
-            .sort((a, b) => b.saveCount - a.saveCount)
-            .slice(0, 6);
-    }, [allTools, tool.slug]);
-
-    // Get suggested tools
-    const suggestedTools = useMemo(() => {
-        const toolTags = tool.tags || [];
-        const toolCategories = tool.categoryName || [];
-        const toolTasks = tool.taskName || [];
-        const alternativeSlugs = tool.alternativeTools || [];
-
-        return allTools
-            .filter(t => {
-                if (t.slug === tool.slug || t.status !== 'published') return false;
-                if (alternativeSlugs.includes(t.slug)) return false;
-                const tTags = t.tags || [];
-                const tCategories = t.categoryName || [];
-                const tTasks = t.taskName || [];
-                return tTags.some(tag => toolTags.includes(tag)) ||
-                    tCategories.some(cat => toolCategories.includes(cat)) ||
-                    tTasks.some(task => toolTasks.includes(task));
-            })
-            .sort((a, b) => b.saveCount - a.saveCount)
-            .slice(0, 6);
-    }, [allTools, tool]);
-
-    // Get recently added tools
-    const recentlyAdded = useMemo(() => {
-        return allTools
-            .filter(t => t.status === 'published' && t.slug !== tool.slug)
-            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-            .slice(0, 5);
-    }, [allTools, tool.slug]);
 
     // Extended info
     const extendedInfo = useMemo(() => getExtendedInfo(tool), [tool]);
@@ -216,7 +161,7 @@ export default function ToolDetailClient({
                     {/* Tool info */}
                     <div className="flex items-center gap-2 flex-1 min-w-0 pl-0.5">
                         {tool.logoUrl ? (
-                            <img src={tool.logoUrl} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                            <img src={tool.logoUrl} alt="" className="w-8 h-8 rounded-lg object-contain flex-shrink-0" />
                         ) : (
                             <div className="w-8 h-8 rounded-lg bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
                                 <span className="text-xs font-semibold text-accent-primary">{tool.name[0]}</span>

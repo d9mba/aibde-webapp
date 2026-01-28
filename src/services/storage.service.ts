@@ -5,7 +5,7 @@ const r2AccountId = process.env.R2_ACCOUNT_ID;
 const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
 const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 const bucketName = process.env.R2_BUCKET_NAME || '';
-const publicUrl = process.env.R2_PUBLIC_URL || '';
+const publicUrl = process.env.R2_DEV_URL || '';
 
 // Warn if R2 is not configured (but don't throw - storage is optional)
 if (!r2AccountId || !r2AccessKeyId || !r2SecretAccessKey || !bucketName) {
@@ -72,13 +72,21 @@ export function getPublicUrl(path: string): string {
 }
 
 /**
- * Extract the path from a public URL
+ * Extract the path from a public URL (supports both R2 and CDN URLs)
  * @param url - Full public URL
  * @returns Path in bucket
  */
 export function getPathFromUrl(url: string): string | null {
-    if (!url.startsWith(publicUrl)) return null;
-    return url.replace(`${publicUrl}/`, '');
+    // Check R2 public URL
+    if (url.startsWith(publicUrl)) {
+        return url.replace(`${publicUrl}/`, '');
+    }
+    // Check CDN URL (files uploaded via CDN but stored in R2)
+    const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || '';
+    if (cdnUrl && url.startsWith(cdnUrl)) {
+        return url.replace(`${cdnUrl}/`, '');
+    }
+    return null;
 }
 
 /**

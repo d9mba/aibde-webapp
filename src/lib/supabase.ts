@@ -47,6 +47,9 @@ export interface DbTool {
 
     // Stats & Display
     save_count: number;
+    view_count?: number;
+    upvotes?: number;
+    downvotes?: number;
     released_at?: string;
     is_featured: boolean;
 
@@ -119,6 +122,9 @@ export interface DbTool {
     // Premium - gives dofollow backlinks (SEO value)
     premium?: boolean;
 
+    // Trending control
+    trending_position?: number;
+
     // Legacy fields for backwards compat (may not exist in all DBs)
     screenshots?: string[];
     video_url?: string;
@@ -159,7 +165,7 @@ export interface DbSettings {
 }
 
 // CDN URL for production, fallback to R2 for dev (server-side)
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_PUBLIC_URL || process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
+const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL || '';
 
 // Helper to reconstruct full URL from relative path (server-side only)
 function toFullUrl(path: string | undefined | null): string | undefined {
@@ -278,14 +284,17 @@ export function dbToolToAdminTool(dbTool: DbTool) {
 
         // Media - reconstruct full URLs from relative paths
         logoUrl: toFullUrl(dbTool.logo_url),
-        images: (dbTool.images || dbTool.screenshots)?.map(img => toFullUrl(img)).filter(Boolean),
+        images: (dbTool.images || dbTool.screenshots)?.map(img => toFullUrl(img)).filter((x): x is string => Boolean(x)) || [],
         videos: dbTool.videos,
-        screenshots: dbTool.screenshots?.map(s => toFullUrl(s)).filter(Boolean),
+        screenshots: dbTool.screenshots?.map(s => toFullUrl(s)).filter((x): x is string => Boolean(x)) || [],
         videoUrl: dbTool.video_url,
 
         // Stats
         saveCount: dbTool.save_count,
-        releasedAt: dbTool.released_at || null,
+        viewCount: dbTool.view_count || 0,
+        upvotes: dbTool.upvotes || 0,
+        downvotes: dbTool.downvotes || 0,
+        releasedAt: dbTool.released_at || '',
         releasedAgo: formatRelativeTime(dbTool.created_at, dbTool.updated_at),
         isFeatured: dbTool.is_featured,
 
@@ -332,6 +341,7 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         spotlightStartDate: dbTool.spotlight_start_date,
         spotlightEndDate: dbTool.spotlight_end_date,
         premium: dbTool.premium,
+        trendingPosition: dbTool.trending_position,
 
         // Display
         showScreenshots: dbTool.show_screenshots,
@@ -362,6 +372,9 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
         // Stats
         saveCount: 'save_count',
+        viewCount: 'view_count',
+        upvotes: 'upvotes',
+        downvotes: 'downvotes',
         releasedAt: 'released_at',
         isFeatured: 'is_featured',
 
@@ -408,6 +421,9 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         // Premium
         premium: 'premium',
 
+        // Trending
+        trendingPosition: 'trending_position',
+
         // Display
         showScreenshots: 'show_screenshots',
         showPricing: 'show_pricing',
@@ -424,14 +440,22 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
     // Fields that should be null instead of empty string for PostgreSQL timestamps
     const timestampFields = ['scheduled_at', 'spotlight_start_date', 'spotlight_end_date', 'released_at'];
 
-    // Helper to extract relative path from full URL
+    // Helper to extract relative path from full URL (converts CDN URLs to relative paths for storage)
     const extractRelativePath = (url: string | undefined | null): string | null => {
         if (!url) return null;
-        // If it's already a relative path, return as is
-        if (url.startsWith('/uploads/')) return url;
-        // Extract /uploads/... from full URL
-        const match = url.match(/\/uploads\/[^?#]+/);
-        return match ? match[0] : url;
+        // Already a relative path starting with /, return as is
+        if (url.startsWith('/') && !url.startsWith('//')) return url;
+        // Strip CDN URL if present
+        if (CDN_URL && url.startsWith(CDN_URL)) {
+            return url.substring(CDN_URL.length);
+        }
+        // Try to extract pathname from full URL
+        try {
+            const urlObj = new URL(url);
+            return urlObj.pathname;
+        } catch {
+            return url;
+        }
     };
 
     for (const [key, value] of Object.entries(tool)) {

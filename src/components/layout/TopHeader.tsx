@@ -3,20 +3,17 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Search } from 'lucide-react';
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { useSearch } from '@/context/SearchContext';
-import { useAdminData } from '@/context/AdminContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
-import { useDebounce } from '@/hooks/useDebounce';
-import { quickSearchTools } from '@/lib/search';
+import { trackToolClick } from '@/hooks/useToolAnalytics';
 import { AdminTool } from '@/types';
 
 export default function TopHeader() {
     const router = useRouter();
     const pathname = usePathname();
     const { searchQuery, setSearchQuery, isMainSearchFocused } = useSearch();
-    const adminData = useAdminData();
     const [showHeaderSearch, setShowHeaderSearch] = useState(false);
     const [showRecommendations, setShowRecommendations] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -25,17 +22,55 @@ export default function TopHeader() {
     const inputRef = useRef<HTMLInputElement>(null);
     const typingPlaceholder = useTypingPlaceholder();
 
-    // Debounce search query for recommendations
-    const debouncedQuery = useDebounce(searchQuery, 150);
+    // API-based search suggestions
+    const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const searchTimeout = useRef<NodeJS.Timeout>();
 
-    // Get tools from AdminContext and filter client-side (no API calls!)
-    const tools = adminData?.getPublishedTools() || [];
-    const recommendations = useMemo(() => {
-        if (!debouncedQuery || debouncedQuery.trim().length < 2) {
-            return [];
+    // Fetch suggestions using Server Action (hidden from Network tab)
+    const fetchSuggestions = useCallback(async (query: string) => {
+        if (!query || query.length < 2) {
+            setSuggestions([]);
+            return;
         }
-        return quickSearchTools(tools, debouncedQuery, 6);
-    }, [tools, debouncedQuery]);
+
+        setIsLoading(true);
+        try {
+            const { getSearchSuggestionsAction } = await import('@/lib/actions');
+            const tools = await getSearchSuggestionsAction(query, 6);
+            setSuggestions(tools);
+        } catch (error) {
+            console.error('Search suggestions failed:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    // Debounced search
+    useEffect(() => {
+        if (searchTimeout.current) {
+            clearTimeout(searchTimeout.current);
+        }
+
+        if (searchQuery.length >= 2 && showRecommendations) {
+            searchTimeout.current = setTimeout(() => {
+                fetchSuggestions(searchQuery);
+            }, 200);
+        } else {
+            setSuggestions([]);
+        }
+
+        return () => {
+            if (searchTimeout.current) {
+                clearTimeout(searchTimeout.current);
+            }
+        };
+    }, [searchQuery, showRecommendations, fetchSuggestions]);
+
+    // Reset selected index when suggestions change
+    useEffect(() => {
+        setSelectedIndex(-1);
+    }, [suggestions]);
 
     // Pages that have their own search bar
     const pagesWithSearch = ['/', '/search'];
@@ -108,7 +143,7 @@ export default function TopHeader() {
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (!showRecommendations || !searchQuery.trim()) return;
 
-        const maxIndex = recommendations.length; // Last index is "Search for..." option
+        const maxIndex = suggestions.length; // Last index is "Search for..." option
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -118,9 +153,11 @@ export default function TopHeader() {
             setSelectedIndex(prev => prev > 0 ? prev - 1 : maxIndex);
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (selectedIndex >= 0 && selectedIndex < recommendations.length) {
-                // Selected a tool
-                router.push(`/app/${recommendations[selectedIndex].slug}`);
+            if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+                // Selected a tool - track the click
+                const tool = suggestions[selectedIndex];
+                trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+                router.push(`/app/${suggestions[selectedIndex].slug}`);
                 setShowRecommendations(false);
                 setSearchQuery('');
             } else {
@@ -134,7 +171,8 @@ export default function TopHeader() {
     };
 
     // Handle tool click
-    const handleToolClick = (slug: string) => {
+    const handleToolClick = (slug: string, tool: AdminTool) => {
+        trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
         router.push(`/app/${slug}`);
         setShowRecommendations(false);
         setSearchQuery('');
@@ -192,10 +230,22 @@ export default function TopHeader() {
                                         className="flex-1 border-none outline-none bg-transparent text-sm text-text-primary placeholder:text-text-tertiary/50"
                                         suppressHydrationWarning
                                     />
-                                    {searchQuery && (
+                                    {isLoading && (
+                                        <span className="w-4 h-4 border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0"></span>
+                                    )}
+                                    {!searchQuery && !isLoading && (
+                                        <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
+                                            <kbd className="px-1 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
+                                            <kbd className="px-1 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
+                                        </span>
+                                    )}
+                                    {searchQuery && !isLoading && (
                                         <button
                                             type="button"
-                                            onClick={() => setSearchQuery('')}
+                                            onClick={() => {
+                                                setSearchQuery('');
+                                                setSuggestions([]);
+                                            }}
                                             className="flex items-center justify-center p-1 text-text-tertiary hover:text-text-primary transition-colors"
                                             suppressHydrationWarning
                                         >
@@ -211,10 +261,10 @@ export default function TopHeader() {
                         {/* Recommendations Dropdown - Absolute positioned below */}
                         {searchQuery && showHeaderSearch && showRecommendations && (
                             <div className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
-                                {recommendations.map((tool, index) => (
+                                {suggestions.map((tool, index) => (
                                     <button
                                         key={tool.id}
-                                        onClick={() => handleToolClick(tool.slug)}
+                                        onClick={() => handleToolClick(tool.slug, tool)}
                                         className={cn(
                                             "flex items-center gap-3 w-full px-4 py-2.5 text-left transition-colors",
                                             index === selectedIndex
@@ -228,7 +278,7 @@ export default function TopHeader() {
                                             <img
                                                 src={tool.logoUrl}
                                                 alt=""
-                                                className="w-7 h-7 rounded-md object-cover flex-shrink-0"
+                                                className="w-7 h-7 rounded-md object-contain flex-shrink-0"
                                             />
                                         ) : (
                                             <div className="w-7 h-7 rounded-md bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
@@ -247,11 +297,11 @@ export default function TopHeader() {
                                     onClick={(e) => { e.preventDefault(); handleSearch(e as unknown as React.FormEvent); }}
                                     className={cn(
                                         "flex items-center gap-3 w-full px-4 py-2.5 text-left transition-colors border-t border-border",
-                                        selectedIndex === recommendations.length
+                                        selectedIndex === suggestions.length
                                             ? "bg-bg-secondary"
                                             : "hover:bg-bg-secondary"
                                     )}
-                                    onMouseEnter={() => setSelectedIndex(recommendations.length)}
+                                    onMouseEnter={() => setSelectedIndex(suggestions.length)}
                                     suppressHydrationWarning
                                 >
                                     <Search size={18} className="text-text-tertiary flex-shrink-0" />

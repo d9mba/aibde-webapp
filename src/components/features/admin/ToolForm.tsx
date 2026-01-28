@@ -8,6 +8,7 @@ import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { Input, Toggle, Section, ListEditor, Combobox, RichTextEditor, MediaUpload, useToast, SearchableSelect } from '@/components/ui';
 import { toolSchema, ToolFormData, defaultToolValues } from './ToolForm/schema';
 import FullPreview from './ToolForm/FullPreview';
+import { getPricingClass, getPricingLabel } from '@/lib/formatters';
 
 interface ToolFormProps { toolId?: string; }
 
@@ -60,11 +61,17 @@ const PricingTierEditor = ({ tiers, onChange }: { tiers: any[]; onChange: (tiers
                     <div className="grid grid-cols-3 gap-3 mb-3">
                         <input value={tier.name} onChange={e => { const t = [...tiers]; t[i].name = e.target.value; onChange(t); }} placeholder="Tier name" className="px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm" />
                         <input value={tier.price} onChange={e => { const t = [...tiers]; t[i].price = e.target.value; onChange(t); }} placeholder="Price" className="px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm" />
-                        <select value={tier.billingFrequency || 'monthly'} onChange={e => { const t = [...tiers]; t[i].billingFrequency = e.target.value; onChange(t); }} className="px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm">
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
-                            <option value="one-time">One-time</option>
-                        </select>
+                        <SearchableSelect
+                            value={tier.billingFrequency || 'monthly'}
+                            onChange={(value) => { const t = [...tiers]; t[i].billingFrequency = value; onChange(t); }}
+                            options={[
+                                { value: 'monthly', label: 'Monthly' },
+                                { value: 'yearly', label: 'Yearly' },
+                                { value: 'one-time', label: 'One-time' },
+                            ]}
+                            showSearch={false}
+                            className="flex-1"
+                        />
                     </div>
                     <textarea value={(tier.features || []).join('\n')} onChange={e => { const t = [...tiers]; t[i].features = e.target.value.split('\n').filter(Boolean); onChange(t); }} placeholder="Features (one per line)" rows={3} className="w-full px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm resize-none" />
                     <label className="flex items-center gap-2 mt-2 text-sm text-text-secondary cursor-pointer">
@@ -175,8 +182,8 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
                     <div className="flex gap-2 mt-2 flex-wrap">
                         {firstCategory && <span className="px-2 py-0.5 bg-accent-primary/10 text-accent-primary rounded text-xs">{firstCategory}{categoryNames.length > 1 && ` +${categoryNames.length - 1}`}</span>}
                         {values.pricing && (
-                            <span className={`px-2 py-0.5 rounded text-xs ${values.pricing === 'free' ? 'bg-accent-green/10 text-accent-green' : values.pricing === 'freemium' ? 'bg-accent-purple/10 text-accent-purple' : 'bg-accent-yellow/10 text-accent-yellow'}`}>
-                                {values.pricing === 'free' ? 'Free' : values.pricing === 'freemium' ? 'Freemium' : 'Paid'}
+                            <span className={`px-2 py-0.5 rounded text-xs ${getPricingClass(values.pricing)}`}>
+                                {getPricingLabel(values.pricing)}
                             </span>
                         )}
                         {values.hasFreeTrial && <span className="px-2 py-0.5 bg-bg-tertiary text-text-secondary rounded text-xs">{values.freeTrialDays} day trial</span>}
@@ -197,6 +204,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
     const [showFullPreview, setShowFullPreview] = useState(false);
     const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+    const [showJsonImport, setShowJsonImport] = useState(false);
+    const [jsonInput, setJsonInput] = useState('');
+    const [jsonError, setJsonError] = useState('');
 
     const { register, control, handleSubmit, watch, setValue, reset, formState: { errors, isSubmitting } } = useForm<ToolFormData>({
         resolver: zodResolver(toolSchema),
@@ -318,7 +328,13 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             }
         }
 
-        const statusMsg = data.status === 'draft' ? 'Saving draft' : (data.status === 'pending' ? 'Submitting for review' : (isEdit ? 'Updating' : 'Creating'));
+        const statusMessages: Record<string, string> = {
+            draft: 'Saving draft',
+            pending: 'Submitting for review',
+            published: isEdit ? 'Updating' : 'Creating'
+        };
+        const status = data.status || 'published';
+        const statusMsg = statusMessages[status] || (isEdit ? 'Updating' : 'Creating');
         const toastId = showToast(`${statusMsg}...`, 'loading');
         try {
             if (isEdit && toolId) await updateTool(toolId, data);
@@ -370,11 +386,138 @@ export default function ToolForm({ toolId }: ToolFormProps) {
         await handleSubmit(onSubmit, onError)();
     };
 
-    // Common form error handler
+    // Common form error handler - shows which fields are missing/invalid
     const onFormError = (errors: any) => {
         console.error('Form validation errors:', errors);
-        const firstError = Object.values(errors)[0] as any;
-        showToast(firstError?.message || 'Please fill in required fields', 'error');
+
+        // Get all field names with errors
+        const errorFields = Object.keys(errors);
+        const errorMessages = Object.entries(errors).map(([field, error]: [string, any]) => {
+            return `${field}: ${error?.message || 'Invalid'}`;
+        });
+
+        // Show detailed error message
+        if (errorFields.length > 0) {
+            const fieldList = errorFields.join(', ');
+            showToast(`Missing/invalid fields: ${fieldList}`, 'error');
+            console.log('Detailed errors:', errorMessages);
+        } else {
+            showToast('Please fill in required fields', 'error');
+        }
+    };
+
+
+
+    // Handle JSON import
+    const handleJsonImport = () => {
+        setJsonError('');
+        if (!jsonInput.trim()) {
+            setJsonError('Please paste JSON data');
+            return;
+        }
+
+        try {
+            const data = JSON.parse(jsonInput);
+
+            // Map common field names to our schema
+            const fieldMappings: Record<string, string> = {
+                'tool_name': 'name',
+                'toolName': 'name',
+                'title': 'name',
+                'short_description': 'summary',
+                'shortDescription': 'summary',
+                'long_description': 'description',
+                'longDescription': 'description',
+                'website': 'websiteUrl',
+                'website_url': 'websiteUrl',
+                'url': 'websiteUrl',
+                'logo': 'logoUrl',
+                'logo_url': 'logoUrl',
+                'category': 'categoryName',
+                'categories': 'categoryName',
+                'task': 'taskName',
+                'tasks': 'taskName',
+                'price': 'pricing',
+                'pricing_model': 'pricing',
+                'features': 'coreFeatures',
+                'core_features': 'coreFeatures',
+                'use_cases': 'useCases',
+                'released_at': 'releasedAt',
+                'released_date': 'releasedAt',
+                'founded': 'releasedAt',
+                'free_trial': 'hasFreeTrial',
+                'freeTrial': 'hasFreeTrial',
+                'trial_days': 'freeTrialDays',
+                'affiliate_url': 'affiliateUrl',
+                'social': 'socialLinks',
+                'social_links': 'socialLinks',
+            };
+
+            // Process and set values
+            let importedCount = 0;
+            for (const [key, value] of Object.entries(data)) {
+                if (value === null || value === undefined) continue;
+
+                // Map to our field name
+                const fieldName = fieldMappings[key] || key;
+
+                // Check if field exists in our form
+                if (fieldName in defaultToolValues) {
+                    // All array fields that need to be arrays
+                    const stringArrayFields = ['categoryName', 'taskName', 'tags', 'coreFeatures', 'useCases', 'pros', 'cons', 'images', 'videos', 'alternativeTools', 'references'];
+                    const objectArrayFields = ['faq', 'pricingTiers', 'internalNotes', 'versionHistory'];
+
+                    // Handle string arrays - ensure they're arrays of strings
+                    if (stringArrayFields.includes(fieldName)) {
+                        let arrayValue: string[] = [];
+                        if (Array.isArray(value)) {
+                            arrayValue = value.map(v => String(v));
+                        } else if (typeof value === 'string') {
+                            // Split by comma or newline if it's a string
+                            arrayValue = value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+                        } else {
+                            arrayValue = [String(value)];
+                        }
+                        setValue(fieldName as any, arrayValue, { shouldDirty: true });
+                    }
+                    // Handle object arrays (faq, pricingTiers, etc.) - only accept if already array
+                    else if (objectArrayFields.includes(fieldName)) {
+                        if (Array.isArray(value)) {
+                            setValue(fieldName as any, value, { shouldDirty: true });
+                        }
+                        // Skip if not an array - don't try to convert
+                    }
+                    // Handle booleans
+                    else if (typeof (defaultToolValues as any)[fieldName] === 'boolean') {
+                        setValue(fieldName as any, Boolean(value), { shouldDirty: true });
+                    }
+                    // Handle numbers
+                    else if (typeof (defaultToolValues as any)[fieldName] === 'number') {
+                        setValue(fieldName as any, Number(value) || 0, { shouldDirty: true });
+                    }
+                    // Handle socialLinks object
+                    else if (fieldName === 'socialLinks' && typeof value === 'object' && !Array.isArray(value)) {
+                        setValue('socialLinks', value as any, { shouldDirty: true });
+                    }
+                    // Default - string values
+                    else if (typeof value === 'string' || typeof value === 'number') {
+                        setValue(fieldName as any, String(value), { shouldDirty: true });
+                    }
+                    importedCount++;
+                }
+            }
+
+            if (importedCount > 0) {
+                showToast(`Imported ${importedCount} fields successfully!`, 'success');
+                setJsonInput('');
+                setShowJsonImport(false);
+            } else {
+                setJsonError('No matching fields found in JSON');
+            }
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+            setJsonError(`Invalid JSON: ${errorMessage}`);
+        }
     };
 
     return (
@@ -382,12 +525,153 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold text-text-primary">{isEdit ? 'Edit Tool' : 'Add New Tool'}</h1>
                 <div className="flex gap-2">
+                    {!isEdit && (
+                        <button
+                            type="button"
+                            onClick={() => setShowJsonImport(!showJsonImport)}
+                            className="px-3 py-1.5 text-sm border border-accent-primary text-accent-primary rounded-lg hover:bg-accent-primary/10"
+                        >
+                            {showJsonImport ? 'Hide JSON Import' : '📋 Import JSON'}
+                        </button>
+                    )}
                     <button type="button" onClick={() => router.back()} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary">Cancel</button>
                     <button type="button" onClick={handleSaveAsDraft} disabled={isSubmitting} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save as Draft'}</button>
                     {!isEdit && <button type="button" onClick={handleReadyForReview} disabled={isSubmitting} className="px-3 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Ready for Review'}</button>}
                     {isEdit && <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Update'}</button>}
                 </div>
             </div>
+
+            {/* JSON Import Section */}
+            {showJsonImport && (
+                <div className="mb-6 p-4 bg-bg-card border border-accent-primary/30 rounded-xl">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-medium text-text-primary">📋 Quick Import from JSON</h3>
+                        <button type="button" onClick={() => setShowJsonImport(false)} className="text-text-tertiary hover:text-text-primary">×</button>
+                    </div>
+
+                    {/* Collapsible Schema Reference */}
+                    <details className="mb-4 bg-bg-secondary rounded-lg border border-border">
+                        <summary className="px-3 py-2 text-xs font-medium text-text-secondary cursor-pointer hover:text-text-primary">
+                            📖 View Full Database Schema (Click to expand)
+                        </summary>
+                        <div className="px-3 py-2 text-xs text-text-tertiary font-mono border-t border-border max-h-64 overflow-y-auto">
+                            <pre className="whitespace-pre-wrap">{`{
+  // BASIC SETTINGS (Required: name, summary, description)
+  "name": "string",           // Tool name *required
+  "slug": "string",           // URL slug (auto-generated)
+  "summary": "string",        // Short description *required
+  "description": "string",    // Full description (HTML) *required
+  "logoUrl": "string",        // Logo image URL
+  "websiteUrl": "string",     // Official website
+  "affiliateUrl": "string",   // Affiliate link
+  "affiliateEnabled": false,  // Enable affiliate redirect
+
+  // CATEGORIES & CLASSIFICATION
+  "categoryName": ["string"], // Categories array
+  "taskName": ["string"],     // Tasks array  
+  "tags": ["string"],         // Tags array
+
+  // PRICING
+  "pricing": "free|freemium|paid",
+  "pricingLabel": "string",   // e.g., "From $20/mo"
+  "billingFrequency": "monthly|yearly|one-time|custom",
+  "discount": "string",       // e.g., "20% off"
+  "hasFreeTrial": false,
+  "freeTrialDays": 14,
+  "pricingTiers": [{          // Pricing tiers
+    "name": "string",
+    "price": "string",
+    "billingFrequency": "string",
+    "features": ["string"],
+    "highlighted": false
+  }],
+
+  // FEATURES & CONTENT
+  "coreFeatures": ["string"], // Key features list
+  "useCases": ["string"],     // Use cases list
+  "pros": ["string"],         // Pros list
+  "cons": ["string"],         // Cons list
+  "faq": [{                   // FAQ items
+    "question": "string",
+    "answer": "string"
+  }],
+
+  // MEDIA
+  "images": ["string"],       // Screenshot URLs
+  "videos": ["string"],       // Video URLs
+
+  // CONTACT (Confidential)
+  "contactName": "string",
+  "contactEmail": "string",
+  "contactCompany": "string",
+  "contactAddress": "string",
+  "contactMobile": "string",
+
+  // SOCIAL LINKS
+  "socialLinks": {
+    "instagram": "string",
+    "facebook": "string",
+    "twitter": "string",
+    "linkedin": "string",
+    "discord": "string",
+    "youtube": "string",
+    "tiktok": "string",
+    "other": "string"
+  },
+
+  // APP STORE LINKS
+  "playStoreUrl": "string",
+  "appStoreUrl": "string",
+
+  // PUBLISHING
+  "status": "draft|pending|published|unpublished|scheduled",
+  "releasedAt": "YYYY-MM-DD", // Founded date
+  "scheduledAt": "datetime",  // Scheduled publish date
+
+  // SPOTLIGHT
+  "spotlightEnabled": false,
+  "spotlightPosition": 1,
+  "spotlightStartDate": "YYYY-MM-DD",
+  "spotlightEndDate": "YYYY-MM-DD",
+
+  // OTHER
+  "premium": false,           // Premium listing
+  "saveCount": 0,             // Bookmark count
+  "alternativeTools": ["slug"], // Alt tool slugs
+  "references": ["url"]       // Reference URLs
+}`}</pre>
+                        </div>
+                    </details>
+
+                    {/* JSON Editor with Line Numbers */}
+                    <div className="relative flex border border-border rounded-lg overflow-hidden bg-bg-secondary">
+                        {/* Line numbers */}
+                        <div className="flex-shrink-0 bg-bg-tertiary border-r border-border px-2 py-2 text-right select-none">
+                            {(jsonInput || ' ').split('\n').map((_, i) => (
+                                <div key={i} className="text-xs text-text-tertiary font-mono leading-5">{i + 1}</div>
+                            ))}
+                        </div>
+                        {/* Textarea */}
+                        <textarea
+                            value={jsonInput}
+                            onChange={(e) => { setJsonInput(e.target.value); setJsonError(''); }}
+                            placeholder='Paste your JSON here...'
+                            rows={10}
+                            className="flex-1 px-3 py-2 bg-transparent text-sm text-text-primary font-mono resize-none focus:outline-none leading-5"
+                            spellCheck={false}
+                        />
+                    </div>
+                    {jsonError && (
+                        <div className="mt-2 p-2 bg-accent-red/10 border border-accent-red/30 rounded-lg">
+                            <p className="text-xs text-accent-red font-mono">{jsonError}</p>
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-2 mt-3">
+                        <button type="button" onClick={() => { setJsonInput(''); setJsonError(''); }} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary">Clear</button>
+                        <button type="button" onClick={handleJsonImport} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90">Import & Fill Form</button>
+                    </div>
+                </div>
+            )}
 
             {showDuplicateWarning && <div className="mb-4 p-3 bg-accent-yellow/10 border border-accent-yellow/30 rounded-lg text-sm text-accent-yellow">⚠️ A tool with this name already exists</div>}
 
@@ -470,20 +754,34 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-text-secondary mb-1.5">Pricing Model</label>
-                                <select {...register('pricing')} className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary">
-                                    <option value="free">Free</option>
-                                    <option value="freemium">Freemium</option>
-                                    <option value="paid">Paid</option>
-                                </select>
+                                <Controller name="pricing" control={control} render={({ field }) => (
+                                    <SearchableSelect
+                                        value={field.value || 'free'}
+                                        onChange={field.onChange}
+                                        options={[
+                                            { value: 'free', label: 'Free' },
+                                            { value: 'freemium', label: 'Freemium' },
+                                            { value: 'paid', label: 'Paid' },
+                                        ]}
+                                        showSearch={false}
+                                    />
+                                )} />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-text-secondary mb-1.5">Billing Frequency</label>
-                                <select {...register('billingFrequency')} className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary">
-                                    <option value="monthly">Monthly</option>
-                                    <option value="yearly">Yearly</option>
-                                    <option value="one-time">One-time</option>
-                                    <option value="custom">Custom</option>
-                                </select>
+                                <Controller name="billingFrequency" control={control} render={({ field }) => (
+                                    <SearchableSelect
+                                        value={field.value || 'monthly'}
+                                        onChange={field.onChange}
+                                        options={[
+                                            { value: 'monthly', label: 'Monthly' },
+                                            { value: 'yearly', label: 'Yearly' },
+                                            { value: 'one-time', label: 'One-time' },
+                                            { value: 'custom', label: 'Custom' },
+                                        ]}
+                                        showSearch={false}
+                                    />
+                                )} />
                             </div>
                             <Input label="Pricing Label" {...register('pricingLabel')} placeholder="From $20/mo" />
                             <Input label="Discount" {...register('discount')} placeholder="20% off" />
@@ -663,7 +961,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                         images: watch('images'),
                         videos: watch('videos'),
                         pricingTiers: watch('pricingTiers'),
-                        socialLinks: watch('socialLinks'),
+                        socialLinks: watch('socialLinks') ? Object.fromEntries(
+                            Object.entries(watch('socialLinks') || {}).filter(([_, v]) => v != null)
+                        ) as Record<string, string> : undefined,
                     }}
                     categories={categories}
                     tasks={tasks}

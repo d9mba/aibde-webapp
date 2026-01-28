@@ -1,19 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-
-// CDN URL from env (for display fallback)
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
-
-const getFullUrl = (path: string): string => {
-    if (!path) return '';
-    // Already a full URL - return as-is
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    // Relative path - try to prepend CDN URL
-    if (CDN_URL) return `${CDN_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-    // No CDN URL available - return relative path (may not display)
-    return path;
-};
+import { getFullUrl, CDN_URL } from '@/lib/url';
 
 const getRelativePath = (url: string): string => {
     if (!url) return '';
@@ -26,7 +14,7 @@ const getRelativePath = (url: string): string => {
     }
 
     // Check known CDN domains
-    const domains = [CDN_URL, process.env.R2_PUBLIC_URL || ''].filter(Boolean);
+    const domains = [CDN_URL, process.env.R2_DEV_URL || ''].filter(Boolean);
     for (const domain of domains) {
         if (url.startsWith(domain)) return url.replace(domain, '');
     }
@@ -42,7 +30,7 @@ const isUploadedFile = (url: string): boolean => {
     if (r2Pattern.test(url)) return true;
 
     // Check known CDN domains
-    const cdnDomains = [CDN_URL, process.env.NEXT_PUBLIC_R2_PUBLIC_URL || ''].filter(Boolean);
+    const cdnDomains = [CDN_URL, process.env.R2_DEV_URL || ''].filter(Boolean);
     return cdnDomains.some(domain => url.startsWith(domain));
 };
 
@@ -169,14 +157,13 @@ export default function MediaUpload({
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to fetch');
-            const fullUrl = result.url; // Store full URL for display
-            const relativePath = getRelativePath(result.url);
-            trackUpload(relativePath); // Track relative path for cleanup
+            const relativePath = result.path; // Store relative path for DB
+            trackUpload(relativePath); // Track for cleanup
             if (!multiple && currentItems.length > 0) {
                 await cleanupFile(currentItems[0]);
-                setItems([fullUrl]);
+                setItems([relativePath]);
             } else {
-                setItems([...currentItems, fullUrl]);
+                setItems([...currentItems, relativePath]);
                 setAlts([...currentAlts, '']);
             }
             setUrl('');
@@ -202,10 +189,9 @@ export default function MediaUpload({
                 const response = await fetch('/api/upload', { method: 'POST', body: formData });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Upload failed');
-                const fullUrl = result.url; // Store full URL for display
-                const relativePath = getRelativePath(result.url);
-                trackUpload(relativePath); // Track relative path for cleanup
-                newItems.push(fullUrl);
+                const relativePath = result.path; // Store relative path for DB
+                trackUpload(relativePath); // Track for cleanup
+                newItems.push(relativePath);
             }
             if (!multiple) {
                 if (currentItems.length > 0) await cleanupFile(currentItems[0]);

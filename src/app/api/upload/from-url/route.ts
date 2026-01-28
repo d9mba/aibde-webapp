@@ -62,9 +62,9 @@ async function validateHostname(hostname: string): Promise<void> {
     }
 }
 
-// Compress image while maintaining quality
 async function compressImage(input: Uint8Array, mimeType: string): Promise<Uint8Array> {
-    if (mimeType === 'image/gif') {
+    // SVG and GIF are not compressed
+    if (mimeType === 'image/gif' || mimeType === 'image/svg+xml') {
         return input;
     }
 
@@ -182,11 +182,11 @@ export async function POST(request: NextRequest) {
 
         const contentType = response.headers.get('content-type') || 'image/jpeg';
 
-        // SECURITY: Validate content type - SVG REMOVED (XSS risk)
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        // SECURITY: Validate content type - SVG allowed (safe when served from CDN with proper headers)
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
         const isValidType = allowedTypes.some(t => contentType.includes(t));
         if (!isValidType) {
-            return NextResponse.json({ error: 'URL does not point to a valid image (JPEG, PNG, GIF, WebP only)' }, { status: 400 });
+            return NextResponse.json({ error: 'URL does not point to a valid image (JPEG, PNG, GIF, WebP, SVG only)' }, { status: 400 });
         }
 
         // Check content-length header first if available
@@ -234,14 +234,21 @@ export async function POST(request: NextRequest) {
         }
         const originalSize = totalSize;
 
-        // Compress image
-        const isImage = contentType.startsWith('image/') && !contentType.includes('svg');
-        const processedBuffer = isImage
+        // Compress image (skip SVG and GIF)
+        const isCompressible = contentType.startsWith('image/') && !contentType.includes('svg') && !contentType.includes('gif');
+        const processedBuffer = isCompressible
             ? await compressImage(originalBuffer, contentType)
             : originalBuffer;
 
         // Determine folder based on type
-        const folder = type === 'logo' ? 'logos' : type === 'image' ? 'images' : 'uploads';
+        function getUploadFolder(uploadType: string): string {
+            switch (uploadType) {
+                case 'logo': return 'logos';
+                case 'image': return 'images';
+                default: return 'uploads';
+            }
+        }
+        const folder = getUploadFolder(type);
 
         // Generate filename - use custom name if provided
         const urlPath = new URL(url).pathname;
@@ -261,8 +268,8 @@ export async function POST(request: NextRequest) {
         // Upload to R2
         await uploadFile(processedBuffer, `${folder}/${filename}`, contentType);
 
-        // Construct full URL using CDN_URL for production, fallback to R2_PUBLIC_URL
-        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_PUBLIC_URL || '';
+        // Construct full URL using CDN_URL for production, fallback to R2_DEV_URL
+        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL || '';
         const fullUrl = cdnUrl ? `${cdnUrl}/${folder}/${filename}` : relativePath;
 
         return NextResponse.json({

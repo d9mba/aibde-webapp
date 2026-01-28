@@ -1,13 +1,24 @@
 'use client';
 
+import { useEffect } from 'react';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool } from '@/types';
+import { useSearch } from '@/context/SearchContext';
 
 interface NewPageClientProps {
     tools: AdminTool[];
 }
 
 export default function NewPageClient({ tools }: NewPageClientProps) {
+    const { setSharedTools } = useSearch();
+
+    // Set sharedTools for search recommendations in header
+    useEffect(() => {
+        if (tools.length > 0) {
+            setSharedTools(tools);
+        }
+    }, [tools, setSharedTools]);
+
     // Sort by released date (newest first)
     const newTools = [...tools].sort((a, b) =>
         new Date(b.releasedAt).getTime() - new Date(a.releasedAt).getTime()

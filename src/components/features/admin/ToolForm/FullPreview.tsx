@@ -2,6 +2,7 @@
 
 import { X, ExternalLink, Play } from 'lucide-react';
 import { SafeHtml } from '@/components/ui/SafeHtml';
+import { getStatusClass, getPricingLabel } from '@/lib/formatters';
 
 interface FullPreviewProps {
     data: {
@@ -44,7 +45,7 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                 <div className="p-6 border-b border-border">
                     <div className="flex items-start gap-4">
                         {data.logoUrl ? (
-                            <img src={data.logoUrl} alt="" className="w-20 h-20 rounded-xl object-cover" />
+                            <img src={data.logoUrl} alt="" className="w-20 h-20 rounded-xl object-contain" />
                         ) : (
                             <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
                                 {data.name?.[0] || '?'}
@@ -54,14 +55,11 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                             <h2 className="text-2xl font-bold text-text-primary">{data.name || 'Tool Name'}</h2>
                             {data.summary && <p className="text-text-secondary mt-1">{data.summary}</p>}
                             <div className="flex flex-wrap items-center gap-2 mt-2">
-                                <span className={`text-xs px-2 py-1 rounded-full ${data.status === 'published' ? 'bg-green-500/10 text-green-500' :
-                                    data.status === 'draft' ? 'bg-yellow-500/10 text-yellow-500' :
-                                        'bg-gray-500/10 text-gray-500'
-                                    }`}>
+                                <span className={`text-xs px-2 py-1 rounded-full ${getStatusClass(data.status || 'draft')}`}>
                                     {data.status || 'draft'}
                                 </span>
                                 <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full">
-                                    {data.pricing === 'free' ? 'Free' : data.pricing === 'freemium' ? 'Freemium' : 'Paid'}
+                                    {getPricingLabel(data.pricing || 'paid')}
                                 </span>
                                 {data.pricingLabel && (
                                     <span className="text-xs text-text-tertiary">{data.pricingLabel}</span>

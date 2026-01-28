@@ -1,0 +1,169 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+// Google Apps Script Web App URL for tool submissions
+const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_TOOL_SUBMISSIONS_URL || '';
+
+// Cloudflare Turnstile secret key
+const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
+
+interface SocialLink {
+    platform: string;
+    url: string;
+}
+
+interface ToolSubmissionData {
+    // Submitter info
+    submitterName: string;
+    submitterEmail: string;
+
+    // Basic tool info
+    toolName: string;
+    toolUrl: string;
+    shortDescription: string;
+    longDescription?: string;
+
+    // Classification
+    pricing?: string;
+    releasedDate?: string;
+    tags?: string;
+    features?: string;
+
+    // Affiliate
+    hasAffiliateProgram?: boolean;
+    affiliateUrl?: string;
+
+    // Social & Media
+    socialLinks?: SocialLink[];
+    imageUrls?: string;
+    videoUrls?: string;
+
+    // Security
+    turnstileToken: string;
+
+    // Legacy field (for backward compatibility)
+    description?: string;
+}
+
+// Verify Turnstile token with Cloudflare
+async function verifyTurnstile(token: string): Promise<boolean> {
+    if (!TURNSTILE_SECRET_KEY) {
+        console.warn('[Submit Tool API] Turnstile secret key not configured, skipping verification');
+        return true;
+    }
+
+    try {
+        const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                secret: TURNSTILE_SECRET_KEY,
+                response: token,
+            }),
+        });
+
+        const data = await response.json();
+        return data.success === true;
+    } catch (err) {
+        console.error('[Submit Tool API] Turnstile verification error:', err);
+        return false;
+    }
+}
+
+export async function POST(request: NextRequest) {
+    try {
+        const body: ToolSubmissionData = await request.json();
+
+        // Validate required fields
+        if (!body.submitterName || !body.submitterEmail || !body.toolName || !body.toolUrl || !body.shortDescription) {
+            return NextResponse.json(
+                { error: 'Missing required fields' },
+                { status: 400 }
+            );
+        }
+
+        // Verify Turnstile token
+        if (!body.turnstileToken) {
+            return NextResponse.json(
+                { error: 'Security verification required' },
+                { status: 400 }
+            );
+        }
+
+        const isTurnstileValid = await verifyTurnstile(body.turnstileToken);
+        if (!isTurnstileValid) {
+            return NextResponse.json(
+                { error: 'Security verification failed. Please try again.' },
+                { status: 400 }
+            );
+        }
+
+        // Remove turnstileToken from data before saving
+        const { turnstileToken: _, ...formData } = body;
+
+        // Format social links for spreadsheet
+        const socialLinksFormatted = body.socialLinks
+            ?.filter(link => link.url)
+            .map(link => `${link.platform}: ${link.url}`)
+            .join('\n') || '';
+
+        // Prepare data for Google Sheets
+        const sheetData = {
+            timestamp: new Date().toISOString(),
+            status: 'pending',
+            source: 'aibde-submit-form',
+            submitterName: body.submitterName,
+            submitterEmail: body.submitterEmail,
+            toolName: body.toolName,
+            toolUrl: body.toolUrl,
+            shortDescription: body.shortDescription,
+            longDescription: body.longDescription || '',
+            pricing: body.pricing || '',
+            releasedDate: body.releasedDate || '',
+            tags: body.tags || '',
+            features: body.features || '',
+            hasAffiliateProgram: body.hasAffiliateProgram ? 'Yes' : 'No',
+            affiliateUrl: body.affiliateUrl || '',
+            socialLinks: socialLinksFormatted,
+            imageUrls: body.imageUrls || '',
+            videoUrls: body.videoUrls || '',
+        };
+
+        // If Google Apps Script URL is configured, send to Google Sheets
+        // Use waitUntil to make it non-blocking (user doesn't wait for Google)
+        if (GOOGLE_APPS_SCRIPT_URL) {
+            // Dynamic import to avoid issues in non-Vercel environments
+            import('@vercel/functions').then(({ waitUntil }) => {
+                waitUntil(
+                    fetch(GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(sheetData),
+                    }).catch(err => {
+                        console.error('[Submit Tool API] Background Google Sheets sync failed:', err);
+                    })
+                );
+            }).catch(() => {
+                // Fallback for non-Vercel environments (development)
+                fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sheetData),
+                }).catch(err => {
+                    console.error('[Submit Tool API] Google Sheets sync failed:', err);
+                });
+            });
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: 'Tool submitted successfully! We\'ll review it soon.',
+        });
+
+    } catch (err) {
+        console.error('[Submit Tool API] Error:', err);
+        return NextResponse.json(
+            { error: 'Failed to process submission' },
+            { status: 500 }
+        );
+    }
+}

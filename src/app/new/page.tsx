@@ -1,12 +1,53 @@
-import { getPublishedTools } from '@/lib/data';
+import { Metadata } from 'next';
+import { getRecentlyReleasedTools, getToolsCount } from '@/lib/data';
 import NewPageClient from './NewPageClient';
 
 /**
- * New/Just Released Page - Server Component with SSR
- * Fetches all data on the server, hides API calls from network tab
+ * Dynamic SEO Metadata for New/Just Released Page
+ */
+export async function generateMetadata(): Promise<Metadata> {
+    const toolCount = await getToolsCount(['published', 'approved']);
+
+    const title = `New AI Tools | Latest AI Releases | AiBDE`;
+    const description = `Discover the newest AI tools launched recently. Stay ahead with the latest AI innovations in writing, coding, design, marketing, and more. Browse ${toolCount.toLocaleString()}+ tools.`;
+
+    return {
+        title,
+        description,
+        keywords: [
+            'new AI tools',
+            'latest AI tools',
+            'AI tools 2025',
+            'new AI releases',
+            'recently launched AI',
+            'AI software new',
+            'AiBDE',
+        ].join(', '),
+        openGraph: {
+            title,
+            description,
+            type: 'website',
+            siteName: 'AiBDE',
+            url: 'https://aibde.tech/new',
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+        },
+        alternates: {
+            canonical: 'https://aibde.tech/new',
+        },
+    };
+}
+
+/**
+ * New/Just Released Page - Optimized
+ * Only fetches 100 most recent tools instead of all 10K+
  */
 export default async function NewPage() {
-    const tools = await getPublishedTools();
+    // Fetch only 100 recent tools (not all 10K+)
+    const tools = await getRecentlyReleasedTools(100);
 
     return <NewPageClient tools={tools} />;
 }

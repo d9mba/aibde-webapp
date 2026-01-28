@@ -1,22 +1,28 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AIToolCard from '@/components/features/tools/ToolCard';
-import CustomSelect from '@/components/ui/Select';
-import { searchTools } from '@/lib/search';
-import { AdminTool, Category, Task } from '@/types';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
+import { Category, Task } from '@/types';
+import { trackSearch, trackFilterUsed } from '@/hooks/useToolAnalytics';
+import { searchWithCountAction, getSearchSuggestionsAction } from '@/lib/actions';
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 20;
 
 interface SearchPageClientProps {
-    tools: AdminTool[];
     categories: Category[];
     tasks: Task[];
+    toolCount: number;
+    taskCount: number;
+    categoryCount: number;
 }
 
-export default function SearchPageClient({ tools, categories, tasks }: SearchPageClientProps) {
+export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount }: SearchPageClientProps) {
     const searchParams = useSearchParams();
+    const lastTrackedQuery = useRef<string>('');
+    const searchTimeout = useRef<NodeJS.Timeout>();
 
     const [query, setQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -24,199 +30,413 @@ export default function SearchPageClient({ tools, categories, tasks }: SearchPag
     const [selectedPricing, setSelectedPricing] = useState<string | null>(null);
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
-    // Read URL parameters on mount
+    // Search state
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [totalCount, setTotalCount] = useState(0); // Total matching results
+    const [isSearching, setIsSearching] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
+
+    // Search input ref for Ctrl+K focus
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Ctrl+K keyboard shortcut to focus search
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                inputRef.current?.focus();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Read URL parameters on mount and trigger search if query exists
     useEffect(() => {
         const q = searchParams.get('q');
         const pricing = searchParams.get('pricing');
         const category = searchParams.get('category');
         const task = searchParams.get('task');
 
-        if (q) setQuery(q);
+        if (q) {
+            setQuery(q);
+            setCommittedQuery(q); // Auto-search if URL has query
+        }
         if (pricing) setSelectedPricing(pricing);
         if (category) setSelectedCategory(category);
         if (task) setSelectedTask(task);
     }, [searchParams]);
 
-    // Reset visible count when filters change
+    // Suggestions state (shown while typing)
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [committedQuery, setCommittedQuery] = useState(''); // Query that triggers full search
+    const [selectedIndex, setSelectedIndex] = useState(-1); // For arrow key navigation
+
+    // Fetch suggestions while typing (small list)
+    const fetchSuggestions = useCallback(async (q: string) => {
+        if (!q || q.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+        try {
+            const tools = await getSearchSuggestionsAction(q, 6);
+            setSuggestions(tools);
+        } catch (error) {
+            console.error('Suggestions failed:', error);
+        }
+    }, []);
+
+    // Search function using Server Action (hidden from Network tab)
+    const performSearch = useCallback(async (searchQuery: string, category: string | null, task: string | null, pricing: string | null) => {
+        // Only search if there's a committed query (min 3 chars) or filter
+        if ((!searchQuery || searchQuery.length < 3) && !category && !task && !pricing) {
+            setSearchResults([]);
+            setTotalCount(0);
+            setHasSearched(false);
+            return;
+        }
+
+        setIsSearching(true);
+        setShowSuggestions(false);
+        try {
+            const { tools, totalCount } = await searchWithCountAction({
+                query: searchQuery && searchQuery.length >= 3 ? searchQuery : undefined,
+                category: category || undefined,
+                task: task || undefined,
+                pricing: pricing || undefined,
+                limit: 500, // Fetch more, display fewer with Load More
+            });
+            setSearchResults(tools);
+            setTotalCount(totalCount);
+            setHasSearched(true);
+        } catch (error) {
+            console.error('Search failed:', error);
+        } finally {
+            setIsSearching(false);
+        }
+    }, []);
+
+    // Debounced suggestions on query change (NOT full search)
+    useEffect(() => {
+        if (searchTimeout.current) {
+            clearTimeout(searchTimeout.current);
+        }
+
+        if (query.length >= 2) {
+            searchTimeout.current = setTimeout(() => {
+                fetchSuggestions(query);
+                setShowSuggestions(true);
+            }, 200);
+        } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
+
+        return () => {
+            if (searchTimeout.current) {
+                clearTimeout(searchTimeout.current);
+            }
+        };
+    }, [query, fetchSuggestions]);
+
+    // Trigger full search when committed query or filters change
+    useEffect(() => {
+        performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing);
+    }, [committedQuery, selectedCategory, selectedTask, selectedPricing, performSearch]);
+
+    // Handle keyboard navigation (arrows, Enter, Escape)
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const maxIndex = suggestions.length; // suggestions + "Search for" button
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedIndex(prev => Math.min(prev + 1, maxIndex));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIndex(prev => Math.max(prev - 1, -1));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+                // Navigate to selected tool
+                window.location.href = `/app/${suggestions[selectedIndex].slug}`;
+            } else {
+                // Trigger search
+                setCommittedQuery(query);
+                setShowSuggestions(false);
+            }
+        } else if (e.key === 'Escape') {
+            setShowSuggestions(false);
+            setSelectedIndex(-1);
+        }
+    };
+
+    // Reset selected index when suggestions change
+    useEffect(() => {
+        setSelectedIndex(-1);
+    }, [suggestions]);
+
+    // Reset visible count when results change
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
-    }, [query, selectedCategory, selectedTask, selectedPricing]);
+    }, [searchResults]);
 
-    // Use priority-based search with fuzzy matching
-    const filteredTools = useMemo(() => {
-        let results = query ? searchTools(tools, query) : tools;
+    // Track search queries
+    useEffect(() => {
+        if (query && query.length >= 3 && query !== lastTrackedQuery.current && hasSearched) {
+            trackSearch(query, searchResults.length);
+            lastTrackedQuery.current = query;
+        }
+    }, [query, searchResults.length, hasSearched]);
 
-        // Apply additional filters
-        if (selectedCategory) {
-            results = results.filter(tool => (tool.categoryName || []).includes(selectedCategory));
-        }
-        if (selectedTask) {
-            results = results.filter(tool => (tool.taskName || []).includes(selectedTask));
-        }
-        if (selectedPricing) {
-            results = results.filter(tool => tool.pricing === selectedPricing);
-        }
+    // Track filter usage
+    useEffect(() => {
+        if (selectedCategory) trackFilterUsed('category', selectedCategory);
+    }, [selectedCategory]);
 
-        return results;
-    }, [tools, query, selectedCategory, selectedTask, selectedPricing]);
+    useEffect(() => {
+        if (selectedTask) trackFilterUsed('task', selectedTask);
+    }, [selectedTask]);
+
+    useEffect(() => {
+        if (selectedPricing) trackFilterUsed('pricing', selectedPricing);
+    }, [selectedPricing]);
 
     // Paginated results
-    const visibleTools = filteredTools.slice(0, visibleCount);
-    const hasMore = visibleCount < filteredTools.length;
-
-    // Featured tools (spotlight enabled)
-    const featuredTools = useMemo(() => {
-        return tools
-            .filter(t => t.spotlightEnabled)
-            .sort((a, b) => (a.spotlightPosition || 999) - (b.spotlightPosition || 999))
-            .slice(0, 6);
-    }, [tools]);
-
-    // Recently added tools
-    const recentlyAdded = useMemo(() => {
-        return [...tools]
-            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-            .slice(0, 6);
-    }, [tools]);
+    const visibleTools = searchResults.slice(0, visibleCount);
+    const hasMore = visibleCount < searchResults.length;
 
     const handleLoadMore = () => {
         setVisibleCount(prev => prev + ITEMS_PER_PAGE);
     };
 
+    const clearFilters = () => {
+        setQuery('');
+        setSelectedCategory(null);
+        setSelectedTask(null);
+        setSelectedPricing(null);
+        setSearchResults([]);
+        setHasSearched(false);
+    };
+
+    const hasActiveFilters = query || selectedCategory || selectedTask || selectedPricing;
+
     return (
         <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10">
-            <section className="text-center py-8 mb-8">
-                <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-4">Search AI Tools</h1>
-                <div className="flex items-center gap-3 max-w-[500px] mx-auto px-5 py-3.5 bg-bg-card border-2 border-border rounded-full transition-all duration-200 hover:border-text-tertiary focus-within:border-text-secondary focus-within:shadow-[0_0_0_3px_var(--border-color)]">
-                    <svg className="text-text-tertiary" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="11" cy="11" r="8" />
-                        <path d="M21 21l-4.35-4.35" />
-                    </svg>
-                    <input
-                        type="text"
-                        className="flex-1 border-none outline-none bg-transparent text-base text-text-primary placeholder:text-text-tertiary"
-                        placeholder="Search for any AI tool..."
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                    />
+            {/* Hero Section - Matching main page style */}
+            <section className="text-center flex flex-col items-center gap-4 py-8 mb-8">
+                <h1 className="font-orbitron text-5xl sm:text-6xl font-bold text-text-primary tracking-wider lowercase m-0">
+                    aibde
+                </h1>
+                <p className="font-orbitron text-text-secondary text-sm sm:text-base -mt-2 tracking-wide">Browse, Discover, Explore</p>
+                <p className="text-text-tertiary text-xs sm:text-sm -mt-2">
+                    <span className="text-text-primary font-semibold">{toolCount.toLocaleString()}</span> AI tools for <span className="text-text-primary font-semibold">{taskCount}</span> tasks and <span className="text-text-primary font-semibold">{categoryCount}</span> categories
+                </p>
+
+                {/* Search Input */}
+                <div className="relative w-full max-w-[500px] mt-1 py-1">
+                    <div className="bg-bg-card border border-border rounded-full shadow-lg hover:shadow-xl hover:border-text-tertiary focus-within:border-accent-primary/50 focus-within:shadow-[0_0_0_3px_rgba(52,178,123,0.25)] transition-all duration-200">
+                        <div className="flex items-center gap-3 w-full px-5 py-3.5">
+                            <svg className="text-text-tertiary flex-shrink-0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="M21 21l-4.35-4.35" />
+                            </svg>
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                autoComplete="off"
+                                className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50"
+                                placeholder="Search AI tools... (press Enter to search)"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                onFocus={() => query.length >= 2 && setShowSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                            />
+                            {isSearching && (
+                                <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
+                            )}
+                            {!query && !isSearching && (
+                                <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
+                                    <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
+                                    <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
+                                </span>
+                            )}
+                            {query && !isSearching && (
+                                <button
+                                    className="flex items-center justify-center p-1 bg-transparent border-none cursor-pointer text-text-tertiary transition-colors hover:text-text-primary"
+                                    onClick={() => { setQuery(''); setCommittedQuery(''); setSearchResults([]); setHasSearched(false); }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M18 6L6 18M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Suggestions Dropdown */}
+                    {showSuggestions && (
+                        <SearchSuggestionsDropdown
+                            suggestions={suggestions}
+                            query={query}
+                            selectedIndex={selectedIndex}
+                            onHoverItem={setSelectedIndex}
+                            onSearchAll={() => { setCommittedQuery(query); setShowSuggestions(false); }}
+                        />
+                    )}
                 </div>
-                {query && (
-                    <p className="text-lg text-text-secondary mt-4">
-                        Search results for &ldquo;<span className="font-medium text-text-primary">{query}</span>&rdquo;
+
+                {query && query.length < 3 && !showSuggestions && (
+                    <p className="text-xs text-text-tertiary">Type at least 3 characters and press Enter</p>
+                )}
+                {query && query.length >= 2 && !hasSearched && !showSuggestions && (
+                    <p className="text-xs text-text-tertiary">Press Enter to search</p>
+                )}
+                {committedQuery && hasSearched && (
+                    <p className="text-sm text-text-secondary">
+                        Found <span className="font-medium text-text-primary">{totalCount.toLocaleString()}</span> results for &ldquo;<span className="font-medium text-text-primary">{committedQuery}</span>&rdquo;
                     </p>
                 )}
             </section>
 
+            {/* Pro Tip with Quick Browse Pills */}
+            {!hasSearched && (
+                <div className="text-center mb-8">
+                    <p className="text-xs text-text-tertiary mb-3">
+                        <span className="text-accent-primary font-medium">Pro tip:</span> Try quick filters to discover tools
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                        <button
+                            onClick={() => setSelectedPricing('free')}
+                            className={`px-4 py-2 text-sm rounded-full border transition-all duration-200 ${selectedPricing === 'free'
+                                ? 'bg-accent-green/20 border-accent-green text-accent-green'
+                                : 'bg-bg-card border-border text-text-secondary hover:border-text-tertiary hover:text-text-primary'
+                                }`}
+                        >
+                            100% Free
+                        </button>
+                        <button
+                            onClick={() => setSelectedPricing('freemium')}
+                            className={`px-4 py-2 text-sm rounded-full border transition-all duration-200 ${selectedPricing === 'freemium'
+                                ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
+                                : 'bg-bg-card border-border text-text-secondary hover:border-text-tertiary hover:text-text-primary'
+                                }`}
+                        >
+                            Freemium
+                        </button>
+                        <a
+                            href="/tasks"
+                            className="px-4 py-2 text-sm rounded-full border border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary transition-all duration-200"
+                        >
+                            Browse by Task
+                        </a>
+                        <a
+                            href="/categories"
+                            className="px-4 py-2 text-sm rounded-full border border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary transition-all duration-200"
+                        >
+                            Browse by Category
+                        </a>
+                    </div>
+                </div>
+            )}
+
             <div className="flex flex-wrap gap-3 mb-6 justify-center">
-                <CustomSelect
+                <SearchableSelect
                     options={[
                         { value: '', label: 'All Categories' },
                         ...categories.map(cat => ({ value: cat.categoryName, label: cat.categoryName }))
                     ]}
-                    value={selectedCategory}
-                    onChange={setSelectedCategory}
+                    value={selectedCategory || ''}
+                    onChange={(value) => setSelectedCategory(value || null)}
                     placeholder="All Categories"
+                    className="min-w-[160px]"
                 />
 
-                <CustomSelect
+                <SearchableSelect
                     options={[
                         { value: '', label: 'All Tasks' },
                         ...tasks.map(task => ({ value: task.taskName, label: task.taskName }))
                     ]}
-                    value={selectedTask}
-                    onChange={setSelectedTask}
+                    value={selectedTask || ''}
+                    onChange={(value) => setSelectedTask(value || null)}
                     placeholder="All Tasks"
+                    className="min-w-[160px]"
                 />
 
-                <CustomSelect
+                <SearchableSelect
                     options={[
                         { value: '', label: 'All Pricing' },
                         { value: 'free', label: 'Free' },
                         { value: 'freemium', label: 'Freemium' },
-                        { value: 'paid', label: 'Paid' }
+                        { value: 'paid', label: 'Paid' },
                     ]}
-                    value={selectedPricing}
-                    onChange={setSelectedPricing}
+                    value={selectedPricing || ''}
+                    onChange={(value) => setSelectedPricing(value || null)}
                     placeholder="All Pricing"
+                    showSearch={false}
+                    className="min-w-[140px]"
                 />
-            </div>
 
-            {/* Search Results */}
-            <div className="mb-12">
-                <p className="text-sm text-text-tertiary mb-4">
-                    {filteredTools.length} tool{filteredTools.length !== 1 ? 's' : ''} found
-                    {query && ` for "${query}"`}
-                </p>
-
-                {filteredTools.length === 0 ? (
-                    <div className="text-center py-16 px-4">
-                        <div className="text-5xl mb-4">🔍</div>
-                        <h3 className="text-xl font-semibold text-text-primary mb-2">We might have missed something!</h3>
-                        <p className="text-text-secondary mb-6 max-w-md mx-auto">
-                            We couldn't find what you're looking for. If you know an AI tool that should be here, help us grow our directory.
-                        </p>
-                        <a
-                            href="/submit"
-                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-accent-primary rounded-full transition-opacity hover:opacity-90"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 5v14M5 12h14" />
-                            </svg>
-                            Submit a Tool
-                        </a>
-                    </div>
-                ) : (
-                    <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {visibleTools.map((tool) => (
-                                <AIToolCard key={tool.id} tool={tool} />
-                            ))}
-                        </div>
-
-                        {hasMore && (
-                            <div className="text-center mt-8">
-                                <button
-                                    onClick={handleLoadMore}
-                                    className="px-6 py-3 bg-bg-card border border-border rounded-full text-sm font-medium text-text-primary transition-all duration-200 hover:border-text-tertiary hover:shadow-md"
-                                >
-                                    Load more ({filteredTools.length - visibleCount} remaining)
-                                </button>
-                            </div>
-                        )}
-                    </>
+                {hasActiveFilters && (
+                    <button
+                        onClick={clearFilters}
+                        className="px-4 py-2 text-sm text-text-tertiary hover:text-accent-primary transition-colors"
+                    >
+                        Clear all
+                    </button>
                 )}
             </div>
 
-            {/* Featured Tools Section */}
-            {featuredTools.length > 0 && (
-                <section className="mb-12 pt-10">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-lg font-semibold text-text-primary">Featured Tools</h2>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {featuredTools.map((tool) => (
-                            <AIToolCard key={tool.id} tool={tool} />
-                        ))}
-                    </div>
-                </section>
+            {/* Search Results */}
+            {hasSearched && (
+                <div className="mb-12">
+                    <p className="text-sm text-text-tertiary mb-4">
+                        Showing {Math.min(visibleCount, searchResults.length)} of {totalCount.toLocaleString()} tool{totalCount !== 1 ? 's' : ''}
+                        {query && ` for "${query}"`}
+                    </p>
+
+                    {searchResults.length === 0 ? (
+                        <div className="text-center py-16 px-4">
+                            <div className="text-5xl mb-4">🔍</div>
+                            <h3 className="text-xl font-semibold text-text-primary mb-2">We might have missed something!</h3>
+                            <p className="text-text-secondary mb-6 max-w-md mx-auto">
+                                We couldn't find what you're looking for. If you know an AI tool that should be here, help us grow our directory.
+                            </p>
+                            <a
+                                href="/submit"
+                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-accent-primary rounded-full transition-opacity hover:opacity-90"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 5v14M5 12h14" />
+                                </svg>
+                                Submit a Tool
+                            </a>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {visibleTools.map((tool) => (
+                                    <AIToolCard key={tool.id} tool={tool} />
+                                ))}
+                            </div>
+
+                            {hasMore && (
+                                <div className="text-center mt-8">
+                                    <button
+                                        onClick={handleLoadMore}
+                                        className="px-6 py-3 bg-bg-card border border-border rounded-full text-sm font-medium text-text-primary transition-all duration-200 hover:border-text-tertiary hover:shadow-md"
+                                    >
+                                        Load more ({Math.min(searchResults.length - visibleCount, totalCount - visibleCount)} remaining)
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
             )}
 
-            {/* Recently Added Section */}
-            {recentlyAdded.length > 0 && (
-                <section className="pt-10">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-lg font-semibold text-text-primary">Recently Added</h2>
-                        <a href="/new" className="text-sm text-text-tertiary hover:text-accent-primary transition-colors">
-                            View all
-                        </a>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {recentlyAdded.map((tool) => (
-                            <AIToolCard key={tool.id} tool={tool} />
-                        ))}
-                    </div>
-                </section>
-            )}
+            {/* Tools only shown after search */}
         </div>
     );
 }

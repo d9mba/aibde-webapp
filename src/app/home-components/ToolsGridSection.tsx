@@ -5,15 +5,17 @@ import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool } from '@/types';
 
-const INITIAL_LOAD = 12;
-const LOAD_MORE = 12;
-const MAX_ITEMS = 100;
+const INITIAL_LOAD = 30;           // Initial load: 30 tools
+const LOAD_MORE = 6;               // Load 6 more each time
+const MAX_LATEST = 90;             // Maximum 90 for "Just Released"
+const MAX_TRENDING = 50;           // Maximum 50 for "Trending"
 
 interface ToolsGridSectionProps {
     tools: AdminTool[];
+    trendingTools: AdminTool[];
 }
 
-export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
+export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSectionProps) {
     const [activeTab, setActiveTab] = useState<'latest' | 'trending'>('latest');
     const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD);
     const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -24,12 +26,12 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
         );
     }, [tools]);
 
-    const trendingTools = useMemo(() => {
-        return [...tools].sort((a, b) => b.saveCount - a.saveCount);
-    }, [tools]);
-
+    // Use trendingTools directly from server - already filtered and sorted
     const displayTools = activeTab === 'latest' ? newTools : trendingTools;
-    const hasMore = visibleCount < Math.min(displayTools.length, MAX_ITEMS);
+    const maxItems = activeTab === 'latest' ? MAX_LATEST : MAX_TRENDING;
+    const hasMore = visibleCount < Math.min(displayTools.length, maxItems);
+    const reachedMax = visibleCount >= maxItems;
+    const showLoadMore = activeTab === 'latest'; // Only show load more for latest
 
     // Reset visible count when tab changes
     useEffect(() => {
@@ -44,9 +46,9 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
     const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
         const [entry] = entries;
         if (entry.isIntersecting && hasMoreRef.current) {
-            setVisibleCount(prev => Math.min(prev + LOAD_MORE, MAX_ITEMS));
+            setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));
         }
-    }, []);
+    }, [maxItems]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(handleObserver, {
@@ -55,12 +57,16 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
             threshold: 0.1,
         });
 
-        if (loadMoreRef.current) {
+        if (loadMoreRef.current && showLoadMore) {
             observer.observe(loadMoreRef.current);
         }
 
         return () => observer.disconnect();
-    }, [handleObserver]);
+    }, [handleObserver, showLoadMore]);
+
+    const handleLoadMore = () => {
+        setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));
+    };
 
     return (
         <section className="flex flex-col gap-4">
@@ -95,25 +101,65 @@ export default function ToolsGridSection({ tools }: ToolsGridSectionProps) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {displayTools.slice(0, visibleCount).map((tool) => (
-                    <AIToolCard key={tool.id} tool={tool} />
+                {displayTools.slice(0, visibleCount).map((tool, index) => (
+                    <AIToolCard
+                        key={tool.id}
+                        tool={tool}
+                        ranking={activeTab === 'trending' ? index + 1 : undefined}
+                    />
                 ))}
             </div>
 
-            {hasMore && (
+            {/* Auto-loading indicator (only for Just Released) */}
+            {hasMore && showLoadMore && (
                 <div ref={loadMoreRef} className="flex items-center justify-center gap-2.5 py-6 text-text-tertiary text-sm">
                     <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
                     <span>Loading more tools...</span>
                 </div>
             )}
 
+            {/* Manual Load More button (only for Just Released before max) */}
+            {hasMore && showLoadMore && !reachedMax && (
+                <div className="flex justify-center">
+                    <button
+                        onClick={handleLoadMore}
+                        className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-text-primary bg-bg-card border border-border rounded-full transition-all duration-fast hover:border-accent-primary hover:bg-accent-primary/5"
+                    >
+                        Load More Tools
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 5v14M5 12l7 7 7-7" />
+                        </svg>
+                    </button>
+                </div>
+            )}
+
+            {/* Reached max - show Browse All (only for Just Released) */}
+            {reachedMax && showLoadMore && displayTools.length > maxItems && (
+                <div className="flex flex-col items-center gap-2 py-4 text-center">
+                    <p className="text-sm text-text-secondary">
+                        Showing {maxItems} of {displayTools.length} tools
+                    </p>
+                    <Link
+                        href="/search"
+                        prefetch={false}
+                        className="inline-flex items-center gap-1.5 px-6 py-3 text-sm font-medium text-white bg-accent-primary rounded-full transition-all duration-fast hover:bg-accent-primary/90 hover:shadow-lg"
+                    >
+                        Browse All Tools
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </Link>
+                </div>
+            )}
+
+            {/* View all link at bottom (always show) */}
             <div className="flex justify-center mt-4">
                 <Link
-                    href={activeTab === 'latest' ? '/new' : '/trending'}
+                    href={activeTab === 'latest' ? '/search' : '/trending'}
                     prefetch={false}
                     className="inline-flex items-center gap-1.5 px-5 py-2.5 text-[0.8125rem] font-medium text-text-secondary bg-bg-tertiary rounded-full transition-all duration-fast hover:bg-accent-primary hover:text-white"
                 >
-                    View all {activeTab === 'latest' ? 'latest' : 'trending'} tools
+                    View all {activeTab === 'latest' ? 'tools' : 'trending tools'}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M5 12h14M12 5l7 7-7 7" />
                     </svg>

@@ -25,7 +25,7 @@ export default function StickyHeader({
             <div className="flex items-center gap-3 px-4 py-2 bg-bg-card/95 backdrop-blur-md border border-border rounded-full shadow-lg">
                 <div className="flex items-center gap-2.5 min-w-0">
                     {tool.logoUrl ? (
-                        <img src={getFullUrl(tool.logoUrl)} alt={tool.name} className="w-8 h-8 rounded-lg object-cover" />
+                        <img src={getFullUrl(tool.logoUrl)} alt={tool.name} className="w-8 h-8 rounded-lg object-contain" />
                     ) : (
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: logoColor }}>
                             {tool.name[0]}

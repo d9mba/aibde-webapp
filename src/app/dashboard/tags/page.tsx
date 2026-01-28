@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 25;
 
 export default function TagsPage() {
     const router = useRouter();
@@ -180,33 +180,37 @@ export default function TagsPage() {
                         )}
                     </tbody>
                 </table>
+            </div>
 
-                {/* Pagination */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-bg-secondary/50">
-                    <div className="text-sm text-text-tertiary">
-                        Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredTags.length)} of {filteredTags.length}
-                    </div>
-                    <div className="flex items-center gap-1">
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 px-1">
+                    <span className="text-sm text-text-tertiary">
+                        Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredTags.length)} of {filteredTags.length}
+                    </span>
+                    <div className="flex items-center gap-2">
                         <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            className="p-1.5 rounded-lg border border-border bg-bg-card text-text-secondary hover:bg-bg-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                             <ChevronLeft className="w-4 h-4" />
+                            Previous
                         </button>
-                        <span className="px-3 py-1 text-sm text-text-primary">
-                            {currentPage} / {totalPages || 1}
+                        <span className="text-sm text-text-tertiary">
+                            Page {currentPage} of {totalPages}
                         </span>
                         <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage >= totalPages}
-                            className="p-1.5 rounded-lg border border-border bg-bg-card text-text-secondary hover:bg-bg-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                         >
+                            Next
                             <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

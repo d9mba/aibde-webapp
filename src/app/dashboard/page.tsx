@@ -14,6 +14,10 @@ import {
     ExternalLink,
     Globe,
     Settings,
+    Clock,
+    EyeOff,
+    Calendar,
+    TrendingUp,
     LucideIcon,
 } from 'lucide-react';
 
@@ -22,9 +26,13 @@ const iconMap: Record<string, LucideIcon> = {
     tools: Wrench,
     published: CheckCircle2,
     drafts: FileEdit,
+    pending: Clock,
+    unpublished: EyeOff,
+    scheduled: Calendar,
     categories: Folder,
     tasks: Target,
     spotlight: Star,
+    trending: TrendingUp,
     plus: Plus,
     'chevron-right': ChevronRight,
     'external-link': ExternalLink,
@@ -44,15 +52,23 @@ export default function DashboardHome() {
 
     const publishedTools = tools.filter(t => t.status === 'published');
     const draftTools = tools.filter(t => t.status === 'draft');
-    const spotlightTools = tools.filter(t => t.spotlightPosition && t.spotlightPosition > 0);
+    const pendingTools = tools.filter(t => t.status === 'pending');
+    const unpublishedTools = tools.filter(t => t.status === 'unpublished');
+    const scheduledTools = tools.filter(t => t.status === 'scheduled');
+    const spotlightTools = tools.filter(t => t.spotlightEnabled && t.spotlightPosition && t.spotlightPosition > 0);
+    const featuredTools = tools.filter(t => t.isFeatured);
 
     const stats = [
-        { label: 'Total Tools', value: tools.length, icon: 'tools', color: 'text-accent-primary', bgColor: 'bg-accent-primary/10', href: '/dashboard/tools' },
-        { label: 'Published', value: publishedTools.length, icon: 'published', color: 'text-accent-green', bgColor: 'bg-accent-green/10', href: '/dashboard/tools?status=published' },
-        { label: 'Drafts', value: draftTools.length, icon: 'drafts', color: 'text-accent-yellow', bgColor: 'bg-accent-yellow/10', href: '/dashboard/tools?status=draft' },
-        { label: 'Categories', value: categories.length, icon: 'categories', color: 'text-accent-primary', bgColor: 'bg-accent-primary/10', href: '/dashboard/categories' },
-        { label: 'Tasks', value: tasks.length, icon: 'tasks', color: 'text-accent-orange', bgColor: 'bg-accent-orange/10', href: '/dashboard/tasks' },
-        { label: 'Spotlight', value: spotlightTools.length, icon: 'spotlight', color: 'text-accent-pink', bgColor: 'bg-accent-pink/10', href: '/dashboard/spotlight' },
+        { label: 'Total Tools', value: tools.length, icon: 'tools', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', href: '/dashboard/tools' },
+        { label: 'Published', value: publishedTools.length, icon: 'published', color: 'text-green-500', bgColor: 'bg-green-500/10', href: '/dashboard/tools?status=published' },
+        { label: 'Drafts', value: draftTools.length, icon: 'drafts', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', href: '/dashboard/tools?status=draft' },
+        { label: 'Pending', value: pendingTools.length, icon: 'pending', color: 'text-blue-500', bgColor: 'bg-blue-500/10', href: '/dashboard/tools?status=pending' },
+        { label: 'Unpublished', value: unpublishedTools.length, icon: 'unpublished', color: 'text-gray-500', bgColor: 'bg-gray-500/10', href: '/dashboard/tools?status=unpublished' },
+        { label: 'Scheduled', value: scheduledTools.length, icon: 'scheduled', color: 'text-cyan-500', bgColor: 'bg-cyan-500/10', href: '/dashboard/tools?status=scheduled' },
+        { label: 'Categories', value: categories.length, icon: 'categories', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10', href: '/dashboard/categories' },
+        { label: 'Tasks', value: tasks.length, icon: 'tasks', color: 'text-orange-500', bgColor: 'bg-orange-500/10', href: '/dashboard/tasks' },
+        { label: 'Spotlight', value: spotlightTools.length, icon: 'spotlight', color: 'text-amber-500', bgColor: 'bg-amber-500/10', href: '/dashboard/spotlight' },
+        { label: 'Featured', value: featuredTools.length, icon: 'spotlight', color: 'text-purple-500', bgColor: 'bg-purple-500/10', href: '/dashboard/featured' },
     ];
 
     const quickActions = [
@@ -60,6 +76,7 @@ export default function DashboardHome() {
         { href: '/dashboard/categories', label: 'Manage Categories', icon: 'categories', desc: 'Add or edit categories' },
         { href: '/dashboard/tasks', label: 'Manage Tasks', icon: 'tasks', desc: 'Organize tools by tasks' },
         { href: '/dashboard/spotlight', label: 'Configure Spotlight', icon: 'spotlight', desc: 'Feature tools on homepage' },
+        { href: '/dashboard/trending', label: 'Manage Trending', icon: 'trending', desc: 'Control trending rankings' },
         { href: '/dashboard/settings', label: 'Site Settings', icon: 'settings', desc: 'Configure site options' },
     ];
 
@@ -168,7 +185,7 @@ export default function DashboardHome() {
                                         className="flex items-center gap-3 px-5 py-3 hover:bg-bg-secondary transition-colors no-underline"
                                     >
                                         {tool.logoUrl ? (
-                                            <img src={tool.logoUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                                            <img src={tool.logoUrl} alt="" className="w-9 h-9 rounded-lg object-contain flex-shrink-0" />
                                         ) : (
                                             <div className="w-9 h-9 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm flex-shrink-0">
                                                 {tool.name[0]}
@@ -214,7 +231,7 @@ export default function DashboardHome() {
                                         className="flex items-center gap-3 px-5 py-3 hover:bg-bg-secondary transition-colors no-underline"
                                     >
                                         {tool.logoUrl ? (
-                                            <img src={tool.logoUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                                            <img src={tool.logoUrl} alt="" className="w-9 h-9 rounded-lg object-contain flex-shrink-0" />
                                         ) : (
                                             <div className="w-9 h-9 rounded-lg bg-accent-green/10 flex items-center justify-center text-accent-green font-bold text-sm flex-shrink-0">
                                                 {tool.name[0]}

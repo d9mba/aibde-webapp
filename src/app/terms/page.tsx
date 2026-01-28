@@ -1,3 +1,26 @@
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Terms and Conditions | AiBDE - AI Tools Directory',
+    description: 'Read the AiBDE Terms and Conditions. Understand your rights and responsibilities when using our AI tools directory and services.',
+    keywords: 'AiBDE terms, terms of service, user agreement, AI tools directory terms, conditions of use',
+    openGraph: {
+        title: 'Terms and Conditions | AiBDE',
+        description: 'Read the AiBDE Terms and Conditions.',
+        type: 'website',
+        siteName: 'AiBDE',
+        url: 'https://aibde.tech/terms',
+    },
+    twitter: {
+        card: 'summary',
+        title: 'Terms and Conditions | AiBDE',
+        description: 'Read the AiBDE Terms and Conditions.',
+    },
+    alternates: {
+        canonical: 'https://aibde.tech/terms',
+    },
+};
+
 export default function TermsPage() {
     return (
         <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-12 sm:py-16">

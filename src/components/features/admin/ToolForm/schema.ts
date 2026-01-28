@@ -57,15 +57,15 @@ export const toolSchema = z.object({
     contactAddress: z.string().default(''),
     contactMobile: z.string().default(''),
     socialLinks: z.object({
-        instagram: z.string().optional(),
-        facebook: z.string().optional(),
-        twitter: z.string().optional(),
-        linkedin: z.string().optional(),
-        discord: z.string().optional(),
-        youtube: z.string().optional(),
-        tiktok: z.string().optional(),
-        other: z.string().optional(),
-    }).default({}),
+        instagram: z.string().optional().nullable(),
+        facebook: z.string().optional().nullable(),
+        twitter: z.string().optional().nullable(),
+        linkedin: z.string().optional().nullable(),
+        discord: z.string().optional().nullable(),
+        youtube: z.string().optional().nullable(),
+        tiktok: z.string().optional().nullable(),
+        other: z.string().optional().nullable(),
+    }).nullable().optional().default({}),
 
     // Internal Notes
     internalNotes: z.array(z.object({

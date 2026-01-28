@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useAdmin, AdminTool, Task } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { ArrowLeft } from 'lucide-react';
+import { getStatusClass } from '@/lib/formatters';
 
 // Helper to slugify task name for URL comparison
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -91,7 +92,7 @@ export default function TaskDetailPage() {
                             className="bg-bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-accent-primary/50 hover:shadow-lg transition-all">
                             <div className="flex items-center gap-3 mb-3">
                                 {tool.logoUrl ? (
-                                    <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-xl object-cover" />
+                                    <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-xl object-contain" />
                                 ) : (
                                     <div className="w-12 h-12 bg-accent-primary/20 rounded-xl flex items-center justify-center text-xl font-bold text-accent-primary">
                                         {tool.name[0]}
@@ -120,7 +121,7 @@ export default function TaskDetailPage() {
                         <div className="p-6 border-b border-border">
                             <div className="flex items-start gap-4">
                                 {previewTool.logoUrl ? (
-                                    <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-cover" />
+                                    <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-contain" />
                                 ) : (
                                     <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
                                         {previewTool.name[0]}
@@ -132,7 +133,7 @@ export default function TaskDetailPage() {
                                         <p className="text-text-secondary mt-1">{previewTool.summary}</p>
                                     )}
                                     <div className="flex flex-wrap items-center gap-2 mt-2">
-                                        <span className={`text-xs px-2 py-1 rounded-full ${previewTool.status === 'published' ? 'bg-green-500/10 text-green-500' : previewTool.status === 'draft' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                                        <span className={`text-xs px-2 py-1 rounded-full ${getStatusClass(previewTool.status)}`}>
                                             {previewTool.status}
                                         </span>
                                         <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full">{previewTool.pricingLabel}</span>

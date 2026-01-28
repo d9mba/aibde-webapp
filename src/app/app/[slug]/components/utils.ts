@@ -1,19 +1,12 @@
 // Shared utilities and types for tool detail page
 import { AdminTool } from '@/types';
+// Re-export getFullUrl from canonical source
+export { getFullUrl } from '@/lib/url';
 
 export const logoColors = [
     '#ec4899', '#22c55e', '#3b82f6', '#f97316', '#8b5cf6',
     '#ef4444', '#06b6d4', '#eab308', '#14b8a6', '#6366f1',
 ];
-
-// CDN URL helper
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || '';
-
-export function getFullUrl(path: string): string {
-    if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return CDN_URL ? `${CDN_URL}/${path}` : path;
-}
 
 export function ensureProtocol(url: string): string {
     if (!url) return '';

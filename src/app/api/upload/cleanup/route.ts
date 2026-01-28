@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteFile } from '@/services/storage.service';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 // POST /api/upload/cleanup - Delete unused files from R2
 export async function POST(request: NextRequest) {
     try {
+        // SECURITY: Require admin authentication
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+        }
+
         const { files } = await request.json();
 
         if (!files || !Array.isArray(files)) {

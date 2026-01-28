@@ -65,7 +65,8 @@ export function usePostHogAnalytics(): UsePostHogAnalyticsReturn {
 
             if (!topToolsRes.ok) {
                 const data = await topToolsRes.json();
-                if (data.details?.includes('not configured')) {
+                // Check if PostHog is not configured
+                if (data.error?.includes('not configured') || data.details?.includes('not configured')) {
                     setIsConfigured(false);
                     setLoading(false);
                     return;

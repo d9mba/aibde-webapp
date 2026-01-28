@@ -20,6 +20,9 @@ export interface AITool {
     websiteUrl: string;
     logoUrl?: string;
     saveCount: number;
+    viewCount?: number;
+    upvotes?: number;
+    downvotes?: number;
     releasedAt: string;
     releasedAgo: string;
     isFeatured: boolean;
@@ -84,15 +87,15 @@ export interface AdminTool extends AITool {
     contactAddress?: string;
     contactMobile?: string;
     socialLinks?: {
-        instagram?: string;
-        facebook?: string;
-        twitter?: string;
-        linkedin?: string;
-        discord?: string;
-        youtube?: string;
-        tiktok?: string;
-        other?: string;
-    };
+        instagram?: string | null;
+        facebook?: string | null;
+        twitter?: string | null;
+        linkedin?: string | null;
+        discord?: string | null;
+        youtube?: string | null;
+        tiktok?: string | null;
+        other?: string | null;
+    } | null;
 
     // Company Info
     playStoreUrl?: string;
@@ -122,6 +125,9 @@ export interface AdminTool extends AITool {
 
     // Premium - gives dofollow backlinks (SEO value)
     premium?: boolean;
+
+    // Trending control
+    trendingPosition?: number;
 
     // Timestamps
     createdAt?: string;

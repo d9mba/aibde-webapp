@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getToolBySlug, getPublishedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
+import { getToolBySlug, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
 import ToolDetailClient from './ToolDetailClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
@@ -23,21 +23,44 @@ export async function generateMetadata({
 
     const description = tool.summary || tool.description?.slice(0, 155) || `Discover ${tool.name} - an AI tool for ${tool.categoryName?.join(', ') || 'various tasks'}`;
     const categoryLabel = tool.categoryName?.[0] || 'AI Tool';
+    const taskLabels = tool.taskName?.slice(0, 3).join(', ') || '';
+    const title = `${tool.name} | ${categoryLabel} | AiBDE`;
 
     return {
-        title: `${tool.name} | ${categoryLabel} | AiBDE`,
+        title,
         description,
-        keywords: [tool.name, ...(tool.categoryName || []), ...(tool.taskName || []), ...(tool.tags || []), 'AI tool', 'AiBDE'].join(', '),
+        keywords: [
+            tool.name,
+            `${tool.name} AI`,
+            `${tool.name} review`,
+            `${tool.name} alternative`,
+            ...(tool.categoryName || []),
+            ...(tool.taskName || []),
+            ...(tool.tags || []),
+            'AI tool',
+            'best AI tools',
+            'AiBDE'
+        ].join(', '),
         openGraph: {
-            title: `${tool.name} | ${categoryLabel} | AiBDE`,
+            title,
             description,
             type: 'website',
-            images: tool.logoUrl ? [tool.logoUrl] : undefined,
+            siteName: 'AiBDE',
+            url: `https://aibde.tech/app/${slug}`,
+            images: tool.logoUrl ? [{ url: tool.logoUrl, alt: tool.name }] : undefined,
         },
         twitter: {
-            card: 'summary',
-            title: `${tool.name} | ${categoryLabel} | AiBDE`,
+            card: 'summary_large_image',
+            title,
             description,
+            images: tool.logoUrl ? [tool.logoUrl] : undefined,
+        },
+        alternates: {
+            canonical: `https://aibde.tech/app/${slug}`,
+        },
+        robots: {
+            index: true,
+            follow: true,
         },
     };
 }
@@ -49,23 +72,31 @@ export default async function ToolDetailPage({
 }) {
     const { slug } = await params;
 
-    // Fetch data on the server - not visible in browser network tab
-    const [tool, allTools, categories, tasks, settings] = await Promise.all([
-        getToolBySlug(slug),
-        getPublishedTools(),
-        getCategories(),
-        getTasks(),
-        getHomeSettings(),
-    ]);
+    // Fetch tool first
+    const tool = await getToolBySlug(slug);
 
     if (!tool) {
         notFound();
     }
 
+    // Fetch only the necessary related data in parallel
+    const [relatedTools, suggestedTools, featuredTools, recentlyAdded, categories, tasks, settings] = await Promise.all([
+        getRelatedTools(tool, 6),
+        getSuggestedTools(tool, 6),
+        getFeaturedTools(tool.slug, 6),
+        getRecentlyAddedTools(tool.slug, 5),
+        getCategories(),
+        getTasks(),
+        getHomeSettings(),
+    ]);
+
     return (
         <ToolDetailClient
             tool={tool}
-            allTools={allTools}
+            relatedTools={relatedTools}
+            suggestedTools={suggestedTools}
+            featuredTools={featuredTools}
+            recentlyAdded={recentlyAdded}
             categories={categories}
             tasks={tasks}
             showFeaturedAlternatives={settings.showFeaturedAlternatives}

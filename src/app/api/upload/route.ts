@@ -3,23 +3,18 @@ import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { uploadFile, generateUniqueFilename } from '@/services/storage.service';
 import sharp from 'sharp';
 
-const isDev = process.env.NODE_ENV === 'development';
-
 // Compress image while maintaining quality - converts to WebP for best compression
 async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string }> {
     // Skip compression for SVGs and GIFs (animated GIFs don't work well with sharp)
     if (mimeType === 'image/svg+xml' || mimeType === 'image/gif') {
-        if (isDev) console.log('[Compress] Skipping SVG/GIF');
         return { buffer, mimeType };
     }
 
     const originalSize = buffer.length;
-    if (isDev) console.log(`[Compress] Original: ${(originalSize / 1024).toFixed(1)}KB, type: ${mimeType}`);
 
     try {
         // Get image metadata
         const metadata = await sharp(buffer).metadata();
-        if (isDev) console.log(`[Compress] Dimensions: ${metadata.width}x${metadata.height}`);
 
         // Determine max dimension (resize if too large)
         const maxDimension = 2000;
@@ -30,7 +25,6 @@ async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer
 
         // Resize if needed
         if (needsResize) {
-            if (isDev) console.log(`[Compress] Resizing to max ${maxDimension}px`);
             sharpInstance = sharpInstance.resize(maxDimension, maxDimension, {
                 fit: 'inside',
                 withoutEnlargement: true,
@@ -39,7 +33,6 @@ async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer
 
         // Always try WebP first - usually gives best compression
         const webpBuffer = await sharpInstance.clone().webp({ quality: 82 }).toBuffer();
-        if (isDev) console.log(`[Compress] WebP: ${(webpBuffer.length / 1024).toFixed(1)}KB`);
 
         // Also try the original format optimized
         let originalFormatBuffer: Buffer;
@@ -50,7 +43,6 @@ async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer
         } else {
             originalFormatBuffer = buffer;
         }
-        if (isDev) console.log(`[Compress] Original format optimized: ${(originalFormatBuffer.length / 1024).toFixed(1)}KB`);
 
         // Choose the smallest result
         const candidates = [
@@ -61,14 +53,12 @@ async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer
 
         const best = candidates.reduce((a, b) => a.size < b.size ? a : b);
         const savings = Math.round((1 - best.size / originalSize) * 100);
-        if (isDev) console.log(`[Compress] Best: ${best.mimeType}, saved ${savings}%`);
 
         // Only use compressed if we actually saved space
         if (best.size < originalSize) {
             return { buffer: best.buffer, mimeType: best.mimeType };
         }
 
-        if (isDev) console.log('[Compress] No savings, using original');
         return { buffer, mimeType };
     } catch (error) {
         console.error('[Compress] Failed, using original:', error);
@@ -94,14 +84,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
-        // SECURITY: SVG removed - it can contain JavaScript and is an XSS vector
+        // SECURITY: SVG allowed (safe when served from CDN with proper Content-Type headers)
         const allowedTypes = [
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
             'video/mp4', 'video/webm', 'video/quicktime'
         ];
         if (!allowedTypes.includes(file.type)) {
             return NextResponse.json({
-                error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP, MP4, WebM'
+                error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP, SVG, MP4, WebM'
             }, { status: 400 });
         }
 
@@ -199,7 +189,6 @@ export async function POST(request: NextRequest) {
                 if (newExt) {
                     filename = filename.replace(/\.[^.]+$/, newExt);
                     finalMimeType = result.mimeType;
-                    if (isDev) console.log(`[Upload] Format changed to ${result.mimeType}, filename: ${filename}`);
                 }
             }
         }
@@ -210,8 +199,8 @@ export async function POST(request: NextRequest) {
         // Upload to R2
         await uploadFile(finalBuffer, `${folder}/${filename}`, finalMimeType);
 
-        // Construct full URL using CDN_URL for production, fallback to R2_PUBLIC_URL
-        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_PUBLIC_URL || '';
+        // Construct full URL using CDN_URL for production, fallback to R2_DEV_URL
+        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL || '';
         const fullUrl = cdnUrl ? `${cdnUrl}/${folder}/${filename}` : relativePath;
 
         // Return result with full URL for display

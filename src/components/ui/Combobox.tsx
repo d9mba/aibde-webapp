@@ -201,7 +201,7 @@ export default function Combobox(props: Props) {
                                 `}
                             >
                                 {option.image && (
-                                    <img src={option.image} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" />
+                                    <img src={option.image} alt="" className="w-5 h-5 rounded object-contain flex-shrink-0" />
                                 )}
                                 <span className="truncate">{option.label}</span>
                             </div>

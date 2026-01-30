@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, ChevronDown, Check } from 'lucide-react'; // Standard icons
 
 export interface SelectOption {
@@ -29,12 +30,15 @@ export function SearchableSelect({
     className = '',
     showSearch = true,
 }: SearchableSelectProps) {
+    const instanceId = useId();
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [highlightIndex, setHighlightIndex] = useState(0);
+    const [displayLimit, setDisplayLimit] = useState(20); // Pagination: show max 20 items initially
 
     const containerRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
 
     // 1. Performance: Memoize filtering so it doesn't run on every render
     const filteredOptions = useMemo(() => {
@@ -44,10 +48,23 @@ export function SearchableSelect({
         );
     }, [search, options]);
 
-    // Reset highlight when search changes
+    // Reset highlight and display limit when search changes
     useEffect(() => {
         setHighlightIndex(0);
+        setDisplayLimit(search ? 100 : 20); // Show more results when searching
     }, [search]);
+
+    // Calculate dropdown position when opening
+    useEffect(() => {
+        if (isOpen && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setDropdownPosition({
+                top: rect.bottom + window.scrollY + 4,
+                left: rect.left + window.scrollX,
+                width: rect.width,
+            });
+        }
+    }, [isOpen]);
 
     // Close on outside click
     useEffect(() => {
@@ -99,6 +116,15 @@ export function SearchableSelect({
         setSearch('');
     };
 
+    // Infinite scroll - load more when scrolling near bottom
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.target as HTMLDivElement;
+        const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 50;
+        if (nearBottom && filteredOptions.length > displayLimit) {
+            setDisplayLimit(prev => prev + 20);
+        }
+    };
+
     const selectedOption = options.find(opt => opt.value === value);
 
     return (
@@ -130,14 +156,19 @@ export function SearchableSelect({
                 <ChevronDown className={`w-4 h-4 text-text-tertiary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Dropdown */}
-            {isOpen && (
+            {/* Dropdown - rendered via portal to avoid overflow clipping */}
+            {isOpen && createPortal(
                 <div
-                    className="absolute z-50 w-full mt-1 bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden"
+                    className="fixed z-[9999] bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden"
                     tabIndex={showSearch ? undefined : -1}
                     onKeyDown={showSearch ? undefined : handleKeyDown}
                     ref={el => { if (el && !showSearch) el.focus(); }}
-                    style={{ outline: 'none' }}
+                    style={{
+                        outline: 'none',
+                        top: dropdownPosition.top,
+                        left: dropdownPosition.left,
+                        width: dropdownPosition.width,
+                    }}
                 >
                     {/* Search Input */}
                     {showSearch && (
@@ -157,39 +188,48 @@ export function SearchableSelect({
                     )}
 
                     {/* Options List */}
-                    <div ref={listRef} className="max-h-60 overflow-y-auto p-1">
+                    <div ref={listRef} className="max-h-64 overflow-y-auto p-1" onScroll={handleScroll}>
                         {filteredOptions.length === 0 ? (
                             <div className="px-3 py-8 text-center text-text-tertiary text-sm">No results found</div>
                         ) : (
-                            filteredOptions.map((option, idx) => {
-                                const isHighlighted = idx === highlightIndex;
-                                const isSelected = value === option.value;
+                            <>
+                                {filteredOptions.slice(0, displayLimit).map((option, idx) => {
+                                    const isHighlighted = idx === highlightIndex;
+                                    const isSelected = value === option.value;
 
-                                return (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        onClick={() => handleSelect(option.value)}
-                                        className={`
-                                            w-full text-left px-3 py-2 text-sm flex items-center justify-between rounded-lg transition-colors focus:outline-none
-                                            ${isHighlighted ? 'bg-bg-tertiary text-text-primary' : 'text-text-secondary hover:bg-bg-secondary'}
-                                            ${isSelected ? 'bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/20' : ''}
-                                        `}
-                                    >
-                                        <div className="flex items-center gap-2 truncate">
-                                            {option.logoUrl && (
-                                                <img src={option.logoUrl} alt="" className="w-5 h-5 rounded-md object-contain" />
-                                            )}
-                                            {option.icon}
-                                            <span className={isSelected ? 'font-medium' : ''}>{option.label}</span>
-                                        </div>
-                                        {isSelected && <Check className="w-4 h-4" />}
-                                    </button>
-                                );
-                            })
+                                    return (
+                                        <button
+                                            key={`${instanceId}-${idx}-${option.value}`}
+                                            type="button"
+                                            onClick={() => handleSelect(option.value)}
+                                            className={`
+                                                w-full text-left px-3 py-2 text-sm flex items-center justify-between rounded-lg transition-colors focus:outline-none
+                                                ${isHighlighted ? 'bg-bg-tertiary text-text-primary' : 'text-text-secondary hover:bg-bg-secondary'}
+                                                ${isSelected ? 'bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/20' : ''}
+                                            `}
+                                        >
+                                            <div className="flex items-center gap-2 truncate">
+                                                {option.logoUrl && (
+                                                    <img src={option.logoUrl} alt="" className="w-5 h-5 rounded-md object-contain" />
+                                                )}
+                                                {option.icon}
+                                                <span className={isSelected ? 'font-medium' : ''}>{option.label}</span>
+                                            </div>
+                                            {isSelected && <Check className="w-4 h-4" />}
+                                        </button>
+                                    );
+                                })}
+                                {/* Loading indicator for infinite scroll */}
+                                {filteredOptions.length > displayLimit && (
+                                    <div className="px-3 py-2 text-xs text-text-tertiary text-center">
+                                        Scroll for more...
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

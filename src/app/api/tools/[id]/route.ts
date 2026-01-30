@@ -72,6 +72,28 @@ export async function PUT(
 
         const dbTool = adminToolToDbTool(body);
 
+        // VALIDATION: If setting status to 'published', check mandatory fields
+        if (body.status === 'published') {
+            const missingFields: string[] = [];
+
+            // Check required fields from the incoming body
+            if (!body.name) missingFields.push('Name');
+            if (!body.summary) missingFields.push('Summary');
+            if (!body.categoryName || body.categoryName.length === 0) missingFields.push('Categories');
+            if (!body.taskName || body.taskName.length === 0) missingFields.push('Tasks');
+
+            if (missingFields.length > 0) {
+                return NextResponse.json(
+                    {
+                        error: 'Cannot publish tool with missing required fields',
+                        missingFields,
+                        message: `Missing: ${missingFields.join(', ')}`
+                    },
+                    { status: 400 }
+                );
+            }
+        }
+
         // Update timestamp
         dbTool.updated_at = new Date().toISOString();
 

@@ -54,11 +54,11 @@ export default function ToolHeader({
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                             {tool.websiteUrl && (
                                 <a
-                                    href={`/go/${tool.slug}`}
+                                    href={tool.backLinks ? tool.websiteUrl : `/go/${tool.app_username}`}
                                     target="_blank"
-                                    rel="noopener noreferrer"
+                                    rel={tool.backLinks ? "noopener" : "noopener noreferrer nofollow"}
                                     onClick={() => trackToolVisit(
-                                        { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                                        { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                                         tool.websiteUrl || ''
                                     )}
                                     className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
@@ -168,14 +168,15 @@ export default function ToolHeader({
                     </span>
                 </div>
 
-                {/* Star Rating */}
+                {/* Star Rating - Use explicit rating if set, otherwise calculate from upvotes */}
                 <div className="flex items-center gap-1 text-text-secondary">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                     </svg>
                     <span className="text-sm font-medium">
-                        {(tool.upvotes || 0) > 0 ? ((tool.upvotes || 0) / 50).toFixed(1) : '0.0'}
-                        <span className="text-text-tertiary ml-0.5">({tool.upvotes || 0})</span>
+                        {tool.rating != null
+                            ? tool.rating.toFixed(1)
+                            : (tool.upvotes || 0) > 0 ? ((tool.upvotes || 0) / 50).toFixed(1) : '0.0'}
                     </span>
                 </div>
 
@@ -191,12 +192,12 @@ export default function ToolHeader({
             </div>
 
             {/* Updated Date - Below stats with clock icon */}
-            {(tool.updatedAt || tool.createdAt || tool.releasedAt) && (
+            {(tool.updatedAt || tool.createdAt || tool.released_on) && (
                 <div className="flex items-center gap-1 mt-2 text-xs text-text-tertiary">
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Updated on {new Date(tool.updatedAt || tool.createdAt || tool.releasedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    Updated on {new Date(tool.updatedAt || tool.createdAt || tool.released_on).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </div>
             )}
 

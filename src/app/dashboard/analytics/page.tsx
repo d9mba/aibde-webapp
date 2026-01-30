@@ -658,20 +658,30 @@ export default function AnalysisPage() {
                                     </h3>
                                     {hourlyActivity.length > 0 ? (
                                         <>
-                                            <div className="flex items-end justify-between gap-0.5 h-40">
+                                            <div className="flex items-end gap-0.5" style={{ height: '160px' }}>
                                                 {Array.from({ length: 24 }, (_, i) => {
                                                     const hourData = hourlyActivity.find(h => h.hour === i);
                                                     const events = hourData?.events || 0;
-                                                    const height = maxHourly > 0 ? (events / maxHourly) * 130 : 4;
-                                                    const isPeak = i >= 9 && i <= 18;
+                                                    const minHeight = events > 0 ? 12 : 4;
+                                                    const barHeight = maxHourly > 0 ? Math.max((events / maxHourly) * 130, minHeight) : minHeight;
+                                                    const currentHour = new Date().getHours();
+                                                    const isCurrentHour = i === currentHour;
                                                     return (
-                                                        <div key={i} className="flex-1 group relative flex flex-col justify-end" style={{ height: '140px' }}>
+                                                        <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                                                            {/* Count on top of bar */}
+                                                            {events > 0 && (
+                                                                <span className={`text-[10px] mb-0.5 ${isCurrentHour ? 'text-accent-primary font-bold' : 'text-text-secondary'}`}>{events}</span>
+                                                            )}
                                                             <div
-                                                                className={`w-full rounded-t transition-all ${isPeak ? 'bg-accent-green' : 'bg-text-tertiary/40'} group-hover:opacity-80`}
-                                                                style={{ height: `${Math.max(height, 4)}px` }}
+                                                                className={`w-full rounded-t cursor-pointer transition-opacity ${isCurrentHour ? 'animate-pulse ring-2 ring-accent-primary ring-offset-1 ring-offset-bg-card' : 'hover:opacity-80'}`}
+                                                                style={{
+                                                                    height: `${barHeight}px`,
+                                                                    backgroundColor: '#10b981'
+                                                                }}
                                                             />
-                                                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-bg-tertiary px-2 py-1 rounded text-xs text-text-primary opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                                                {i}:00 - {events}
+                                                            {/* Instant tooltip */}
+                                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-100 whitespace-nowrap z-20 pointer-events-none">
+                                                                {i}:00 {isCurrentHour && '(now)'}
                                                             </div>
                                                         </div>
                                                     );

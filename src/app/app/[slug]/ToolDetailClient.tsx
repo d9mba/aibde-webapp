@@ -55,7 +55,7 @@ export default function ToolDetailClient({
     useToolPageView({
         id: tool.id,
         name: tool.name,
-        slug: tool.slug,
+        app_username: tool.app_username,
         category: (tool.categoryName || [])[0],
         pricing: tool.pricing,
     });
@@ -172,11 +172,11 @@ export default function ToolDetailClient({
 
                     {/* Visit button */}
                     <a
-                        href={`/go/${tool.slug}`}
+                        href={`/go/${tool.app_username}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => trackToolVisit(
-                            { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                            { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                             tool.affiliateEnabled && tool.affiliateUrl ? tool.affiliateUrl : tool.websiteUrl || ''
                         )}
                         className="flex items-center justify-center px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium hover:bg-accent-primary/90 transition-colors"
@@ -223,13 +223,14 @@ export default function ToolDetailClient({
                         </>
                     )}
                 </div>
-            </div>
+            </div >
 
             {/* Share Modal */}
-            <ShareModal
+            < ShareModal
                 isOpen={showShareModal}
-                onClose={() => setShowShareModal(false)}
-                url={typeof window !== 'undefined' ? window.location.href : `https://www.aibde.tech/app/${tool.slug}`}
+                onClose={() => setShowShareModal(false)
+                }
+                url={typeof window !== 'undefined' ? window.location.href : `https://www.aibde.tech/app/${tool.app_username}`}
                 title={tool.name}
                 description={tool.summary}
             />

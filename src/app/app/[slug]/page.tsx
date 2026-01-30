@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getToolBySlug, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
+import { getToolByAppUsername, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
 import ToolDetailClient from './ToolDetailClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
@@ -12,7 +12,7 @@ export async function generateMetadata({
     params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
     const { slug } = await params;
-    const tool = await getToolBySlug(slug);
+    const tool = await getToolByAppUsername(slug);
 
     if (!tool) {
         return {
@@ -73,7 +73,7 @@ export default async function ToolDetailPage({
     const { slug } = await params;
 
     // Fetch tool first
-    const tool = await getToolBySlug(slug);
+    const tool = await getToolByAppUsername(slug);
 
     if (!tool) {
         notFound();
@@ -83,8 +83,8 @@ export default async function ToolDetailPage({
     const [relatedTools, suggestedTools, featuredTools, recentlyAdded, categories, tasks, settings] = await Promise.all([
         getRelatedTools(tool, 6),
         getSuggestedTools(tool, 6),
-        getFeaturedTools(tool.slug, 6),
-        getRecentlyAddedTools(tool.slug, 5),
+        getFeaturedTools(tool.app_username, 6),
+        getRecentlyAddedTools(tool.app_username, 5),
         getCategories(),
         getTasks(),
         getHomeSettings(),

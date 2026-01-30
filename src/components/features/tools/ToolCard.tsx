@@ -6,6 +6,7 @@ import ShareModal from '@/components/ui/ShareModal';
 import { trackToolClick, useToolImpression, trackFilterUsed } from '@/hooks/useToolAnalytics';
 import { getPricingColor, getPricingLabel } from '@/lib/formatters';
 import { getFullUrl } from '@/lib/url';
+import { useImpressions } from '@/contexts/ImpressionsContext';
 
 interface AIToolCardProps {
     tool: AITool;
@@ -24,6 +25,7 @@ const slugify = (str: string): string => str.toLowerCase().replace(/\s+/g, '-').
 
 export default function AIToolCard({ tool, variant = 'default', ranking }: AIToolCardProps) {
     const [showShareModal, setShowShareModal] = useState(false);
+    const { getImpressions } = useImpressions();
     const colorIndex = tool.name.charCodeAt(0) % logoColors.length;
     const logoColor = logoColors[colorIndex];
     const logoUrl = tool.logoUrl ? getFullUrl(tool.logoUrl) : '';
@@ -31,15 +33,29 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
     const isCompact = variant === 'compact';
     const isFeatured = variant === 'featured';
 
+    // Get live impressions from PostHog context
+    const liveImpressions = getImpressions(tool.app_username);
+
     // Analytics: Track impressions when card is visible
     const impressionRef = useToolImpression(
-        { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+        { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
         isFeatured ? 'featured' : 'list'
     );
 
     const handleViewClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        window.open(`/go/${tool.slug}`, '_blank', 'noopener,noreferrer');
+        // For backLinks-enabled tools, link directly to website for SEO value
+        const url = tool.backLinks && tool.websiteUrl ? tool.websiteUrl : `/go/${tool.app_username}`;
+        // Track outbound click for backLinks (non-redirect) tools since they bypass /go/
+        if (tool.backLinks && tool.websiteUrl) {
+            import('@/hooks/useToolAnalytics').then(({ trackToolVisit }) => {
+                trackToolVisit(
+                    { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                    tool.websiteUrl || ''
+                );
+            });
+        }
+        window.open(url, '_blank', tool.backLinks ? 'noopener' : 'noopener,noreferrer');
     };
 
     const handleShareClick = (e: React.MouseEvent) => {
@@ -58,10 +74,10 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
     const handleCardClick = () => {
         // Analytics: Track tool click
         trackToolClick(
-            { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+            { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
             isFeatured ? 'featured' : 'card'
         );
-        window.location.href = `/app/${tool.slug}`;
+        window.location.href = `/app/${tool.app_username}`;
     };
 
     return (
@@ -198,7 +214,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                             <path d="M368 136.1v303.8c0 4.5 3.6 8.1 8.1 8.1h47.8c4.5 0 8.1-3.6 8.1-8.1V136.1c0-4.5-3.6-8.1-8.1-8.1h-47.8c-4.5 0-8.1 3.6-8.1 8.1z" />
                         </svg>
                         <span>{(() => {
-                            const count = tool.viewCount || tool.saveCount || 0;
+                            const count = liveImpressions || tool.viewCount || 0;
                             return count >= 1000 ? `${Math.round(count / 1000)}k` : count.toLocaleString();
                         })()}</span>
                     </span>
@@ -208,10 +224,14 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                             <path d="M10 19a3.966 3.966 0 01-3.96-3.962V10.98H2.838a1.731 1.731 0 01-1.605-1.073 1.734 1.734 0 01.377-1.895L9.364.254a.925.925 0 011.272 0l7.754 7.759c.498.499.646 1.242.376 1.894-.27.652-.9 1.073-1.605 1.073h-3.202v4.058A3.965 3.965 0 019.999 19H10zM2.989 9.179H7.84v5.731c0 1.13.81 2.163 1.934 2.278a2.163 2.163 0 002.386-2.15V9.179h4.851L10 2.163 2.989 9.179z" />
                         </svg>
                         <span>{tool.upvotes ?? 0}</span>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="opacity-70 flex-shrink-0 ml-1">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                        <span>{((tool.upvotes ?? 0) / 50).toFixed(1)}</span>
+                        {tool.rating != null && tool.rating > 0 && (
+                            <>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="opacity-70 flex-shrink-0 ml-1">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                </svg>
+                                <span>{tool.rating.toFixed(1)}</span>
+                            </>
+                        )}
                     </span>
                 </div>
                 {/* Pricing - Right */}
@@ -262,7 +282,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
             <ShareModal
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
-                url={typeof window !== 'undefined' ? `${window.location.origin}/app/${tool.slug}` : ''}
+                url={typeof window !== 'undefined' ? `${window.location.origin}/app/${tool.app_username}` : ''}
                 title={tool.name}
                 description={tool.summary || tool.description}
             />

@@ -85,7 +85,7 @@ export default function DashboardHome() {
         .slice(0, 8);
 
     const recentPublished = [...publishedTools]
-        .sort((a, b) => new Date(b.releasedAt || b.createdAt || 0).getTime() - new Date(a.releasedAt || a.createdAt || 0).getTime())
+        .sort((a, b) => new Date(b.released_on || b.createdAt || 0).getTime() - new Date(a.released_on || a.createdAt || 0).getTime())
         .slice(0, 5);
 
     if (!isLoaded) {
@@ -226,7 +226,7 @@ export default function DashboardHome() {
                                 recentPublished.map((tool) => (
                                     <Link
                                         key={tool.id}
-                                        href={`/app/${tool.slug}`}
+                                        href={`/app/${tool.app_username}`}
                                         target="_blank"
                                         className="flex items-center gap-3 px-5 py-3 hover:bg-bg-secondary transition-colors no-underline"
                                     >

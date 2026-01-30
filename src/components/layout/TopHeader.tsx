@@ -156,8 +156,8 @@ export default function TopHeader() {
             if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
                 // Selected a tool - track the click
                 const tool = suggestions[selectedIndex];
-                trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-                router.push(`/app/${suggestions[selectedIndex].slug}`);
+                trackToolClick({ id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+                router.push(`/app/${suggestions[selectedIndex].app_username}`);
                 setShowRecommendations(false);
                 setSearchQuery('');
             } else {
@@ -171,9 +171,9 @@ export default function TopHeader() {
     };
 
     // Handle tool click
-    const handleToolClick = (slug: string, tool: AdminTool) => {
-        trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-        router.push(`/app/${slug}`);
+    const handleToolClick = (app_username: string, tool: AdminTool) => {
+        trackToolClick({ id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+        router.push(`/app/${app_username}`);
         setShowRecommendations(false);
         setSearchQuery('');
     };
@@ -264,7 +264,7 @@ export default function TopHeader() {
                                 {suggestions.map((tool, index) => (
                                     <button
                                         key={tool.id}
-                                        onClick={() => handleToolClick(tool.slug, tool)}
+                                        onClick={() => handleToolClick(tool.app_username, tool)}
                                         className={cn(
                                             "flex items-center gap-3 w-full px-4 py-2.5 text-left transition-colors",
                                             index === selectedIndex

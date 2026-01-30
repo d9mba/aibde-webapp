@@ -194,7 +194,7 @@ export default function Combobox(props: Props) {
 
                         return (
                             <div
-                                key={option.value}
+                                key={`${idx}-${option.value}`}
                                 onClick={() => selectOption(option.value)}
                                 className={`px-3 py-2.5 text-sm cursor-pointer transition-colors text-text-primary flex items-center gap-2
                                     ${isHighlighted ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'}

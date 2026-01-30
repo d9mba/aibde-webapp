@@ -48,9 +48,9 @@ export default function StickyHeader({
                     ))}
                 </div>
                 {tool.websiteUrl && (
-                    <a href={`/go/${tool.slug}`} target="_blank" rel="noopener noreferrer"
+                    <a href={tool.backLinks ? tool.websiteUrl : `/go/${tool.app_username}`} target="_blank" rel={tool.backLinks ? "noopener" : "noopener noreferrer nofollow"}
                         onClick={() => trackToolVisit(
-                            { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                            { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                             tool.websiteUrl || ''
                         )}
                         className="px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium no-underline">

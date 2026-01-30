@@ -84,12 +84,12 @@ export async function POST(request: NextRequest) {
                         countIf(event = 'tool_impression') as impressions,
                         countIf(event = 'tool_clicked') as clicks,
                         countIf(event = 'tool_page_viewed') as page_views,
-                        countIf(event = 'tool_website_visited') as website_visits,
+                        countIf(event IN ('tool_website_visited', 'outbound_redirect')) as website_visits,
                         avgIf(properties.time_spent_seconds, event = 'tool_page_left' AND properties.time_spent_seconds > 0) as avg_time_seconds
                     FROM events
                     WHERE 
                         ${timeFilter}
-                        AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed', 'tool_website_visited', 'tool_page_left')
+                        AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed', 'tool_website_visited', 'outbound_redirect', 'tool_page_left')
                     GROUP BY properties.tool_slug
                     ORDER BY impressions DESC
                     LIMIT 25
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
                         countIf(event = 'tool_impression') as impressions,
                         countIf(event = 'tool_clicked') as clicks,
                         countIf(event = 'tool_page_viewed') as tool_views,
-                        countIf(event = 'tool_website_visited') as website_visits,
+                        countIf(event IN ('tool_website_visited', 'outbound_redirect')) as website_visits,
                         countIf(event = 'search_performed') as searches,
                         countIf(event IN ('share_link_copied', 'share_completed', 'share_social_clicked')) as shares,
                         count(DISTINCT properties.distinct_id) as unique_visitors,
@@ -273,13 +273,13 @@ export async function POST(request: NextRequest) {
                         countIf(event = 'tool_impression') as impressions,
                         countIf(event = 'tool_clicked') as clicks,
                         countIf(event = 'tool_page_viewed') as page_views,
-                        countIf(event = 'tool_website_visited') as website_visits,
+                        countIf(event IN ('tool_website_visited', 'outbound_redirect')) as website_visits,
                         avgIf(properties.time_spent_seconds, event = 'tool_page_left' AND properties.time_spent_seconds > 0) as avg_time_seconds
                     FROM events
                     WHERE 
                         ${timeFilter}
                         AND properties.tool_slug = '${toolSlug}'
-                        AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed', 'tool_website_visited', 'tool_page_left')
+                        AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed', 'tool_website_visited', 'outbound_redirect', 'tool_page_left')
                     GROUP BY date
                     ORDER BY date ASC
                 `;

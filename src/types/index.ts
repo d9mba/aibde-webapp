@@ -8,7 +8,7 @@
 export interface AITool {
     id: string;
     name: string;
-    slug: string;
+    app_username: string;
     summary?: string;
     description: string;
     category: string;  // Comma-separated for backwards compatibility
@@ -23,7 +23,8 @@ export interface AITool {
     viewCount?: number;
     upvotes?: number;
     downvotes?: number;
-    releasedAt: string;
+    rating?: number | null; // Admin-set rating (0-5 scale)
+    released_on: string;
     releasedAgo: string;
     isFeatured: boolean;
     spotlightPosition?: number;
@@ -39,6 +40,8 @@ export interface AITool {
     contactMobile?: string;
     contactCompany?: string;
     contactAddress?: string;
+    // Back Links - enables dofollow SEO backlinks
+    backLinks?: boolean;
 }
 
 /**
@@ -108,7 +111,7 @@ export interface AdminTool extends AITool {
     versionHistory?: {
         version: string;
         releaseNotes: string;
-        releasedAt: string;
+        released_on: string;
     }[];
 
     // Section 9: Alternative Tools & References
@@ -123,8 +126,8 @@ export interface AdminTool extends AITool {
     spotlightStartDate?: string;
     spotlightEndDate?: string;
 
-    // Premium - gives dofollow backlinks (SEO value)
-    premium?: boolean;
+    // Back Links - gives dofollow backlinks (SEO value)
+    backLinks?: boolean;
 
     // Trending control
     trendingPosition?: number;

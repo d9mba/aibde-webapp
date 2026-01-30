@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
         interface PublicTool {
             id: string;
             name: string;
-            slug: string;
+            app_username: string;
             logoUrl: string | null;
             summary: string;
             categoryName: string[];
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         const toPublicTool = (tool: Record<string, unknown>): PublicTool => ({
             id: tool.id as string,
             name: tool.name as string,
-            slug: tool.app_username as string,
+            app_username: tool.app_username as string,
             logoUrl: tool.logo_url as string | null,
             summary: tool.summary as string,
             categoryName: tool.category_name as string[],

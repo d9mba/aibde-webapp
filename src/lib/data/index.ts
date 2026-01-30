@@ -28,7 +28,7 @@ export {
     getTrendingTools,
     getToolsByCategory,
     getToolsByTask,
-    getToolBySlug,
+    getToolByAppUsername,
     getHomeSettings,
     getFeaturedTools,
     getRecentlyAddedTools,

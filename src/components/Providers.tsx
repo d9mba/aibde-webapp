@@ -5,6 +5,7 @@ import { AdminProvider } from '@/context/AdminContext';
 import { SearchProvider } from '@/context/SearchContext';
 import { SidebarProvider } from '@/context/SidebarContext';
 import { PostHogProvider } from '@/components/providers/PostHogProvider';
+import { ImpressionsProvider } from '@/contexts/ImpressionsContext';
 import { AdminTool } from '@/types';
 
 interface ProvidersProps {
@@ -18,7 +19,9 @@ export default function Providers({ children, headerTools }: ProvidersProps) {
             <AdminProvider initialTools={headerTools}>
                 <ThemeProvider>
                     <SidebarProvider>
-                        <SearchProvider>{children}</SearchProvider>
+                        <SearchProvider>
+                            <ImpressionsProvider>{children}</ImpressionsProvider>
+                        </SearchProvider>
                     </SidebarProvider>
                 </ThemeProvider>
             </AdminProvider>

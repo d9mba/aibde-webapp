@@ -7,9 +7,10 @@ import useSWR from 'swr';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import { getStatusClass } from '@/lib/formatters';
 import { useConfirm } from '@/components/ui/ConfirmModal';
+import BulkImportModal from './components/BulkImportModal';
 
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -38,6 +39,7 @@ export default function ToolsListPage() {
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [missingDataFilter, setMissingDataFilter] = useState<string>('all');
+    const [showBulkImport, setShowBulkImport] = useState(false);
     const ITEMS_PER_PAGE = 25;
 
     // Update status filter when URL changes
@@ -98,7 +100,8 @@ export default function ToolsListPage() {
 
     const categoryOptions = [
         { value: 'all', label: 'All Categories' },
-        ...categories.filter(cat => cat.categoryName).map(cat => ({ value: cat.categoryName, label: cat.categoryName }))
+        ...Array.from(new Set(categories.filter(cat => cat.categoryName).map(cat => cat.categoryName)))
+            .map(name => ({ value: name, label: name }))
     ];
 
     const missingDataOptions = [
@@ -192,14 +195,23 @@ export default function ToolsListPage() {
                             }
                         </p>
                     </div>
-                    <Link
-                        href="/dashboard/tools/new"
-                        prefetch={false}
-                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
-                    >
-                        <span className="flex items-center">{renderIcon('plus', 16)}</span>
-                        <span className="hidden sm:inline">Add Tool</span>
-                    </Link>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowBulkImport(true)}
+                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                        >
+                            <Upload size={16} />
+                            <span className="hidden sm:inline">Bulk Import</span>
+                        </button>
+                        <Link
+                            href="/dashboard/tools/new"
+                            prefetch={false}
+                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
+                        >
+                            <span className="flex items-center">{renderIcon('plus', 16)}</span>
+                            <span className="hidden sm:inline">Add Tool</span>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Filters */}
@@ -472,17 +484,38 @@ export default function ToolsListPage() {
                                 )}
 
                                 {/* Details Grid */}
+                                {/* Details Grid */}
                                 <div className="grid grid-cols-2 gap-4">
-                                    {previewTool.category && (
+                                    {(previewTool.categoryName?.length > 0 || previewTool.category) && (
                                         <div>
-                                            <h3 className="text-xs font-medium text-text-tertiary mb-1">Category</h3>
-                                            <p className="text-sm text-text-primary">{previewTool.category}</p>
+                                            <h3 className="text-xs font-medium text-text-tertiary mb-1">Categories</h3>
+                                            <p className="text-sm text-text-primary">
+                                                {previewTool.categoryName?.length > 0
+                                                    ? previewTool.categoryName.join(', ')
+                                                    : previewTool.category}
+                                            </p>
                                         </div>
                                     )}
-                                    {previewTool.task && (
+                                    {(previewTool.taskName?.length > 0 || previewTool.task) && (
                                         <div>
-                                            <h3 className="text-xs font-medium text-text-tertiary mb-1">Task</h3>
-                                            <p className="text-sm text-text-primary">{previewTool.task}</p>
+                                            <h3 className="text-xs font-medium text-text-tertiary mb-1">Tasks</h3>
+                                            <p className="text-sm text-text-primary">
+                                                {previewTool.taskName?.length > 0
+                                                    ? previewTool.taskName.join(', ')
+                                                    : previewTool.task}
+                                            </p>
+                                        </div>
+                                    )}
+                                    {previewTool.pricing && (
+                                        <div>
+                                            <h3 className="text-xs font-medium text-text-tertiary mb-1">Pricing</h3>
+                                            <p className="text-sm text-text-primary capitalize">{previewTool.pricing}</p>
+                                        </div>
+                                    )}
+                                    {previewTool.rating !== undefined && previewTool.rating !== null && (
+                                        <div>
+                                            <h3 className="text-xs font-medium text-text-tertiary mb-1">Rating</h3>
+                                            <p className="text-sm text-text-primary">{previewTool.rating} / 5</p>
                                         </div>
                                     )}
                                     {previewTool.saveCount !== undefined && (
@@ -499,14 +532,60 @@ export default function ToolsListPage() {
                                     )}
                                 </div>
 
+                                {/* Website URL - At Top */}
+                                {previewTool.websiteUrl && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Website</h3>
+                                        <a href={previewTool.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline flex items-center gap-1">
+                                            {previewTool.websiteUrl}
+                                            <span className="inline-flex">{renderIcon('external-link', 12)}</span>
+                                        </a>
+                                    </div>
+                                )}
+
+                                {/* Core Features & Use Cases - Side by Side */}
+                                {((previewTool.coreFeatures && previewTool.coreFeatures.length > 0) || (previewTool.useCases && previewTool.useCases.length > 0)) && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {previewTool.coreFeatures && previewTool.coreFeatures.length > 0 && (
+                                            <div>
+                                                <h3 className="text-xs font-medium text-text-tertiary mb-2">Core Features</h3>
+                                                <ul className="space-y-1">
+                                                    {previewTool.coreFeatures.slice(0, 5).map((feature: string, i: number) => (
+                                                        <li key={i} className="text-xs text-text-secondary">• {feature}</li>
+                                                    ))}
+                                                </ul>
+                                                {previewTool.coreFeatures.length > 5 && (
+                                                    <p className="text-xs text-accent-primary mt-1">+{previewTool.coreFeatures.length - 5} more</p>
+                                                )}
+                                            </div>
+                                        )}
+                                        {previewTool.useCases && previewTool.useCases.length > 0 && (
+                                            <div>
+                                                <h3 className="text-xs font-medium text-text-tertiary mb-2">Use Cases</h3>
+                                                <ul className="space-y-1">
+                                                    {previewTool.useCases.slice(0, 5).map((useCase: string, i: number) => (
+                                                        <li key={i} className="text-xs text-text-secondary">• {useCase}</li>
+                                                    ))}
+                                                </ul>
+                                                {previewTool.useCases.length > 5 && (
+                                                    <p className="text-xs text-accent-primary mt-1">+{previewTool.useCases.length - 5} more</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Tags */}
                                 {previewTool.tags && previewTool.tags.length > 0 && (
                                     <div>
                                         <h3 className="text-xs font-medium text-text-tertiary mb-2">Tags</h3>
                                         <div className="flex flex-wrap gap-1">
-                                            {previewTool.tags.map((tag: string) => (
+                                            {previewTool.tags.slice(0, 10).map((tag: string) => (
                                                 <span key={tag} className="text-xs px-2 py-1 bg-bg-secondary text-text-secondary rounded">{tag}</span>
                                             ))}
+                                            {previewTool.tags.length > 10 && (
+                                                <span className="text-xs text-accent-primary self-center">+{previewTool.tags.length - 10} more</span>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -518,52 +597,137 @@ export default function ToolsListPage() {
                                             <div>
                                                 <h3 className="text-xs font-medium text-green-500 mb-2">Pros</h3>
                                                 <ul className="space-y-1">
-                                                    {previewTool.pros.map((pro: string, i: number) => (
+                                                    {previewTool.pros.slice(0, 5).map((pro: string, i: number) => (
                                                         <li key={i} className="text-xs text-text-secondary">• {pro}</li>
                                                     ))}
                                                 </ul>
+                                                {previewTool.pros.length > 5 && (
+                                                    <p className="text-xs text-accent-primary mt-1">+{previewTool.pros.length - 5} more</p>
+                                                )}
                                             </div>
                                         )}
                                         {previewTool.cons && previewTool.cons.length > 0 && (
                                             <div>
                                                 <h3 className="text-xs font-medium text-red-500 mb-2">Cons</h3>
                                                 <ul className="space-y-1">
-                                                    {previewTool.cons.map((con: string, i: number) => (
+                                                    {previewTool.cons.slice(0, 5).map((con: string, i: number) => (
                                                         <li key={i} className="text-xs text-text-secondary">• {con}</li>
                                                     ))}
                                                 </ul>
+                                                {previewTool.cons.length > 5 && (
+                                                    <p className="text-xs text-accent-primary mt-1">+{previewTool.cons.length - 5} more</p>
+                                                )}
                                             </div>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Website URL */}
-                                {previewTool.websiteUrl && (
+                                {/* FAQ */}
+                                {previewTool.faq && previewTool.faq.length > 0 && (
                                     <div>
-                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Website</h3>
-                                        <a href={previewTool.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline flex items-center gap-1">
-                                            {previewTool.websiteUrl}
-                                            <span className="inline-flex">{renderIcon('external-link', 12)}</span>
-                                        </a>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-2">FAQ</h3>
+                                        <div className="space-y-2">
+                                            {previewTool.faq.map((item: { question: string; answer: string }, i: number) => (
+                                                <div key={i} className="p-2 bg-bg-secondary rounded-lg">
+                                                    <p className="text-xs font-medium text-text-primary">{item.question}</p>
+                                                    <p className="text-xs text-text-secondary mt-1">{item.answer}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Images */}
+                                {previewTool.images && previewTool.images.length > 0 && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-2">Screenshots ({previewTool.images.length})</h3>
+                                        <div className="flex gap-2 overflow-x-auto">
+                                            {previewTool.images.slice(0, 4).map((img: string, i: number) => (
+                                                <img key={i} src={img} alt="" className="w-24 h-16 object-cover rounded-lg flex-shrink-0" />
+                                            ))}
+                                            {previewTool.images.length > 4 && (
+                                                <span className="text-xs text-text-tertiary self-center">+{previewTool.images.length - 4} more</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Videos */}
+                                {previewTool.videos && previewTool.videos.length > 0 && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Videos</h3>
+                                        <p className="text-sm text-text-secondary">{previewTool.videos.length} video(s)</p>
+                                    </div>
+                                )}
+
+                                {/* App Store Links */}
+                                {(previewTool.playStoreUrl || previewTool.appStoreUrl) && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {previewTool.playStoreUrl && (
+                                            <div>
+                                                <h3 className="text-xs font-medium text-text-tertiary mb-1">Play Store</h3>
+                                                <a href={previewTool.playStoreUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-accent-primary hover:underline truncate block">
+                                                    {previewTool.playStoreUrl}
+                                                </a>
+                                            </div>
+                                        )}
+                                        {previewTool.appStoreUrl && (
+                                            <div>
+                                                <h3 className="text-xs font-medium text-text-tertiary mb-1">App Store</h3>
+                                                <a href={previewTool.appStoreUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-accent-primary hover:underline truncate block">
+                                                    {previewTool.appStoreUrl}
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Contact Info */}
+                                {(previewTool.contactName || previewTool.contactEmail) && (
+                                    <div className="p-3 bg-bg-secondary rounded-lg">
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-2">Contact Information</h3>
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            {previewTool.contactName && (
+                                                <div><span className="text-text-tertiary">Name:</span> <span className="text-text-primary">{previewTool.contactName}</span></div>
+                                            )}
+                                            {previewTool.contactEmail && (
+                                                <div><span className="text-text-tertiary">Email:</span> <span className="text-text-primary">{previewTool.contactEmail}</span></div>
+                                            )}
+                                            {previewTool.contactCompany && (
+                                                <div><span className="text-text-tertiary">Company:</span> <span className="text-text-primary">{previewTool.contactCompany}</span></div>
+                                            )}
+                                            {previewTool.contactMobile && (
+                                                <div><span className="text-text-tertiary">Mobile:</span> <span className="text-text-primary">{previewTool.contactMobile}</span></div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
                             {/* Actions */}
                             <div className="border-t border-border p-4 flex gap-3">
-                                <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.slug}`); }}
-                                    className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
-                                    <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
-                                </button>
+                                {previewTool.app_username && (
+                                    <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.app_username}`); }}
+                                        className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
+                                        <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
+                                    </button>
+                                )}
                                 <button onClick={() => { setPreviewTool(null); router.push(`/dashboard/tools/${previewTool.id}`); }}
                                     className="flex-1 px-4 py-2.5 bg-bg-secondary border border-border text-text-primary rounded-xl text-sm font-medium hover:bg-bg-tertiary flex items-center justify-center gap-2">
                                     <span className="inline-flex">{renderIcon('edit', 16)}</span> Edit Tool
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </div >
                 )
             }
+
+            {/* Bulk Import Modal */}
+            <BulkImportModal
+                isOpen={showBulkImport}
+                onClose={() => setShowBulkImport(false)}
+                onImportComplete={() => mutate()}
+            />
         </div >
     );
 }

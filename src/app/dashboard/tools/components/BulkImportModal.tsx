@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Upload, Download, X, Loader2, Eye, Pencil, Trash2 } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import BulkImportEditModal from './BulkImportEditModal';
 
 // Helper function to get import result status styling
@@ -533,7 +534,7 @@ export default function BulkImportModal({ isOpen, onClose, onImportComplete }: B
                                 </div>
                                 <div className="col-span-2">
                                     <label className="text-xs font-medium text-text-tertiary uppercase">Description</label>
-                                    <div className="text-sm text-text-primary mt-1 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: previewingTool.description || '-' }} />
+                                    <div className="text-sm text-text-primary mt-1 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewingTool.description || '-') }} />
                                 </div>
                                 <div>
                                     <label className="text-xs font-medium text-text-tertiary uppercase">Categories</label>

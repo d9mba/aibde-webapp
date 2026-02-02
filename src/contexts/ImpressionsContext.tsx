@@ -37,27 +37,14 @@ export function ImpressionsProvider({ children }: { children: ReactNode }) {
         const fetchImpressions = async () => {
             setLoading(true);
             try {
-                const res = await fetch('/api/analytics/posthog', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'top_tools', days: 365 }),
-                });
+                const res = await fetch('/api/public/impressions');
 
                 if (res.ok) {
                     const data = await res.json();
-                    const impressionMap: ToolImpressions = {};
-
-                    if (data.results) {
-                        data.results.forEach((row: { tool_slug: string; impressions: number }) => {
-                            if (row.tool_slug) {
-                                impressionMap[row.tool_slug] = row.impressions || 0;
-                            }
-                        });
+                    if (data.impressions) {
+                        setImpressions(data.impressions);
                     }
-
-                    setImpressions(impressionMap);
                 }
-                // Silently fail for non-authenticated users - they just see 0 impressions
             } catch {
                 // Silently fail - impressions will default to 0
             } finally {
@@ -76,3 +63,4 @@ export function ImpressionsProvider({ children }: { children: ReactNode }) {
         </ImpressionsContext.Provider>
     );
 }
+

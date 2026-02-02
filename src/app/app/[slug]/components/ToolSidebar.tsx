@@ -11,19 +11,26 @@ const ensureUrl = (url: string): string => {
 };
 
 // Format founded date - show "Founded in 2025" for year-only dates (stored as YYYY-01-01)
+// Uses UTC parsing to avoid timezone issues
 const formatFoundedDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    const month = date.getMonth();
-    const day = date.getDate();
-    const year = date.getFullYear();
+    // Parse date string manually to avoid timezone issues
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length !== 3) {
+        return `Founded ${dateStr}`;
+    }
+
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10); // 1-12
+    const day = parseInt(parts[2], 10);
 
     // If date is January 1st, it was likely a year-only entry
-    if (month === 0 && day === 1) {
+    if (month === 1 && day === 1) {
         return `Founded in ${year}`;
     }
 
-    // Otherwise show full date
-    return `Founded ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+    // Otherwise show full date using UTC to avoid timezone shifts
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return `Founded ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`;
 };
 
 interface ToolSidebarProps {

@@ -193,22 +193,29 @@ export async function POST(request: NextRequest) {
                 };
 
                 // Helper for dates - normalize to YYYY-MM-DD format
+                // Only accepts: ISO format (YYYY-MM-DD) or year-only (YYYY)
+                // Rejects ambiguous formats like DD-MM-YYYY or MM-DD-YYYY
                 const formatDate = (d: string): string => {
                     if (!d) return '';
 
                     // Strip time portion first
-                    let dateStr = d.split('T')[0].split(' ')[0];
+                    const dateStr = d.split('T')[0].split(' ')[0].trim();
 
-                    // Check for DD-MM-YYYY format (e.g., "29-10-2025")
-                    const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-                    if (ddmmyyyyMatch) {
-                        const [, day, month, year] = ddmmyyyyMatch;
-                        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    // Accept ISO format: YYYY-MM-DD
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                        return dateStr;
                     }
 
-                    // Check for year-only format (e.g., "2025")
+                    // Accept year-only format: YYYY
                     if (/^\d{4}$/.test(dateStr)) {
                         return `${dateStr}-01-01`;
+                    }
+
+                    // Reject ambiguous formats (DD-MM-YYYY, MM-DD-YYYY, etc.)
+                    // Log warning but return empty to avoid silent misinterpretation
+                    if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(dateStr)) {
+                        console.warn(`[Bulk Import] Ambiguous date format rejected: "${dateStr}". Use ISO format YYYY-MM-DD.`);
+                        return '';
                     }
 
                     return dateStr;
@@ -258,6 +265,7 @@ export async function POST(request: NextRequest) {
                 };
 
                 // Helper for social links - parse "platform:url,platform:url" format
+                // Uses indexOf to find first colon to avoid breaking URLs with colons
                 const parseSocialLinks = (val: any): Record<string, string | null> | undefined => {
                     if (!val) return undefined;
                     if (typeof val === 'object' && !Array.isArray(val)) return val;
@@ -265,11 +273,14 @@ export async function POST(request: NextRequest) {
 
                     const links: Record<string, string | null> = {};
                     val.split(',').forEach((pair: string) => {
-                        const [platform, url] = pair.split(':').map(s => s.trim());
-                        if (platform && url) {
-                            // Reconstruct URL if it was split (e.g., "https://...")
-                            const fullUrl = pair.substring(pair.indexOf(':') + 1).trim();
-                            links[platform.toLowerCase()] = fullUrl;
+                        const colonIdx = pair.indexOf(':');
+                        if (colonIdx === -1) return;
+
+                        const platform = pair.substring(0, colonIdx).trim().toLowerCase();
+                        const fullUrl = pair.substring(colonIdx + 1).trim();
+
+                        if (platform && fullUrl) {
+                            links[platform] = fullUrl;
                         }
                     });
                     return Object.keys(links).length > 0 ? links : undefined;
@@ -416,21 +427,46 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Reset counts for categories/tasks not in use
+                // Using parameterized array instead of string interpolation to prevent SQL injection
                 const allCategoryNames = Array.from(categoryCounts.keys());
                 const allTaskNames = Array.from(taskCounts.keys());
 
+                // First reset all counts to 0, then we've already updated the ones in use above
+                // This is safer than using .not() with user-provided values
                 if (allCategoryNames.length > 0) {
-                    await supabaseAdmin
+                    // Get all category names that are NOT in our list and reset them
+                    const { data: categoriesToReset } = await supabaseAdmin
                         .from('categories')
-                        .update({ count: 0 })
-                        .not('category_name', 'in', `(${allCategoryNames.map(n => `"${n}"`).join(',')})`);
+                        .select('id, category_name')
+                        .not('category_name', 'in', `(${allCategoryNames.map(() => '?').join(',')})`);
+
+                    // Reset counts for categories not in the active list
+                    for (const cat of (categoriesToReset || [])) {
+                        if (!allCategoryNames.includes(cat.category_name)) {
+                            await supabaseAdmin
+                                .from('categories')
+                                .update({ count: 0 })
+                                .eq('id', cat.id);
+                        }
+                    }
                 }
 
                 if (allTaskNames.length > 0) {
-                    await supabaseAdmin
+                    // Get all task names that are NOT in our list and reset them
+                    const { data: tasksToReset } = await supabaseAdmin
                         .from('tasks')
-                        .update({ count: 0 })
-                        .not('task_name', 'in', `(${allTaskNames.map(n => `"${n}"`).join(',')})`);
+                        .select('id, task_name')
+                        .not('task_name', 'in', `(${allTaskNames.map(() => '?').join(',')})`);
+
+                    // Reset counts for tasks not in the active list
+                    for (const task of (tasksToReset || [])) {
+                        if (!allTaskNames.includes(task.task_name)) {
+                            await supabaseAdmin
+                                .from('tasks')
+                                .update({ count: 0 })
+                                .eq('id', task.id);
+                        }
+                    }
                 }
             } catch (countError) {
                 console.error('[Bulk Import] Failed to update counts:', countError);

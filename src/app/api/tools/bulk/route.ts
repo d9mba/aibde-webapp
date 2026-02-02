@@ -193,22 +193,29 @@ export async function POST(request: NextRequest) {
                 };
 
                 // Helper for dates - normalize to YYYY-MM-DD format
+                // Only accepts: ISO format (YYYY-MM-DD) or year-only (YYYY)
+                // Rejects ambiguous formats like DD-MM-YYYY or MM-DD-YYYY
                 const formatDate = (d: string): string => {
                     if (!d) return '';
 
                     // Strip time portion first
-                    let dateStr = d.split('T')[0].split(' ')[0];
+                    const dateStr = d.split('T')[0].split(' ')[0].trim();
 
-                    // Check for DD-MM-YYYY format (e.g., "29-10-2025")
-                    const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-                    if (ddmmyyyyMatch) {
-                        const [, day, month, year] = ddmmyyyyMatch;
-                        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    // Accept ISO format: YYYY-MM-DD
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                        return dateStr;
                     }
 
-                    // Check for year-only format (e.g., "2025")
+                    // Accept year-only format: YYYY
                     if (/^\d{4}$/.test(dateStr)) {
                         return `${dateStr}-01-01`;
+                    }
+
+                    // Reject ambiguous formats (DD-MM-YYYY, MM-DD-YYYY, etc.)
+                    // Log warning but return empty to avoid silent misinterpretation
+                    if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(dateStr)) {
+                        console.warn(`[Bulk Import] Ambiguous date format rejected: "${dateStr}". Use ISO format YYYY-MM-DD.`);
+                        return '';
                     }
 
                     return dateStr;
@@ -258,6 +265,7 @@ export async function POST(request: NextRequest) {
                 };
 
                 // Helper for social links - parse "platform:url,platform:url" format
+                // Uses indexOf to find first colon to avoid breaking URLs with colons
                 const parseSocialLinks = (val: any): Record<string, string | null> | undefined => {
                     if (!val) return undefined;
                     if (typeof val === 'object' && !Array.isArray(val)) return val;
@@ -265,11 +273,14 @@ export async function POST(request: NextRequest) {
 
                     const links: Record<string, string | null> = {};
                     val.split(',').forEach((pair: string) => {
-                        const [platform, url] = pair.split(':').map(s => s.trim());
-                        if (platform && url) {
-                            // Reconstruct URL if it was split (e.g., "https://...")
-                            const fullUrl = pair.substring(pair.indexOf(':') + 1).trim();
-                            links[platform.toLowerCase()] = fullUrl;
+                        const colonIdx = pair.indexOf(':');
+                        if (colonIdx === -1) return;
+
+                        const platform = pair.substring(0, colonIdx).trim().toLowerCase();
+                        const fullUrl = pair.substring(colonIdx + 1).trim();
+
+                        if (platform && fullUrl) {
+                            links[platform] = fullUrl;
                         }
                     });
                     return Object.keys(links).length > 0 ? links : undefined;
@@ -419,18 +430,37 @@ export async function POST(request: NextRequest) {
                 const allCategoryNames = Array.from(categoryCounts.keys());
                 const allTaskNames = Array.from(taskCounts.keys());
 
-                if (allCategoryNames.length > 0) {
+                // Always fetch all and reset unused - even when no active categories/tasks
+                // Get all categories and filter in JS
+                const { data: allCategories } = await supabaseAdmin
+                    .from('categories')
+                    .select('id, category_name');
+
+                // Reset counts for categories not in the active list
+                const categoriesToReset = (allCategories || []).filter(
+                    cat => !allCategoryNames.includes(cat.category_name)
+                );
+                for (const cat of categoriesToReset) {
                     await supabaseAdmin
                         .from('categories')
                         .update({ count: 0 })
-                        .not('category_name', 'in', `(${allCategoryNames.map(n => `"${n}"`).join(',')})`);
+                        .eq('id', cat.id);
                 }
 
-                if (allTaskNames.length > 0) {
+                // Get all tasks and filter in JS
+                const { data: allTasks } = await supabaseAdmin
+                    .from('tasks')
+                    .select('id, task_name');
+
+                // Reset counts for tasks not in the active list
+                const tasksToReset = (allTasks || []).filter(
+                    task => !allTaskNames.includes(task.task_name)
+                );
+                for (const task of tasksToReset) {
                     await supabaseAdmin
                         .from('tasks')
                         .update({ count: 0 })
-                        .not('task_name', 'in', `(${allTaskNames.map(n => `"${n}"`).join(',')})`);
+                        .eq('id', task.id);
                 }
             } catch (countError) {
                 console.error('[Bulk Import] Failed to update counts:', countError);

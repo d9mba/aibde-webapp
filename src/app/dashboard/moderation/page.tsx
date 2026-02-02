@@ -181,10 +181,27 @@ export default function ModerationPage() {
     // Helper to get IDs for bulk operations - fetches all IDs from server if 'select all' mode
     const getIdsForBulkOperation = async (): Promise<string[]> => {
         if (selectAllMode === 'all') {
-            // Fetch all tool IDs for this status from server
-            const response = await fetch(`/api/tools?limit=10000&status=${activeTab}`);
+            // Include current search query in the request to respect filtering
+            const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
+            let response: Response;
+            try {
+                response = await fetch(`/api/tools?limit=10000&status=${activeTab}${searchParam}`);
+            } catch (networkError) {
+                throw new Error(`Network error fetching tools: ${networkError instanceof Error ? networkError.message : 'Unknown error'}`);
+            }
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch tools: HTTP ${response.status} ${response.statusText}`);
+            }
+
             const data = await response.json();
-            return (data.data || []).map((t: AdminTool) => t.id);
+
+            // Validate response shape
+            if (!data || !Array.isArray(data.data)) {
+                throw new Error('Invalid response shape: expected { data: [...] }');
+            }
+
+            return data.data.map((t: AdminTool) => t.id);
         }
         return [...currentTabSelectedIds];
     };
@@ -273,10 +290,22 @@ export default function ModerationPage() {
         try {
             const ids = await getIdsForBulkOperation();
             for (let i = 0; i < ids.length; i++) {
+                // Fetch existing tool to preserve internalNotes
+                const toolRes = await fetch(`/api/tools/${ids[i]}`);
+                if (!toolRes.ok) {
+                    // Skip this tool to avoid losing existing notes
+                    console.warn(`[Bulk Reject] Skipping tool ${ids[i]}: fetch failed with ${toolRes.status}`);
+                    updateToast(toastId, `Rejecting ${i + 1}/${ids.length} tools (skipped ${ids[i]})...`, 'loading');
+                    continue;
+                }
+
+                const toolData = await toolRes.json();
+                const existingNotes: any[] = toolData?.internalNotes || [];
+
                 const rejectionNote = { note: 'Bulk rejected', createdAt: new Date().toISOString() };
                 await updateTool(ids[i], {
                     status: 'draft',
-                    internalNotes: [rejectionNote]
+                    internalNotes: [...existingNotes, rejectionNote]
                 });
                 updateToast(toastId, `Rejecting ${i + 1}/${ids.length} tools...`, 'loading');
             }
@@ -328,12 +357,33 @@ export default function ModerationPage() {
         const toastId = showToast(`Deleting 0/${count} tools...`, 'loading');
         try {
             const ids = await getIdsForBulkOperation();
+            let successCount = 0;
+            let failedCount = 0;
+            const failedIds: string[] = [];
+
             for (let i = 0; i < ids.length; i++) {
-                await fetch(`/api/tools/${ids[i]}`, { method: 'DELETE' });
+                const response = await fetch(`/api/tools/${ids[i]}`, { method: 'DELETE' });
+                if (response.ok) {
+                    successCount++;
+                } else {
+                    failedCount++;
+                    failedIds.push(ids[i]);
+                    console.error(`[Bulk Delete] Failed to delete tool ${ids[i]}:`, response.status);
+                }
                 updateToast(toastId, `Deleting ${i + 1}/${ids.length} tools...`, 'loading');
             }
+
             revalidateAllTools();
-            updateToast(toastId, `${ids.length} tools deleted`, 'success');
+
+            // Show appropriate result message
+            if (failedCount === 0) {
+                updateToast(toastId, `${successCount} tools deleted`, 'success');
+            } else if (successCount === 0) {
+                updateToast(toastId, `Failed to delete ${failedCount} tools`, 'error');
+            } else {
+                updateToast(toastId, `Deleted ${successCount} tools, ${failedCount} failed`, 'warning');
+            }
+
             clearSelection();
         } catch (err: any) {
             const message = err?.message || 'Failed to delete some tools';

@@ -54,40 +54,68 @@ export async function POST() {
         const { data: existingCategories } = await supabaseAdmin.from('categories').select('category_name');
         const { data: existingTasks } = await supabaseAdmin.from('tasks').select('task_name');
 
-        const existingCategoryNames = new Set((existingCategories || []).map(c => c.category_name.toLowerCase()));
-        const existingTaskNames = new Set((existingTasks || []).map(t => t.task_name.toLowerCase()));
+        // Build maps from lowercase to original-cased names
+        const categoryNameMap = new Map<string, string>();
+        (existingCategories || []).forEach(c => {
+            categoryNameMap.set(c.category_name.toLowerCase(), c.category_name);
+        });
+
+        const taskNameMap = new Map<string, string>();
+        (existingTasks || []).forEach(t => {
+            taskNameMap.set(t.task_name.toLowerCase(), t.task_name);
+        });
 
         // Create missing categories
         let categoriesCreated = 0;
         for (const [categoryName, count] of categoryCounts) {
-            if (!existingCategoryNames.has(categoryName.toLowerCase())) {
+            const lowerName = categoryName.toLowerCase();
+            const originalName = categoryNameMap.get(lowerName);
+
+            if (!originalName) {
+                // Create new category
                 const { error } = await supabaseAdmin
                     .from('categories')
                     .insert({ category_name: categoryName, count });
-                if (!error) categoriesCreated++;
+                if (!error) {
+                    categoriesCreated++;
+                    categoryNameMap.set(lowerName, categoryName);
+                }
             } else {
-                // Update existing category count
-                await supabaseAdmin
+                // Update existing category count using original-cased name
+                const { error: updateError } = await supabaseAdmin
                     .from('categories')
                     .update({ count })
-                    .eq('category_name', categoryName);
+                    .eq('category_name', originalName);
+                if (updateError) {
+                    console.error(`[sync-counts] Failed to update category "${originalName}":`, updateError.message);
+                }
             }
         }
 
         // Create missing tasks
         let tasksCreated = 0;
         for (const [taskName, count] of taskCounts) {
-            if (!existingTaskNames.has(taskName.toLowerCase())) {
+            const lowerName = taskName.toLowerCase();
+            const originalName = taskNameMap.get(lowerName);
+
+            if (!originalName) {
+                // Create new task
                 const { error } = await supabaseAdmin
                     .from('tasks')
                     .insert({ task_name: taskName, count });
-                if (!error) tasksCreated++;
+                if (!error) {
+                    tasksCreated++;
+                    taskNameMap.set(lowerName, taskName);
+                }
             } else {
-                // Update existing task count
-                await supabaseAdmin
+                // Update existing task count using original-cased name
+                const { error: updateError } = await supabaseAdmin
                     .from('tasks')
                     .update({ count })
-                    .eq('task_name', taskName);
+                    .eq('task_name', originalName);
+                if (updateError) {
+                    console.error(`[sync-counts] Failed to update task "${originalName}":`, updateError.message);
+                }
             }
         }
 

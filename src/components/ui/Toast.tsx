@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 
 interface Toast {
     id: string;
@@ -33,33 +33,67 @@ const defaultTitles: Record<Toast['type'], string> = {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
     const [toasts, setToasts] = useState<Toast[]>([]);
+    // Track timeout IDs to properly clean them up
+    const timeoutRefs = useRef<Record<string, NodeJS.Timeout | null>>({});
+
+    // Helper to clear and remove a timeout for a toast ID
+    const clearToastTimeout = useCallback((id: string) => {
+        if (timeoutRefs.current[id]) {
+            clearTimeout(timeoutRefs.current[id]!);
+            delete timeoutRefs.current[id];
+        }
+    }, []);
+
+    // Helper to set a new auto-dismiss timeout
+    const setToastTimeout = useCallback((id: string) => {
+        // Clear any existing timeout first
+        clearToastTimeout(id);
+
+        // Set new timeout
+        timeoutRefs.current[id] = setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+            delete timeoutRefs.current[id];
+        }, 15000);
+    }, [clearToastTimeout]);
+
+    // Cleanup all pending timeouts on unmount to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            // Clear all pending timeouts
+            Object.keys(timeoutRefs.current).forEach(id => {
+                if (timeoutRefs.current[id]) {
+                    clearTimeout(timeoutRefs.current[id]!);
+                    delete timeoutRefs.current[id];
+                }
+            });
+        };
+    }, []);
 
     const showToast = useCallback((message: string, type: Toast['type'] = 'info', title?: string) => {
         const id = Date.now().toString();
         setToasts(prev => [...prev, { id, message, type, title }]);
 
         if (type !== 'loading') {
-            setTimeout(() => {
-                setToasts(prev => prev.filter(t => t.id !== id));
-            }, 15000);
+            setToastTimeout(id);
         }
 
         return id;
-    }, []);
+    }, [setToastTimeout]);
 
     const hideToast = useCallback((id: string) => {
+        clearToastTimeout(id);
         setToasts(prev => prev.filter(t => t.id !== id));
-    }, []);
+    }, [clearToastTimeout]);
 
     const updateToast = useCallback((id: string, message: string, type: Toast['type'], title?: string) => {
         setToasts(prev => prev.map(t => t.id === id ? { ...t, message, type, title } : t));
 
+        // Clear existing timeout and set new one if not loading
+        clearToastTimeout(id);
         if (type !== 'loading') {
-            setTimeout(() => {
-                setToasts(prev => prev.filter(t => t.id !== id));
-            }, 15000);
+            setToastTimeout(id);
         }
-    }, []);
+    }, [clearToastTimeout, setToastTimeout]);
 
     const getStyles = (type: Toast['type']) => {
         switch (type) {

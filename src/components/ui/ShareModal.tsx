@@ -182,18 +182,6 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
             href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
         },
         {
-            name: 'Instagram',
-            icon: <InstagramIcon />,
-            color: '#E4405F',
-            href: `https://www.instagram.com/`,
-        },
-        {
-            name: 'Discord',
-            icon: <DiscordIcon />,
-            color: '#5865F2',
-            href: `https://discord.com/channels/@me`,
-        },
-        {
             name: 'Email',
             icon: <Mail className="w-5 h-5" />,
             color: '#EA4335',

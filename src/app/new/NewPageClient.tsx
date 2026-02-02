@@ -19,10 +19,12 @@ export default function NewPageClient({ tools }: NewPageClientProps) {
         }
     }, [tools, setSharedTools]);
 
-    // Sort by released date (newest first)
-    const newTools = [...tools].sort((a, b) =>
-        new Date(b.released_on).getTime() - new Date(a.released_on).getTime()
-    );
+    // Sort by released date (newest first), with fallback for null/undefined/empty dates
+    const newTools = [...tools].sort((a, b) => {
+        const dateA = a.released_on ? new Date(a.released_on).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const dateB = b.released_on ? new Date(b.released_on).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return dateB - dateA;
+    });
 
     return (
         <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10">

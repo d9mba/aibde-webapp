@@ -7,10 +7,12 @@ import useSWR from 'swr';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
+import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Upload, Download, Square, CheckSquare, RefreshCw } from 'lucide-react';
 import { getStatusClass } from '@/lib/formatters';
 import { useConfirm } from '@/components/ui/ConfirmModal';
 import BulkImportModal from './components/BulkImportModal';
+import BulkUpdateModal from './components/BulkUpdateModal';
+import ExportToolsModal from './components/ExportToolsModal';
 
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -40,7 +42,38 @@ export default function ToolsListPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [missingDataFilter, setMissingDataFilter] = useState<string>('all');
     const [showBulkImport, setShowBulkImport] = useState(false);
+    const [showBulkUpdate, setShowBulkUpdate] = useState(false);
+    const [showExport, setShowExport] = useState(false);
+    const [exportTool, setExportTool] = useState<AdminTool | null>(null);
+    const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const ITEMS_PER_PAGE = 25;
+
+    // Toggle single tool selection
+    const toggleToolSelection = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const newSet = new Set(selectedTools);
+        if (newSet.has(id)) {
+            newSet.delete(id);
+        } else {
+            newSet.add(id);
+        }
+        setSelectedTools(newSet);
+    };
+
+    // Toggle all tools on current page
+    const toggleSelectAll = () => {
+        if (selectedTools.size === tools.length) {
+            setSelectedTools(new Set());
+        } else {
+            setSelectedTools(new Set(tools.map(t => t.id)));
+        }
+    };
+
+    // Clear selection when page changes
+    useEffect(() => {
+        setSelectedTools(new Set());
+    }, [currentPage, statusFilter, categoryFilter, missingDataFilter, debouncedSearch]);
 
     // Update status filter when URL changes
     useEffect(() => {
@@ -52,7 +85,6 @@ export default function ToolsListPage() {
     }, [searchParams]);
 
     // Debounced search for server-side search
-    const [debouncedSearch, setDebouncedSearch] = useState('');
     useEffect(() => {
         const timer = setTimeout(() => {
             if (debouncedSearch !== searchQuery) {
@@ -196,12 +228,38 @@ export default function ToolsListPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
+                        {selectedTools.size > 0 && (
+                            <button
+                                onClick={() => { setExportTool(null); setShowExport(true); }}
+                                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-accent-primary/90 transition-colors"
+                            >
+                                <Download size={16} />
+                                <span>Export {selectedTools.size}</span>
+                            </button>
+                        )}
+                        <button
+                            onClick={() => { setExportTool(null); setSelectedTools(new Set(tools.map(t => t.id))); setShowExport(true); }}
+                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                            title="Export all tools"
+                        >
+                            <Download size={16} />
+                            <span className="hidden sm:inline">Export All</span>
+                        </button>
                         <button
                             onClick={() => setShowBulkImport(true)}
                             className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                            title="Import new tools from CSV"
                         >
                             <Upload size={16} />
-                            <span className="hidden sm:inline">Bulk Import</span>
+                            <span className="hidden sm:inline">Import</span>
+                        </button>
+                        <button
+                            onClick={() => setShowBulkUpdate(true)}
+                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                            title="Bulk update existing tools or add new ones via CSV"
+                        >
+                            <RefreshCw size={16} />
+                            <span className="hidden sm:inline">Update</span>
                         </button>
                         <Link
                             href="/dashboard/tools/new"
@@ -310,6 +368,13 @@ export default function ToolsListPage() {
                                         <Pencil className="w-4 h-4" />
                                     </Link>
                                     <button
+                                        onClick={() => { setExportTool(tool); setShowExport(true); }}
+                                        className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
+                                        title="Export"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                    </button>
+                                    <button
                                         onClick={() => handleDelete(tool.id, tool.name)}
                                         className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors"
                                     >
@@ -326,6 +391,19 @@ export default function ToolsListPage() {
                     <table className="w-full">
                         <thead className="bg-bg-secondary border-b border-border">
                             <tr>
+                                <th className="px-3 py-3 text-center w-10">
+                                    <button
+                                        onClick={toggleSelectAll}
+                                        className="p-1 hover:bg-bg-tertiary rounded transition-colors"
+                                        title={selectedTools.size === tools.length ? 'Deselect all' : 'Select all'}
+                                    >
+                                        {selectedTools.size === tools.length && tools.length > 0 ? (
+                                            <CheckSquare size={18} className="text-accent-primary" />
+                                        ) : (
+                                            <Square size={18} className="text-text-tertiary" />
+                                        )}
+                                    </button>
+                                </th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Tool</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Category</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Status</th>
@@ -336,7 +414,7 @@ export default function ToolsListPage() {
                         <tbody className="divide-y divide-border">
                             {tools.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-12 text-center text-text-tertiary">
+                                    <td colSpan={6} className="px-4 py-12 text-center text-text-tertiary">
                                         No tools found. <Link href="/dashboard/tools/new" prefetch={false} className="text-accent-primary hover:underline">Add your first tool</Link>
                                     </td>
                                 </tr>
@@ -344,9 +422,21 @@ export default function ToolsListPage() {
                                 tools.map((tool) => (
                                     <tr
                                         key={tool.id}
-                                        className="hover:bg-bg-secondary cursor-pointer transition-colors"
+                                        className={`hover:bg-bg-secondary cursor-pointer transition-colors ${selectedTools.has(tool.id) ? 'bg-accent-primary/5' : ''}`}
                                         onClick={() => setPreviewTool(tool)}
                                     >
+                                        <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                onClick={(e) => toggleToolSelection(tool.id, e)}
+                                                className="p-1 hover:bg-bg-tertiary rounded transition-colors"
+                                            >
+                                                {selectedTools.has(tool.id) ? (
+                                                    <CheckSquare size={18} className="text-accent-primary" />
+                                                ) : (
+                                                    <Square size={18} className="text-text-tertiary" />
+                                                )}
+                                            </button>
+                                        </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
                                                 {tool.logoUrl ? (
@@ -388,6 +478,13 @@ export default function ToolsListPage() {
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </Link>
+                                                <button
+                                                    onClick={() => { setExportTool(tool); setShowExport(true); }}
+                                                    className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
+                                                    title="Export"
+                                                >
+                                                    <Download className="w-4 h-4" />
+                                                </button>
                                                 <button
                                                     onClick={() => handleDelete(tool.id, tool.name)}
                                                     className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors"
@@ -727,6 +824,20 @@ export default function ToolsListPage() {
                 isOpen={showBulkImport}
                 onClose={() => setShowBulkImport(false)}
                 onImportComplete={() => mutate()}
+            />
+
+            {/* Bulk Update Modal */}
+            <BulkUpdateModal
+                isOpen={showBulkUpdate}
+                onClose={() => setShowBulkUpdate(false)}
+                onUpdateComplete={() => mutate()}
+            />
+
+            {/* Export Tools Modal */}
+            <ExportToolsModal
+                isOpen={showExport}
+                onClose={() => { setShowExport(false); setExportTool(null); setSelectedTools(new Set()); }}
+                tools={exportTool ? [exportTool] : tools.filter(t => selectedTools.has(t.id))}
             />
         </div >
     );

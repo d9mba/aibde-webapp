@@ -682,7 +682,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                     <Section title="1. Basic Settings">
                         <Input label="Name of Tool" required {...register('name')} error={errors.name?.message} />
                         <Input label="App Username" {...register('app_username')} placeholder="unique-username" />
-                        <Input label="Summary" required {...register('summary')} maxLength={100} error={errors.summary?.message} />
+                        <Input label="Summary" required {...register('summary')} maxLength={200} error={errors.summary?.message} />
                         <Controller name="logoUrl" control={control} render={({ field }) => <MediaUpload label="App Logo" value={field.value || ''} onChange={field.onChange} uploadType="logo" toolName={watch('name')} />} />
                         <div>
                             <label className="block text-sm font-medium text-text-secondary mb-1.5">Description <span className="text-accent-red">*</span></label>

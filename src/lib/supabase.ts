@@ -468,10 +468,33 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
         const dbKey = mapping[key] || key;
 
-        // Convert empty timestamp strings to null
-        if (timestampFields.includes(dbKey) && value === '') {
-            result[dbKey] = null;
-            continue;
+        // Handle date/timestamp fields
+        if (timestampFields.includes(dbKey)) {
+            // Convert empty strings to null
+            if (value === '' || value === null || value === undefined) {
+                result[dbKey] = null;
+                continue;
+            }
+            // Normalize date format: convert DD-MM-YYYY to YYYY-MM-DD
+            if (typeof value === 'string') {
+                let normalizedDate = value;
+
+                // Check for DD-MM-YYYY format (e.g., "29-10-2025")
+                const ddmmyyyyMatch = value.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+                if (ddmmyyyyMatch) {
+                    const [, day, month, year] = ddmmyyyyMatch;
+                    normalizedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                }
+
+                // Check for year-only format (e.g., "2025")
+                const yearOnlyMatch = value.match(/^\d{4}$/);
+                if (yearOnlyMatch) {
+                    normalizedDate = `${value}-01-01`;
+                }
+
+                result[dbKey] = normalizedDate;
+                continue;
+            }
         }
 
         // Extract relative path for logo_url

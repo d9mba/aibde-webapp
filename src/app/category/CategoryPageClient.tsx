@@ -144,10 +144,10 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
             <section className="text-center py-6 sm:py-8 mb-6 sm:mb-8">
                 <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">Browse by Category</h1>
                 <p className="text-sm sm:text-base text-text-secondary max-w-lg mx-auto mb-2">
-                    Browse all {totalCount.toLocaleString()} AI categories in alphabetical order.
+                    Discover the best AI tools across {totalCount.toLocaleString()} categories. Find the perfect AI solution for your needs.
                 </p>
                 <p className="text-xs sm:text-sm text-text-tertiary max-w-lg mx-auto">
-                    💡 Protip: you can also find them using the search bar at the top of this page.
+                    💡 Pro tip: Use the search bar above to quickly find specific tools or categories.
                 </p>
             </section>
 

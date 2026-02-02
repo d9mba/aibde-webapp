@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo, useId } from 'react';
-import { createPortal } from 'react-dom';
-import { Search, ChevronDown, Check } from 'lucide-react'; // Standard icons
+import { Search, ChevronDown, Check } from 'lucide-react';
 
 export interface SelectOption {
     value: string;
@@ -38,7 +37,6 @@ export function SearchableSelect({
 
     const containerRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
-    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
 
     // 1. Performance: Memoize filtering so it doesn't run on every render
     const filteredOptions = useMemo(() => {
@@ -54,18 +52,6 @@ export function SearchableSelect({
         setDisplayLimit(search ? 100 : 20); // Show more results when searching
     }, [search]);
 
-    // Calculate dropdown position when opening
-    useEffect(() => {
-        if (isOpen && containerRef.current) {
-            const rect = containerRef.current.getBoundingClientRect();
-            setDropdownPosition({
-                top: rect.bottom + window.scrollY + 4,
-                left: rect.left + window.scrollX,
-                width: rect.width,
-            });
-        }
-    }, [isOpen]);
-
     // Close on outside click
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
@@ -76,14 +62,6 @@ export function SearchableSelect({
         document.addEventListener('mousedown', handleClick);
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
-
-    // Scroll highlighted item into view (disabled - causes jumpy behavior)
-    // useEffect(() => {
-    //     if (isOpen && listRef.current && highlightIndex >= 0) {
-    //         const item = listRef.current.children[highlightIndex] as HTMLElement;
-    //         item?.scrollIntoView({ block: 'nearest' });
-    //     }
-    // }, [highlightIndex, isOpen]);
 
     // Keyboard navigation
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -156,19 +134,14 @@ export function SearchableSelect({
                 <ChevronDown className={`w-4 h-4 text-text-tertiary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Dropdown - rendered via portal to avoid overflow clipping */}
-            {isOpen && createPortal(
+            {/* Dropdown - absolute positioning (scrolls with page) */}
+            {isOpen && (
                 <div
-                    className="fixed z-[9999] bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden"
+                    className="absolute z-50 w-full mt-1 bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden"
                     tabIndex={showSearch ? undefined : -1}
                     onKeyDown={showSearch ? undefined : handleKeyDown}
                     ref={el => { if (el && !showSearch) el.focus(); }}
-                    style={{
-                        outline: 'none',
-                        top: dropdownPosition.top,
-                        left: dropdownPosition.left,
-                        width: dropdownPosition.width,
-                    }}
+                    style={{ outline: 'none' }}
                 >
                     {/* Search Input */}
                     {showSearch && (
@@ -228,8 +201,7 @@ export function SearchableSelect({
                             </>
                         )}
                     </div>
-                </div>,
-                document.body
+                </div>
             )}
         </div>
     );

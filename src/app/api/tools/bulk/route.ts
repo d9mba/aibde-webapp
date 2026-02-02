@@ -32,6 +32,99 @@ export async function POST(request: NextRequest) {
             errors: [] as { name: string; error: string }[]
         };
 
+        // Fetch existing categories and tasks for matching
+        const [categoriesResult, tasksResult, tagsResult] = await Promise.all([
+            supabaseAdmin.from('categories').select('id, category_name'),
+            supabaseAdmin.from('tasks').select('id, task_name'),
+            supabaseAdmin.from('tags').select('id, tag_name')
+        ]);
+
+        // Build lookup maps (case-insensitive)
+        const categoryMap = new Map<string, string>();
+        (categoriesResult.data || []).forEach(c => {
+            categoryMap.set(c.category_name.toLowerCase(), c.category_name);
+        });
+
+        const taskMap = new Map<string, string>();
+        (tasksResult.data || []).forEach(t => {
+            taskMap.set(t.task_name.toLowerCase(), t.task_name);
+        });
+
+        const tagMap = new Map<string, string>();
+        (tagsResult.data || []).forEach(t => {
+            tagMap.set(t.tag_name.toLowerCase(), t.tag_name);
+        });
+
+        // Helper to match or create category
+        const matchCategory = async (name: string): Promise<string> => {
+            const lowerName = name.toLowerCase().trim();
+            if (categoryMap.has(lowerName)) {
+                return categoryMap.get(lowerName)!;
+            }
+            // Create new category if it doesn't exist
+            const { data, error } = await supabaseAdmin
+                .from('categories')
+                .insert({ category_name: name.trim(), count: 0 })
+                .select('category_name')
+                .single();
+            if (!error && data) {
+                categoryMap.set(lowerName, data.category_name);
+                return data.category_name;
+            }
+            // Return original name if creation fails (might be duplicate)
+            return name.trim();
+        };
+
+        // Helper to match or create task
+        const matchTask = async (name: string): Promise<string> => {
+            const lowerName = name.toLowerCase().trim();
+            if (taskMap.has(lowerName)) {
+                return taskMap.get(lowerName)!;
+            }
+            // Create new task if it doesn't exist
+            const { data, error } = await supabaseAdmin
+                .from('tasks')
+                .insert({ task_name: name.trim(), count: 0 })
+                .select('task_name')
+                .single();
+            if (!error && data) {
+                taskMap.set(lowerName, data.task_name);
+                return data.task_name;
+            }
+            return name.trim();
+        };
+
+        // Helper to match or create tag
+        const matchTag = async (name: string): Promise<string> => {
+            const lowerName = name.toLowerCase().trim();
+            if (tagMap.has(lowerName)) {
+                return tagMap.get(lowerName)!;
+            }
+            // Create new tag if it doesn't exist
+            const { data, error } = await supabaseAdmin
+                .from('tags')
+                .insert({ tag_name: name.trim() })
+                .select('tag_name')
+                .single();
+            if (!error && data) {
+                tagMap.set(lowerName, data.tag_name);
+                return data.tag_name;
+            }
+            return name.trim();
+        };
+
+        // Fetch existing tools for duplicate check
+        const { data: existingTools } = await supabaseAdmin
+            .from('tools')
+            .select('name, app_username');
+
+        const existingNames = new Set((existingTools || []).map(t => t.name?.toLowerCase()));
+        const existingSlugs = new Set((existingTools || []).map(t => t.app_username?.toLowerCase()));
+
+        // Track names within this batch to detect duplicates in the CSV itself
+        const batchNames = new Set<string>();
+        const batchSlugs = new Set<string>();
+
         // Process each tool
         for (const tool of tools) {
             try {
@@ -40,6 +133,50 @@ export async function POST(request: NextRequest) {
                     .toLowerCase()
                     .replace(/[^a-z0-9]+/g, '-')
                     .replace(/(^-|-$)/g, '');
+
+                const toolNameLower = tool.name?.toLowerCase();
+
+                // Check for duplicate in the database
+                if (existingNames.has(toolNameLower)) {
+                    results.errors.push({
+                        name: tool.name,
+                        error: `Duplicate: Tool "${tool.name}" already exists in database`
+                    });
+                    results.failed++;
+                    continue;
+                }
+
+                if (existingSlugs.has(slug)) {
+                    results.errors.push({
+                        name: tool.name,
+                        error: `Duplicate: Slug "${slug}" already exists in database`
+                    });
+                    results.failed++;
+                    continue;
+                }
+
+                // Check for duplicate within the same batch/CSV
+                if (batchNames.has(toolNameLower)) {
+                    results.errors.push({
+                        name: tool.name,
+                        error: `Duplicate in CSV: Tool "${tool.name}" appears multiple times in this import`
+                    });
+                    results.failed++;
+                    continue;
+                }
+
+                if (batchSlugs.has(slug)) {
+                    results.errors.push({
+                        name: tool.name,
+                        error: `Duplicate in CSV: Slug "${slug}" appears multiple times in this import`
+                    });
+                    results.failed++;
+                    continue;
+                }
+
+                // Add to batch tracking
+                batchNames.add(toolNameLower);
+                batchSlugs.add(slug);
 
                 // Helper to parse JSON safely
                 const parseJSON = (val: any, defaultVal: any) => {
@@ -55,11 +192,26 @@ export async function POST(request: NextRequest) {
                     return [];
                 };
 
-                // Helper for dates (strip time)
-                const formatDate = (d: string) => {
+                // Helper for dates - normalize to YYYY-MM-DD format
+                const formatDate = (d: string): string => {
                     if (!d) return '';
-                    // Handle "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DD"
-                    return d.split('T')[0].split(' ')[0];
+
+                    // Strip time portion first
+                    let dateStr = d.split('T')[0].split(' ')[0];
+
+                    // Check for DD-MM-YYYY format (e.g., "29-10-2025")
+                    const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+                    if (ddmmyyyyMatch) {
+                        const [, day, month, year] = ddmmyyyyMatch;
+                        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    }
+
+                    // Check for year-only format (e.g., "2025")
+                    if (/^\d{4}$/.test(dateStr)) {
+                        return `${dateStr}-01-01`;
+                    }
+
+                    return dateStr;
                 };
 
                 // Helper for FAQ - supports JSON, "Q::A;;Q::A" format, and legacy "Q|A|Q|A" format
@@ -123,6 +275,16 @@ export async function POST(request: NextRequest) {
                     return Object.keys(links).length > 0 ? links : undefined;
                 };
 
+                // Parse and match categories, tasks, and tags
+                const rawCategories = parseArray(tool.categoryName || tool.category || tool.categories);
+                const rawTasks = parseArray(tool.taskName || tool.task || tool.tasks);
+                const rawTags = parseArray(tool.tags);
+
+                // Match against existing records (or create new ones)
+                const matchedCategories = await Promise.all(rawCategories.map(matchCategory));
+                const matchedTasks = await Promise.all(rawTasks.map(matchTask));
+                const matchedTags = await Promise.all(rawTags.map(matchTag));
+
                 const toolData = {
                     name: tool.name,
                     app_username: slug,
@@ -131,10 +293,10 @@ export async function POST(request: NextRequest) {
                     websiteUrl: tool.websiteUrl || tool.website_url || tool.website || tool.url || '',
                     logoUrl: tool.logoUrl || tool.logo_url || '',
 
-                    // Classification
-                    categoryName: parseArray(tool.categoryName || tool.category || tool.categories),
-                    taskName: parseArray(tool.taskName || tool.task || tool.tasks),
-                    tags: parseArray(tool.tags),
+                    // Classification - use matched names
+                    categoryName: matchedCategories,
+                    taskName: matchedTasks,
+                    tags: matchedTags,
 
                     // Pricing
                     pricing: tool.pricing || 'freemium',
@@ -203,6 +365,76 @@ export async function POST(request: NextRequest) {
             } catch (err: any) {
                 results.errors.push({ name: tool.name || 'Unknown', error: err.message });
                 results.failed++;
+            }
+        }
+
+        // After bulk import, recalculate category and task counts
+        if (results.success > 0) {
+            try {
+                // Get all published tools to count categories and tasks
+                const { data: allTools } = await supabaseAdmin
+                    .from('tools')
+                    .select('category_name, task_name')
+                    .eq('status', 'published');
+
+                // Count occurrences of each category
+                const categoryCounts = new Map<string, number>();
+                const taskCounts = new Map<string, number>();
+
+                (allTools || []).forEach(t => {
+                    // Count categories
+                    const categories = Array.isArray(t.category_name)
+                        ? t.category_name
+                        : (t.category_name ? [t.category_name] : []);
+                    categories.forEach((cat: string) => {
+                        categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
+                    });
+
+                    // Count tasks
+                    const tasks = Array.isArray(t.task_name)
+                        ? t.task_name
+                        : (t.task_name ? [t.task_name] : []);
+                    tasks.forEach((task: string) => {
+                        taskCounts.set(task, (taskCounts.get(task) || 0) + 1);
+                    });
+                });
+
+                // Update category counts
+                for (const [categoryName, count] of categoryCounts) {
+                    await supabaseAdmin
+                        .from('categories')
+                        .update({ count })
+                        .eq('category_name', categoryName);
+                }
+
+                // Update task counts
+                for (const [taskName, count] of taskCounts) {
+                    await supabaseAdmin
+                        .from('tasks')
+                        .update({ count })
+                        .eq('task_name', taskName);
+                }
+
+                // Reset counts for categories/tasks not in use
+                const allCategoryNames = Array.from(categoryCounts.keys());
+                const allTaskNames = Array.from(taskCounts.keys());
+
+                if (allCategoryNames.length > 0) {
+                    await supabaseAdmin
+                        .from('categories')
+                        .update({ count: 0 })
+                        .not('category_name', 'in', `(${allCategoryNames.map(n => `"${n}"`).join(',')})`);
+                }
+
+                if (allTaskNames.length > 0) {
+                    await supabaseAdmin
+                        .from('tasks')
+                        .update({ count: 0 })
+                        .not('task_name', 'in', `(${allTaskNames.map(n => `"${n}"`).join(',')})`);
+                }
+            } catch (countError) {
+                console.error('[Bulk Import] Failed to update counts:', countError);
+                // Don't fail the import if count update fails
             }
         }
 

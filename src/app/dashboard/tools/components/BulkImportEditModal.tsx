@@ -177,7 +177,7 @@ export default function BulkImportEditModal({
                                 required
                                 value={tool.summary || ''}
                                 onChange={(e) => handleUpdate({ summary: e.target.value })}
-                                maxLength={100}
+                                maxLength={200}
                             />
                             <MediaUpload
                                 label="App Logo"

@@ -626,7 +626,7 @@ export default function Header() {
                         )}
                         title={isPinned ? "Unpin sidebar" : "Pin sidebar"}
                     >
-                        <Pin size={18} strokeWidth={1.5} className={cn(isPinned && "rotate-45")} />
+                        <Pin size={18} strokeWidth={1.5} className={cn(isPinned && "rotate-45")} fill={isPinned ? "currentColor" : "none"} />
                     </button>
                 </div>
             </aside>

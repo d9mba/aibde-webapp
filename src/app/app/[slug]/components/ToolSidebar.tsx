@@ -10,6 +10,22 @@ const ensureUrl = (url: string): string => {
     return url.startsWith('http') ? url : `https://${url}`;
 };
 
+// Format founded date - show "Founded in 2025" for year-only dates (stored as YYYY-01-01)
+const formatFoundedDate = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const month = date.getMonth();
+    const day = date.getDate();
+    const year = date.getFullYear();
+
+    // If date is January 1st, it was likely a year-only entry
+    if (month === 0 && day === 1) {
+        return `Founded in ${year}`;
+    }
+
+    // Otherwise show full date
+    return `Founded ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+};
+
 interface ToolSidebarProps {
     tool: AdminTool;
     featuredTools: AdminTool[];
@@ -58,7 +74,7 @@ export default function ToolSidebar({
                                 <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
                             </svg>
                             {tool.released_on ? (
-                                <span>Founded {new Date(tool.released_on).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                                <span>{formatFoundedDate(tool.released_on)}</span>
                             ) : tool.createdAt ? (
                                 <span>Listed on {new Date(tool.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                             ) : null}

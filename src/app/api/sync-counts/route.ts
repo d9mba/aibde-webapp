@@ -82,10 +82,13 @@ export async function POST() {
                 }
             } else {
                 // Update existing category count using original-cased name
-                await supabaseAdmin
+                const { error: updateError } = await supabaseAdmin
                     .from('categories')
                     .update({ count })
                     .eq('category_name', originalName);
+                if (updateError) {
+                    console.error(`[sync-counts] Failed to update category "${originalName}":`, updateError.message);
+                }
             }
         }
 
@@ -106,10 +109,13 @@ export async function POST() {
                 }
             } else {
                 // Update existing task count using original-cased name
-                await supabaseAdmin
+                const { error: updateError } = await supabaseAdmin
                     .from('tasks')
                     .update({ count })
                     .eq('task_name', originalName);
+                if (updateError) {
+                    console.error(`[sync-counts] Failed to update task "${originalName}":`, updateError.message);
+                }
             }
         }
 

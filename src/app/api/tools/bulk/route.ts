@@ -427,45 +427,43 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Reset counts for categories/tasks not in use
-                // Using parameterized array instead of string interpolation to prevent SQL injection
                 const allCategoryNames = Array.from(categoryCounts.keys());
                 const allTaskNames = Array.from(taskCounts.keys());
 
-                // First reset all counts to 0, then we've already updated the ones in use above
-                // This is safer than using .not() with user-provided values
+                // Fetch all and filter in JS to avoid Supabase .not() parameterization issues
                 if (allCategoryNames.length > 0) {
-                    // Get all category names that are NOT in our list and reset them
-                    const { data: categoriesToReset } = await supabaseAdmin
+                    // Get all categories and filter in JS
+                    const { data: allCategories } = await supabaseAdmin
                         .from('categories')
-                        .select('id, category_name')
-                        .not('category_name', 'in', `(${allCategoryNames.map(() => '?').join(',')})`);
+                        .select('id, category_name');
 
                     // Reset counts for categories not in the active list
-                    for (const cat of (categoriesToReset || [])) {
-                        if (!allCategoryNames.includes(cat.category_name)) {
-                            await supabaseAdmin
-                                .from('categories')
-                                .update({ count: 0 })
-                                .eq('id', cat.id);
-                        }
+                    const categoriesToReset = (allCategories || []).filter(
+                        cat => !allCategoryNames.includes(cat.category_name)
+                    );
+                    for (const cat of categoriesToReset) {
+                        await supabaseAdmin
+                            .from('categories')
+                            .update({ count: 0 })
+                            .eq('id', cat.id);
                     }
                 }
 
                 if (allTaskNames.length > 0) {
-                    // Get all task names that are NOT in our list and reset them
-                    const { data: tasksToReset } = await supabaseAdmin
+                    // Get all tasks and filter in JS
+                    const { data: allTasks } = await supabaseAdmin
                         .from('tasks')
-                        .select('id, task_name')
-                        .not('task_name', 'in', `(${allTaskNames.map(() => '?').join(',')})`);
+                        .select('id, task_name');
 
                     // Reset counts for tasks not in the active list
-                    for (const task of (tasksToReset || [])) {
-                        if (!allTaskNames.includes(task.task_name)) {
-                            await supabaseAdmin
-                                .from('tasks')
-                                .update({ count: 0 })
-                                .eq('id', task.id);
-                        }
+                    const tasksToReset = (allTasks || []).filter(
+                        task => !allTaskNames.includes(task.task_name)
+                    );
+                    for (const task of tasksToReset) {
+                        await supabaseAdmin
+                            .from('tasks')
+                            .update({ count: 0 })
+                            .eq('id', task.id);
                     }
                 }
             } catch (countError) {

@@ -181,29 +181,27 @@ export default function ModerationPage() {
     // Helper to get IDs for bulk operations - fetches all IDs from server if 'select all' mode
     const getIdsForBulkOperation = async (): Promise<string[]> => {
         if (selectAllMode === 'all') {
+            // Include current search query in the request to respect filtering
+            const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
+            let response: Response;
             try {
-                // Include current search query in the request to respect filtering
-                const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
-                const response = await fetch(`/api/tools?limit=10000&status=${activeTab}${searchParam}`);
-
-                if (!response.ok) {
-                    console.error('[Bulk Operation] Failed to fetch IDs:', response.status);
-                    return [];
-                }
-
-                const data = await response.json();
-
-                // Validate response shape
-                if (!data || !Array.isArray(data.data)) {
-                    console.error('[Bulk Operation] Invalid response shape');
-                    return [];
-                }
-
-                return data.data.map((t: AdminTool) => t.id);
-            } catch (error) {
-                console.error('[Bulk Operation] Error fetching IDs:', error);
-                return [];
+                response = await fetch(`/api/tools?limit=10000&status=${activeTab}${searchParam}`);
+            } catch (networkError) {
+                throw new Error(`Network error fetching tools: ${networkError instanceof Error ? networkError.message : 'Unknown error'}`);
             }
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch tools: HTTP ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Validate response shape
+            if (!data || !Array.isArray(data.data)) {
+                throw new Error('Invalid response shape: expected { data: [...] }');
+            }
+
+            return data.data.map((t: AdminTool) => t.id);
         }
         return [...currentTabSelectedIds];
     };
@@ -294,11 +292,15 @@ export default function ModerationPage() {
             for (let i = 0; i < ids.length; i++) {
                 // Fetch existing tool to preserve internalNotes
                 const toolRes = await fetch(`/api/tools/${ids[i]}`);
-                let existingNotes: any[] = [];
-                if (toolRes.ok) {
-                    const toolData = await toolRes.json();
-                    existingNotes = toolData?.internalNotes || [];
+                if (!toolRes.ok) {
+                    // Skip this tool to avoid losing existing notes
+                    console.warn(`[Bulk Reject] Skipping tool ${ids[i]}: fetch failed with ${toolRes.status}`);
+                    updateToast(toastId, `Rejecting ${i + 1}/${ids.length} tools (skipped ${ids[i]})...`, 'loading');
+                    continue;
                 }
+
+                const toolData = await toolRes.json();
+                const existingNotes: any[] = toolData?.internalNotes || [];
 
                 const rejectionNote = { note: 'Bulk rejected', createdAt: new Date().toISOString() };
                 await updateTool(ids[i], {

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 
 interface Toast {
     id: string;
@@ -55,6 +55,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             delete timeoutRefs.current[id];
         }, 15000);
     }, [clearToastTimeout]);
+
+    // Cleanup all pending timeouts on unmount to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            // Clear all pending timeouts
+            Object.keys(timeoutRefs.current).forEach(id => {
+                if (timeoutRefs.current[id]) {
+                    clearTimeout(timeoutRefs.current[id]!);
+                    delete timeoutRefs.current[id];
+                }
+            });
+        };
+    }, []);
 
     const showToast = useCallback((message: string, type: Toast['type'] = 'info', title?: string) => {
         const id = Date.now().toString();

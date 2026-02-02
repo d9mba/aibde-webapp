@@ -53,7 +53,7 @@ export default function SpotlightPage() {
     }, [tools, pendingSpotlightIds, pendingPositions]);
 
     const availableTools = useMemo(() => {
-        return tools.filter(t => !pendingSpotlightIds.includes(t.id));
+        return tools.filter(t => !pendingSpotlightIds.includes(t.id) && t.status === 'published');
     }, [tools, pendingSpotlightIds]);
 
     // Filter available tools by search

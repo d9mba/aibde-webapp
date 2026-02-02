@@ -430,41 +430,37 @@ export async function POST(request: NextRequest) {
                 const allCategoryNames = Array.from(categoryCounts.keys());
                 const allTaskNames = Array.from(taskCounts.keys());
 
-                // Fetch all and filter in JS to avoid Supabase .not() parameterization issues
-                if (allCategoryNames.length > 0) {
-                    // Get all categories and filter in JS
-                    const { data: allCategories } = await supabaseAdmin
-                        .from('categories')
-                        .select('id, category_name');
+                // Always fetch all and reset unused - even when no active categories/tasks
+                // Get all categories and filter in JS
+                const { data: allCategories } = await supabaseAdmin
+                    .from('categories')
+                    .select('id, category_name');
 
-                    // Reset counts for categories not in the active list
-                    const categoriesToReset = (allCategories || []).filter(
-                        cat => !allCategoryNames.includes(cat.category_name)
-                    );
-                    for (const cat of categoriesToReset) {
-                        await supabaseAdmin
-                            .from('categories')
-                            .update({ count: 0 })
-                            .eq('id', cat.id);
-                    }
+                // Reset counts for categories not in the active list
+                const categoriesToReset = (allCategories || []).filter(
+                    cat => !allCategoryNames.includes(cat.category_name)
+                );
+                for (const cat of categoriesToReset) {
+                    await supabaseAdmin
+                        .from('categories')
+                        .update({ count: 0 })
+                        .eq('id', cat.id);
                 }
 
-                if (allTaskNames.length > 0) {
-                    // Get all tasks and filter in JS
-                    const { data: allTasks } = await supabaseAdmin
-                        .from('tasks')
-                        .select('id, task_name');
+                // Get all tasks and filter in JS
+                const { data: allTasks } = await supabaseAdmin
+                    .from('tasks')
+                    .select('id, task_name');
 
-                    // Reset counts for tasks not in the active list
-                    const tasksToReset = (allTasks || []).filter(
-                        task => !allTaskNames.includes(task.task_name)
-                    );
-                    for (const task of tasksToReset) {
-                        await supabaseAdmin
-                            .from('tasks')
-                            .update({ count: 0 })
-                            .eq('id', task.id);
-                    }
+                // Reset counts for tasks not in the active list
+                const tasksToReset = (allTasks || []).filter(
+                    task => !allTaskNames.includes(task.task_name)
+                );
+                for (const task of tasksToReset) {
+                    await supabaseAdmin
+                        .from('tasks')
+                        .update({ count: 0 })
+                        .eq('id', task.id);
                 }
             } catch (countError) {
                 console.error('[Bulk Import] Failed to update counts:', countError);

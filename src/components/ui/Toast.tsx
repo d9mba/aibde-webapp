@@ -41,7 +41,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         if (type !== 'loading') {
             setTimeout(() => {
                 setToasts(prev => prev.filter(t => t.id !== id));
-            }, 4000);
+            }, 15000);
         }
 
         return id;
@@ -57,7 +57,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         if (type !== 'loading') {
             setTimeout(() => {
                 setToasts(prev => prev.filter(t => t.id !== id));
-            }, 4000);
+            }, 15000);
         }
     }, []);
 
@@ -72,7 +72,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             case 'warning':
                 return { border: 'border-l-amber-500', icon: 'bg-amber-500', iconText: '!' };
             case 'loading':
-                return { border: 'border-l-emerald-500', icon: 'bg-emerald-500', iconText: '' };
+                return { border: 'border-l-amber-500', icon: 'bg-amber-500', iconText: '' };
             default:
                 return { border: 'border-l-gray-500', icon: 'bg-gray-500', iconText: '•' };
         }

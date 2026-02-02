@@ -11,8 +11,8 @@ import { z } from 'zod';
 // Tool creation/update schema - validates tool data
 export const toolSchema = z.object({
     name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
-    slug: z.string()
-        .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with dashes')
+    app_username: z.string()
+        .regex(/^[a-z0-9-]+$/, 'App username must be lowercase alphanumeric with dashes')
         .max(100)
         .optional(),
     summary: z.string().max(500, 'Summary too long').optional().nullable(),
@@ -33,7 +33,7 @@ export const toolSchema = z.object({
     images: z.array(z.string()).optional().nullable(),
     videos: z.array(z.string()).optional().nullable(),
     saveCount: z.number().int().min(0).optional(),
-    releasedAt: z.string().optional().nullable(),
+    released_on: z.string().optional().nullable(),
     isFeatured: z.boolean().optional(),
     status: z.enum(['draft', 'pending', 'published', 'unpublished', 'scheduled']).optional(),
 
@@ -64,7 +64,7 @@ export const toolSchema = z.object({
     versionHistory: z.array(z.object({
         version: z.string(),
         releaseNotes: z.string(),
-        releasedAt: z.string()
+        released_on: z.string()
     })).optional().nullable(),
 
     // Alternatives

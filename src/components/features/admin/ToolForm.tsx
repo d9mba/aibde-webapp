@@ -109,22 +109,22 @@ const NotesEditor = ({ notes, onChange }: { notes: { note: string; createdAt: st
 };
 
 // Version History Editor
-const VersionEditor = ({ versions, onChange }: { versions: { version: string; releaseNotes: string; releasedAt: string }[]; onChange: (versions: { version: string; releaseNotes: string; releasedAt: string }[]) => void }) => {
-    const [v, setV] = useState({ version: '', releaseNotes: '', releasedAt: '' });
-    const add = () => { if (v.version.trim()) { onChange([...versions, { ...v, releasedAt: v.releasedAt || new Date().toISOString().split('T')[0] }]); setV({ version: '', releaseNotes: '', releasedAt: '' }); } };
+const VersionEditor = ({ versions, onChange }: { versions: { version: string; releaseNotes: string; released_on: string }[]; onChange: (versions: { version: string; releaseNotes: string; released_on: string }[]) => void }) => {
+    const [v, setV] = useState({ version: '', releaseNotes: '', released_on: '' });
+    const add = () => { if (v.version.trim()) { onChange([...versions, { ...v, released_on: v.released_on || new Date().toISOString().split('T')[0] }]); setV({ version: '', releaseNotes: '', released_on: '' }); } };
     return (
         <div>
             <label className="block text-sm font-medium text-text-secondary mb-1.5">Version History</label>
             <div className="grid grid-cols-3 gap-2 mb-2">
                 <input value={v.version} onChange={e => setV({ ...v, version: e.target.value })} placeholder="Version (e.g., 2.0)" className="px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm" />
-                <input type="date" value={v.releasedAt} onChange={e => setV({ ...v, releasedAt: e.target.value })} className="px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm" />
+                <input type="date" value={v.released_on} onChange={e => setV({ ...v, released_on: e.target.value })} className="px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm" />
                 <button type="button" onClick={add} className="px-3 py-2 bg-accent-primary text-white rounded-lg text-sm">Add</button>
             </div>
             <textarea value={v.releaseNotes} onChange={e => setV({ ...v, releaseNotes: e.target.value })} placeholder="Release notes..." rows={2} className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm resize-none mb-3" />
             {versions.map((ver, i) => (
                 <div key={i} className="p-3 bg-bg-secondary rounded-lg mb-2 flex justify-between">
                     <div>
-                        <p className="text-sm font-medium text-text-primary">v{ver.version} - {ver.releasedAt}</p>
+                        <p className="text-sm font-medium text-text-primary">v{ver.version} - {ver.released_on}</p>
                         <p className="text-sm text-text-secondary mt-1">{ver.releaseNotes}</p>
                     </div>
                     <button type="button" onClick={() => onChange(versions.filter((_, j) => j !== i))} className="text-text-tertiary hover:text-accent-red">×</button>
@@ -251,7 +251,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     const watchName = watch('name');
     useEffect(() => {
         if (!isEdit) {
-            setValue('slug', slugify(watchName || ''));
+            setValue('app_username', slugify(watchName || ''));
             setShowDuplicateWarning(watchName ? !!tools.find(t => (t.name || '').toLowerCase() === watchName.toLowerCase()) : false);
         }
     }, [watchName, isEdit, tools, setValue]);
@@ -442,9 +442,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                 'features': 'coreFeatures',
                 'core_features': 'coreFeatures',
                 'use_cases': 'useCases',
-                'released_at': 'releasedAt',
-                'released_date': 'releasedAt',
-                'founded': 'releasedAt',
+                'released_at': 'released_on',
+                'released_date': 'released_on',
+                'founded': 'released_on',
                 'free_trial': 'hasFreeTrial',
                 'freeTrial': 'hasFreeTrial',
                 'trial_days': 'freeTrialDays',
@@ -625,7 +625,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
   // PUBLISHING
   "status": "draft|pending|published|unpublished|scheduled",
-  "releasedAt": "YYYY-MM-DD", // Founded date
+  "released_on": "YYYY-MM-DD", // Founded date
   "scheduledAt": "datetime",  // Scheduled publish date
 
   // SPOTLIGHT
@@ -635,7 +635,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
   "spotlightEndDate": "YYYY-MM-DD",
 
   // OTHER
-  "premium": false,           // Premium listing
+  "backLinks": false,          // Enable dofollow backlinks
   "saveCount": 0,             // Bookmark count
   "alternativeTools": ["slug"], // Alt tool slugs
   "references": ["url"]       // Reference URLs
@@ -681,8 +681,8 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                     {/* 1. Basic Settings */}
                     <Section title="1. Basic Settings">
                         <Input label="Name of Tool" required {...register('name')} error={errors.name?.message} />
-                        <Input label="App Username" {...register('slug')} placeholder="unique-username" />
-                        <Input label="Summary" required {...register('summary')} maxLength={100} error={errors.summary?.message} />
+                        <Input label="App Username" {...register('app_username')} placeholder="unique-username" />
+                        <Input label="Summary" required {...register('summary')} maxLength={200} error={errors.summary?.message} />
                         <Controller name="logoUrl" control={control} render={({ field }) => <MediaUpload label="App Logo" value={field.value || ''} onChange={field.onChange} uploadType="logo" toolName={watch('name')} />} />
                         <div>
                             <label className="block text-sm font-medium text-text-secondary mb-1.5">Description <span className="text-accent-red">*</span></label>
@@ -698,7 +698,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                 </div>
                             )}
                         </div>
-                        <Input label="Founded Date" type="date" {...register('releasedAt')} />
+                        <Input label="Released On" type="date" {...register('released_on')} />
                     </Section>
 
                     {/* 2. Categories & Classification */}
@@ -870,7 +870,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                 multiple
                                 value={field.value || []}
                                 onChange={field.onChange}
-                                options={tools.map(t => ({ value: t.slug, label: t.name, image: t.logoUrl }))}
+                                options={tools.map(t => ({ value: t.app_username, label: t.name, image: t.logoUrl }))}
                                 allowCreate={false}
                                 placeholder="Search existing tools..."
                             />
@@ -912,12 +912,16 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                             )}
                         </div>
                         <div className="pt-4 border-t border-border mt-4">
-                            <Controller name="premium" control={control} render={({ field }) => <Toggle label="Premium" checked={field.value || false} onChange={field.onChange} />} />
-                            <p className="text-xs text-text-tertiary mt-1">Premium tools get SEO backlinks (dofollow) and direct website links</p>
+                            <Controller name="backLinks" control={control} render={({ field }) => <Toggle label="Back Links" checked={field.value || false} onChange={field.onChange} />} />
+                            <p className="text-xs text-text-tertiary mt-1">Enable dofollow SEO backlinks and direct website links (no UTM params)</p>
                         </div>
                         <div className="pt-4 border-t border-border mt-4">
                             <Input label="Save Count" type="number" {...register('saveCount', { valueAsNumber: true })} placeholder="0" />
                             <p className="text-xs text-text-tertiary mt-1">Number of saves/bookmarks for this tool</p>
+                        </div>
+                        <div className="pt-4 border-t border-border mt-4">
+                            <Input label="Rating" type="number" step="0.1" min="0" max="5" {...register('rating', { valueAsNumber: true })} placeholder="0.0 - 5.0" />
+                            <p className="text-xs text-text-tertiary mt-1">Tool rating (0-5 scale, e.g., 4.5). Leave empty to use calculated rating from votes.</p>
                         </div>
                     </Section>
                 </div>
@@ -927,6 +931,25 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                     <LivePreview control={control} categories={categories} onExpand={() => setShowFullPreview(true)} />
                 </div>
             </div>
+
+            {/* Metadata (Edit only) */}
+            {isEdit && existingTool && (existingTool.createdAt || existingTool.updatedAt) && (
+                <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row gap-6 text-xs text-text-tertiary">
+                    {existingTool.createdAt && (
+                        <div>
+                            <span className="font-medium text-text-secondary">Created:</span> {new Date(existingTool.createdAt).toLocaleString()}
+                        </div>
+                    )}
+                    {existingTool.updatedAt && (
+                        <div>
+                            <span className="font-medium text-text-secondary">Last Updated:</span> {new Date(existingTool.updatedAt).toLocaleString()}
+                        </div>
+                    )}
+                    <div>
+                        <span className="font-medium text-text-secondary">ID:</span> <span className="font-mono">{existingTool.id}</span>
+                    </div>
+                </div>
+            )}
 
             {/* Bottom Action Buttons */}
             <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-border">

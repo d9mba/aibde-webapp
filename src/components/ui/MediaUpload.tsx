@@ -21,6 +21,13 @@ const getRelativePath = (url: string): string => {
     return url;
 };
 
+// Helper function to get source badge label and color
+function getSourceBadge(isCloud: boolean, isExternal: boolean): { label: string; color: string } {
+    if (isCloud) return { label: 'Cloud', color: 'bg-accent-primary' };
+    if (isExternal) return { label: 'External', color: 'bg-amber-500' };
+    return { label: 'Local', color: 'bg-gray-500' };
+}
+
 const isUploadedFile = (url: string): boolean => {
     if (!url) return false;
     if (url.startsWith('/')) return true;
@@ -260,8 +267,7 @@ export default function MediaUpload({
                         // Determine source type for badge
                         const isCloud = isUploadedFile(item);
                         const isExternal = item.startsWith('http') && !isCloud;
-                        const sourceLabel = isCloud ? 'Cloud' : isExternal ? 'External' : 'Local';
-                        const sourceColor = isCloud ? 'bg-accent-primary' : isExternal ? 'bg-amber-500' : 'bg-gray-500';
+                        const { label: sourceLabel, color: sourceColor } = getSourceBadge(isCloud, isExternal);
 
                         return (
                             <div key={i} className="relative group inline-block">

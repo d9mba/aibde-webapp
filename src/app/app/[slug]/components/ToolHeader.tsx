@@ -1,10 +1,80 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { AdminTool } from '@/types';
 import { getFullUrl, ensureProtocol, getLogoColor, Section } from './utils';
 import { addUtmParams } from '@/lib/url-utils';
 import { Share2 } from 'lucide-react';
 import { trackToolVisit } from '@/hooks/useToolAnalytics';
+import { useImpressions } from '@/contexts/ImpressionsContext';
 import VoteButtons from '@/components/ui/VoteButtons';
+
+// Click-to-open More Options Menu
+function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div ref={menuRef} className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="px-1 py-0.5 hover:bg-bg-secondary rounded transition-colors"
+                title="More options"
+            >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                </svg>
+            </button>
+            {isOpen && (
+                <div className="absolute left-0 top-full mt-1 py-1 bg-bg-card border border-border rounded-lg shadow-lg z-50 min-w-[130px]">
+                    <a
+                        href={`mailto:support@aibde.tech?subject=Report%20Issue%20with%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.app_username}%0A%0AIssue:%20`}
+                        className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-red transition-colors no-underline"
+                        onClick={() => setIsOpen(false)}
+                    >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 21v-4m0 0V5a2 2 0 0 1 2-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 0 0-2 2z" />
+                        </svg>
+                        Report
+                    </a>
+                    <a
+                        href={`mailto:support@aibde.tech?subject=Claim%20Ownership%20of%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.app_username}%0A%0AI%20am%20the%20owner/developer%20of%20this%20tool%20and%20would%20like%20to%20claim%20it.%0A%0AMy%20role:%20%0AProof%20of%20ownership:%20`}
+                        className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-primary transition-colors no-underline"
+                        onClick={() => setIsOpen(false)}
+                    >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        Claim
+                    </a>
+                    <a
+                        href={`mailto:support@aibde.tech?subject=Advertise%20on%20${encodeURIComponent(tool.name)}%20Page&body=Tool%20URL:%20https://aibde.com/app/${tool.app_username}%0A%0AI%20am%20interested%20in%20advertising%20on%20this%20tool%20page.%0A%0ACompany:%20%0ABudget:%20%0ADetails:%20`}
+                        className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-primary transition-colors no-underline"
+                        onClick={() => setIsOpen(false)}
+                    >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                        </svg>
+                        Advertise
+                    </a>
+                </div>
+            )}
+        </div>
+    );
+}
 
 interface ToolHeaderProps {
     tool: AdminTool;
@@ -22,6 +92,8 @@ export default function ToolHeader({
     onShare,
 }: ToolHeaderProps) {
     const logoColor = getLogoColor(tool.name);
+    const { getImpressions } = useImpressions();
+    const impressionCount = getImpressions(tool.app_username);
 
     return (
         <div className="pb-4 sm:pb-6 border-b border-border">
@@ -54,11 +126,11 @@ export default function ToolHeader({
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                             {tool.websiteUrl && (
                                 <a
-                                    href={`/go/${tool.slug}`}
+                                    href={tool.backLinks ? tool.websiteUrl : `/go/${tool.app_username}`}
                                     target="_blank"
-                                    rel="noopener noreferrer"
+                                    rel={tool.backLinks ? "noopener" : "noopener noreferrer nofollow"}
                                     onClick={() => trackToolVisit(
-                                        { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                                        { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                                         tool.websiteUrl || ''
                                     )}
                                     className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
@@ -162,20 +234,22 @@ export default function ToolHeader({
                         <path d="M368 136.1v303.8c0 4.5 3.6 8.1 8.1 8.1h47.8c4.5 0 8.1-3.6 8.1-8.1V136.1c0-4.5-3.6-8.1-8.1-8.1h-47.8c-4.5 0-8.1 3.6-8.1 8.1z" />
                     </svg>
                     <span className="text-sm font-medium">
-                        {((tool.viewCount || tool.saveCount) >= 1000
-                            ? `${Math.round((tool.viewCount || tool.saveCount) / 1000)}k`
-                            : (tool.viewCount || tool.saveCount || 0)).toLocaleString()}
+                        {(() => {
+                            const count = impressionCount || tool.viewCount || tool.saveCount || 0;
+                            return count >= 1000 ? `${Math.round(count / 1000)}k` : count.toLocaleString();
+                        })()}
                     </span>
                 </div>
 
-                {/* Star Rating */}
+                {/* Star Rating - Use explicit rating if set, otherwise calculate from upvotes */}
                 <div className="flex items-center gap-1 text-text-secondary">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                     </svg>
                     <span className="text-sm font-medium">
-                        {(tool.upvotes || 0) > 0 ? ((tool.upvotes || 0) / 50).toFixed(1) : '0.0'}
-                        <span className="text-text-tertiary ml-0.5">({tool.upvotes || 0})</span>
+                        {tool.rating != null
+                            ? tool.rating.toFixed(1)
+                            : (tool.upvotes || 0) > 0 ? ((tool.upvotes || 0) / 50).toFixed(1) : '0.0'}
                     </span>
                 </div>
 
@@ -190,15 +264,20 @@ export default function ToolHeader({
                 />
             </div>
 
-            {/* Updated Date - Below stats with clock icon */}
-            {(tool.updatedAt || tool.createdAt || tool.releasedAt) && (
-                <div className="flex items-center gap-1 mt-2 text-xs text-text-tertiary">
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Updated on {new Date(tool.updatedAt || tool.createdAt || tool.releasedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </div>
-            )}
+            {/* Updated Date + More menu */}
+            <div className="flex items-center gap-2 mt-2 text-xs text-text-tertiary">
+                {(tool.updatedAt || tool.createdAt || tool.released_on) && (
+                    <div className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Updated on {new Date(tool.updatedAt || tool.createdAt || tool.released_on).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                )}
+
+                {/* More options dropdown - Click to open */}
+                <MoreOptionsMenu tool={tool} />
+            </div>
 
             {/* Tab Navigation - Smaller on mobile */}
             <div className="flex items-center gap-0.5 sm:gap-1 mt-4 sm:mt-6 overflow-x-auto scrollbar-hide -mx-1 px-1">

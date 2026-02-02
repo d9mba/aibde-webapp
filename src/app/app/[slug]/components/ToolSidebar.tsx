@@ -10,6 +10,22 @@ const ensureUrl = (url: string): string => {
     return url.startsWith('http') ? url : `https://${url}`;
 };
 
+// Format founded date - show "Founded in 2025" for year-only dates (stored as YYYY-01-01)
+const formatFoundedDate = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const month = date.getMonth();
+    const day = date.getDate();
+    const year = date.getFullYear();
+
+    // If date is January 1st, it was likely a year-only entry
+    if (month === 0 && day === 1) {
+        return `Founded in ${year}`;
+    }
+
+    // Otherwise show full date
+    return `Founded ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+};
+
 interface ToolSidebarProps {
     tool: AdminTool;
     featuredTools: AdminTool[];
@@ -34,11 +50,11 @@ export default function ToolSidebar({
                     <div className="space-y-3">
                         {tool.websiteUrl && (
                             <a
-                                href={`/go/${tool.slug}`}
+                                href={tool.backLinks ? tool.websiteUrl : `/go/${tool.app_username}`}
                                 target="_blank"
-                                rel={tool.premium ? "noopener" : "noopener noreferrer nofollow"}
+                                rel={tool.backLinks ? "noopener" : "noopener noreferrer nofollow"}
                                 onClick={() => trackToolVisit(
-                                    { id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                                    { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                                     tool.websiteUrl || ''
                                 )}
                                 className="flex items-center gap-2.5 text-sm text-text-secondary hover:text-accent-primary transition-colors no-underline group"
@@ -52,13 +68,13 @@ export default function ToolSidebar({
                             </a>
                         )}
 
-                        {/* Date - Founded if releasedAt exists, otherwise Listed on createdAt */}
+                        {/* Date - Founded if released_on exists, otherwise Listed on createdAt */}
                         <div className="flex items-center gap-2.5 text-sm text-text-secondary">
                             <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
                             </svg>
-                            {tool.releasedAt ? (
-                                <span>Founded {new Date(tool.releasedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                            {tool.released_on ? (
+                                <span>{formatFoundedDate(tool.released_on)}</span>
                             ) : tool.createdAt ? (
                                 <span>Listed on {new Date(tool.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                             ) : null}
@@ -155,7 +171,7 @@ export default function ToolSidebar({
                                 return (
                                     <Link
                                         prefetch={false} key={ft.id}
-                                        href={`/app/${ft.slug}`}
+                                        href={`/app/${ft.app_username}`}
                                         className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                     >
                                         {ft.logoUrl ? (
@@ -272,7 +288,7 @@ export default function ToolSidebar({
                                     return (
                                         <Link
                                             prefetch={false} key={alt.id}
-                                            href={`/app/${alt.slug}`}
+                                            href={`/app/${alt.app_username}`}
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >
                                             {alt.logoUrl ? (
@@ -310,7 +326,7 @@ export default function ToolSidebar({
                                     return (
                                         <Link
                                             prefetch={false} key={rt.id}
-                                            href={`/app/${rt.slug}`}
+                                            href={`/app/${rt.app_username}`}
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >
                                             {rt.logoUrl ? (

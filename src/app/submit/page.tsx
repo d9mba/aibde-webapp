@@ -2,7 +2,7 @@
 
 import { useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Send, Loader2, CheckCircle, AlertCircle, Info, Plus, X, ChevronDown } from 'lucide-react';
+import { Send, Loader2, CheckCircle, AlertCircle, Info, Plus, X, ChevronDown, Star, Zap, Check, Minus } from 'lucide-react';
 import Link from 'next/link';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
@@ -164,20 +164,120 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
     const inputClass = (field: string) => `w-full px-3 py-2 bg-bg-secondary border rounded-lg text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary ${fieldErrors[field] ? 'border-accent-red' : 'border-border'}`;
 
     return (
-        <div className="max-w-[800px] mx-auto px-4 py-8">
-            {/* Promotional Notice */}
-            <div className="mb-6 p-4 bg-accent-green/10 border border-accent-green/30 rounded-lg">
-                <p className="text-sm text-text-primary">
-                    🎉 <strong>Limited Time Offer:</strong> We are currently accepting <strong>free submissions</strong>! Approval is subject to review.
+        <div className="max-w-[800px] mx-auto px-4 py-10">
+            {/* Hero */}
+            <div className="text-center mb-10">
+                <h1 className="text-3xl md:text-4xl font-bold text-text-primary mb-3">
+                    Launch Your AI Tool to <span className="text-accent-primary">Real Users</span>
+                </h1>
+                <p className="text-text-secondary mb-6">
+                    We connect AI builders with people actively searching for solutions — not bots, real humans.
                 </p>
-                <p className="text-sm text-text-secondary mt-1">
-                    For fast-track listings, email us at <a href="mailto:support@aibde.tech" className="text-accent-primary font-medium hover:underline">support@aibde.tech</a>
-                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                    <span className="px-4 py-1.5 bg-bg-secondary border border-border rounded-full text-sm text-text-secondary">
+                        500+ tools listed
+                    </span>
+                    <span className="px-4 py-1.5 bg-bg-secondary border border-border rounded-full text-sm text-text-secondary">
+                        Free forever
+                    </span>
+                    <span className="px-4 py-1.5 bg-bg-secondary border border-border rounded-full text-sm text-text-secondary">
+                        Live in 24-48hrs
+                    </span>
+                </div>
             </div>
 
-            <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-text-primary mb-1">Submit Your AI Tool</h1>
-                <p className="text-text-secondary text-sm">Get listed in our directory for free</p>
+            {/* Why AiBDE - Clean horizontal layout */}
+            <div className="flex flex-wrap justify-center gap-8 mb-12 py-6 border-y border-border">
+                <div className="flex items-center gap-2">
+                    <span className="text-accent-green text-lg">✓</span>
+                    <span className="text-sm text-text-secondary">Curated listings only</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-accent-green text-lg">✓</span>
+                    <span className="text-sm text-text-secondary">195+ countries reached</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-accent-green text-lg">✓</span>
+                    <span className="text-sm text-text-secondary">Indexed on Google</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-accent-green text-lg">✓</span>
+                    <span className="text-sm text-text-secondary">No spam, real traffic</span>
+                </div>
+            </div>
+
+            {/* Listing Options */}
+            <div className="mb-12">
+                <h2 className="text-xl font-bold text-text-primary mb-2 text-center">Choose Your Plan</h2>
+                <p className="text-text-tertiary text-sm text-center mb-6">Pick the plan that works for you</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Free */}
+                    <div className="p-5 bg-bg-card border border-border rounded-2xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="font-semibold text-text-primary">Basic</span>
+                            <span className="text-lg font-bold text-text-primary">Free</span>
+                        </div>
+                        <p className="text-xs text-text-tertiary mb-4">Perfect for new tools looking to get discovered</p>
+                        <ul className="space-y-2 text-sm text-text-secondary mb-4">
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Your tool in our directory
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Custom tool profile page
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Show up in search results
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Google indexing included
+                            </li>
+                            <li className="flex items-center gap-2 text-text-tertiary">
+                                <span>−</span> Standard backlinks only
+                            </li>
+                        </ul>
+                        <div className="text-center text-xs text-text-tertiary py-2 border border-dashed border-border rounded-lg">
+                            Use form below to submit
+                        </div>
+                    </div>
+
+                    {/* Featured */}
+                    <div className="p-5 bg-bg-card border-2 border-accent-primary rounded-2xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <span className="font-semibold text-text-primary">Pro</span>
+                                <span className="px-2 py-0.5 bg-accent-primary/10 text-accent-primary text-xs rounded-full">Recommended</span>
+                            </div>
+                            <span className="text-sm font-semibold text-accent-primary">Contact</span>
+                        </div>
+                        <p className="text-xs text-text-tertiary mb-4">For tools that want maximum exposure</p>
+                        <ul className="space-y-2 text-sm text-text-secondary mb-4">
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Everything in Basic
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Spotlight on our homepage
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Top of category listings
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Reviewed within 24-48 hours
+                            </li>
+                        </ul>
+                        <a
+                            href="mailto:support@aibde.tech?subject=Featured%20Listing"
+                            className="block text-center py-2 bg-accent-primary text-white text-sm font-medium rounded-lg hover:opacity-90"
+                        >
+                            Get Featured
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {/* Form */}
+            <div className="mb-6">
+                <h2 className="text-xl font-bold text-text-primary mb-1 text-center">Submit Your Tool 🚀</h2>
+                <p className="text-text-tertiary text-sm text-center mb-6">It only takes 2 minutes</p>
             </div>
 
             {/* Success Message OR Form */}
@@ -194,7 +294,7 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
                         Your tool <span className="font-medium text-text-primary">{formData.toolName}</span> has been sent for review.
                     </p>
                     <p className="text-text-tertiary text-sm mt-3">
-                        Free submissions may take up to a week or more. For fast-track review, email us at{' '}
+                        Free submissions (basic, non-follow) may take up to a week. For <strong>Fast-Track / Featured</strong> options (Do-follow, Enhanced Visibility), contact us at{' '}
                         <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a>
                     </p>
                 </div>
@@ -333,8 +433,10 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
                                 <li>• Use <strong>direct website URLs</strong> only (no shortened or tracking links)</li>
                                 <li>• Your tool must be <strong>publicly accessible</strong> (no waitlist-only tools)</li>
                                 <li>• Provide <strong>accurate information</strong> – we verify all submissions</li>
+                                <li>• <strong className="text-accent-red">No NSFW content</strong> – adult/explicit tools are not accepted</li>
                                 <li>• Free submissions may take <strong>up to a week</strong> for review</li>
                                 <li>• For fast-track review (<strong>24-48 hours</strong>), email <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a></li>
+                                <li>• See an example listing: <Link href="/tool/chatgpt" className="text-accent-primary hover:underline">ChatGPT on AiBDE</Link></li>
                             </ul>
                             <label className="flex items-center gap-2 cursor-pointer mt-4 ml-7">
                                 <input type="checkbox" checked={agreedToGuidelines} onChange={(e) => setAgreedToGuidelines(e.target.checked)} className="w-4 h-4 rounded border-border bg-bg-tertiary text-accent-primary" />
@@ -392,8 +494,20 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
                     Free submissions may take up to a week or more. For fast-track review (24-48 hours), email us at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a>.
                 </FAQItem>
 
+                <FAQItem question="Will I be notified when my tool is published?">
+                    Yes! You will receive an email notification when your AI tool goes live on our directory.
+                </FAQItem>
+
                 <FAQItem question="What makes a good submission?">
                     Include a clear description, working website URL, accurate pricing information, and high-quality screenshots. The more details you provide, the faster we can review your tool.
+                </FAQItem>
+
+                <FAQItem question="Are NSFW or adult tools allowed?">
+                    <strong className="text-accent-red">No.</strong> We do not accept NSFW, adult, or explicit content. Submissions containing such content will be rejected without refund.
+                </FAQItem>
+
+                <FAQItem question="What is the refund policy?">
+                    For paid featured listings, if your tool is not approved during review, you will receive a full refund. <strong>Exception:</strong> No refunds are provided for NSFW/adult content submissions as they violate our guidelines.
                 </FAQItem>
 
                 <FAQItem question="Can I update my tool after submission?">

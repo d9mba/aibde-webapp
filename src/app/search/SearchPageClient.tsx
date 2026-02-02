@@ -159,7 +159,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             e.preventDefault();
             if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
                 // Navigate to selected tool
-                window.location.href = `/app/${suggestions[selectedIndex].slug}`;
+                window.location.href = `/app/${suggestions[selectedIndex].app_username}`;
             } else {
                 // Trigger search
                 setCommittedQuery(query);

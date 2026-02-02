@@ -72,6 +72,45 @@ export async function PUT(
 
         const dbTool = adminToolToDbTool(body);
 
+        // VALIDATION: If setting status to 'published', check mandatory fields
+        // Fetch existing tool data to merge with updates for validation
+        if (body.status === 'published') {
+            const { data: existingTool, error: fetchError } = await supabaseAdmin
+                .from('tools')
+                .select('name, summary, category_name, task_name')
+                .eq('id', id)
+                .single();
+
+            if (fetchError) {
+                return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
+            }
+
+            // Merge existing data with updates for validation
+            const mergedData = {
+                name: body.name ?? existingTool.name,
+                summary: body.summary ?? existingTool.summary,
+                categoryName: body.categoryName ?? existingTool.category_name,
+                taskName: body.taskName ?? existingTool.task_name,
+            };
+
+            const missingFields: string[] = [];
+            if (!mergedData.name) missingFields.push('Name');
+            if (!mergedData.summary) missingFields.push('Summary');
+            if (!mergedData.categoryName || mergedData.categoryName.length === 0) missingFields.push('Categories');
+            if (!mergedData.taskName || mergedData.taskName.length === 0) missingFields.push('Tasks');
+
+            if (missingFields.length > 0) {
+                return NextResponse.json(
+                    {
+                        error: 'Cannot publish tool with missing required fields',
+                        missingFields,
+                        message: `Missing: ${missingFields.join(', ')}`
+                    },
+                    { status: 400 }
+                );
+            }
+        }
+
         // Update timestamp
         dbTool.updated_at = new Date().toISOString();
 

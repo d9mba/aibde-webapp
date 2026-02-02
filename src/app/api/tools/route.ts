@@ -10,7 +10,8 @@ const ALL_FIELDS = `
     category_name, task_name, tags,
     pricing, pricing_label, logo_url,
     website_url, affiliate_url, affiliate_enabled,
-    save_count, is_featured, released_at,
+    save_count, view_count, upvotes, downvotes, rating,
+    is_featured, released_on,
     status, images, videos, spotlight_position, spotlight_enabled,
     created_at, updated_at,
     play_store_url, app_store_url, social_links,
@@ -18,17 +19,22 @@ const ALL_FIELDS = `
     pricing_tiers, has_free_trial, free_trial_days, discount, billing_frequency,
     version_history, alternative_tools, tool_references,
     contact_name, contact_email, contact_company, contact_address, contact_mobile,
-    internal_notes, scheduled_at, spotlight_start_date, spotlight_end_date
+    internal_notes, scheduled_at, spotlight_start_date, spotlight_end_date,
+    back_links, trending_position
 `;
 
-// Light fields for dashboard table view (OPTIMIZED: no heavy HTML content)
-// Saves ~250KB per 50 tools by excluding description, faq, etc.
+// Fields for dashboard table view - includes all data for preview modal
 const TABLE_FIELDS = `
-    id, name, app_username, logo_url, summary,
+    id, name, app_username, logo_url, summary, description,
     category_name, task_name, tags,
-    pricing, pricing_label, save_count, is_featured,
-    status, spotlight_enabled, spotlight_position, trending_position,
-    created_at, updated_at
+    pricing, pricing_label, save_count, view_count, upvotes, downvotes, rating,
+    is_featured, status, spotlight_enabled, spotlight_position, trending_position,
+    website_url, affiliate_url, affiliate_enabled,
+    core_features, use_cases, pros, cons, faq,
+    images, videos, play_store_url, app_store_url, social_links,
+    pricing_tiers, has_free_trial, free_trial_days, discount, billing_frequency,
+    contact_name, contact_email, contact_company, contact_address, contact_mobile,
+    back_links, created_at, updated_at, released_on
 `;
 
 // Complete fields for edit form (fetched via GET /api/tools/[id])
@@ -38,7 +44,8 @@ const LIST_FIELDS = `
     category_name, task_name, tags,
     pricing, pricing_label, logo_url,
     website_url, affiliate_url, affiliate_enabled,
-    save_count, is_featured, released_at,
+    save_count, view_count, upvotes, downvotes, rating,
+    is_featured, released_on,
     status, images, videos, spotlight_position, spotlight_enabled,
     play_store_url, app_store_url, social_links,
     core_features, use_cases, pros, cons, faq,
@@ -47,7 +54,8 @@ const LIST_FIELDS = `
     contact_name, contact_email, contact_company, contact_address, contact_mobile,
     internal_notes, scheduled_at,
     created_at, updated_at,
-    spotlight_start_date, spotlight_end_date
+    spotlight_start_date, spotlight_end_date,
+    back_links, trending_position
 `;
 
 // Helper function to apply missing data filters
@@ -83,7 +91,7 @@ function applyMissingDataFilter(query: any, filter: string) {
         case 'no-videos':
             return query.is('videos', null);
         case 'no-release-date':
-            return query.is('released_at', null);
+            return query.is('released_on', null);
         default:
             return query;
     }
@@ -126,7 +134,7 @@ export async function GET(request: NextRequest) {
 
         // Validate pagination params
         const validPage = Math.max(1, page);
-        const validLimit = Math.min(100, Math.max(1, limit)); // Max 100 per page
+        const validLimit = Math.min(5000, Math.max(1, limit)); // Max 5000 for bulk operations
         const offset = (validPage - 1) * validLimit;
 
         const search = searchParams.get('search')?.trim();
@@ -160,7 +168,7 @@ export async function GET(request: NextRequest) {
             while (hasMore) {
                 let query = supabaseAdmin
                     .from('tools')
-                    .select('id, name, app_username, status, spotlight_enabled, spotlight_position, is_featured, trending_position, logo_url, summary, category_name') // Essential + dashboard fields
+                    .select(LIST_FIELDS) // Use LIST_FIELDS for complete data needed by edit form
                     .order('created_at', { ascending: false })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
@@ -222,7 +230,8 @@ export async function GET(request: NextRequest) {
             }
         });
     } catch (err) {
-        return NextResponse.json({ error: 'Failed to fetch tools' }, { status: 500 });
+        console.error('API Error:', err);
+        return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to fetch tools' }, { status: 500 });
     }
 }
 

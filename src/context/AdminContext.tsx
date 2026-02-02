@@ -45,7 +45,7 @@ interface AdminContextType extends AdminState {
     updateTool: (id: string, updates: Partial<AdminTool>) => Promise<void>;
     deleteTool: (id: string) => Promise<void>;
     getToolById: (id: string) => AdminTool | undefined;
-    getToolBySlug: (slug: string) => AdminTool | undefined;
+    getToolByAppUsername: (app_username: string) => AdminTool | undefined;
 
     // Published tools for public pages
     getPublishedTools: () => AdminTool[];
@@ -302,6 +302,10 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const updatedTool = await res.json();
             if (!res.ok) {
+                // Handle missing fields validation (when publishing)
+                if (updatedTool.missingFields) {
+                    throw new Error(`Cannot publish: Missing required fields - ${updatedTool.missingFields.join(', ')}`);
+                }
                 // Extract detailed validation errors if available
                 let errorMessage = updatedTool.error || 'Failed to update tool';
                 if (updatedTool.details?.fieldErrors) {
@@ -340,7 +344,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
     };
 
     const getToolById = (id: string) => state.tools.find((t) => t.id === id);
-    const getToolBySlug = (slug: string) => state.tools.find((t) => t.slug === slug);
+    const getToolByAppUsername = (app_username: string) => state.tools.find((t) => t.app_username === app_username);
 
     // Get published tools for public pages
     // Note: Database uses 'approved' status, TypeScript type uses 'published'
@@ -617,7 +621,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 updateTool,
                 deleteTool,
                 getToolById,
-                getToolBySlug,
+                getToolByAppUsername,
                 getPublishedTools,
                 getSpotlightTools,
                 getFeaturedTools,

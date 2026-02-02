@@ -50,7 +50,8 @@ export interface DbTool {
     view_count?: number;
     upvotes?: number;
     downvotes?: number;
-    released_at?: string;
+    rating?: number; // Admin-set rating (0-5 scale)
+    released_on?: string;
     is_featured: boolean;
 
     // Features & Content
@@ -77,7 +78,7 @@ export interface DbTool {
     version_history?: {
         version: string;
         releaseNotes: string;
-        releasedAt: string;
+        released_on: string;
     }[];
 
     // Alternative Tools
@@ -119,8 +120,8 @@ export interface DbTool {
     spotlight_start_date?: string;
     spotlight_end_date?: string;
 
-    // Premium - gives dofollow backlinks (SEO value)
-    premium?: boolean;
+    // Back Links - gives dofollow backlinks (SEO value)
+    back_links?: boolean;
 
     // Trending control
     trending_position?: number;
@@ -267,7 +268,7 @@ export function dbToolToAdminTool(dbTool: DbTool) {
     return {
         id: dbTool.id,
         name: dbTool.name,
-        slug: dbTool.app_username, // DB uses app_username
+        app_username: dbTool.app_username,
         summary: dbTool.summary,
         description: dbTool.description || '',
         // Ensure these are arrays even if DB stores as string
@@ -294,8 +295,9 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         viewCount: dbTool.view_count || 0,
         upvotes: dbTool.upvotes || 0,
         downvotes: dbTool.downvotes || 0,
-        releasedAt: dbTool.released_at || '',
-        releasedAgo: formatRelativeTime(dbTool.created_at, dbTool.updated_at),
+        rating: dbTool.rating,
+        released_on: (dbTool.released_on || '').split('T')[0].split(' ')[0],
+        releasedAgo: formatRelativeTime(dbTool.released_on || dbTool.created_at, dbTool.updated_at),
         isFeatured: dbTool.is_featured,
 
         // Features & Content
@@ -340,7 +342,7 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         spotlightPosition: dbTool.spotlight_position,
         spotlightStartDate: dbTool.spotlight_start_date,
         spotlightEndDate: dbTool.spotlight_end_date,
-        premium: dbTool.premium,
+        backLinks: dbTool.back_links,
         trendingPosition: dbTool.trending_position,
 
         // Display
@@ -358,8 +360,7 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
     const result: Record<string, unknown> = {};
 
     const mapping: Record<string, string> = {
-        // Basic
-        slug: 'app_username', // Frontend uses slug, DB uses app_username
+        // Basic - app_username stays the same
         categoryName: 'category_name',
         taskName: 'task_name',
         pricingLabel: 'pricing_label',
@@ -375,8 +376,11 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         viewCount: 'view_count',
         upvotes: 'upvotes',
         downvotes: 'downvotes',
-        releasedAt: 'released_at',
+
+
+        released_on: 'released_on',
         isFeatured: 'is_featured',
+
 
         // Features
         coreFeatures: 'core_features',
@@ -418,8 +422,8 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         spotlightStartDate: 'spotlight_start_date',
         spotlightEndDate: 'spotlight_end_date',
 
-        // Premium
-        premium: 'premium',
+        // Back Links
+        backLinks: 'back_links',
 
         // Trending
         trendingPosition: 'trending_position',
@@ -438,7 +442,7 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
     };
 
     // Fields that should be null instead of empty string for PostgreSQL timestamps
-    const timestampFields = ['scheduled_at', 'spotlight_start_date', 'spotlight_end_date', 'released_at'];
+    const timestampFields = ['scheduled_at', 'spotlight_start_date', 'spotlight_end_date', 'released_on'];
 
     // Helper to extract relative path from full URL (converts CDN URLs to relative paths for storage)
     const extractRelativePath = (url: string | undefined | null): string | null => {
@@ -464,10 +468,33 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
         const dbKey = mapping[key] || key;
 
-        // Convert empty timestamp strings to null
-        if (timestampFields.includes(dbKey) && value === '') {
-            result[dbKey] = null;
-            continue;
+        // Handle date/timestamp fields
+        if (timestampFields.includes(dbKey)) {
+            // Convert empty strings to null
+            if (value === '' || value === null || value === undefined) {
+                result[dbKey] = null;
+                continue;
+            }
+            // Normalize date format: convert DD-MM-YYYY to YYYY-MM-DD
+            if (typeof value === 'string') {
+                let normalizedDate = value;
+
+                // Check for DD-MM-YYYY format (e.g., "29-10-2025")
+                const ddmmyyyyMatch = value.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+                if (ddmmyyyyMatch) {
+                    const [, day, month, year] = ddmmyyyyMatch;
+                    normalizedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                }
+
+                // Check for year-only format (e.g., "2025")
+                const yearOnlyMatch = value.match(/^\d{4}$/);
+                if (yearOnlyMatch) {
+                    normalizedDate = `${value}-01-01`;
+                }
+
+                result[dbKey] = normalizedDate;
+                continue;
+            }
         }
 
         // Extract relative path for logo_url

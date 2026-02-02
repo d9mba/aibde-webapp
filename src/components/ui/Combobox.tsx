@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 
+// Helper to determine input value based on state
+function getInputValue(isOpen: boolean, multiple: boolean, search: string, selectedLabel: string): string {
+    if (isOpen) return search;
+    if (multiple) return search;
+    return selectedLabel;
+}
+
 export interface ComboboxOption {
     value: string;
     label: string;
@@ -177,7 +184,7 @@ export default function Combobox(props: Props) {
             <input
                 ref={inputRef}
                 type="text"
-                value={isOpen ? search : (multiple ? search : selectedLabel)}
+                value={getInputValue(isOpen, multiple ?? false, search, selectedLabel)}
                 onChange={e => { setSearch(e.target.value); setIsOpen(true); }}
                 onFocus={() => setIsOpen(true)}
                 onKeyDown={handleKeyDown}
@@ -194,7 +201,7 @@ export default function Combobox(props: Props) {
 
                         return (
                             <div
-                                key={option.value}
+                                key={`${idx}-${option.value}`}
                                 onClick={() => selectOption(option.value)}
                                 className={`px-3 py-2.5 text-sm cursor-pointer transition-colors text-text-primary flex items-center gap-2
                                     ${isHighlighted ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'}

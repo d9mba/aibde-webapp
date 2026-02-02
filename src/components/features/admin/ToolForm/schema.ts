@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const toolSchema = z.object({
     // Basic Settings
     name: z.string().min(1, "Name is required"),
-    slug: z.string().default(''),
+    app_username: z.string().default(''),
     summary: z.string().min(1, "Summary is required"),
     description: z.string().min(1, "Description is required"),
     logoUrl: z.string().default(''),
@@ -77,7 +77,7 @@ export const toolSchema = z.object({
     versionHistory: z.array(z.object({
         version: z.string(),
         releaseNotes: z.string(),
-        releasedAt: z.string(),
+        released_on: z.string(),
     })).default([]),
 
     // Alternative Tools
@@ -87,17 +87,20 @@ export const toolSchema = z.object({
     // Publishing
     status: z.enum(['draft', 'pending', 'published', 'unpublished', 'scheduled']).default('draft'),
     scheduledAt: z.string().default(''),
-    releasedAt: z.string().default(''),
+    released_on: z.string().default(''),
     spotlightEnabled: z.boolean().default(false),
     spotlightPosition: z.number().default(1),
     spotlightStartDate: z.string().default(''),
     spotlightEndDate: z.string().default(''),
 
-    // Premium - gives dofollow backlinks (SEO value)
-    premium: z.boolean().default(false),
+    // Back Links - gives dofollow backlinks (SEO value)
+    backLinks: z.boolean().default(false),
 
     // Stats
     saveCount: z.number().default(0),
+
+    // Rating (0-5 scale, e.g., 4.5)
+    rating: z.number().min(0).max(5).optional().nullable(),
 });
 
 // Use z.input for form data (allows undefined for defaulted fields)
@@ -106,7 +109,7 @@ export type ToolFormData = z.input<typeof toolSchema>;
 // Default values for the form
 export const defaultToolValues: ToolFormData = {
     name: '',
-    slug: '',
+    app_username: '',
     summary: '',
     description: '',
     logoUrl: '',
@@ -144,11 +147,12 @@ export const defaultToolValues: ToolFormData = {
     references: [],
     status: 'draft',
     scheduledAt: '',
-    releasedAt: '',
+    released_on: '',
     spotlightEnabled: false,
     spotlightPosition: 1,
     spotlightStartDate: '',
     spotlightEndDate: '',
-    premium: false,
+    backLinks: false,
     saveCount: 0,
+    rating: undefined,
 };

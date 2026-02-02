@@ -105,8 +105,8 @@ export default function Header() {
 
     // Handle tool click
     const handleToolClick = (tool: typeof tools[0]) => {
-        trackToolClick({ id: tool.id, name: tool.name, slug: tool.slug, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-        router.push(`/app/${tool.slug}`);
+        trackToolClick({ id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+        router.push(`/app/${tool.app_username}`);
         setSearchOpen(false);
         setSearchQuery('');
     };
@@ -626,7 +626,7 @@ export default function Header() {
                         )}
                         title={isPinned ? "Unpin sidebar" : "Pin sidebar"}
                     >
-                        <Pin size={18} strokeWidth={1.5} className={cn(isPinned && "rotate-45")} />
+                        <Pin size={18} strokeWidth={1.5} className={cn(isPinned && "rotate-45")} fill={isPinned ? "currentColor" : "none"} />
                     </button>
                 </div>
             </aside>

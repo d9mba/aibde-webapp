@@ -30,7 +30,7 @@ export default function SearchSuggestionsDropdown({
             {suggestions.map((tool, index) => (
                 <a
                     key={tool.id}
-                    href={`/app/${tool.slug}`}
+                    href={`/app/${tool.app_username}`}
                     className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${index === selectedIndex ? 'bg-bg-secondary' : 'hover:bg-bg-secondary'
                         }`}
                     onMouseEnter={() => onHoverItem?.(index)}

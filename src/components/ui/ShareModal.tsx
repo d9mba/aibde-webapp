@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Link2, Check, Mail, Share2 } from 'lucide-react';
 import posthog from 'posthog-js';
 
+// Skip analytics in development
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 interface ShareModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -107,7 +110,7 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             // Track share in PostHog
-            if (typeof window !== 'undefined' && posthog) {
+            if (!isDevelopment && typeof window !== 'undefined' && posthog) {
                 posthog.capture('share_link_copied', {
                     share_url: url,
                     share_title: title,
@@ -128,7 +131,7 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
                     url: shareUrl,
                 });
                 // Track share in PostHog
-                if (typeof window !== 'undefined' && posthog) {
+                if (!isDevelopment && typeof window !== 'undefined' && posthog) {
                     posthog.capture('share_completed', {
                         share_url: url,
                         share_title: title,
@@ -264,7 +267,7 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={() => {
-                                        if (typeof window !== 'undefined' && posthog) {
+                                        if (!isDevelopment && typeof window !== 'undefined' && posthog) {
                                             posthog.capture('share_social_clicked', {
                                                 share_url: url,
                                                 share_title: title,

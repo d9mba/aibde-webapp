@@ -8,36 +8,22 @@ import { Category, Task } from '@/types';
 
 /**
  * Fetch categories for homepage
- * Paginated to handle more than 1000 rows (Supabase limit)
+ * Only returns categories with at least 1 linked tool (count > 0)
+ * Sorted by popularity (count)
  */
 export async function getCategories(): Promise<Category[]> {
-    const PAGE_SIZE = 1000;
-    let allCategories: any[] = [];
-    let pageNum = 0;
-    let hasMore = true;
+    const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .gt('count', 0) // Only categories with linked tools
+        .order('count', { ascending: false }); // Most popular first
 
-    while (hasMore) {
-        const { data, error } = await supabase
-            .from('categories')
-            .select('*')
-            .order('category_name', { ascending: true })
-            .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
-
-        if (error) {
-            console.error('Error fetching categories:', error);
-            break;
-        }
-
-        if (data && data.length > 0) {
-            allCategories = [...allCategories, ...data];
-            pageNum++;
-            hasMore = data.length === PAGE_SIZE;
-        } else {
-            hasMore = false;
-        }
+    if (error) {
+        console.error('Error fetching categories:', error);
+        return [];
     }
 
-    return allCategories.map(row => ({
+    return (data || []).map(row => ({
         id: row.id,
         categoryName: row.category_name,
         description: row.description,
@@ -48,7 +34,9 @@ export async function getCategories(): Promise<Category[]> {
 
 /**
  * Fetch tasks for homepage
+ * Only returns tasks with at least 1 linked tool (count > 0)
  * Paginated to handle more than 1000 rows (Supabase limit)
+ * Sorted by popularity (count)
  */
 export async function getTasks(): Promise<Task[]> {
     const PAGE_SIZE = 1000;
@@ -60,7 +48,8 @@ export async function getTasks(): Promise<Task[]> {
         const { data, error } = await supabase
             .from('tasks')
             .select('*')
-            .order('task_name', { ascending: true })
+            .gt('count', 0) // Only tasks with linked tools
+            .order('count', { ascending: false }) // Most popular first
             .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
         if (error) {

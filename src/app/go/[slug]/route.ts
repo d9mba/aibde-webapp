@@ -22,10 +22,10 @@ export async function GET(
     }
 
     try {
-        // Fetch tool by slug
+        // Fetch tool by slug - include back_links for SEO/redirect behavior
         const { data: tool, error } = await supabaseAdmin
             .from('tools')
-            .select('id, name, website_url, affiliate_url, affiliate_enabled')
+            .select('id, name, website_url, affiliate_url, affiliate_enabled, back_links')
             .eq('app_username', slug)
             .eq('status', 'published')
             .single();
@@ -42,14 +42,15 @@ export async function GET(
 
         let redirectUrl: string;
         let isAffiliate = false;
+        const hasBackLinks = tool.back_links === true;
 
         if (tool.affiliate_enabled && tool.affiliate_url) {
             // Affiliate link - use as-is (no UTM params)
             redirectUrl = tool.affiliate_url;
             isAffiliate = true;
         } else if (tool.website_url) {
-            // Non-affiliate - add UTM params
-            redirectUrl = addUtmParams(tool.website_url);
+            // Back links enabled tools get clean links (SEO value), others get UTM params
+            redirectUrl = hasBackLinks ? tool.website_url : addUtmParams(tool.website_url);
         } else {
             // No URL found - redirect to tool page
             return NextResponse.redirect(new URL(`/app/${slug}`, request.url));
@@ -67,7 +68,7 @@ export async function GET(
             toolSlug: slug,
             destinationUrl: redirectUrl,
             isAffiliate,
-            isPremium: false, // TODO: add back when premium column exists
+            isPremium: hasBackLinks,
             userAgent: request.headers.get('user-agent') || '',
             referer: request.headers.get('referer') || '',
         });

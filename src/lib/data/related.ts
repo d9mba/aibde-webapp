@@ -23,7 +23,7 @@ export async function getRelatedTools(tool: AdminTool, limit: number = 6): Promi
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])
-        .neq('app_username', tool.slug)
+        .neq('app_username', tool.app_username)
         .limit(limit * 3);
 
     if (categories.length > 0 || tasks.length > 0) {
@@ -44,9 +44,9 @@ export async function getRelatedTools(tool: AdminTool, limit: number = 6): Promi
     }
 
     const tools = (data || []).map(t => dbToolToAdminTool(t)) as AdminTool[];
-    const manual = tools.filter(t => manualSlugs.includes(t.slug));
+    const manual = tools.filter(t => manualSlugs.includes(t.app_username));
     const auto = tools
-        .filter(t => !manualSlugs.includes(t.slug))
+        .filter(t => !manualSlugs.includes(t.app_username))
         .slice(0, limit - manual.length);
 
     return [...manual, ...auto].slice(0, limit);
@@ -70,7 +70,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .from('tools')
                     .select('*')
                     .in('status', ['published', 'approved'])
-                    .neq('app_username', tool.slug)
+                    .neq('app_username', tool.app_username)
                     .overlaps('category_name', categories)
                     .limit(limit * 5)
                     .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'category' })))
@@ -85,7 +85,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .from('tools')
                     .select('*')
                     .in('status', ['published', 'approved'])
-                    .neq('app_username', tool.slug)
+                    .neq('app_username', tool.app_username)
                     .overlaps('task_name', tasks)
                     .limit(limit * 5)
                     .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'task' })))
@@ -100,7 +100,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .from('tools')
                     .select('*')
                     .in('status', ['published', 'approved'])
-                    .neq('app_username', tool.slug)
+                    .neq('app_username', tool.app_username)
                     .overlaps('tags', tags)
                     .limit(limit * 5)
                     .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'tag' })))

@@ -21,7 +21,7 @@ export default function NewPageClient({ tools }: NewPageClientProps) {
 
     // Sort by released date (newest first)
     const newTools = [...tools].sort((a, b) =>
-        new Date(b.releasedAt).getTime() - new Date(a.releasedAt).getTime()
+        new Date(b.released_on).getTime() - new Date(a.released_on).getTime()
     );
 
     return (

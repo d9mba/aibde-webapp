@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import posthog from 'posthog-js';
 
+// Skip analytics in development
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 /**
  * Custom hook for tracking tool analytics in PostHog
  * 
@@ -10,12 +13,14 @@ import posthog from 'posthog-js';
  * - Tool impressions (when card scrolls into view)
  * - Tool clicks (when user clicks on a tool)
  * - Tool page views (with time spent tracking)
+ * 
+ * NOTE: Analytics are disabled in development mode
  */
 
 interface ToolData {
     id: string;
     name: string;
-    slug: string;
+    app_username: string;
     category?: string;
     pricing?: string;
 }
@@ -24,11 +29,12 @@ interface ToolData {
  * Track when a tool card is clicked
  */
 export function trackToolClick(tool: ToolData, source: 'card' | 'search' | 'featured' | 'related' = 'card') {
+    if (isDevelopment) return;
     if (typeof window !== 'undefined' && posthog) {
         posthog.capture('tool_clicked', {
             tool_id: tool.id,
             tool_name: tool.name,
-            tool_slug: tool.slug,
+            tool_slug: tool.app_username,
             tool_category: tool.category,
             tool_pricing: tool.pricing,
             click_source: source,
@@ -40,11 +46,12 @@ export function trackToolClick(tool: ToolData, source: 'card' | 'search' | 'feat
  * Track when a tool's "Visit Website" button is clicked
  */
 export function trackToolVisit(tool: ToolData, url: string) {
+    if (isDevelopment) return;
     if (typeof window !== 'undefined' && posthog) {
         posthog.capture('tool_website_visited', {
             tool_id: tool.id,
             tool_name: tool.name,
-            tool_slug: tool.slug,
+            tool_slug: tool.app_username,
             tool_category: tool.category,
             tool_pricing: tool.pricing,
             destination_url: url,
@@ -56,11 +63,12 @@ export function trackToolVisit(tool: ToolData, url: string) {
  * Track when a tool is saved/bookmarked
  */
 export function trackToolSave(tool: ToolData, saved: boolean) {
+    if (isDevelopment) return;
     if (typeof window !== 'undefined' && posthog) {
         posthog.capture(saved ? 'tool_saved' : 'tool_unsaved', {
             tool_id: tool.id,
             tool_name: tool.name,
-            tool_slug: tool.slug,
+            tool_slug: tool.app_username,
         });
     }
 }
@@ -73,6 +81,7 @@ export function useToolImpression(tool: ToolData | null, source: 'list' | 'searc
     const elementRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        if (isDevelopment) return;
         if (!tool || hasTracked.current || !elementRef.current) return;
 
         const observer = new IntersectionObserver(
@@ -84,7 +93,7 @@ export function useToolImpression(tool: ToolData | null, source: 'list' | 'searc
                             posthog.capture('tool_impression', {
                                 tool_id: tool.id,
                                 tool_name: tool.name,
-                                tool_slug: tool.slug,
+                                tool_slug: tool.app_username,
                                 tool_category: tool.category,
                                 impression_source: source,
                             });
@@ -111,6 +120,7 @@ export function useToolPageView(tool: ToolData | null) {
     const startTime = useRef<number>(0);
 
     useEffect(() => {
+        if (isDevelopment) return;
         if (!tool) return;
 
         startTime.current = Date.now();
@@ -120,7 +130,7 @@ export function useToolPageView(tool: ToolData | null) {
             posthog.capture('tool_page_viewed', {
                 tool_id: tool.id,
                 tool_name: tool.name,
-                tool_slug: tool.slug,
+                tool_slug: tool.app_username,
                 tool_category: tool.category,
                 tool_pricing: tool.pricing,
             });
@@ -133,7 +143,7 @@ export function useToolPageView(tool: ToolData | null) {
                 posthog.capture('tool_page_left', {
                     tool_id: tool.id,
                     tool_name: tool.name,
-                    tool_slug: tool.slug,
+                    tool_slug: tool.app_username,
                     time_spent_seconds: timeSpent,
                 });
             }
@@ -145,6 +155,7 @@ export function useToolPageView(tool: ToolData | null) {
  * Track search queries
  */
 export function trackSearch(query: string, resultCount: number) {
+    if (isDevelopment) return;
     if (typeof window !== 'undefined' && posthog) {
         posthog.capture('search_performed', {
             search_query: query,
@@ -157,6 +168,7 @@ export function trackSearch(query: string, resultCount: number) {
  * Track category/task filter usage
  */
 export function trackFilterUsed(filterType: 'category' | 'task' | 'pricing', filterValue: string) {
+    if (isDevelopment) return;
     if (typeof window !== 'undefined' && posthog) {
         posthog.capture('filter_used', {
             filter_type: filterType,

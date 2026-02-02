@@ -40,9 +40,9 @@ export default function FeaturedPage() {
             .filter((t): t is AdminTool => t !== undefined);
     }, [tools, pendingFeaturedIds]);
 
-    // Regular (non-featured) tools
+    // Regular (non-featured) tools - only show published
     const regularTools = useMemo(() => {
-        return tools.filter((t: AdminTool) => !pendingFeaturedIds.includes(t.id) && !t.spotlightEnabled);
+        return tools.filter((t: AdminTool) => !pendingFeaturedIds.includes(t.id) && !t.spotlightEnabled && t.status === 'published');
     }, [tools, pendingFeaturedIds]);
 
     // Filter featured tools by search

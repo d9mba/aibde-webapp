@@ -250,8 +250,13 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                onFocus={() => query.length >= 2 && setShowSuggestions(true)}
-                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                onFocus={() => {
+                                    if (query.length >= 2) {
+                                        setShowSuggestions(true);
+                                        fetchSuggestions(query);
+                                    }
+                                }}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 300)}
                             />
                             {isSearching && (
                                 <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>

@@ -23,7 +23,8 @@ export default function SearchSuggestionsDropdown({
     selectedIndex = -1,
     onHoverItem,
 }: SearchSuggestionsDropdownProps) {
-    if (suggestions.length === 0) return null;
+    // Show dropdown if there are suggestions OR if query is long enough for "Search for..." option
+    if (suggestions.length === 0 && query.length < 2) return null;
 
     return (
         <div className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50">

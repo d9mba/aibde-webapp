@@ -4,10 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/context/ThemeContext';
-import { useSearch } from '@/context/SearchContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { trackToolClick } from '@/hooks/useToolAnalytics';
-import { useDebounce } from '@/hooks/useDebounce';
 import {
     Home,
     Search,
@@ -65,26 +63,56 @@ export default function Header() {
     const pathname = usePathname();
     const router = useRouter();
     const { theme, themeMode, setThemeMode } = useTheme();
-    const { sharedTools } = useSearch();
     const { isPinned, setIsPinned } = useSidebar();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Use sharedTools from SearchContext (set by HeroSection)
-    const tools = sharedTools;
-    const debouncedQuery = useDebounce(searchQuery, 300);
+    // API-based search suggestions (instead of sharedTools)
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const searchTimeout = useRef<NodeJS.Timeout>();
 
-    // Filter recommendations - minimum 3 characters
-    const recommendations = debouncedQuery.trim().length >= 3
-        ? tools
-            .filter(tool =>
-                (tool.name || '').toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-                (tool.description || '').toLowerCase().includes(debouncedQuery.toLowerCase())
-            )
-            .slice(0, 8)
-        : [];
+    // Fetch suggestions using Server Action (hidden from Network tab)
+    const fetchSuggestions = async (query: string) => {
+        if (!query || query.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const { getSearchSuggestionsAction } = await import('@/lib/actions');
+            const tools = await getSearchSuggestionsAction(query, 8);
+            setSuggestions(tools);
+        } catch (error) {
+            console.error('Search suggestions failed:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Debounced search suggestions
+    useEffect(() => {
+        if (searchTimeout.current) {
+            clearTimeout(searchTimeout.current);
+        }
+
+        if (searchQuery.length >= 2 && searchOpen) {
+            searchTimeout.current = setTimeout(() => {
+                fetchSuggestions(searchQuery);
+            }, 200);
+        } else {
+            setSuggestions([]);
+        }
+
+        return () => {
+            if (searchTimeout.current) {
+                clearTimeout(searchTimeout.current);
+            }
+        };
+    }, [searchQuery, searchOpen]);
 
     // Focus search input when search opens
     useEffect(() => {
@@ -100,15 +128,17 @@ export default function Header() {
             router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
             setSearchOpen(false);
             setSearchQuery('');
+            setSuggestions([]);
         }
     };
 
     // Handle tool click
-    const handleToolClick = (tool: typeof tools[0]) => {
+    const handleToolClick = (tool: any) => {
         trackToolClick({ id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
         router.push(`/app/${tool.app_username}`);
         setSearchOpen(false);
         setSearchQuery('');
+        setSuggestions([]);
     };
 
     const isHomePage = pathname === '/';
@@ -260,7 +290,11 @@ export default function Header() {
                     <div className="flex-1 overflow-y-auto">
                         {searchQuery.trim() ? (
                             <div className="flex flex-col">
-                                {recommendations.map((tool) => (
+                                {isLoading ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
+                                    </div>
+                                ) : suggestions.map((tool) => (
                                     <button
                                         key={tool.id}
                                         onClick={() => handleToolClick(tool)}

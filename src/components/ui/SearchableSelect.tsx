@@ -20,6 +20,19 @@ interface SearchableSelectProps {
     showSearch?: boolean;
 }
 
+/**
+ * Renders a searchable dropdown select with keyboard navigation, outside-click closing, and incremental loading of options.
+ *
+ * @param props - Props for the SearchableSelect component.
+ * @param value - The currently selected option value.
+ * @param onChange - Callback invoked with the newly selected value.
+ * @param options - Array of available options; each option must include `value` and `label` and may include `icon` or `logoUrl`.
+ * @param placeholder - Text displayed when no option is selected.
+ * @param searchPlaceholder - Placeholder text for the optional search input.
+ * @param className - Additional class names applied to the outer container.
+ * @param showSearch - Whether to render the search input at the top of the dropdown.
+ * @returns The rendered SearchableSelect component element.
+ */
 export function SearchableSelect({
     value,
     onChange,

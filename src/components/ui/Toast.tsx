@@ -31,6 +31,15 @@ const defaultTitles: Record<Toast['type'], string> = {
     warning: 'Warning',
 };
 
+/**
+ * Provides toast management via context and renders active toast notifications.
+ *
+ * Exposes `showToast`, `hideToast`, and `updateToast` through context to control toasts.
+ * Non-loading toasts are automatically removed after 15 seconds; toasts with type `'loading'` persist until explicitly updated or hidden.
+ *
+ * @param children - React nodes that will be wrapped by the provider
+ * @returns The ToastProvider element that supplies toast controls and displays active toasts
+ */
 export function ToastProvider({ children }: { children: ReactNode }) {
     const [toasts, setToasts] = useState<Toast[]>([]);
 

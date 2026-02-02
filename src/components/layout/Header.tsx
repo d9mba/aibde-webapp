@@ -61,6 +61,19 @@ interface NavItem {
     icon: IconName;
 }
 
+/**
+ * Render the responsive header and navigation UI for the application.
+ *
+ * Provides:
+ * - Mobile bottom navigation (Home, Search, Trending, New, Menu).
+ * - Full-screen mobile search overlay with debounced recommendations and quick tool navigation.
+ * - Full-screen mobile menu with grouped navigation sections and theme selector.
+ * - Desktop left sidebar that can be collapsed, hovered to expand, or pinned; shows grouped navigation and theme/pin controls.
+ * - Theme mode controls (Light, Dark, Auto) and persistence via ThemeContext.
+ * - Tracks tool clicks for analytics and navigates using Next.js router.
+ *
+ * @returns The header and navigation element composed of mobile and desktop variants, search overlay, and theme/sidebar controls.
+ */
 export default function Header() {
     const pathname = usePathname();
     const router = useRouter();

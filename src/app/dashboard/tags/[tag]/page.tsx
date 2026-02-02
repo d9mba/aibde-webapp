@@ -6,6 +6,11 @@ import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { getStatusClass } from '@/lib/formatters';
 
+/**
+ * Displays tools associated with a specific tag and provides search, quick-preview modal, and navigation controls.
+ *
+ * @returns The page's JSX element rendering the tag header, searchable tool grid, empty states, and an optional detailed preview modal for a selected tool.
+ */
 export default function TagDetailPage() {
     const params = useParams();
     const router = useRouter();

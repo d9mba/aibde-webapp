@@ -42,7 +42,17 @@ export async function GET(
     }
 }
 
-// PUT /api/tools/:id - Update tool (ADMIN ONLY)
+/**
+ * Update a tool by ID; requires an admin user and performs pre-publish validation.
+ *
+ * Validates and applies partial updates to the tool record. If the incoming update sets
+ * the tool's status to "published", ensures that Name, Summary, Categories, and Tasks
+ * are present (merging existing values with the update) before allowing the publish.
+ *
+ * @param request - The incoming HTTP request containing the update payload as JSON
+ * @param params - Route params object; resolves to an object with `id`, the tool's ID
+ * @returns The updated admin-facing tool object on success; otherwise a JSON error payload with an appropriate HTTP status
+ */
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }

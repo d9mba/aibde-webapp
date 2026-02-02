@@ -7,9 +7,9 @@ import { supabase } from '../supabase';
 import { Category, Task } from '@/types';
 
 /**
- * Fetch categories for homepage
- * Only returns categories with at least 1 linked tool (count > 0)
- * Sorted by popularity (count)
+ * Retrieve homepage categories that have at least one linked tool, ordered by popularity.
+ *
+ * @returns An array of Category objects (each with `id`, `categoryName`, `description`, `count`, and `icon`) sorted by descending `count`. Returns an empty array if the database query fails.
  */
 export async function getCategories(): Promise<Category[]> {
     const { data, error } = await supabase
@@ -33,10 +33,11 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 /**
- * Fetch tasks for homepage
- * Only returns tasks with at least 1 linked tool (count > 0)
- * Paginated to handle more than 1000 rows (Supabase limit)
- * Sorted by popularity (count)
+ * Fetch homepage tasks that have at least one linked tool, returning results sorted by popularity.
+ *
+ * This function retrieves all tasks with count > 0 and internally pages through results to handle large result sets (Supabase page size limit).
+ *
+ * @returns An array of Task objects with properties `id`, `taskName`, `description`, and `count`.
  */
 export async function getTasks(): Promise<Task[]> {
     const PAGE_SIZE = 1000;

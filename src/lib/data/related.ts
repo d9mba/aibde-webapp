@@ -7,8 +7,14 @@ import { supabase, dbToolToAdminTool } from '../supabase';
 import { AdminTool } from '@/types';
 
 /**
- * Fetch related/alternative tools for a specific tool
- * Based on shared categories and tasks
+ * Find alternative or related tools for a given tool, prioritizing any manually specified alternatives.
+ *
+ * Retrieves tools that share categories or tasks with the provided tool, excludes the tool itself,
+ * and returns up to `limit` results with manually listed alternatives returned first when present.
+ *
+ * @param tool - The reference tool used to find related tools (its categories, tasks, and alternative tools are used)
+ * @param limit - Maximum number of tools to return (default: 6)
+ * @returns An array of related AdminTool objects, up to `limit` items, with manual alternatives placed before auto-matched results
  */
 export async function getRelatedTools(tool: AdminTool, limit: number = 6): Promise<AdminTool[]> {
     const categories = tool.categoryName || [];
@@ -53,8 +59,14 @@ export async function getRelatedTools(tool: AdminTool, limit: number = 6): Promi
 }
 
 /**
- * Fetch suggested tools based on tags, categories, tasks
- */
+ * Selects and ranks tools related to the given tool using overlapping categories, tasks, and tags.
+ *
+ * Scores matches by overlap type (category = 5, task = 4, tag = 3), sums scores for tools with multiple matches,
+ * excludes the input tool and any tools listed in the input tool's `alternativeTools`, and breaks ties randomly.
+ *
+ * @param tool - The AdminTool used as the basis for suggestions
+ * @param limit - Maximum number of suggested tools to return (default 6)
+ * @returns An array of suggested AdminTool items ordered by relevance (highest score first), limited to `limit`.
 export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Promise<AdminTool[]> {
     const categories = tool.categoryName || [];
     const tasks = tool.taskName || [];

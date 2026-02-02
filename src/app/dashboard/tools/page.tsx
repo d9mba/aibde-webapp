@@ -28,6 +28,15 @@ interface PaginatedToolsResponse {
     };
 }
 
+/**
+ * Render and manage the dashboard tools list with server-side filtering, pagination, selection, preview, and bulk actions.
+ *
+ * Renders a paginated, server-filtered list of tools and provides UI and state for searching, status/category/missing-data filters,
+ * per-page selection and bulk selection, quick preview modal, per-tool actions (preview, edit, export, delete), and modals for bulk import,
+ * bulk update, and export. Synchronizes the status filter with the URL, debounces search input, and refreshes data after mutating actions.
+ *
+ * @returns A React element that displays the tools management UI for the dashboard.
+ */
 export default function ToolsListPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -842,4 +851,3 @@ export default function ToolsListPage() {
         </div >
     );
 }
-

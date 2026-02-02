@@ -2,9 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 /**
- * GET /api/search - Search tools on demand
- * Query params: q (search query), category, task, pricing, limit
- * Results are sorted with name matches first
+ * Handle GET /api/search: return a list of public tool summaries matching query and filters.
+ *
+ * Performs a filtered search over public tool records (status 'published' or 'approved')
+ * using optional query parameters: `q` (text prefix search against name and summary),
+ * `category`, `task`, `pricing`, and `limit`. When `q` is provided, results are ordered
+ * to prefer name prefix matches, then name contains matches, and finally by `saveCount`.
+ *
+ * The response payload is a JSON object with `tools` — an array of sanitized public tool
+ * objects — and `count` — the number of returned tools. Each tool includes public-safe
+ * fields such as `id`, `name`, `app_username`, `logoUrl`, `summary`, `categoryName`,
+ * `taskName`, `tags`, `pricing`, `saveCount`, and `isFeatured`.
+ *
+ * On failure the handler responds with status 500 and a JSON error object: `{ error: 'Search failed' }`.
+ *
+ * @returns A JSON object `{ tools, count }` where `tools` is an array of public tool summaries and `count` is the number returned.
  */
 export async function GET(request: NextRequest) {
     try {

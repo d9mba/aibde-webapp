@@ -14,6 +14,16 @@ interface SpotlightChange {
     position?: number;
 }
 
+/**
+ * Renders the admin Spotlight management page for viewing and editing featured tools.
+ *
+ * Provides a UI to add, remove, reorder, and save spotlighted tools. The component
+ * maintains local pending state for changes (adds/removals/position updates), supports
+ * searching and paginating available published tools, and commits updates via the
+ * admin `updateTool` handler when the user saves.
+ *
+ * @returns The React element for the Spotlight management UI.
+ */
 export default function SpotlightPage() {
     const { tools, updateTool, settings, isLoaded } = useAdmin();
     const { showToast } = useToast();

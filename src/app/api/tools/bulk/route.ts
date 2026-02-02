@@ -3,9 +3,25 @@ import { supabaseAdmin, adminToolToDbTool } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 /**
- * POST /api/tools/bulk
- * Bulk import tools from CSV data
- * Expects JSON body with array of tool objects
+ * Handle bulk import of tools from a JSON payload, validate and normalize each entry, insert new tools, and update category/task counts.
+ *
+ * Validates admin access and that the request body contains a non-empty array of tools (maximum 200). For each tool the handler:
+ * - normalizes fields (slugs, dates, arrays, FAQ, social links, etc.),
+ * - matches or creates categories, tasks, and tags (case-insensitive),
+ * - rejects duplicates against the database and within the current batch,
+ * - requires name, summary, at least one category, and at least one task,
+ * - inserts validated tools into the database and accumulates per-item success/failure results.
+ *
+ * After a successful import of one or more tools, category and task usage counts for published tools are recalculated and updated (best-effort).
+ *
+ * Returns a JSON response with a summary message and an object containing `success`, `failed`, and `errors` (array of { name, error }) fields.
+ *
+ * Error responses:
+ * - 400 for invalid input (missing tools array or exceeding the 200-item limit) or validation failures per item are reported in `errors`;
+ * - propagates authentication error status from admin check when present;
+ * - 500 for unexpected server errors.
+ *
+ * @returns A JSON payload summarizing the import: a human-readable `message` and `success`, `failed`, and `errors` details.
  */
 export async function POST(request: NextRequest) {
     try {
@@ -449,8 +465,9 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/tools/bulk/template
- * Returns CSV template with updated headers
+ * Provide a CSV template for bulk importing tools.
+ *
+ * @returns A NextResponse whose body is a CSV template (header row and example row) and which includes Content-Type text/csv and a Content-Disposition suggesting filename "tools-import-template.csv"
  */
 export async function GET() {
     const headers = [

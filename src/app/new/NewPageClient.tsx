@@ -9,6 +9,14 @@ interface NewPageClientProps {
     tools: AdminTool[];
 }
 
+/**
+ * Render a "Just Released" page showing the given tools sorted by release date and synchronize them with the search context.
+ *
+ * Updates the search context's shared tools when `tools` contains one or more items. The displayed list is sorted so newest tools (by `released_on`) appear first.
+ *
+ * @param tools - Array of tool objects to display; each tool is rendered as an AIToolCard and used to populate the shared search tools.
+ * @returns The JSX for the "Just Released" page, including a header and a responsive grid of tool cards.
+ */
 export default function NewPageClient({ tools }: NewPageClientProps) {
     const { setSharedTools } = useSearch();
 

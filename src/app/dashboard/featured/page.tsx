@@ -7,6 +7,13 @@ import { Search, ChevronLeft, ChevronRight, Save } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
 
+/**
+ * Render the admin interface for managing which tools are featured.
+ *
+ * Provides two columns: a searchable, paginated list of regular (published, non-spotlight) tools to add to featured, and a searchable, paginated list of currently featured tools. Maintains local pending changes (adds/removes) that must be persisted via the Save action, prevents removing tools that are spotlight-enabled, and shows counts for Spotlight, Featured, and Regular tools. Uses admin context for tools and updates and displays a loading state until data is ready.
+ *
+ * @returns The React element for the featured tools management UI.
+ */
 export default function FeaturedPage() {
     const { tools, updateTool, isLoaded } = useAdmin();
     const { showToast } = useToast();

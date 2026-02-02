@@ -109,6 +109,14 @@ const GROUP_LABELS: Record<string, string> = {
 const ALL_COLUMNS = Object.values(EXPORT_COLUMNS).flat();
 const DEFAULT_COLUMNS = new Set(['name', 'summary', 'websiteUrl', 'status', 'pricing', 'categoryName', 'released_on', 'createdAt']);
 
+/**
+ * Modal UI that lets the user choose export format and select which columns to include when exporting a list of tools as CSV or JSON.
+ *
+ * @param isOpen - Whether the modal is visible.
+ * @param onClose - Callback invoked to close the modal.
+ * @param tools - Array of tools to include in the export.
+ * @returns The modal JSX when `isOpen` is true, otherwise `null`.
+ */
 export default function ExportToolsModal({ isOpen, onClose, tools }: ExportToolsModalProps) {
     const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set(DEFAULT_COLUMNS));
     const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');

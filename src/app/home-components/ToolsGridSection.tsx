@@ -15,6 +15,17 @@ interface ToolsGridSectionProps {
     trendingTools: AdminTool[];
 }
 
+/**
+ * Render a tabbed grid of AI tools with incremental loading for "Just Released" and a separate "Trending" view.
+ *
+ * The "Just Released" tab sorts the provided tools by `released_on` (newest first), shows an initial subset,
+ * and supports auto-loading via an IntersectionObserver plus a manual "Load More" button up to configured limits.
+ * The "Trending" tab displays `trendingTools` as provided and includes ranking indicators.
+ *
+ * @param tools - Array of tools used for the "Just Released" tab; will be sorted by `released_on`.
+ * @param trendingTools - Array of tools used for the "Trending" tab; expected to be pre-filtered and pre-sorted.
+ * @returns The section JSX element containing the tab controls, tool grid, loading indicators, and navigation links.
+ */
 export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSectionProps) {
     const [activeTab, setActiveTab] = useState<'latest' | 'trending'>('latest');
     const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD);

@@ -10,6 +10,13 @@ import { getStatusClass } from '@/lib/formatters';
 // Helper to slugify task name for URL comparison
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
+/**
+ * Render the task detail page UI: shows a task header, searchable list of linked tools, and a detailed quick-preview modal.
+ *
+ * The component displays a loading spinner while data is loading, a "not found" view when the task slug has no match, a tools grid with search and counts, and a full-screen preview modal for individual tools with navigation actions.
+ *
+ * @returns The React element for the task detail page, including loading, not-found, tools list, search controls, and the tool preview modal.
+ */
 export default function TaskDetailPage() {
     const params = useParams();
     const router = useRouter();

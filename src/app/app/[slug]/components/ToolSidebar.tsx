@@ -34,6 +34,16 @@ interface ToolSidebarProps {
     showFeaturedAlternatives?: boolean;
 }
 
+/**
+ * Renders a sidebar with company info, social links, categories, tasks, and lists of featured, suggested, and recently added tools for a given tool.
+ *
+ * @param tool - The primary AdminTool whose details are shown in the sidebar.
+ * @param featuredTools - Tools highlighted as featured alternatives.
+ * @param suggestedTools - Suggested related tools (renders up to five).
+ * @param recentlyAdded - Recently added tools to display in the sidebar.
+ * @param showFeaturedAlternatives - Whether to display the "Featured alternatives" section; defaults to `true`.
+ * @returns The sidebar JSX element containing tool metadata and related tool lists.
+ */
 export default function ToolSidebar({
     tool,
     featuredTools,

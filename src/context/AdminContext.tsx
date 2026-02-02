@@ -95,6 +95,14 @@ interface AdminProviderProps {
     initialTools?: AdminTool[];
 }
 
+/**
+ * Provides the AdminContext for managing tools, categories, tasks, tags, notes, and settings.
+ *
+ * Renders a context provider that hydrates admin data (from the API or localStorage), persists a local fallback, and exposes CRUD and utility methods for consumers.
+ *
+ * @param initialTools - Optional initial tools to prepopulate the provider state (used to avoid an initial fetch when available)
+ * @returns The AdminContext provider element that wraps `children` and supplies admin state and actions to descendants.
+ */
 export function AdminProvider({ children, initialTools }: AdminProviderProps) {
     const [state, setState] = useState<AdminState>({
         tools: initialTools || [],

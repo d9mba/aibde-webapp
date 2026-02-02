@@ -5,11 +5,17 @@ const POSTHOG_HOST = 'https://app.posthog.com';
 const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
 /**
- * GET /go/[slug] - Redirect to tool website with tracking
- * 
- * - Affiliate enabled: Redirect to affiliate URL (no UTM params)
- * - Non-affiliate: Redirect to website URL with UTM params
- * - Tracks outbound click in PostHog (server-side)
+ * Handle GET /go/[slug] by redirecting to a tool's destination and recording an outbound click.
+ *
+ * Chooses the redirect target based on the tool record: if affiliate is enabled and an affiliate URL
+ * exists, redirects to the affiliate URL as-is; otherwise, redirects to the tool's website URL and
+ * appends UTM referral parameters unless the tool has back_links enabled (in which case the clean
+ * website URL is used). If no external URL is available, redirects to the tool's internal page.
+ * Triggers a server-side PostHog event for the outbound click (fire-and-forget).
+ *
+ * @param request - The incoming Next.js request
+ * @param params - Route parameters containing `slug`
+ * @returns A NextResponse that redirects (HTTP 302) to the computed destination or to the homepage on error
  */
 export async function GET(
     request: NextRequest,

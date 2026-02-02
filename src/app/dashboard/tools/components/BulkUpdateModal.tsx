@@ -45,6 +45,19 @@ interface BulkUpdateModalProps {
     onUpdateComplete: () => void;
 }
 
+/**
+ * Render a multi-step modal UI for importing, reviewing, editing, and submitting CSV-driven bulk updates for tools.
+ *
+ * The component provides:
+ * - CSV template download and CSV file upload/parsing.
+ * - A review step with per-item selection, preview, inline edit, and delete.
+ * - Submission to the bulk-update API and a result summary with error details.
+ *
+ * @param isOpen - Whether the bulk update modal is visible.
+ * @param onClose - Callback invoked when the modal is closed; resets internal state.
+ * @param onUpdateComplete - Callback invoked after the server reports created or updated items.
+ * @returns The modal's React element when `isOpen` is true, or `null` when closed.
+ */
 export default function BulkUpdateModal({ isOpen, onClose, onUpdateComplete }: BulkUpdateModalProps) {
     const [updateStep, setUpdateStep] = useState<1 | 2 | 3>(1);
     const [updateTools, setUpdateTools] = useState<UpdateTool[]>([]);

@@ -3,6 +3,14 @@ import { getPublishedTools, getCategories, getTasks } from '@/lib/data';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aibde.tech';
 
+/**
+ * Generate sitemap entries for the site, including static pages and dynamic tool, category, and task pages.
+ *
+ * Fetches published tools, categories, and tasks and constructs sitemap entries containing URL, lastModified,
+ * changeFrequency, and priority for each route.
+ *
+ * @returns An array of sitemap entries for static pages and dynamically generated app, category, and task pages.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Fetch all data for sitemap
     const [tools, categories, tasks] = await Promise.all([

@@ -7,6 +7,14 @@ import AIToolCard from '@/components/features/tools/ToolCard';
 import { useAdminData } from '@/context/AdminContext';
 import { ToolGridSkeleton } from '@/components/ui/Skeleton';
 
+/**
+ * Render the search results page for a given query, including a search input, suggestion dropdown, and results grid.
+ *
+ * The component reads the initial query from the route, shows matching published tools, and updates suggestions as the user types.
+ * Triggering a search or selecting a suggestion navigates to the appropriate route for that query or tool.
+ *
+ * @returns The JSX element representing the search results page.
+ */
 export default function SearchResultsPage() {
     const params = useParams();
     const adminData = useAdminData();

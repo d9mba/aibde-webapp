@@ -5,7 +5,14 @@ import ToolDetailClient from './ToolDetailClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
 export const revalidate = 300;
-// Generate dynamic metadata for SEO
+/**
+ * Builds metadata for a tool detail page using the tool's app username (slug) for SEO and social previews.
+ *
+ * If the tool is not found, returns metadata with a "Tool Not Found | AiBDE" title and a generic description.
+ *
+ * @param params - An object whose `params` promise resolves to route parameters containing the tool's `slug` (app username).
+ * @returns A Metadata object containing title, description, keywords, Open Graph and Twitter card data, alternates (canonical URL), and robots directives.
+ */
 export async function generateMetadata({
     params,
 }: {
@@ -65,6 +72,14 @@ export async function generateMetadata({
     };
 }
 
+/**
+ * Render the tool detail page for the tool identified by the route slug.
+ *
+ * Fetches the tool by app username, triggers a 404 response if the tool does not exist, then loads related, suggested, featured, and recently added tools plus categories, tasks, and home settings in parallel before rendering the client component.
+ *
+ * @param params - A promise resolving to route parameters containing `slug` (the tool's app username).
+ * @returns The React element for the tool detail page populated with the tool and its related data.
+ */
 export default async function ToolDetailPage({
     params,
 }: {

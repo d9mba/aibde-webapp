@@ -23,7 +23,12 @@ const logoColors = [
 // Slugify helper for category/task URLs
 const slugify = (str: string): string => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-// Helper function to get ranking badge styles
+/**
+ * Selects the CSS class string to style a ranking badge.
+ *
+ * @param ranking - The ranking position (1 is highest). 
+ * @returns A CSS class string appropriate for the given ranking; ranks 1–3 receive distinct medal styles, all other rankings receive a neutral gradient style.
+ */
 function getRankingBadgeClass(ranking: number): string {
     switch (ranking) {
         case 1: return 'bg-white text-yellow-600 shadow-md border border-yellow-200';
@@ -33,7 +38,12 @@ function getRankingBadgeClass(ranking: number): string {
     }
 }
 
-// Helper function to get ranking display text
+/**
+ * Produce a display label for a numeric ranking position.
+ *
+ * @param ranking - 1-based ranking position (1 is first place)
+ * @returns `'🏆'`, `'🥈'`, `'🥉'` for ranks 1–3; otherwise `'#<ranking>'` (e.g., `#4`)
+ */
 function getRankingDisplay(ranking: number): string {
     switch (ranking) {
         case 1: return '🏆';
@@ -43,6 +53,17 @@ function getRankingDisplay(ranking: number): string {
     }
 }
 
+/**
+ * Renders an interactive card for an AI tool including logo, metadata, stats, tags, and hover actions.
+ *
+ * The card tracks impressions and user interactions (card clicks, view/outbound visits, share, and filter usage)
+ * via analytics hooks and navigates to the tool, category, or task pages when interacted with.
+ *
+ * @param tool - The AI tool data to display.
+ * @param variant - Visual layout variant: 'default', 'compact', or 'featured'.
+ * @param ranking - Optional ranking number to display as a badge on the card.
+ * @returns A clickable card element representing the tool with actions for viewing, sharing, and navigation.
+ */
 export default function AIToolCard({ tool, variant = 'default', ranking }: AIToolCardProps) {
     const [showShareModal, setShowShareModal] = useState(false);
     const { getImpressions } = useImpressions();

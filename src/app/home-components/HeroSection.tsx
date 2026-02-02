@@ -13,6 +13,18 @@ interface HeroSectionProps {
     taskCount: number;
 }
 
+/**
+ * Renders the homepage hero section with search, live suggestions, counts, and quick filters.
+ *
+ * Displays the product title and subtitle, links showing tool/task/category counts, a debounced search input
+ * with server-powered suggestions and keyboard navigation (including Ctrl/Cmd+K focus), a tagline, and quick
+ * filter capsules for common searches.
+ *
+ * @param toolCount - Number of AI tools displayed in the tools link
+ * @param categoryCount - Number of categories displayed in the categories link
+ * @param taskCount - Number of tasks displayed in the tasks link
+ * @returns The hero section JSX element containing title, counts, search input and suggestions, tagline, and filter links
+ */
 export default function HeroSection({ toolCount, categoryCount, taskCount }: HeroSectionProps) {
     const { searchQuery, setSearchQuery, isMainSearchFocused, setIsMainSearchFocused } = useSearch();
     const typingPlaceholder = useTypingPlaceholder();

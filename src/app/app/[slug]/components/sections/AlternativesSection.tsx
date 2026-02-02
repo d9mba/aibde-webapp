@@ -7,6 +7,16 @@ interface AlternativesSectionProps {
     alternatives: AdminTool[];
 }
 
+/**
+ * Renders the "Alternatives" section listing alternative tools for a given tool name.
+ *
+ * Displays either a message when no alternatives exist or a responsive grid of alternative cards.
+ * Each card shows a logo or initial avatar, tool name, summary, optional category/task badges, and a pricing badge.
+ *
+ * @param toolName - Display name of the primary tool used in the section header
+ * @param alternatives - Array of alternative tool entries to render
+ * @returns The React element for the alternatives section
+ */
 export default function AlternativesSection({ toolName, alternatives }: AlternativesSectionProps) {
     return (
         <section id="alternatives" className="py-8">

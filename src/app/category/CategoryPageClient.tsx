@@ -11,6 +11,15 @@ interface CategoryPageClientProps {
 
 const ITEMS_PER_LOAD = 50;
 
+/**
+ * Render a categorized, alphabetically grouped category page with infinite loading and letter-based navigation.
+ *
+ * Displays a hero section with total count, an alphabet sidebar for quick navigation, and letter sections containing category cards that link to each category page. Supports incremental loading as the user scrolls and scrolling-to-letter behavior that expands the list when a target letter is not yet visible.
+ *
+ * @param categories - Array of category objects; categories with a tool count of zero are excluded from the listing.
+ * @param totalCount - Total number of categories (used for display in the hero and footer).
+ * @returns The React element for the category page UI.
+ */
 export default function CategoryPageClient({ categories, totalCount }: CategoryPageClientProps) {
     const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_LOAD);

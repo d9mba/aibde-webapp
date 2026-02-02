@@ -19,6 +19,20 @@ interface SearchPageClientProps {
     categoryCount: number;
 }
 
+/**
+ * Render the searchable, filterable AI tools directory client with suggestions, analytics, and paginated results.
+ *
+ * Displays a hero/search area, debounced suggestions while typing, filter controls (category, task, pricing),
+ * search results with "load more" pagination, and UI states for loading and empty results. Also wires keyboard
+ * shortcuts (Ctrl/Cmd+K), reads initial values from URL parameters, and emits analytics for searches and filter usage.
+ *
+ * @param categories - Array of category objects used to populate the category filter
+ * @param tasks - Array of task objects used to populate the task filter
+ * @param toolCount - Total number of tools (used in the hero summary)
+ * @param taskCount - Total number of tasks (used in the hero summary)
+ * @param categoryCount - Total number of categories (used in the hero summary)
+ * @returns A React element containing the full client-side search UI and results listing
+ */
 export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount }: SearchPageClientProps) {
     const searchParams = useSearchParams();
     const lastTrackedQuery = useRef<string>('');

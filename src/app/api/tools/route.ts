@@ -59,7 +59,13 @@ const LIST_FIELDS = `
 `;
 
 // Helper function to apply missing data filters
-// Using simple .is(null) checks since complex OR queries cause 500 errors
+/**
+ * Apply a "missing data" constraint to a query builder based on a filter key.
+ *
+ * @param query - The query builder to augment with a null-check constraint
+ * @param filter - One of: 'no-logo', 'no-summary', 'no-description', 'no-website', 'no-contact', 'no-category', 'no-task', 'no-tags', 'no-features', 'no-use-cases', 'no-faq', 'no-pricing-tiers', 'no-images', 'no-videos', 'no-release-date'
+ * @returns The incoming query builder augmented with the appropriate `is(field, null)` constraint, or the original query if the filter is unrecognized
+ */
 function applyMissingDataFilter(query: any, filter: string) {
     switch (filter) {
         case 'no-logo':
@@ -118,7 +124,14 @@ function applyFilters(query: any, filters: { search?: string | null, category?: 
 // GET /api/tools - List tools (ADMIN ONLY)
 // Requires admin role - use /api/public/tools for public access
 // Supports pagination: ?page=1&limit=50 (default: 50 per page)
-// Use ?all=true to fetch all tools (for export/backup)
+/**
+ * Handle admin GET requests to list tools with filtering, pagination, or full export.
+ *
+ * Accepts query parameters for status, search, category, missing (missing-data filter), page, limit, and all.
+ *
+ * @param request - Incoming Next.js request containing query parameters used for filtering, pagination, or requesting all records
+ * @returns When `all=true`, a JSON array of admin-facing tool objects. Otherwise, a JSON object with `data` (array of admin-facing tool objects) and `pagination` (`page`, `limit`, `total`, `totalPages`).
+ */
 export async function GET(request: NextRequest) {
     try {
         const authResult = await requireAdmin();
@@ -283,4 +296,3 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to create tool' }, { status: 500 });
     }
 }
-

@@ -12,12 +12,20 @@ interface HogQLQueryResponse {
 }
 
 /**
- * POST /api/analytics/posthog - Query PostHog analytics
- * 
- * Body:
- *   - query: HogQL query string
- *   - type: 'tool_stats' | 'daily_activity' | 'hourly_activity' | 'top_tools'
- *   - toolSlug?: string (for tool-specific queries)
+ * Handle POST /api/analytics/posthog requests and run predefined HogQL queries against PostHog.
+ *
+ * Validates admin access and request body, constructs a time-filtered HogQL query based on the requested
+ * `type` (e.g., `tool_stats`, `top_tools`, `daily_activity`, etc.), executes the query against the
+ * PostHog query API, and returns the results mapped to objects keyed by column name.
+ *
+ * The handler supports relative (`days`) and absolute (`startDate`/`endDate`) time ranges, requires
+ * `toolSlug` for tool-specific queries, enforces a 10s request timeout, and returns meaningful JSON
+ * errors for authentication, validation, configuration, timeout, and upstream failures.
+ *
+ * @returns A JSON HTTP response. On success: an object `{ success: true, type, results, columns }`
+ *          where `results` is an array of objects mapping column names to values and `columns` is the
+ *          array of column names. On failure: an object containing an `error` message (and status
+ *          reflected in the HTTP response).
  */
 export async function POST(request: NextRequest) {
     try {

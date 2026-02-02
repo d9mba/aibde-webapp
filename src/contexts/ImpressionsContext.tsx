@@ -18,10 +18,21 @@ const ImpressionsContext = createContext<ImpressionsContextType>({
     getImpressions: () => 0,
 });
 
+/**
+ * Access the current impressions context for tools.
+ *
+ * @returns The current `ImpressionsContext` value with `impressions`, `loading`, and `getImpressions`.
+ */
 export function useImpressions() {
     return useContext(ImpressionsContext);
 }
 
+/**
+ * Provides impressions data and loading state to descendant components via ImpressionsContext.
+ *
+ * @param children - The React nodes rendered inside the provider.
+ * @returns A provider element that supplies `impressions`, `loading`, and `getImpressions` to its descendants.
+ */
 export function ImpressionsProvider({ children }: { children: ReactNode }) {
     const [impressions, setImpressions] = useState<ToolImpressions>({});
     const [loading, setLoading] = useState(false);

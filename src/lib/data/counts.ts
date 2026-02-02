@@ -5,6 +5,12 @@
 
 import { supabase } from '../supabase';
 
+/**
+ * Get the total number of tools, optionally filtered by status.
+ *
+ * @param statusFilter - An optional array of statuses (`'published'` or `'approved'`) to restrict the count to matching tools.
+ * @returns The number of tools that match the filter (or total tools if no filter is provided). Returns `0` if an error occurs.
+ */
 export async function getToolsCount(statusFilter?: ('published' | 'approved')[]): Promise<number> {
     let query = supabase
         .from('tools')
@@ -24,6 +30,13 @@ export async function getToolsCount(statusFilter?: ('published' | 'approved')[])
     return count || 0;
 }
 
+/**
+ * Count unique category names among tools that have status `published` or `approved`.
+ *
+ * Treats each tool's `category_name` as an array of strings and aggregates unique entries.
+ *
+ * @returns The number of unique categories across tools with status `published` or `approved`. Returns `0` if the database query fails.
+ */
 export async function getCategoriesCount(): Promise<number> {
     // Count only categories that have at least one published tool
     const { data, error } = await supabase
@@ -47,6 +60,11 @@ export async function getCategoriesCount(): Promise<number> {
     return uniqueCategories.size;
 }
 
+/**
+ * Count unique task names referenced by tools with a published or approved status.
+ *
+ * @returns The number of distinct task names found among tools whose status is `published` or `approved`.
+ */
 export async function getTasksCount(): Promise<number> {
     // Count only tasks that have at least one published tool
     const { data, error } = await supabase
@@ -70,6 +88,11 @@ export async function getTasksCount(): Promise<number> {
     return uniqueTasks.size;
 }
 
+/**
+ * Count the total number of tag records in the tags table.
+ *
+ * @returns The total number of tags, or 0 if an error occurs or none are found.
+ */
 export async function getTagsCount(): Promise<number> {
     const { count, error } = await supabase
         .from('tags')

@@ -64,6 +64,14 @@ interface RealtimeEvent {
     timestamp: string;
 }
 
+/**
+ * Renders the Analytics dashboard for viewing platform and tool metrics, charts, and realtime activity.
+ *
+ * Provides controls for selecting time ranges, comparing periods, auto-refresh, and per-tool detail views;
+ * fetches analytics data from the PostHog-backed API and displays summary stats, daily/hourly charts, top lists, and realtime events.
+ *
+ * @returns The React element for the Analytics page UI
+ */
 export default function AnalysisPage() {
     const router = useRouter();
     const { tools, categories, tasks } = useAdmin();

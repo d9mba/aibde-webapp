@@ -46,7 +46,12 @@ interface BulkImportEditModalProps {
     onClose: () => void;
 }
 
-// Helper to ensure array format
+/**
+ * Normalize a value into an array of trimmed, non-empty strings.
+ *
+ * @param value - A string, a comma-separated list of values, an array of strings, or undefined.
+ * @returns An array of trimmed, non-empty strings. Returns an empty array for `undefined` or when no valid items exist.
+ */
 function ensureArray(value: string | string[] | undefined): string[] {
     if (!value) return [];
     if (Array.isArray(value)) return value;
@@ -59,6 +64,12 @@ interface FAQItem {
     answer: string;
 }
 
+/**
+ * Parse a serialized FAQ string into an array of FAQ items.
+ *
+ * @param faqString - FAQ text where entries are separated by `;;` and each entry is a `question::answer` pair
+ * @returns An array of `{ question, answer }` objects with trimmed strings; returns an empty array if `faqString` is undefined or contains no valid entries
+ */
 function parseFAQ(faqString: string | undefined): FAQItem[] {
     if (!faqString) return [];
     return faqString.split(';;').map(item => {
@@ -67,11 +78,25 @@ function parseFAQ(faqString: string | undefined): FAQItem[] {
     }).filter(item => item.question || item.answer);
 }
 
+/**
+ * Serializes an array of FAQ items into a single string using `question::answer` pairs separated by `;;`.
+ *
+ * @param items - The FAQ items to serialize
+ * @returns A string where each item is encoded as `question::answer` and items are joined with `;;`
+ */
 function stringifyFAQ(items: FAQItem[]): string {
     return items.map(item => `${item.question}::${item.answer}`).join(';;');
 }
 
-// FAQ Editor Component
+/**
+ * Renders an editable list of FAQs with controls to add and remove entries.
+ *
+ * Displays the provided FAQ items, allows creating a new FAQ by entering a question and answer, and calls `onChange` whenever the items list is updated (added or removed).
+ *
+ * @param items - The current list of FAQ items to display and edit.
+ * @param onChange - Callback invoked with the updated FAQ item array after adding or deleting an item.
+ * @returns The rendered FAQ editor React element.
+ */
 function FAQEditor({ items, onChange }: { items: FAQItem[]; onChange: (items: FAQItem[]) => void }) {
     const [q, setQ] = useState('');
     const [a, setA] = useState('');
@@ -126,6 +151,20 @@ function FAQEditor({ items, onChange }: { items: FAQItem[]; onChange: (items: FA
     );
 }
 
+/**
+ * Render a full-featured modal for viewing and editing a single imported tool entry.
+ *
+ * Renders a multi-section editor (basic info, categories/tasks/tags, pricing, features, media, store links, FAQ)
+ * and forwards partial changes via `onUpdate`. When `isOpen` is false, nothing is rendered.
+ *
+ * @param isOpen - Whether the modal is visible
+ * @param tool - The imported tool object to edit
+ * @param toolIndex - Index of the tool in the parent list; used when emitting updates or delete
+ * @param onUpdate - Callback invoked with (index, updates) to apply partial updates to the tool
+ * @param onDelete - Callback invoked with (index) to remove the tool from the parent list
+ * @param onClose - Callback invoked to close the modal
+ * @returns The modal element when open, or `null` when closed
+ */
 export default function BulkImportEditModal({
     isOpen,
     tool,

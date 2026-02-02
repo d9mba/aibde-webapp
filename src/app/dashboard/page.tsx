@@ -47,6 +47,15 @@ const renderIcon = (iconName: string, size: number = 18) => {
     return <IconComponent size={size} strokeWidth={1.5} />;
 };
 
+/**
+ * Render the admin dashboard homepage displaying statistics, quick actions, and recent tool lists.
+ *
+ * Shows a loading state until admin data is available via the admin context, then renders:
+ * a header with an Add Tool action, a responsive stats grid, quick action cards, a Recently Updated panel,
+ * and a Recently Published panel (links open the public site).
+ *
+ * @returns A JSX element that renders the dashboard UI.
+ */
 export default function DashboardHome() {
     const { tools, categories, tasks, isLoaded, settings } = useAdmin();
 

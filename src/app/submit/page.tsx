@@ -51,7 +51,16 @@ interface FormData {
     videoUrls: string;
 }
 
-// Main content component that receives isPreview as prop
+/**
+ * Render the Submit Tool page content including the submission form, plan options, guidelines, and FAQ.
+ *
+ * Renders the full submission experience: hero and promotional sections, plan selection cards, the multi-section
+ * submission form (with validation, Turnstile protection, social links, media inputs, and guidelines), success state,
+ * an email contact CTA, and FAQs.
+ *
+ * @param isPreview - If true, prefills form fields with placeholder preview values and initializes the component in the submitted state.
+ * @returns A React element that renders the submit-tool UI and its interactive behavior.
+ */
 function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
     const [formData, setFormData] = useState<FormData>({
         submitterName: isPreview ? '{Name}' : '',

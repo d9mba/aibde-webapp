@@ -13,6 +13,12 @@ interface ProvidersProps {
     headerTools?: AdminTool[];
 }
 
+/**
+ * Wraps content with the application's context providers for analytics, admin state, theming, sidebar, search, and impressions.
+ *
+ * @param headerTools - Optional array of admin header tools to initialize the admin provider
+ * @returns The composed provider tree containing `children`
+ */
 export default function Providers({ children, headerTools }: ProvidersProps) {
     return (
         <PostHogProvider>

@@ -263,7 +263,12 @@ function formatRelativeTime(createdAt: string | undefined | null, updatedAt: str
     return years === 1 ? `${prefix} 1 year ago` : `${prefix} ${years} years ago`;
 }
 
-// Helper to convert snake_case DB fields to camelCase for frontend
+/**
+ * Convert a DbTool record into an admin-facing tool object with camelCased keys and normalized fields.
+ *
+ * @param dbTool - The database record for a tool
+ * @returns An object suitable for admin/frontend use where snake_case DB fields are converted to camelCase, JSON fields are parsed into native values, arrays and media URLs are normalized, and timestamp fields are formatted for display (e.g., `released_on` as a date string)
+ */
 export function dbToolToAdminTool(dbTool: DbTool) {
     return {
         id: dbTool.id,
@@ -355,7 +360,16 @@ export function dbToolToAdminTool(dbTool: DbTool) {
     };
 }
 
-// Helper to convert camelCase frontend fields to snake_case for DB
+/**
+ * Convert an admin/frontend tool record with camelCase fields into a DB-ready Partial<DbTool> using snake_case keys.
+ *
+ * The function maps known frontend field names to their corresponding database column names, normalizes timestamp values
+ * (converts empty strings to null, DD-MM-YYYY → YYYY-MM-DD, and year-only `YYYY` → `YYYY-01-01`), and converts absolute
+ * CDN or full URLs for media fields into relative paths suitable for storage. Computed or non-DB fields are ignored.
+ *
+ * @param tool - A record containing frontend/admin tool fields (camelCase keys and mixed value types)
+ * @returns A Partial<DbTool> with snake_case keys and normalized values ready for database insertion
+ */
 export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool> {
     const result: Record<string, unknown> = {};
 

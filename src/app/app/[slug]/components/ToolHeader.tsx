@@ -10,7 +10,15 @@ import { trackToolVisit } from '@/hooks/useToolAnalytics';
 import { useImpressions } from '@/contexts/ImpressionsContext';
 import VoteButtons from '@/components/ui/VoteButtons';
 
-// Click-to-open More Options Menu
+/**
+ * Renders a compact "More options" dropdown for a tool with quick mailto actions.
+ *
+ * The menu toggles open/closed when its button is clicked and automatically closes
+ * when the user clicks outside the menu.
+ *
+ * @param tool - The tool object whose name and app_username are used to populate the menu's mailto links and labels.
+ * @returns The dropdown menu element containing "Report", "Claim", and "Advertise" actions for the given tool.
+ */
 function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -84,6 +92,15 @@ interface ToolHeaderProps {
     onShare?: () => void;
 }
 
+/**
+ * Render the header UI for a tool, including logo, title/summary, visit/share actions, category/task/pricing badges, tags, impressions/rating/voting, updated date, a "More" dropdown, and section navigation.
+ *
+ * @param tool - The AdminTool object containing data to display (name, logoUrl, websiteUrl, stats, tags, categories, pricing, dates, etc.).
+ * @param sections - Array of section descriptors used to render the tab navigation.
+ * @param activeSection - The id of the currently active section; used to style the corresponding tab.
+ * @param onScrollToSection - Callback invoked with a section id when a tab is clicked to scroll to that section.
+ * @param onShare - Optional callback triggered when the share button is clicked.
+ * @returns A React element representing the complete tool header.
 export default function ToolHeader({
     tool,
     sections,
@@ -298,4 +315,3 @@ export default function ToolHeader({
         </div>
     );
 }
-

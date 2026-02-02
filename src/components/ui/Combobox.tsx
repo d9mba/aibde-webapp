@@ -2,7 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-// Helper to determine input value based on state
+/**
+ * Determine the value to display in the combobox input based on UI state.
+ *
+ * @param isOpen - Whether the dropdown list is currently open
+ * @param multiple - Whether the combobox allows multiple selections
+ * @param search - Current search text entered by the user
+ * @param selectedLabel - Label of the currently selected item (single-select)
+ * @returns The string to show in the input: the search text when the menu is open or when multiple selection is enabled, otherwise the selected item's label
+ */
 function getInputValue(isOpen: boolean, multiple: boolean, search: string, selectedLabel: string): string {
     if (isOpen) return search;
     if (multiple) return search;
@@ -38,6 +46,22 @@ interface MultiComboboxProps extends ComboboxProps {
 
 type Props = SingleComboboxProps | MultiComboboxProps;
 
+/**
+ * A configurable combobox UI component that supports single-select or multi-select modes with search, keyboard navigation, and optional creation of new options.
+ *
+ * The component displays an input with a dropdown of provided options (plus locally created options), allows selecting or removing items, and calls the provided change handlers. If `allowCreate` is true, users can create a new option; `onCreateNew` (if provided) is invoked when a new item is created.
+ *
+ * @param props - Component props (see `Props`). Key props:
+ *   - `label`: visible label for the field.
+ *   - `required`: whether the field is required.
+ *   - `options`: initial list of available options.
+ *   - `placeholder`: input placeholder text.
+ *   - `allowCreate` (default `true`): enable creating new options from the input.
+ *   - `onCreateNew`: optional callback invoked with the new item's name when creating an option.
+ *   - `multiple`: when true enables multi-select mode; `value`/`onChange` types differ by mode.
+ *
+ * @returns The rendered combobox element.
+ */
 export default function Combobox(props: Props) {
     const { label, required, options, placeholder, allowCreate = true, multiple, onCreateNew } = props;
 

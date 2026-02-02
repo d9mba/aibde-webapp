@@ -35,6 +35,19 @@ interface ToolDetailClientProps {
     showFeaturedAlternatives?: boolean;
 }
 
+/**
+ * Renders a detailed, client-side page for a tool including header, sections (overview, media, features, use cases, pricing, pros/cons, FAQ, alternatives), sidebar, mobile sticky visit bar, and share modal.
+ *
+ * @param props.tool - The primary tool object to display (AdminTool).
+ * @param props.relatedTools - Tools shown as alternatives or related suggestions.
+ * @param props.suggestedTools - Tools suggested in the sidebar.
+ * @param props.featuredTools - Featured tools shown in the sidebar.
+ * @param props.recentlyAdded - Recently added tools shown in the sidebar.
+ * @param props.categories - All available categories (used by internal components).
+ * @param props.tasks - Task list available to internal components.
+ * @param props.showFeaturedAlternatives - When true, displays featured alternatives in the sidebar (defaults to `true`).
+ * @returns The tool detail page UI as a React element.
+ */
 export default function ToolDetailClient({
     tool,
     relatedTools,

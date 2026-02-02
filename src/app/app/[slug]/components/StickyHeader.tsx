@@ -11,6 +11,18 @@ interface StickyHeaderProps {
     onScrollToSection: (sectionId: string) => void;
 }
 
+/**
+ * Renders a responsive sticky header showing tool branding, section navigation, and a Visit link.
+ *
+ * Displays the tool logo or initial, the tool name, a row of section buttons that invoke onScrollToSection when clicked, and a Visit button (when tool.websiteUrl is present) that opens the tool's site and records a visit.
+ *
+ * @param tool - Tool metadata used for branding, link generation, and analytics payload (expects properties like id, name, app_username, logoUrl, websiteUrl, backLinks, categoryName, pricing).
+ * @param sections - List of sections to render as navigation buttons; each section should have `id` and `label`.
+ * @param activeSection - Identifier of the currently active section; the corresponding button is styled as selected.
+ * @param showStickyHeader - Controls the header's visibility and entrance/exit animation.
+ * @param onScrollToSection - Callback invoked with a section id when a section button is clicked.
+ * @returns A React element that renders the sticky header UI.
+ */
 export default function StickyHeader({
     tool,
     sections,

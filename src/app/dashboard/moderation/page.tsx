@@ -45,6 +45,13 @@ const formatTimeAgo = (dateStr: string | undefined): string => {
 };
 
 
+/**
+ * Administration interface for reviewing, searching, selecting, and performing single or bulk actions on tools.
+ *
+ * Renders a paginated moderation UI with status tabs (pending, draft, published, unpublished), debounced server-side search, Gmail-style selection modes (none, page, all), per-item actions (approve, reject, delete, edit, preview), and bulk operations (approve, reject, unpublish, move to draft/review, delete). Fetches counts for each tab, revalidates tool caches after mutations, and shows a quick preview modal for individual tools.
+ *
+ * @returns A React element that renders the moderation page UI.
+ */
 export default function ModerationPage() {
     const router = useRouter();
     const { categories, tasks, updateTool } = useAdmin();

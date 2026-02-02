@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, adminToolToDbTool } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
-// Helper to convert value to array
+/**
+ * Normalize a potentially singular or missing value into an array.
+ *
+ * @param value - A value that may be an item, an array of items, or null/undefined
+ * @returns The original array if `value` is already an array, an array containing `value` if it is non-null, or an empty array if `value` is null or undefined
+ */
 function toArray<T>(value: T | T[] | null | undefined): T[] {
     if (Array.isArray(value)) return value;
     if (value != null) return [value];
@@ -10,11 +15,15 @@ function toArray<T>(value: T | T[] | null | undefined): T[] {
 }
 
 /**
- * PUT /api/tools/bulk-update
- * Bulk upsert tools from CSV data
- * - Updates existing tools (matched by 'id' or 'app_username')
- * - Creates new tools if not found
- */
+ * Bulk upsert tools from an array of tool records, updating existing entries or creating new ones.
+ *
+ * Authenticates an admin, validates the input (must be an array with a maximum of 200 items), normalizes and
+ * matches related entities (categories, tasks, tags), parses auxiliary fields (FAQs, social links, dates, lists),
+ * performs per-tool update or create operations, optionally recalculates category and task counts, and aggregates
+ * per-tool results.
+ *
+ * @returns A JSON response summarizing the operation, including counts for `updated`, `created`, `failed`, and `skipped`,
+ *          plus a detailed `errors` array with per-tool error messages.
 export async function PUT(request: NextRequest) {
     try {
         const authResult = await requireAdmin();

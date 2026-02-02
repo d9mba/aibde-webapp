@@ -195,6 +195,20 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
     );
 };
 
+/**
+ * Render the tool creation and editing form with JSON import, live preview, and upload cleanup.
+ *
+ * The form supports creating new tools and editing existing ones (when `toolId` is provided). It:
+ * - Loads and sanitizes existing tool data into the form when editing.
+ * - Auto-fills `app_username` from the tool name when creating (slugified).
+ * - Tracks pending media uploads in sessionStorage and attempts cleanup on unmount or page unload.
+ * - Provides Save as Draft, Ready for Review, and Publish/Update flows with user feedback toasts.
+ * - Offers a JSON import helper that maps common external field names to the internal form schema.
+ * - Shows a live preview and an optional full preview modal; displays edit-only metadata when editing.
+ *
+ * @param toolId - Optional tool ID; when provided the form loads the tool for editing.
+ * @returns The form UI element for creating or editing a tool.
+ */
 export default function ToolForm({ toolId }: ToolFormProps) {
     const router = useRouter();
     const { tools, categories, tasks, tags, addTool, updateTool, addTag, addCategory, addTask, isLoaded } = useAdmin();

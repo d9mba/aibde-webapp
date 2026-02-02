@@ -12,8 +12,20 @@ interface SearchSuggestionsDropdownProps {
 }
 
 /**
- * Shared Search Suggestions Dropdown
- * Used by HeroSection and SearchPageClient
+ * Renders a dropdown of search suggestions with selectable tool items and an optional "Search for" action.
+ *
+ * Renders nothing when `suggestions` is empty. Highlights the item at `selectedIndex`, calls `onHoverItem`
+ * when an item is hovered, calls `onSelectTool` when a suggestion is clicked, and calls `onSearchAll` when the
+ * "Search for" option is clicked (if provided). The "Search for" option appears only when `query` has at least
+ * two characters.
+ *
+ * @param suggestions - Array of tools to display as suggestions.
+ * @param query - Current search query used to render the "Search for" option.
+ * @param onSelectTool - Optional callback invoked with a tool when a suggestion is selected.
+ * @param onSearchAll - Optional callback invoked when the "Search for" option is selected; if provided, it prevents default navigation.
+ * @param selectedIndex - Index of the currently highlighted item; defaults to -1 when none is highlighted.
+ * @param onHoverItem - Optional callback invoked with an index when a suggestion or the "Search for" option is hovered.
+ * @returns The suggestions dropdown element, or `null` when there are no suggestions.
  */
 export default function SearchSuggestionsDropdown({
     suggestions,

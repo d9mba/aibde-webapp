@@ -10,6 +10,19 @@ import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
 import { trackToolClick } from '@/hooks/useToolAnalytics';
 import { AdminTool } from '@/types';
 
+/**
+ * Render the top header with a search input that shows debounced tool suggestions and keyboard navigation.
+ *
+ * The header displays a logo, a Google-style search input, and a mobile search icon. It:
+ * - Shows or hides the header search depending on the current page and scroll position.
+ * - Debounces user input and fetches up to 6 server-side tool suggestions when the query has at least 2 characters.
+ * - Displays a suggestions dropdown with keyboard navigation (ArrowUp/ArrowDown, Enter, Escape) and a final "Search for …" option.
+ * - Supports Ctrl/Cmd+K to focus the search when the header search is visible.
+ * - Tracks tool selection analytics before navigating to the selected tool's app page by app_username.
+ * - Closes suggestions when clicking outside or when navigating to search/results.
+ *
+ * @returns The header element containing the logo, search input, suggestion dropdown, and mobile search link.
+ */
 export default function TopHeader() {
     const router = useRouter();
     const pathname = usePathname();

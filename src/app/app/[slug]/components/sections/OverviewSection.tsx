@@ -8,6 +8,13 @@ interface OverviewSectionProps {
     description: string;
 }
 
+/**
+ * Renders an "Overview" section containing a titled header and sanitized HTML description.
+ *
+ * @param name - Display name used in the section title (renders as "{name} Overview")
+ * @param description - HTML string for the section body; URLs are adjusted before rendering
+ * @returns The JSX element for the overview section
+ */
 export default function OverviewSection({ name, description }: OverviewSectionProps) {
     return (
         <section id="overview" className="py-8 border-b border-border">

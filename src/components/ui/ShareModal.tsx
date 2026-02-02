@@ -58,6 +58,16 @@ const InstagramIcon = () => (
     </svg>
 );
 
+/**
+ * Render a share modal UI with copy-link, social share options, and optional native Web Share support.
+ *
+ * @param isOpen - Whether the modal is visible
+ * @param onClose - Callback invoked to close the modal
+ * @param url - The canonical URL to share
+ * @param title - The title used in share text and metadata
+ * @param description - Optional description used in share text and native share payload
+ * @returns The modal React element when open, `null` when closed
+ */
 export default function ShareModal({ isOpen, onClose, url, title, description }: ShareModalProps) {
     const [copied, setCopied] = useState(false);
     const [canNativeShare, setCanNativeShare] = useState(false);

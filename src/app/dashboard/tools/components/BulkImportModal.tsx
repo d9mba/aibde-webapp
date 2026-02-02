@@ -4,7 +4,15 @@ import { useState } from 'react';
 import { Upload, Download, X, Loader2, Eye, Pencil, Trash2 } from 'lucide-react';
 import BulkImportEditModal from './BulkImportEditModal';
 
-// Helper function to get import result status styling
+/**
+ * Determine the overall import outcome and provide UI styling and a title for that result.
+ *
+ * @param failed - The number of items that failed to import
+ * @param success - The number of items that imported successfully
+ * @returns An object with:
+ *  - `iconClass`: CSS classes for the status badge,
+ *  - `title`: a user-facing title: `"Import Successful!"` when `failed` is 0, `"Import Failed"` when `success` is 0, or `"Partial Import"` otherwise
+ */
 function getImportResultStatus(failed: number, success: number): { iconClass: string; title: string } {
     if (failed === 0) return { iconClass: 'bg-green-100 text-green-600', title: 'Import Successful!' };
     if (success === 0) return { iconClass: 'bg-red-100 text-red-600', title: 'Import Failed' };
@@ -49,6 +57,17 @@ interface BulkImportModalProps {
     onImportComplete: () => void;
 }
 
+/**
+ * Renders a multi-step modal UI for bulk importing tools from a CSV file.
+ *
+ * The modal guides the user through uploading a CSV template, previewing and selecting parsed tools,
+ * editing individual entries, and submitting a bulk import with a results summary.
+ *
+ * @param isOpen - Whether the modal is currently visible.
+ * @param onClose - Callback invoked when the modal is closed; the component resets its internal state before calling this.
+ * @param onImportComplete - Callback invoked after a successful import batch (called when at least one tool was imported).
+ * @returns The modal JSX when `isOpen` is true, otherwise `null`.
+ */
 export default function BulkImportModal({ isOpen, onClose, onImportComplete }: BulkImportModalProps) {
     const [importStep, setImportStep] = useState<1 | 2 | 3>(1);
     const [importedTools, setImportedTools] = useState<ImportedTool[]>([]);

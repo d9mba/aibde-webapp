@@ -10,6 +10,13 @@ import { getStatusClass } from '@/lib/formatters';
 // Helper to slugify category name for URL comparison
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
+/**
+ * Render the category detail page that displays category metadata, a searchable list of tools linked to that category, and a detailed quick-preview modal for individual tools.
+ *
+ * The component handles loading and "category not found" states, lets the user filter tools by name, opens a modal when a tool is clicked to show detailed information (description, tags, pros/cons, metadata, and website), and provides actions from the modal to open the tool's app page (using the tool's `app_username`) or to navigate to the tool edit page.
+ *
+ * @returns A React element representing the category detail page, including header, search/count row, responsive tools grid or empty state, and a quick-preview modal when a tool is selected.
+ */
 export default function CategoryDetailPage() {
     const params = useParams();
     const router = useRouter();

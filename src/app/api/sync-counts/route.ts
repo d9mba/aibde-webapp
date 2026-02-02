@@ -3,9 +3,12 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 /**
- * POST /api/sync-counts
- * Recalculates and syncs category and task counts based on published tools
- * ADMIN ONLY
+ * Recalculates and synchronizes category and task counts based on published tools — admin only.
+ *
+ * Updates counts by tallying categories and tasks from all published tools, creating any missing
+ * category/task records and updating existing ones, then returns a summary of the changes.
+ *
+ * @returns A NextResponse with JSON. On success: `{ success: true, message: string, stats: { publishedTools: number, uniqueCategories: number, uniqueTasks: number, categoriesCreated: number, categoriesUpdated: number, tasksCreated: number, tasksUpdated: number } }`. On failure: `{ error: string }` with an appropriate HTTP status.
  */
 export async function POST() {
     try {

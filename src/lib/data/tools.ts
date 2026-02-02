@@ -121,7 +121,13 @@ export async function getToolsByCategory(categoryName: string, limit: number = 1
 }
 
 /**
- * Fetch tools by task name
+ * Retrieve tools associated with a given task name.
+ *
+ * Results include tools whose `task_name` array contains `taskName`, filtered to tools with status `published` or `approved`, ordered by `save_count` descending and limited to the specified count.
+ *
+ * @param taskName - The task name to match within a tool's `task_name` array
+ * @param limit - Maximum number of tools to return (defaults to 100)
+ * @returns An array of `AdminTool` objects matching the task name, ordered by `save_count` descending, up to `limit` items
  */
 export async function getToolsByTask(taskName: string, limit: number = 100): Promise<AdminTool[]> {
     const { data, error } = await supabase
@@ -141,7 +147,10 @@ export async function getToolsByTask(taskName: string, limit: number = 100): Pro
 }
 
 /**
- * Fetch a single published tool by app_username
+ * Retrieve a single published tool by its app_username.
+ *
+ * @param app_username - The app-specific username of the tool to fetch
+ * @returns The matching `AdminTool`, or `null` if no published/approved tool is found or an error occurs
  */
 export async function getToolByAppUsername(app_username: string): Promise<AdminTool | null> {
     const { data, error } = await supabase
@@ -194,7 +203,13 @@ export async function getHomeSettings() {
 }
 
 /**
- * Fetch featured tools (sorted by save count)
+ * Retrieve featured tools ordered by save count.
+ *
+ * Fetches tools with status 'published' or 'approved', ordered by descending save count.
+ *
+ * @param excludeSlug - An optional app username to exclude from the returned list
+ * @param limit - Maximum number of tools to return
+ * @returns The list of featured AdminTool objects, up to `limit` entries
  */
 export async function getFeaturedTools(excludeSlug?: string, limit: number = 6): Promise<AdminTool[]> {
     let query = supabase
@@ -221,7 +236,11 @@ export async function getFeaturedTools(excludeSlug?: string, limit: number = 6):
 }
 
 /**
- * Fetch recently added tools
+ * Fetches recently added published or approved tools ordered by creation date.
+ *
+ * @param excludeSlug - App username to exclude from results, if provided
+ * @param limit - Maximum number of tools to return
+ * @returns An array of tools ordered newest-first, limited to `limit` items; if `excludeSlug` is provided the tool with that app username is omitted
  */
 export async function getRecentlyAddedTools(excludeSlug?: string, limit: number = 5): Promise<AdminTool[]> {
     let query = supabase

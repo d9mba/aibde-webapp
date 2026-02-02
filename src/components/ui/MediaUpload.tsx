@@ -21,7 +21,13 @@ const getRelativePath = (url: string): string => {
     return url;
 };
 
-// Helper function to get source badge label and color
+/**
+ * Determine a badge label and background color class that represent a media item's source.
+ *
+ * @param isCloud - True when the media is stored in the application's cloud-storage (R2/CDN)
+ * @param isExternal - True when the media is hosted on an external third-party URL
+ * @returns An object with `label` (badge text) and `color` (CSS utility class for the badge background)
+ */
 function getSourceBadge(isCloud: boolean, isExternal: boolean): { label: string; color: string } {
     if (isCloud) return { label: 'Cloud', color: 'bg-accent-primary' };
     if (isExternal) return { label: 'External', color: 'bg-amber-500' };
@@ -97,6 +103,25 @@ interface MediaUploadProps {
     showAltText?: boolean;
 }
 
+/**
+ * Render a configurable media upload control that supports direct URLs, fetching remote URLs into cloud storage, and local file uploads for images or videos.
+ *
+ * @param label - Optional visible label for the control
+ * @param accept - File input accept string (e.g., `'image/*'` or `'video/*'`)
+ * @param uploadType - Logical upload category sent to the server (affects server-side handling)
+ * @param mediaType - Primary media type: `'image'` or `'video'` (affects placeholder and preview)
+ * @param placeholder - Custom placeholder for the URL input; defaults to a sensible image/video prompt
+ * @param toolName - Optional name sent to the upload endpoints to identify the source/tool
+ * @param multiple - When true, allows selecting and storing multiple files/URLs
+ * @param value - Single-item URL value (used when `multiple` is false)
+ * @param onChange - Callback invoked with the new single-item URL (used when `multiple` is false)
+ * @param items - Array of item URLs (used when `multiple` is true)
+ * @param onItemsChange - Callback invoked with the updated array of item URLs (used when `multiple` is true)
+ * @param itemAlts - Array of alt-text strings corresponding to `items`
+ * @param onAltsChange - Callback invoked with the updated array of alt-text strings
+ * @param showAltText - When true and in multiple/image mode, show per-item alt text inputs
+ * @returns A JSX element representing the media upload component
+ */
 export default function MediaUpload({
     label,
     accept = 'image/*',

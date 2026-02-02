@@ -131,8 +131,14 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                                 setSearchQuery(e.target.value);
                                 setSelectedIndex(-1);
                             }}
-                            onFocus={() => setIsMainSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsMainSearchFocused(false), 200)}
+                            onFocus={() => {
+                                setIsMainSearchFocused(true);
+                                // Fetch suggestions immediately if there's already a query
+                                if (searchQuery.length >= 2) {
+                                    fetchSuggestions(searchQuery);
+                                }
+                            }}
+                            onBlur={() => setTimeout(() => setIsMainSearchFocused(false), 300)}
                             onKeyDown={handleKeyDown}
                             suppressHydrationWarning
                         />

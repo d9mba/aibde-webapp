@@ -219,10 +219,14 @@ export default function TopHeader() {
                                         onFocus={() => {
                                             setIsFocused(true);
                                             setShowRecommendations(true);
+                                            // Fetch suggestions immediately if there's already a query
+                                            if (searchQuery.length >= 2) {
+                                                fetchSuggestions(searchQuery);
+                                            }
                                         }}
                                         onBlur={() => {
-                                            // Delay to allow click on dropdown items
-                                            setTimeout(() => setIsFocused(false), 150);
+                                            // Longer delay for mobile touch handling
+                                            setTimeout(() => setIsFocused(false), 300);
                                         }}
                                         onKeyDown={handleKeyDown}
                                         autoComplete="off"

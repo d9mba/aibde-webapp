@@ -129,8 +129,15 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
             const tasks = (tool.taskName || []).map(t => t.toLowerCase());
             const tags = (tool.tags || []).map(t => t.toLowerCase());
 
-            if (fullQuery && nameL.includes(fullQuery)) score += 100;
-            if (fullQuery && nameL.startsWith(fullQuery)) score += 50;
+            // Exact name match gets highest priority
+            if (nameL === fullQuery) score += 200;
+            // Name starts with query gets high priority
+            if (fullQuery && nameL.startsWith(fullQuery)) score += 100;
+            // Shorter names that contain the query rank higher (prefer "ChatGPT" over "ChatGPT Atlas")
+            if (fullQuery && nameL.includes(fullQuery)) {
+                score += 80;
+                score += Math.max(0, 30 - (nameL.length - fullQuery.length)); // Bonus for shorter names
+            }
             if (fullQuery && summaryL.includes(fullQuery)) score += 30;
 
             for (const keyword of keywords) {

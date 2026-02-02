@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
 
         // Validate pagination params
         const validPage = Math.max(1, page);
-        const validLimit = Math.min(100, Math.max(1, limit)); // Max 100 per page
+        const validLimit = Math.min(5000, Math.max(1, limit)); // Max 5000 for bulk operations
         const offset = (validPage - 1) * validLimit;
 
         const search = searchParams.get('search')?.trim();

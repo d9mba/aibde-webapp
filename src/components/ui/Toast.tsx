@@ -41,7 +41,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         if (type !== 'loading') {
             setTimeout(() => {
                 setToasts(prev => prev.filter(t => t.id !== id));
-            }, 4000);
+            }, 15000);
         }
 
         return id;
@@ -57,7 +57,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         if (type !== 'loading') {
             setTimeout(() => {
                 setToasts(prev => prev.filter(t => t.id !== id));
-            }, 4000);
+            }, 15000);
         }
     }, []);
 

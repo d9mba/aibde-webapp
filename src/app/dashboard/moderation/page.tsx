@@ -52,6 +52,7 @@ export default function ModerationPage() {
     const { confirm } = useConfirm();
     const { mutate: globalMutate } = useSWRConfig();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [selectAllMode, setSelectAllMode] = useState<'none' | 'page' | 'all'>('none'); // Gmail-style selection
     const [activeTab, setActiveTab] = useState<TabType>('pending');
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
@@ -59,16 +60,18 @@ export default function ModerationPage() {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [tabLoading, setTabLoading] = useState(false); // Track loading on explicit tab switch only
 
-    // Debounce search to avoid too many API calls
+    // Debounce search to avoid too many API calls (500ms delay)
     useEffect(() => {
+        const trimmed = searchQuery.trim();
+        // Skip if unchanged
+        if (trimmed === debouncedSearch) return;
+
         const timer = setTimeout(() => {
-            setDebouncedSearch(searchQuery.trim());
-            // Reset to page 1 when search changes
-            if (searchQuery.trim() !== debouncedSearch) {
-                setCurrentPage(1);
-            }
-        }, 300);
+            setDebouncedSearch(trimmed);
+            setCurrentPage(1); // Reset to page 1 when search changes
+        }, 500);
         return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery]);
 
     // Build API URL with pagination, status filter, and search
@@ -141,10 +144,17 @@ export default function ModerationPage() {
         return new Set([...selectedIds].filter(id => filteredIds.has(id)));
     }, [selectedIds, filteredTools]);
 
-    const allSelected = filteredTools.length > 0 && currentTabSelectedIds.size === filteredTools.length;
-    const someSelected = currentTabSelectedIds.size > 0;
+    const allOnPageSelected = filteredTools.length > 0 &&
+        filteredTools.every(t => selectedIds.has(t.id));
+    const someSelected = selectAllMode === 'all' || currentTabSelectedIds.size > 0;
+
+    // Total count for bulk operations
+    const totalSelectedCount = selectAllMode === 'all'
+        ? (pagination?.total || 0)
+        : (typeof currentTabSelectedIds.size === 'number' ? currentTabSelectedIds.size : 0);
 
     const toggleSelect = (id: string) => {
+        setSelectAllMode('none'); // Clear "select all" mode when toggling individual
         setSelectedIds(prev => {
             const next = new Set(prev);
             if (next.has(id)) next.delete(id);
@@ -153,9 +163,30 @@ export default function ModerationPage() {
         });
     };
 
-    const toggleAll = () => {
-        if (allSelected) setSelectedIds(new Set());
-        else setSelectedIds(new Set(filteredTools.map((t: AdminTool) => t.id)));
+    const selectPage = () => {
+        setSelectAllMode('page');
+        setSelectedIds(new Set(filteredTools.map((t: AdminTool) => t.id)));
+    };
+
+    const selectAll = () => {
+        setSelectAllMode('all');
+        // For "all" mode, we don't populate selectedIds - bulk handlers will fetch all
+    };
+
+    const clearSelection = () => {
+        setSelectAllMode('none');
+        setSelectedIds(new Set());
+    };
+
+    // Helper to get IDs for bulk operations - fetches all IDs from server if 'select all' mode
+    const getIdsForBulkOperation = async (): Promise<string[]> => {
+        if (selectAllMode === 'all') {
+            // Fetch all tool IDs for this status from server
+            const response = await fetch(`/api/tools?limit=10000&status=${activeTab}`);
+            const data = await response.json();
+            return (data.data || []).map((t: AdminTool) => t.id);
+        }
+        return [...currentTabSelectedIds];
     };
 
     const handleApprove = async (toolId: string) => {
@@ -200,23 +231,26 @@ export default function ModerationPage() {
     };
 
     const handleBulkApprove = async () => {
-        if (currentTabSelectedIds.size === 0) return;
+        const count = selectAllMode === 'all' ? (pagination?.total || 0) : currentTabSelectedIds.size;
+        if (count === 0) return;
         const confirmed = await confirm({
             title: 'Bulk Approve',
-            message: `Approve ${currentTabSelectedIds.size} selected tool${currentTabSelectedIds.size > 1 ? 's' : ''}?`,
+            message: `Approve ${count} selected tool${count > 1 ? 's' : ''}?`,
             confirmText: 'Approve All',
             cancelText: 'Cancel'
         });
         if (!confirmed) return;
 
-        const toastId = showToast(`Approving ${currentTabSelectedIds.size} tools...`, 'loading');
+        const toastId = showToast(`Approving 0/${count} tools...`, 'loading');
         try {
-            for (const id of currentTabSelectedIds) {
-                await updateTool(id, { status: 'published' });
+            const ids = await getIdsForBulkOperation();
+            for (let i = 0; i < ids.length; i++) {
+                await updateTool(ids[i], { status: 'published' });
+                updateToast(toastId, `Approving ${i + 1}/${ids.length} tools...`, 'loading');
             }
             revalidateAllTools();
-            updateToast(toastId, `${currentTabSelectedIds.size} tools published!`, 'success');
-            setSelectedIds(new Set());
+            updateToast(toastId, `${ids.length} tools published!`, 'success');
+            clearSelection();
         } catch (err: any) {
             const message = err?.message || 'Failed to approve some tools';
             updateToast(toastId, message, 'error');
@@ -224,29 +258,31 @@ export default function ModerationPage() {
     };
 
     const handleBulkReject = async () => {
-        if (currentTabSelectedIds.size === 0) return;
+        const count = selectAllMode === 'all' ? (pagination?.total || 0) : currentTabSelectedIds.size;
+        if (count === 0) return;
         const confirmed = await confirm({
             title: 'Bulk Reject',
-            message: `Reject ${currentTabSelectedIds.size} selected tool${currentTabSelectedIds.size > 1 ? 's' : ''}? They will be moved to draft.`,
+            message: `Reject ${count} selected tool${count > 1 ? 's' : ''}? They will be moved to draft.`,
             confirmText: 'Reject All',
             cancelText: 'Cancel',
             danger: true
         });
         if (!confirmed) return;
 
-        const toastId = showToast(`Rejecting ${currentTabSelectedIds.size} tools...`, 'loading');
+        const toastId = showToast(`Rejecting 0/${count} tools...`, 'loading');
         try {
-            for (const id of currentTabSelectedIds) {
-                const tool = tools.find(t => t.id === id);
+            const ids = await getIdsForBulkOperation();
+            for (let i = 0; i < ids.length; i++) {
                 const rejectionNote = { note: 'Bulk rejected', createdAt: new Date().toISOString() };
-                await updateTool(id, {
+                await updateTool(ids[i], {
                     status: 'draft',
-                    internalNotes: [...(tool?.internalNotes || []), rejectionNote]
+                    internalNotes: [rejectionNote]
                 });
+                updateToast(toastId, `Rejecting ${i + 1}/${ids.length} tools...`, 'loading');
             }
             revalidateAllTools();
-            updateToast(toastId, `${currentTabSelectedIds.size} tools rejected`, 'success');
-            setSelectedIds(new Set());
+            updateToast(toastId, `${ids.length} tools rejected`, 'success');
+            clearSelection();
         } catch (err: any) {
             const message = err?.message || 'Failed to reject some tools';
             updateToast(toastId, message, 'error');
@@ -278,24 +314,27 @@ export default function ModerationPage() {
     };
 
     const handleBulkDelete = async () => {
-        if (currentTabSelectedIds.size === 0) return;
+        const count = selectAllMode === 'all' ? (pagination?.total || 0) : currentTabSelectedIds.size;
+        if (count === 0) return;
         const confirmed = await confirm({
             title: 'Bulk Delete',
-            message: `Permanently delete ${currentTabSelectedIds.size} selected tool${currentTabSelectedIds.size > 1 ? 's' : ''}? This cannot be undone.`,
+            message: `Permanently delete ${count} selected tool${count > 1 ? 's' : ''}? This cannot be undone.`,
             confirmText: 'Delete All',
             cancelText: 'Cancel',
             danger: true
         });
         if (!confirmed) return;
 
-        const toastId = showToast(`Deleting ${currentTabSelectedIds.size} tools...`, 'loading');
+        const toastId = showToast(`Deleting 0/${count} tools...`, 'loading');
         try {
-            for (const id of currentTabSelectedIds) {
-                await fetch(`/api/tools/${id}`, { method: 'DELETE' });
+            const ids = await getIdsForBulkOperation();
+            for (let i = 0; i < ids.length; i++) {
+                await fetch(`/api/tools/${ids[i]}`, { method: 'DELETE' });
+                updateToast(toastId, `Deleting ${i + 1}/${ids.length} tools...`, 'loading');
             }
             revalidateAllTools();
-            updateToast(toastId, `${currentTabSelectedIds.size} tools deleted`, 'success');
-            setSelectedIds(new Set());
+            updateToast(toastId, `${ids.length} tools deleted`, 'success');
+            clearSelection();
         } catch (err: any) {
             const message = err?.message || 'Failed to delete some tools';
             updateToast(toastId, message, 'error');
@@ -303,24 +342,27 @@ export default function ModerationPage() {
     };
 
     const handleBulkUnpublish = async () => {
-        if (currentTabSelectedIds.size === 0) return;
+        const count = selectAllMode === 'all' ? (pagination?.total || 0) : currentTabSelectedIds.size;
+        if (count === 0) return;
         const confirmed = await confirm({
             title: 'Bulk Unpublish',
-            message: `Unpublish ${currentTabSelectedIds.size} selected tool${currentTabSelectedIds.size > 1 ? 's' : ''}? They will no longer be visible.`,
+            message: `Unpublish ${count} selected tool${count > 1 ? 's' : ''}? They will no longer be visible.`,
             confirmText: 'Unpublish All',
             cancelText: 'Cancel',
             danger: true
         });
         if (!confirmed) return;
 
-        const toastId = showToast(`Unpublishing ${currentTabSelectedIds.size} tools...`, 'loading');
+        const toastId = showToast(`Unpublishing 0/${count} tools...`, 'loading');
         try {
-            for (const id of currentTabSelectedIds) {
-                await updateTool(id, { status: 'unpublished' });
+            const ids = await getIdsForBulkOperation();
+            for (let i = 0; i < ids.length; i++) {
+                await updateTool(ids[i], { status: 'unpublished' });
+                updateToast(toastId, `Unpublishing ${i + 1}/${ids.length} tools...`, 'loading');
             }
             revalidateAllTools();
-            updateToast(toastId, `${currentTabSelectedIds.size} tools unpublished`, 'success');
-            setSelectedIds(new Set());
+            updateToast(toastId, `${ids.length} tools unpublished`, 'success');
+            clearSelection();
         } catch (err: any) {
             const message = err?.message || 'Failed to unpublish some tools';
             updateToast(toastId, message, 'error');
@@ -328,23 +370,26 @@ export default function ModerationPage() {
     };
 
     const handleBulkMoveToDraft = async () => {
-        if (currentTabSelectedIds.size === 0) return;
+        const count = selectAllMode === 'all' ? (pagination?.total || 0) : currentTabSelectedIds.size;
+        if (count === 0) return;
         const confirmed = await confirm({
             title: 'Move to Draft',
-            message: `Move ${currentTabSelectedIds.size} selected tool${currentTabSelectedIds.size > 1 ? 's' : ''} to draft?`,
+            message: `Move ${count} selected tool${count > 1 ? 's' : ''} to draft?`,
             confirmText: 'Move All',
             cancelText: 'Cancel'
         });
         if (!confirmed) return;
 
-        const toastId = showToast(`Moving ${currentTabSelectedIds.size} tools to draft...`, 'loading');
+        const toastId = showToast(`Moving 0/${count} tools to draft...`, 'loading');
         try {
-            for (const id of currentTabSelectedIds) {
-                await updateTool(id, { status: 'draft' });
+            const ids = await getIdsForBulkOperation();
+            for (let i = 0; i < ids.length; i++) {
+                await updateTool(ids[i], { status: 'draft' });
+                updateToast(toastId, `Moving ${i + 1}/${ids.length} tools to draft...`, 'loading');
             }
             revalidateAllTools();
-            updateToast(toastId, `${currentTabSelectedIds.size} tools moved to draft`, 'success');
-            setSelectedIds(new Set());
+            updateToast(toastId, `${ids.length} tools moved to draft`, 'success');
+            clearSelection();
         } catch (err: any) {
             const message = err?.message || 'Failed to move some tools to draft';
             updateToast(toastId, message, 'error');
@@ -352,23 +397,26 @@ export default function ModerationPage() {
     };
 
     const handleBulkMoveToReview = async () => {
-        if (currentTabSelectedIds.size === 0) return;
+        const count = selectAllMode === 'all' ? (pagination?.total || 0) : currentTabSelectedIds.size;
+        if (count === 0) return;
         const confirmed = await confirm({
             title: 'Move to Review',
-            message: `Move ${currentTabSelectedIds.size} selected tool${currentTabSelectedIds.size > 1 ? 's' : ''} to review queue?`,
+            message: `Move ${count} selected tool${count > 1 ? 's' : ''} to review queue?`,
             confirmText: 'Move All',
             cancelText: 'Cancel'
         });
         if (!confirmed) return;
 
-        const toastId = showToast(`Moving ${currentTabSelectedIds.size} tools to review...`, 'loading');
+        const toastId = showToast(`Moving 0/${count} tools to review...`, 'loading');
         try {
-            for (const id of currentTabSelectedIds) {
-                await updateTool(id, { status: 'pending' });
+            const ids = await getIdsForBulkOperation();
+            for (let i = 0; i < ids.length; i++) {
+                await updateTool(ids[i], { status: 'pending' });
+                updateToast(toastId, `Moving ${i + 1}/${ids.length} tools to review...`, 'loading');
             }
             revalidateAllTools();
-            updateToast(toastId, `${currentTabSelectedIds.size} tools moved to review`, 'success');
-            setSelectedIds(new Set());
+            updateToast(toastId, `${ids.length} tools moved to review`, 'success');
+            clearSelection();
         } catch (err: any) {
             const message = err?.message || 'Failed to move some tools to review';
             updateToast(toastId, message, 'error');
@@ -390,14 +438,16 @@ export default function ModerationPage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div>
-                        <h1 className="text-xl md:text-2xl font-bold text-text-primary">Moderation</h1>
+                        <h1 className="text-xl md:text-2xl font-bold text-text-primary capitalize">{activeTab} Tools</h1>
                         <p className="text-sm text-text-tertiary mt-1">
-                            {pagination ? `${pagination.total} ${activeTab} tools` : 'Loading...'}
+                            {pagination ? `${pagination.total} tools` : 'Loading...'}
                         </p>
                     </div>
                     {someSelected && (
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm text-text-secondary">{currentTabSelectedIds.size} selected</span>
+                            <span className="text-sm text-text-secondary">
+                                {selectAllMode === 'all' ? `All ${totalSelectedCount}` : totalSelectedCount} selected
+                            </span>
                             {activeTab === 'pending' && (
                                 <>
                                     <button onClick={handleBulkReject} className="px-3 py-1.5 text-sm text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-400/10 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-400/20 transition-colors">
@@ -509,11 +559,34 @@ export default function ModerationPage() {
                             {activeTab === 'unpublished' && 'Unpublished Tools'}
                         </h2>
                         {filteredTools.length > 0 && (
-                            <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
-                                <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                                    className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-primary" />
-                                Select All
-                            </label>
+                            <div className="flex items-center gap-3">
+                                <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={allOnPageSelected || selectAllMode === 'all'}
+                                        onChange={() => allOnPageSelected || selectAllMode === 'all' ? clearSelection() : selectPage()}
+                                        className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-primary cursor-pointer"
+                                    />
+                                    Select All
+                                </label>
+                                {/* Gmail-style: when page is selected, show "Select all X" link */}
+                                {allOnPageSelected && selectAllMode !== 'all' && pagination && pagination.total > filteredTools.length && (
+                                    <button onClick={selectAll} className="text-sm text-accent-primary hover:underline">
+                                        Select all {pagination.total}
+                                    </button>
+                                )}
+                                {selectAllMode === 'all' && (
+                                    <span className="text-sm text-accent-primary font-medium">All {pagination?.total} selected</span>
+                                )}
+                                {someSelected && (
+                                    <>
+                                        <span className="text-text-tertiary">|</span>
+                                        <button onClick={clearSelection} className="text-sm text-accent-red hover:underline">
+                                            Clear
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         )}
                     </div>
                     <div className="divide-y divide-border">

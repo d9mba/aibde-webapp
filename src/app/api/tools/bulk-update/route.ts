@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, adminToolToDbTool } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
+// Helper to convert value to array
+function toArray<T>(value: T | T[] | null | undefined): T[] {
+    if (Array.isArray(value)) return value;
+    if (value != null) return [value];
+    return [];
+}
+
 /**
  * PUT /api/tools/bulk-update
  * Bulk upsert tools from CSV data
@@ -357,9 +364,9 @@ export async function PUT(request: NextRequest) {
                 const taskCounts = new Map<string, number>();
 
                 (allTools || []).forEach(t => {
-                    const categories = Array.isArray(t.category_name) ? t.category_name : (t.category_name ? [t.category_name] : []);
+                    const categories = toArray(t.category_name);
                     categories.forEach((cat: string) => categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1));
-                    const tasks = Array.isArray(t.task_name) ? t.task_name : (t.task_name ? [t.task_name] : []);
+                    const tasks = toArray(t.task_name);
                     tasks.forEach((task: string) => taskCounts.set(task, (taskCounts.get(task) || 0) + 1));
                 });
 

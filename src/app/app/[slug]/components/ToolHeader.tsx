@@ -9,6 +9,7 @@ import { Share2 } from 'lucide-react';
 import { trackToolVisit } from '@/hooks/useToolAnalytics';
 import { useImpressions } from '@/contexts/ImpressionsContext';
 import VoteButtons from '@/components/ui/VoteButtons';
+import { ToolBadge } from '@/components/icons';
 
 // Click-to-open More Options Menu
 function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
@@ -118,7 +119,15 @@ export default function ToolHeader({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 sm:gap-4">
                         <div className="flex-1 min-w-0">
-                            <h1 className="text-xl sm:text-3xl font-bold text-text-primary leading-tight">{tool.name}</h1>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-xl sm:text-3xl font-bold text-text-primary leading-tight">{tool.name}</h1>
+                                <ToolBadge
+                                    listingType={tool.listingType}
+                                    spotlightEnabled={tool.spotlightEnabled}
+                                    isFeatured={tool.isFeatured}
+                                    size={20}
+                                />
+                            </div>
                             <p className="text-text-secondary text-sm sm:text-base mt-0.5 sm:mt-1">{tool.summary || 'An AI-powered tool'}</p>
                         </div>
 
@@ -206,22 +215,24 @@ export default function ToolHeader({
             </div>
 
             {/* Tags - Visible on mobile and desktop */}
-            {tool.tags && tool.tags.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 mt-3">
-                    {tool.tags.slice(0, 6).map((tag, idx) => (
-                        <Link
-                            prefetch={false} key={idx}
-                            href={`/search?q=${encodeURIComponent('#' + tag)}`}
-                            className="px-2 py-0.5 bg-bg-tertiary text-text-secondary hover:bg-accent-primary/10 hover:text-accent-primary text-xs rounded-full no-underline transition-colors"
-                        >
-                            #{tag}
-                        </Link>
-                    ))}
-                    {tool.tags.length > 6 && (
-                        <span className="text-xs text-text-tertiary">+{tool.tags.length - 6} more</span>
-                    )}
-                </div>
-            )}
+            {
+                tool.tags && tool.tags.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                        {tool.tags.slice(0, 6).map((tag, idx) => (
+                            <Link
+                                prefetch={false} key={idx}
+                                href={`/search?q=${encodeURIComponent('#' + tag)}`}
+                                className="px-2 py-0.5 bg-bg-tertiary text-text-secondary hover:bg-accent-primary/10 hover:text-accent-primary text-xs rounded-full no-underline transition-colors"
+                            >
+                                #{tag}
+                            </Link>
+                        ))}
+                        {tool.tags.length > 6 && (
+                            <span className="text-xs text-text-tertiary">+{tool.tags.length - 6} more</span>
+                        )}
+                    </div>
+                )
+            }
 
             {/* Stats Row - Impressions, Rating, Voting */}
             <div className="flex items-center gap-4 mt-3">
@@ -266,12 +277,12 @@ export default function ToolHeader({
 
             {/* Updated Date + More menu */}
             <div className="flex items-center gap-2 mt-2 text-xs text-text-tertiary">
-                {(tool.updatedAt || tool.createdAt || tool.released_on) && (
+                {(tool.updatedAt || tool.createdAt || tool.launchedOn) && (
                     <div className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Updated on {new Date(tool.updatedAt || tool.createdAt || tool.released_on).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        Updated on {new Date(tool.updatedAt || tool.createdAt || tool.launchedOn).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
                 )}
 
@@ -295,7 +306,7 @@ export default function ToolHeader({
                     </button>
                 ))}
             </div>
-        </div>
+        </div >
     );
 }
 

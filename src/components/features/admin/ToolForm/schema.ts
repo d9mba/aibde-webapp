@@ -6,7 +6,8 @@ export const toolSchema = z.object({
     name: z.string().min(1, "Name is required"),
     app_username: z.string().default(''),
     summary: z.string().min(1, "Summary is required"),
-    description: z.string().min(1, "Description is required"),
+    description: z.string().default(''),
+    isAiGenerated: z.boolean().default(false),
     logoUrl: z.string().default(''),
     websiteUrl: z.string().default(''),
     affiliateUrl: z.string().default(''),
@@ -77,7 +78,7 @@ export const toolSchema = z.object({
     versionHistory: z.array(z.object({
         version: z.string(),
         releaseNotes: z.string(),
-        released_on: z.string(),
+        launchedOn: z.string(),
     })).default([]),
 
     // Alternative Tools
@@ -87,11 +88,12 @@ export const toolSchema = z.object({
     // Publishing
     status: z.enum(['draft', 'pending', 'published', 'unpublished', 'scheduled']).default('draft'),
     scheduledAt: z.string().default(''),
-    released_on: z.string().default(''),
+    launchedOn: z.string().default(''),
     spotlightEnabled: z.boolean().default(false),
     spotlightPosition: z.number().default(1),
     spotlightStartDate: z.string().default(''),
     spotlightEndDate: z.string().default(''),
+    listingType: z.enum(['free', 'fast', 'verified', 'featured', 'spotlight']).default('free'),
 
     // Back Links - gives dofollow backlinks (SEO value)
     backLinks: z.boolean().default(false),
@@ -147,11 +149,12 @@ export const defaultToolValues: ToolFormData = {
     references: [],
     status: 'draft',
     scheduledAt: '',
-    released_on: '',
+    launchedOn: '',
     spotlightEnabled: false,
     spotlightPosition: 1,
     spotlightStartDate: '',
     spotlightEndDate: '',
+    listingType: 'free',
     backLinks: false,
     saveCount: 0,
     rating: undefined,

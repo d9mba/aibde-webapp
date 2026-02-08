@@ -90,10 +90,12 @@ const navGroups: NavGroup[] = [
         ]
     },
     {
-        label: 'Advertising',
+        label: 'Listing',
         items: [
             { href: '/dashboard/spotlight', label: 'Spotlight', icon: 'star' },
             { href: '/dashboard/featured', label: 'Featured', icon: 'rocket' },
+            { href: '/dashboard/verified', label: 'Verified', icon: 'shield' },
+            { href: '/dashboard/fast-listings', label: 'Fast Listings', icon: 'trending' },
         ]
     },
     {
@@ -251,22 +253,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                                     </span>
                                 </button>
                             </SignOutButton>
-                            <Link
-                                href="/"
-                                prefetch={false}
-                                className="flex items-center gap-2.5 px-2.5 py-2 text-[0.8125rem] font-[450] text-text-secondary no-underline rounded-md transition-all duration-fast whitespace-nowrap hover:bg-bg-tertiary hover:text-text-primary"
-                                title="Back to Site"
-                            >
-                                <span className="flex items-center justify-center w-5 h-5 flex-shrink-0">
-                                    {renderIcon('back')}
-                                </span>
-                                <span className={cn(
-                                    "whitespace-nowrap transition-opacity duration-150",
-                                    isExpanded ? 'opacity-100' : 'opacity-0 lg:group-hover:opacity-100'
-                                )}>
-                                    Back to Site
-                                </span>
-                            </Link>
                         </div>
                     </aside>
 

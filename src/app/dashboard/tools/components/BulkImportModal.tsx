@@ -25,7 +25,7 @@ interface ImportedTool {
     pricing_label?: string;
     pricingLabel?: string;
     rating?: string | number;
-    released_on?: string;
+    launched_on?: string;
     core_features?: string | string[];
     use_cases?: string | string[];
     pros?: string | string[];
@@ -72,7 +72,7 @@ export default function BulkImportModal({ isOpen, onClose, onImportComplete }: B
             'pricing',
             'pricing_label',
             'rating',
-            'released_on',
+            'launched_on',
             'core_features',
             'use_cases',
             'pros',
@@ -561,8 +561,8 @@ export default function BulkImportModal({ isOpen, onClose, onImportComplete }: B
                                     <p className="text-sm text-text-primary mt-1">{previewingTool.rating || '-'}</p>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-medium text-text-tertiary uppercase">Release Date</label>
-                                    <p className="text-sm text-text-primary mt-1">{previewingTool.released_on || '-'}</p>
+                                    <label className="text-xs font-medium text-text-tertiary uppercase">Launch Date</label>
+                                    <p className="text-sm text-text-primary mt-1">{previewingTool.launched_on || '-'}</p>
                                 </div>
                                 <div className="col-span-2">
                                     <label className="text-xs font-medium text-text-tertiary uppercase">Images (URLs)</label>

@@ -109,22 +109,22 @@ const NotesEditor = ({ notes, onChange }: { notes: { note: string; createdAt: st
 };
 
 // Version History Editor
-const VersionEditor = ({ versions, onChange }: { versions: { version: string; releaseNotes: string; released_on: string }[]; onChange: (versions: { version: string; releaseNotes: string; released_on: string }[]) => void }) => {
-    const [v, setV] = useState({ version: '', releaseNotes: '', released_on: '' });
-    const add = () => { if (v.version.trim()) { onChange([...versions, { ...v, released_on: v.released_on || new Date().toISOString().split('T')[0] }]); setV({ version: '', releaseNotes: '', released_on: '' }); } };
+const VersionEditor = ({ versions, onChange }: { versions: { version: string; releaseNotes: string; launchedOn: string }[]; onChange: (versions: { version: string; releaseNotes: string; launchedOn: string }[]) => void }) => {
+    const [v, setV] = useState({ version: '', releaseNotes: '', launchedOn: '' });
+    const add = () => { if (v.version.trim()) { onChange([...versions, { ...v, launchedOn: v.launchedOn || new Date().toISOString().split('T')[0] }]); setV({ version: '', releaseNotes: '', launchedOn: '' }); } };
     return (
         <div>
             <label className="block text-sm font-medium text-text-secondary mb-1.5">Version History</label>
             <div className="grid grid-cols-3 gap-2 mb-2">
                 <input value={v.version} onChange={e => setV({ ...v, version: e.target.value })} placeholder="Version (e.g., 2.0)" className="px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm" />
-                <input type="date" value={v.released_on} onChange={e => setV({ ...v, released_on: e.target.value })} className="px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm" />
+                <input type="date" value={v.launchedOn} onChange={e => setV({ ...v, launchedOn: e.target.value })} className="px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm" />
                 <button type="button" onClick={add} className="px-3 py-2 bg-accent-primary text-white rounded-lg text-sm">Add</button>
             </div>
             <textarea value={v.releaseNotes} onChange={e => setV({ ...v, releaseNotes: e.target.value })} placeholder="Release notes..." rows={2} className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm resize-none mb-3" />
             {versions.map((ver, i) => (
                 <div key={i} className="p-3 bg-bg-secondary rounded-lg mb-2 flex justify-between">
                     <div>
-                        <p className="text-sm font-medium text-text-primary">v{ver.version} - {ver.released_on}</p>
+                        <p className="text-sm font-medium text-text-primary">v{ver.version} - {ver.launchedOn}</p>
                         <p className="text-sm text-text-secondary mt-1">{ver.releaseNotes}</p>
                     </div>
                     <button type="button" onClick={() => onChange(versions.filter((_, j) => j !== i))} className="text-text-tertiary hover:text-accent-red">×</button>
@@ -442,9 +442,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                 'features': 'coreFeatures',
                 'core_features': 'coreFeatures',
                 'use_cases': 'useCases',
-                'released_at': 'released_on',
-                'released_date': 'released_on',
-                'founded': 'released_on',
+                'launched_on': 'launchedOn',
                 'free_trial': 'hasFreeTrial',
                 'freeTrial': 'hasFreeTrial',
                 'trial_days': 'freeTrialDays',
@@ -625,7 +623,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
   // PUBLISHING
   "status": "draft|pending|published|unpublished|scheduled",
-  "released_on": "YYYY-MM-DD", // Founded date
+  "launchedOn": "YYYY-MM-DD", // Founded date
   "scheduledAt": "datetime",  // Scheduled publish date
 
   // SPOTLIGHT
@@ -685,8 +683,19 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                         <Input label="Summary" required {...register('summary')} maxLength={200} error={errors.summary?.message} />
                         <Controller name="logoUrl" control={control} render={({ field }) => <MediaUpload label="App Logo" value={field.value || ''} onChange={field.onChange} uploadType="logo" toolName={watch('name')} />} />
                         <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-1.5">Description <span className="text-accent-red">*</span></label>
-                            <Controller name="description" control={control} render={({ field }) => <RichTextEditor value={field.value} onChange={field.onChange} placeholder="Detailed description..." />} />
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label className="text-sm font-medium text-text-secondary">Description <span className="text-accent-red">*</span></label>
+                                <Controller name="isAiGenerated" control={control} render={({ field }) => (
+                                    <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer hover:text-text-secondary">
+                                        <input type="checkbox" checked={field.value || false} onChange={field.onChange} className="rounded w-3.5 h-3.5" />
+                                        <svg className="w-3 h-3" viewBox="0 0 32 32" fill="currentColor">
+                                            <path d="M22.714 9.238l-1.214-3.238-1.214 3.238-2.286 0.762 2.286 0.762 1.214 3.238 1.214-3.238 2.286-0.762-2.286-0.762zM20.714 21.238l-1.214-3.238-1.214 3.238-2.286 0.762 2.286 0.762 1.214 3.238 1.214-3.238 2.286-0.762-2.286-0.762zM13.459 13.486l-1.959-5.487-1.959 5.487-4.541 1.514 4.541 1.514 1.959 5.486 1.959-5.486 4.541-1.514-4.541-1.514z" />
+                                        </svg>
+                                        AI Generated
+                                    </label>
+                                )} />
+                            </div>
+                            <Controller name="description" control={control} render={({ field }) => <RichTextEditor value={field.value || ''} onChange={field.onChange} placeholder="Detailed description..." />} />
                         </div>
                         <Input label="Website Link" required type="url" {...register('websiteUrl')} error={errors.websiteUrl?.message} />
                         <div className="pt-2">
@@ -698,7 +707,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                 </div>
                             )}
                         </div>
-                        <Input label="Released On" type="date" {...register('released_on')} />
+                        <Input label="Launched On" type="date" {...register('launchedOn')} />
                     </Section>
 
                     {/* 2. Categories & Classification */}
@@ -910,6 +919,24 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                     <Input label="End Date" type="date" {...register('spotlightEndDate')} />
                                 </div>
                             )}
+                        </div>
+                        <div className="pt-4 border-t border-border mt-4">
+                            <label className="block text-sm font-medium text-text-secondary mb-1.5">Listing Type</label>
+                            <Controller name="listingType" control={control} render={({ field }) => (
+                                <SearchableSelect
+                                    value={field.value || 'free'}
+                                    onChange={field.onChange}
+                                    options={[
+                                        { value: 'free', label: 'Free Listing', icon: <span className="w-4 h-4 rounded-full bg-gray-400" /> },
+                                        { value: 'fast', label: 'Fast Listing', icon: <svg className="w-4 h-4 text-orange-500" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg> },
+                                        { value: 'verified', label: 'Verified', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#1d9bf0"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" /></svg> },
+                                        { value: 'featured', label: 'Featured', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" /></svg> },
+                                        { value: 'spotlight', label: 'Spotlight', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" /></svg> },
+                                    ]}
+                                    showSearch={false}
+                                />
+                            )} />
+                            <p className="text-xs text-text-tertiary mt-1">Determines listing badge: Blue for Verified, Gold for Featured</p>
                         </div>
                         <div className="pt-4 border-t border-border mt-4">
                             <Controller name="backLinks" control={control} render={({ field }) => <Toggle label="Back Links" checked={field.value || false} onChange={field.onChange} />} />

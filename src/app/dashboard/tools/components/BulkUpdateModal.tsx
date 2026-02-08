@@ -19,7 +19,7 @@ interface UpdateTool {
     pricing_label?: string;
     pricingLabel?: string;
     rating?: string | number;
-    released_on?: string;
+    launched_on?: string;
     core_features?: string | string[];
     use_cases?: string | string[];
     pros?: string | string[];
@@ -75,7 +75,7 @@ export default function BulkUpdateModal({ isOpen, onClose, onUpdateComplete }: B
             'pricing',
             'pricing_label',
             'rating',
-            'released_on',
+            'launched_on',
             'core_features',
             'use_cases',
             'pros',

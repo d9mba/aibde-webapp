@@ -1,6 +1,7 @@
 'use client';
 
 import { AdminTool } from '@/types';
+import SearchIcon from '@/assets/svg/ui/search.svg';
 
 interface SearchSuggestionsDropdownProps {
     suggestions: AdminTool[];
@@ -67,10 +68,7 @@ export default function SearchSuggestionsDropdown({
                         }
                     }}
                 >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-tertiary flex-shrink-0">
-                        <circle cx="11" cy="11" r="8" />
-                        <path d="M21 21l-4.35-4.35" />
-                    </svg>
+                    <SearchIcon className="w-4 h-4 text-text-tertiary flex-shrink-0" />
                     <span className="text-sm text-text-secondary">
                         Search for &ldquo;<span className="text-text-primary">{query}</span>&rdquo;
                     </span>
@@ -79,3 +77,4 @@ export default function SearchSuggestionsDropdown({
         </div>
     );
 }
+

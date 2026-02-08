@@ -7,6 +7,13 @@ import { trackToolClick, useToolImpression, trackFilterUsed } from '@/hooks/useT
 import { getPricingColor, getPricingLabel } from '@/lib/formatters';
 import { getFullUrl } from '@/lib/url';
 import { useImpressions } from '@/contexts/ImpressionsContext';
+import { ToolBadge, StarIcon } from '@/components/icons';
+import GridIcon from '@/assets/svg/ui/grid.svg';
+import TaskIcon from '@/assets/svg/actions/task.svg';
+import BarChartIcon from '@/assets/svg/ui/bar-chart.svg';
+import UpvoteIcon from '@/assets/svg/actions/upvote.svg';
+import EyeIcon from '@/assets/svg/actions/eye.svg';
+import ShareIcon from '@/assets/svg/actions/share.svg';
 
 interface AIToolCardProps {
     tool: AITool;
@@ -149,6 +156,12 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                         <h3 className={`${isCompact ? 'text-sm' : 'text-[0.9375rem]'} font-semibold text-text-primary m-0 truncate`}>
                             {tool.name}
                         </h3>
+                        <ToolBadge
+                            listingType={tool.listingType}
+                            spotlightEnabled={tool.spotlightEnabled}
+                            isFeatured={tool.isFeatured}
+                            size={14}
+                        />
                     </div>
                     <p className={`${isCompact ? 'text-xs' : 'text-[0.75rem]'} text-text-secondary leading-relaxed m-0 line-clamp-3`}>
                         {tool.summary || tool.description}
@@ -175,12 +188,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                                     e.currentTarget.style.color = '#10b981';
                                 }}
                             >
-                                <svg className="opacity-70" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="3" y="3" width="7" height="7" rx="1" />
-                                    <rect x="14" y="3" width="7" height="7" rx="1" />
-                                    <rect x="14" y="14" width="7" height="7" rx="1" />
-                                    <rect x="3" y="14" width="7" height="7" rx="1" />
-                                </svg>
+                                <GridIcon className="w-3 h-3 opacity-70" />
                                 {(tool.categoryName || [])[0]}
                             </span>
                         )}
@@ -203,10 +211,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                                     e.currentTarget.style.color = '#f59e0b';
                                 }}
                             >
-                                <svg className="opacity-70" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M9 11l3 3L22 4" />
-                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                                </svg>
+                                <TaskIcon className="w-3 h-3 opacity-70" />
                                 {(tool.taskName || [])[0]}
                             </span>
                         )}
@@ -215,17 +220,12 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
             </div>
 
             <div className={`flex justify-between items-center gap-2 ${isCompact ? 'pt-1.5' : 'pt-2'} border-t border-border`}>
-                <span className="text-[0.625rem] text-text-tertiary leading-none flex-shrink-0">{tool.releasedAgo}</span>
+                <span className="text-[0.625rem] text-text-tertiary leading-none flex-shrink-0">{tool.launchedAgo}</span>
                 {/* Stats - Center with flex-1 */}
                 <div className="flex items-center justify-center gap-2 flex-1 min-w-0">
                     {/* Impressions indicator */}
                     <span className="inline-flex items-center gap-0.5 text-[0.625rem] text-text-tertiary leading-none">
-                        <svg width="12" height="12" viewBox="0 0 512 512" fill="currentColor" className="opacity-70 flex-shrink-0">
-                            <path d="M184 448h48c4.4 0 8-3.6 8-8V72c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v368c0 4.4 3.6 8 8 8z" />
-                            <path d="M88 448h48c4.4 0 8-3.6 8-8V296c0-4.4-3.6-8-8-8H88c-4.4 0-8 3.6-8 8v144c0 4.4 3.6 8 8 8z" />
-                            <path d="M280.1 448h47.8c4.5 0 8.1-3.6 8.1-8.1V232.1c0-4.5-3.6-8.1-8.1-8.1h-47.8c-4.5 0-8.1 3.6-8.1 8.1v207.8c0 4.5 3.6 8.1 8.1 8.1z" />
-                            <path d="M368 136.1v303.8c0 4.5 3.6 8.1 8.1 8.1h47.8c4.5 0 8.1-3.6 8.1-8.1V136.1c0-4.5-3.6-8.1-8.1-8.1h-47.8c-4.5 0-8.1 3.6-8.1 8.1z" />
-                        </svg>
+                        <BarChartIcon className="w-3 h-3 opacity-70 flex-shrink-0" />
                         <span>{(() => {
                             const count = liveImpressions || tool.viewCount || 0;
                             return count >= 1000 ? `${Math.round(count / 1000)}k` : count.toLocaleString();
@@ -233,15 +233,11 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                     </span>
                     {/* Upvotes + Star Rating */}
                     <span className="inline-flex items-center gap-0.5 text-[0.625rem] text-text-secondary leading-none">
-                        <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" className="opacity-70 flex-shrink-0">
-                            <path d="M10 19a3.966 3.966 0 01-3.96-3.962V10.98H2.838a1.731 1.731 0 01-1.605-1.073 1.734 1.734 0 01.377-1.895L9.364.254a.925.925 0 011.272 0l7.754 7.759c.498.499.646 1.242.376 1.894-.27.652-.9 1.073-1.605 1.073h-3.202v4.058A3.965 3.965 0 019.999 19H10zM2.989 9.179H7.84v5.731c0 1.13.81 2.163 1.934 2.278a2.163 2.163 0 002.386-2.15V9.179h4.851L10 2.163 2.989 9.179z" />
-                        </svg>
+                        <UpvoteIcon className="w-3 h-3 opacity-70 flex-shrink-0" />
                         <span>{tool.upvotes ?? 0}</span>
                         {tool.rating != null && tool.rating > 0 && (
                             <>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="opacity-70 flex-shrink-0 ml-1">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                                </svg>
+                                <StarIcon size={12} className="opacity-70 flex-shrink-0 ml-1" />
                                 <span>{tool.rating.toFixed(1)}</span>
                             </>
                         )}
@@ -269,24 +265,17 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                 <button
                     className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-full border border-border cursor-pointer transition-all duration-fast bg-bg-tertiary text-text-secondary hover:bg-bg-card hover:border-text-tertiary hover:text-text-primary"
                     onClick={handleViewClick}
+                    suppressHydrationWarning
                 >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                    </svg>
+                    <EyeIcon className="w-3.5 h-3.5" />
                     View
                 </button>
                 <button
                     className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-full border border-border cursor-pointer transition-all duration-fast bg-bg-tertiary text-text-secondary hover:bg-bg-card hover:border-text-tertiary hover:text-text-primary"
                     onClick={handleShareClick}
+                    suppressHydrationWarning
                 >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="18" cy="5" r="3" />
-                        <circle cx="6" cy="12" r="3" />
-                        <circle cx="18" cy="19" r="3" />
-                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                    </svg>
+                    <ShareIcon className="w-3.5 h-3.5" />
                     Share
                 </button>
             </div>

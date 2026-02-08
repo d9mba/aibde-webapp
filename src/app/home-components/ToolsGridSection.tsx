@@ -22,7 +22,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
 
     const newTools = useMemo(() => {
         return [...tools].sort((a, b) =>
-            new Date(b.released_on).getTime() - new Date(a.released_on).getTime()
+            new Date(b.launchedOn).getTime() - new Date(a.launchedOn).getTime()
         );
     }, [tools]);
 

@@ -18,7 +18,7 @@ interface ImportedTool {
     pricing_label?: string;
     pricingLabel?: string;
     rating?: string | number;
-    released_on?: string;
+    launched_on?: string;
     core_features?: string | string[];
     use_cases?: string | string[];
     pros?: string | string[];
@@ -201,10 +201,10 @@ export default function BulkImportEditModal({
                                 onChange={(e) => handleUpdate({ website: e.target.value, websiteUrl: e.target.value })}
                             />
                             <Input
-                                label="Released On"
+                                label="Launched On"
                                 type="date"
-                                value={tool.released_on || ''}
-                                onChange={(e) => handleUpdate({ released_on: e.target.value })}
+                                value={tool.launched_on || ''}
+                                onChange={(e) => handleUpdate({ launched_on: e.target.value })}
                             />
                         </div>
                     </Section>

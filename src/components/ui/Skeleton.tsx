@@ -158,17 +158,24 @@ export function TabsSkeleton(): JSX.Element {
     );
 }
 
-// ===== Categories/Tasks Section Skeleton - Responsive =====
+// ===== Categories/Tasks Section Skeleton - Responsive (CSS-only, SSR-safe) =====
+const CATEGORY_SKELETON_WIDTHS = [
+    'w-[59px] sm:w-[70px]',
+    'w-[77px] sm:w-[90px]',
+    'w-[51px] sm:w-[60px]',
+    'w-[85px] sm:w-[100px]',
+    'w-[68px] sm:w-[80px]',
+    'w-[64px] sm:w-[75px]',
+] as const;
+
 export function CategoryListSkeleton({ count = 6 }: { count?: number }): JSX.Element {
-    const widths = [70, 90, 60, 100, 80, 75]; // Varied widths for natural look
     return (
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {Array.from({ length: count }).map((_, i) => (
                 <Skeleton
                     key={i}
                     variant="rect"
-                    className={`h-8 sm:h-9 rounded-full`}
-                    width={widths[i % widths.length] * (window?.innerWidth < 640 ? 0.85 : 1)}
+                    className={`h-8 sm:h-9 rounded-full ${CATEGORY_SKELETON_WIDTHS[i % CATEGORY_SKELETON_WIDTHS.length]}`}
                 />
             ))}
         </div>

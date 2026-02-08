@@ -2,7 +2,17 @@
 
 import Link from 'next/link';
 import { Category } from '@/types';
+import { slugify } from '@/lib/utils';
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+
+function HomeIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+    );
+}
 
 interface CategoryPageClientProps {
     categories: Category[];
@@ -12,16 +22,19 @@ interface CategoryPageClientProps {
 const ITEMS_PER_LOAD = 50;
 
 export default function CategoryPageClient({ categories, totalCount }: CategoryPageClientProps) {
-    const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_LOAD);
     const [activeLetter, setActiveLetter] = useState<string>('');
     const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    // Sort categories alphabetically and filter those with tools
+    // Sort categories alphabetically, dedupe by id, and filter those with tools
     const sortedCategories = useMemo(() => {
-        return categories
-            .filter(cat => (cat.count || 0) > 0)
-            .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+        const byId = new Map<string, Category>();
+        categories.forEach((cat) => {
+            if ((cat.count || 0) > 0 && !byId.has(cat.id)) {
+                byId.set(cat.id, cat);
+            }
+        });
+        return Array.from(byId.values()).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
     }, [categories]);
 
     // Get visible categories
@@ -151,34 +164,16 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                 </p>
             </section>
 
-            <div className="flex gap-4">
-                {/* Alphabet Sidebar - Fixed on desktop */}
-                <div className="hidden lg:flex flex-col items-center gap-0 sticky top-20 max-h-[calc(100vh-120px)] overflow-y-auto py-1 px-0.5 bg-bg-secondary/50 border border-border rounded-lg">
-                    {allLetters.map(letter => (
-                        <button
-                            key={letter}
-                            onClick={() => scrollToLetter(letter)}
-                            className={`w-7 h-7 flex items-center justify-center text-xs font-medium rounded transition-colors ${activeLetter === letter
-                                ? 'bg-accent-primary text-white'
-                                : groupedCategories[letter]
-                                    ? 'text-text-primary hover:bg-accent-primary/10 hover:text-accent-primary'
-                                    : 'text-text-tertiary hover:bg-bg-secondary'
-                                }`}
-                        >
-                            {letter}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Main Content */}
-                <div className="flex-1 space-y-6">
+            <div className="flex gap-2 sm:gap-4">
+                {/* Main Content - left on mobile, right on desktop */}
+                <div className="order-1 lg:order-2 flex-1 min-w-0 space-y-6">
                     {sortedLetters.map(letter => (
                         <div key={letter} id={`section-${letter}`}>
                             <h2 className="text-lg font-bold text-text-primary mb-3 pb-2 border-b border-border">{letter}</h2>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                {groupedCategories[letter].map((category) => (
+                                {groupedCategories[letter].map((category, idx) => (
                                     <Link
-                                        key={category.categoryName}
+                                        key={`${letter}-${category.id}-${idx}`}
                                         href={`/category/${slugify(category.categoryName)}`}
                                         prefetch={false}
                                         className="flex flex-col gap-0.5 px-3 py-2.5 bg-bg-card border border-border rounded-lg no-underline transition-all duration-200 hover:border-accent-primary/50 hover:bg-bg-secondary"
@@ -202,6 +197,27 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                             <p className="text-sm text-text-tertiary">Showing all {totalCount.toLocaleString()} categories</p>
                         ) : null}
                     </div>
+                </div>
+
+                {/* Alphabet bar - right on mobile (sticky), left on desktop; home icon above like ref (scroll-to-top is global ScrollToTop) */}
+                <div className="order-2 lg:order-1 flex flex-col items-center gap-0.5 sticky top-20 max-h-[calc(100vh-120px)] overflow-y-auto py-1.5 px-1 bg-bg-secondary/50 border border-border rounded-lg flex-shrink-0">
+                    <Link href="/" prefetch={false} className="w-8 h-8 flex items-center justify-center rounded text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 transition-colors" aria-label="Home">
+                        <HomeIcon className="w-5 h-5" />
+                    </Link>
+                    {allLetters.map(letter => (
+                        <button
+                            key={letter}
+                            onClick={() => scrollToLetter(letter)}
+                            className={`w-7 h-7 flex items-center justify-center text-xs font-medium rounded transition-colors ${activeLetter === letter
+                                ? 'bg-accent-primary text-white'
+                                : groupedCategories[letter]
+                                    ? 'text-text-primary hover:bg-accent-primary/10 hover:text-accent-primary'
+                                    : 'text-text-tertiary hover:bg-bg-secondary'
+                                }`}
+                        >
+                            {letter}
+                        </button>
+                    ))}
                 </div>
             </div>
 

@@ -33,6 +33,29 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 /**
+ * Fetch a page of categories (for sitemap pagination). Order by category_name for stable paging.
+ */
+export async function getCategoriesRange(offset: number, limit: number): Promise<Category[]> {
+    const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('category_name', { ascending: true })
+        .range(offset, offset + limit - 1);
+
+    if (error) {
+        console.error('Error fetching categories range:', error);
+        return [];
+    }
+    return (data || []).map(row => ({
+        id: row.id,
+        categoryName: row.category_name,
+        description: row.description,
+        count: row.count,
+        icon: row.icon,
+    }));
+}
+
+/**
  * Fetch tasks for homepage
  * Only returns tasks with at least 1 linked tool (count > 0)
  * Paginated to handle more than 1000 rows (Supabase limit)
@@ -67,6 +90,28 @@ export async function getTasks(): Promise<Task[]> {
     }
 
     return allTasks.map(row => ({
+        id: row.id,
+        taskName: row.task_name,
+        description: row.description,
+        count: row.count,
+    }));
+}
+
+/**
+ * Fetch a page of tasks (for sitemap pagination). Order by task_name for stable paging.
+ */
+export async function getTasksRange(offset: number, limit: number): Promise<Task[]> {
+    const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('task_name', { ascending: true })
+        .range(offset, offset + limit - 1);
+
+    if (error) {
+        console.error('Error fetching tasks range:', error);
+        return [];
+    }
+    return (data || []).map(row => ({
         id: row.id,
         taskName: row.task_name,
         description: row.description,

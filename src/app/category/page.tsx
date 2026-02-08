@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { getCategories, getCategoriesCount } from '@/lib/data';
+import { SEO } from '@/lib/seo';
 import CategoryPageClient from './CategoryPageClient';
 
 /**
@@ -28,8 +29,8 @@ export async function generateMetadata(): Promise<Metadata> {
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: 'https://aibde.tech/category',
+            siteName: SEO.siteName,
+            url: `${SEO.siteUrl}/category`,
         },
         twitter: {
             card: 'summary_large_image',
@@ -37,8 +38,9 @@ export async function generateMetadata(): Promise<Metadata> {
             description,
         },
         alternates: {
-            canonical: 'https://aibde.tech/category',
+            canonical: `${SEO.siteUrl}/category`,
         },
+        robots: { index: true, follow: true },
     };
 }
 

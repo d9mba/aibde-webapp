@@ -13,7 +13,7 @@ export default function Section({ title, children, defaultOpen = true }: Section
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
-        <div className="bg-bg-card border border-border rounded-xl">
+        <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}

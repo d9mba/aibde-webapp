@@ -16,13 +16,16 @@ export {
 // Category and Task functions
 export {
     getCategories,
+    getCategoriesRange,
     getTasks,
+    getTasksRange,
     getTags,
 } from './categories';
 
 // Tool fetching functions
 export {
     getPublishedTools,
+    getPublishedToolsRange,
     getSpotlightTools,
     getRecentlyReleasedTools,
     getTrendingTools,

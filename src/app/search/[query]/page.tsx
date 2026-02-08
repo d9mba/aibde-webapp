@@ -38,6 +38,20 @@ export default function SearchResultsPage() {
         }
     };
 
+    if (isLoading) {
+        return (
+            <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10">
+                <div className="mb-8">
+                    <div className="h-5 w-24 bg-bg-tertiary rounded animate-pulse mb-4" />
+                    <div className="h-12 max-w-[500px] bg-bg-tertiary rounded-full animate-pulse mb-6" />
+                    <div className="h-7 w-48 bg-bg-tertiary rounded animate-pulse mb-1" />
+                    <div className="h-4 w-32 bg-bg-tertiary rounded animate-pulse" />
+                </div>
+                <ToolGridSkeleton count={12} />
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10">
             <div className="mb-8">

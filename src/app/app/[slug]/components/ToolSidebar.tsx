@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AdminTool } from '@/types';
+import { slugify } from '@/lib/utils';
 import { getFullUrl, logoColors } from './utils';
 import { addUtmParams } from '@/lib/url-utils';
 import { trackToolVisit } from '@/hooks/useToolAnalytics';
@@ -239,7 +240,7 @@ export default function ToolSidebar({
                                     return (
                                         <Link
                                             prefetch={false} key={idx}
-                                            href={`/category/${cat.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                                            href={`/category/${slugify(cat)}`}
                                             className={`px-3 py-1.5 border rounded-full text-xs font-medium transition-colors no-underline ${colors[idx % colors.length]}`}
                                         >
                                             {cat}
@@ -279,7 +280,7 @@ export default function ToolSidebar({
                                     return (
                                         <Link
                                             prefetch={false} key={idx}
-                                            href={`/task/${task.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                                            href={`/task/${slugify(task)}`}
                                             className={`px-3 py-1.5 border rounded-full text-xs font-medium transition-colors no-underline ${colors[idx % colors.length]}`}
                                         >
                                             {task}

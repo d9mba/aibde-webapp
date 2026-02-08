@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool, DbTool } from '@/lib/supabase';
 import { toolSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
+import { escapeLike } from '@/lib/utils';
 
 // All fields for tools - needed for edit form to work correctly
 // WARNING: Contains sensitive fields - use only for single-tool detail view
@@ -103,7 +104,7 @@ function applyFilters(query: any, filters: { search?: string | null, category?: 
         query = query.eq('status', filters.status);
     }
     if (filters.search) {
-        query = query.ilike('name', `%${filters.search}%`);
+        query = query.ilike('name', `%${escapeLike(filters.search)}%`);
     }
     if (filters.category && filters.category !== 'all') {
         query = query.contains('category_name', [filters.category]);

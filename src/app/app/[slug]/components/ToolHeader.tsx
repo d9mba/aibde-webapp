@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AdminTool } from '@/types';
 import { getFullUrl, ensureProtocol, getLogoColor, Section } from './utils';
 import { addUtmParams } from '@/lib/url-utils';
+import { slugify } from '@/lib/utils';
 import { Share2 } from 'lucide-react';
 import { trackToolVisit } from '@/hooks/useToolAnalytics';
 import { useImpressions } from '@/contexts/ImpressionsContext';
@@ -166,7 +167,7 @@ export default function ToolHeader({
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3">
                 {(tool.categoryName || [])[0] && (
                     <Link
-                        prefetch={false} href={`/category/${tool.categoryName[0].toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                        prefetch={false} href={`/category/${slugify(tool.categoryName[0])}`}
                         className="flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 text-[10px] sm:text-xs font-medium rounded-full transition-colors no-underline"
                     >
                         <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -180,7 +181,7 @@ export default function ToolHeader({
                 )}
                 {(tool.taskName || [])[0] && (
                     <Link
-                        prefetch={false} href={`/task/${tool.taskName[0].toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                        prefetch={false} href={`/task/${slugify(tool.taskName[0])}`}
                         className="flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 bg-orange-50 border border-orange-100 text-orange-700 hover:bg-orange-100 text-[10px] sm:text-xs font-medium rounded-full transition-colors no-underline"
                     >
                         <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

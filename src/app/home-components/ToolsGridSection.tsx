@@ -21,9 +21,13 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
     const loadMoreRef = useRef<HTMLDivElement>(null);
 
     const newTools = useMemo(() => {
-        return [...tools].sort((a, b) =>
-            new Date(b.launchedOn).getTime() - new Date(a.launchedOn).getTime()
-        );
+        const toTimestamp = (t: AdminTool) => {
+            const raw = t.launchedOn ?? t.createdAt;
+            if (raw == null) return 0;
+            const ts = new Date(raw).getTime();
+            return Number.isNaN(ts) ? 0 : ts;
+        };
+        return [...tools].sort((a, b) => toTimestamp(b) - toTimestamp(a));
     }, [tools]);
 
     // Use trendingTools directly from server - already filtered and sorted

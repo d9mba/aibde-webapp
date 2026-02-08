@@ -1,17 +1,10 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-/**
- * Utility function to merge Tailwind CSS classes with proper conflict resolution
- */
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: ClassValue[]): string {
     return twMerge(clsx(inputs));
 }
 
-/**
- * Get a consistent brand color class based on a name
- * Used for avatar fallbacks when no logo is provided
- */
 export function getBrandColorClass(name: string): string {
     const colors = [
         'bg-pink-500',
@@ -29,9 +22,6 @@ export function getBrandColorClass(name: string): string {
     return colors[index];
 }
 
-/**
- * Format a date to relative time (e.g., "2 days ago")
- */
 export function formatRelativeTime(date: string | Date): string {
     const now = new Date();
     const then = new Date(date);
@@ -46,13 +36,23 @@ export function formatRelativeTime(date: string | Date): string {
     return `${Math.floor(diffDays / 365)} years ago`;
 }
 
-/**
- * Get CDN URL for assets
- */
+/** URL-safe slug from category/task names. Must match sitemap and [slug] resolution. */
+export function slugify(str: string): string {
+    return str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
+
+export function escapeLike(value: string): string {
+    return value
+        .replace(/\\/g, '\\\\')
+        .replace(/%/g, '\\%')
+        .replace(/_/g, '\\_');
+}
+
 const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || '';
 
 export function getFullUrl(path: string): string {
     if (!path) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return `${CDN_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    const prefix = path.startsWith('/') ? '' : '/';
+    return `${CDN_URL}${prefix}${path}`;
 }

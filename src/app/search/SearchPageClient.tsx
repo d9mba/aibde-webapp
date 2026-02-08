@@ -23,6 +23,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     const searchParams = useSearchParams();
     const lastTrackedQuery = useRef<string>('');
     const searchTimeout = useRef<NodeJS.Timeout>();
+    const searchCommittedRef = useRef(false);
 
     const [query, setQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -36,8 +37,8 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
-    // Search input ref for Ctrl+K focus
     const inputRef = useRef<HTMLInputElement>(null);
+    const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
 
     // Ctrl+K keyboard shortcut to focus search
     useEffect(() => {
@@ -60,7 +61,8 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
 
         if (q) {
             setQuery(q);
-            setCommittedQuery(q); // Auto-search if URL has query
+            setCommittedQuery(q);
+            searchCommittedRef.current = true;
         }
         if (pricing) setSelectedPricing(pricing);
         if (category) setSelectedCategory(category);
@@ -126,7 +128,9 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         if (query.length >= 2) {
             searchTimeout.current = setTimeout(() => {
                 fetchSuggestions(query);
-                setShowSuggestions(true);
+                if (!searchCommittedRef.current) {
+                    setShowSuggestions(true);
+                }
             }, 200);
         } else {
             setSuggestions([]);
@@ -158,10 +162,13 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-                // Navigate to selected tool
                 window.location.href = `/app/${suggestions[selectedIndex].app_username}`;
             } else {
-                // Trigger search
+                if (searchTimeout.current) {
+                    clearTimeout(searchTimeout.current);
+                    searchTimeout.current = undefined;
+                }
+                searchCommittedRef.current = true;
                 setCommittedQuery(query);
                 setShowSuggestions(false);
             }
@@ -202,13 +209,25 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         if (selectedPricing) trackFilterUsed('pricing', selectedPricing);
     }, [selectedPricing]);
 
-    // Paginated results
     const visibleTools = searchResults.slice(0, visibleCount);
     const hasMore = visibleCount < searchResults.length;
 
-    const handleLoadMore = () => {
-        setVisibleCount(prev => prev + ITEMS_PER_PAGE);
-    };
+    useEffect(() => {
+        if (!hasMore) return;
+        const sentinel = loadMoreSentinelRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    setVisibleCount((prev) => prev + ITEMS_PER_PAGE);
+                }
+            },
+            { rootMargin: '200px', threshold: 0 }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMore, visibleCount]);
 
     const clearFilters = () => {
         setQuery('');
@@ -248,7 +267,10 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50"
                                 placeholder="Search AI tools... (press Enter to search)"
                                 value={query}
-                                onChange={(e) => setQuery(e.target.value)}
+                                onChange={(e) => {
+                                    searchCommittedRef.current = false;
+                                    setQuery(e.target.value);
+                                }}
                                 onKeyDown={handleKeyDown}
                                 onFocus={() => {
                                     if (query.length >= 2) {
@@ -270,7 +292,8 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                             {query && !isSearching && (
                                 <button
                                     className="flex items-center justify-center p-1 bg-transparent border-none cursor-pointer text-text-tertiary transition-colors hover:text-text-primary"
-                                    onClick={() => { setQuery(''); setCommittedQuery(''); setSearchResults([]); setHasSearched(false); }}
+                                    onClick={() => { searchCommittedRef.current = false; setQuery(''); }}
+                                    title="Clear input (press Enter to clear results)"
                                 >
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M18 6L6 18M6 6l12 12" />
@@ -287,7 +310,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                             query={query}
                             selectedIndex={selectedIndex}
                             onHoverItem={setSelectedIndex}
-                            onSearchAll={() => { setCommittedQuery(query); setShowSuggestions(false); }}
+                            onSearchAll={() => { searchCommittedRef.current = true; setCommittedQuery(query); setShowSuggestions(false); }}
                         />
                     )}
                 </div>
@@ -398,7 +421,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                 <div className="mb-12">
                     <p className="text-sm text-text-tertiary mb-4">
                         Showing {Math.min(visibleCount, searchResults.length)} of {totalCount.toLocaleString()} tool{totalCount !== 1 ? 's' : ''}
-                        {query && ` for "${query}"`}
+                        {committedQuery && ` for "${committedQuery}"`}
                     </p>
 
                     {searchResults.length === 0 ? (
@@ -427,14 +450,11 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                             </div>
 
                             {hasMore && (
-                                <div className="text-center mt-8">
-                                    <button
-                                        onClick={handleLoadMore}
-                                        className="px-6 py-3 bg-bg-card border border-border rounded-full text-sm font-medium text-text-primary transition-all duration-200 hover:border-text-tertiary hover:shadow-md"
-                                    >
-                                        Load more ({Math.min(searchResults.length - visibleCount, totalCount - visibleCount)} remaining)
-                                    </button>
-                                </div>
+                                <div
+                                    ref={loadMoreSentinelRef}
+                                    className="h-1 mt-8"
+                                    aria-hidden
+                                />
                             )}
                         </>
                     )}

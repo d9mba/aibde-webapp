@@ -6,6 +6,7 @@ import ShareModal from '@/components/ui/ShareModal';
 import { trackToolClick, useToolImpression, trackFilterUsed } from '@/hooks/useToolAnalytics';
 import { getPricingColor, getPricingLabel } from '@/lib/formatters';
 import { getFullUrl } from '@/lib/url';
+import { slugify } from '@/lib/utils';
 import { useImpressions } from '@/contexts/ImpressionsContext';
 import { ToolBadge, StarIcon } from '@/components/icons';
 import GridIcon from '@/assets/svg/ui/grid.svg';
@@ -26,9 +27,6 @@ const logoColors = [
     '#ec4899', '#22c55e', '#3b82f6', '#f97316', '#8b5cf6',
     '#ef4444', '#06b6d4', '#eab308', '#14b8a6', '#6366f1',
 ];
-
-// Slugify helper for category/task URLs
-const slugify = (str: string): string => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
 // Helper function to get ranking badge styles
 function getRankingBadgeClass(ranking: number): string {
@@ -94,7 +92,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
         e.stopPropagation();
         const firstTask = (tool.taskName || [])[0];
         if (firstTask) {
-            window.location.href = `/task/${firstTask}`;
+            window.location.href = `/task/${slugify(firstTask)}`;
         }
     };
 

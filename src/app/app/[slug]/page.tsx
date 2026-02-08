@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getToolByAppUsername, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
+import { getToolJsonLd, SEO } from '@/lib/seo';
 import ToolDetailClient from './ToolDetailClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
@@ -45,8 +46,8 @@ export async function generateMetadata({
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: `https://aibde.tech/app/${slug}`,
+            siteName: SEO.siteName,
+            url: `${SEO.siteUrl}/app/${slug}`,
             images: tool.logoUrl ? [{ url: tool.logoUrl, alt: tool.name }] : undefined,
         },
         twitter: {
@@ -56,7 +57,7 @@ export async function generateMetadata({
             images: tool.logoUrl ? [tool.logoUrl] : undefined,
         },
         alternates: {
-            canonical: `https://aibde.tech/app/${slug}`,
+            canonical: `${SEO.siteUrl}/app/${slug}`,
         },
         robots: {
             index: true,
@@ -91,15 +92,21 @@ export default async function ToolDetailPage({
     ]);
 
     return (
-        <ToolDetailClient
-            tool={tool}
-            relatedTools={relatedTools}
-            suggestedTools={suggestedTools}
-            featuredTools={featuredTools}
-            recentlyAdded={recentlyAdded}
-            categories={categories}
-            tasks={tasks}
-            showFeaturedAlternatives={settings.showFeaturedAlternatives}
-        />
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(getToolJsonLd(tool)) }}
+            />
+            <ToolDetailClient
+                tool={tool}
+                relatedTools={relatedTools}
+                suggestedTools={suggestedTools}
+                featuredTools={featuredTools}
+                recentlyAdded={recentlyAdded}
+                categories={categories}
+                tasks={tasks}
+                showFeaturedAlternatives={settings.showFeaturedAlternatives}
+            />
+        </>
     );
 }

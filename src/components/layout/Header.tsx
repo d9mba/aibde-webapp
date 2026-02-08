@@ -17,8 +17,6 @@ import {
     Sun,
     Moon,
     Menu,
-    MoreVertical,
-    GripVertical,
     Pin,
     X,
     Monitor,

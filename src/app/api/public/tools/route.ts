@@ -62,8 +62,10 @@ export async function GET(request: NextRequest) {
             query = query.contains('task_name', [task]);
         }
 
-        // Apply pagination only if not fetching all
-        if (!allData) {
+        const PUBLIC_ALL_DATA_CAP = 2000;
+        if (allData) {
+            query = query.range(0, PUBLIC_ALL_DATA_CAP - 1);
+        } else {
             query = query.range(offset, offset + limit - 1);
         }
 

@@ -42,6 +42,24 @@ export async function getPublishedTools(): Promise<AdminTool[]> {
 }
 
 /**
+ * Fetch a page of published tools (for sitemap pagination).
+ */
+export async function getPublishedToolsRange(offset: number, limit: number): Promise<AdminTool[]> {
+    const { data, error } = await supabase
+        .from('tools')
+        .select('*')
+        .in('status', ['published', 'approved'])
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+    if (error) {
+        console.error('Error fetching published tools range:', error);
+        return [];
+    }
+    return (data || []).map(tool => dbToolToAdminTool(tool)) as AdminTool[];
+}
+
+/**
  * Fetch spotlight/featured tools for homepage
  */
 export async function getSpotlightTools(limit: number = 8): Promise<AdminTool[]> {

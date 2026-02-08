@@ -1,19 +1,15 @@
-/**
- * Search Functions
- * Server-side search with relevance scoring
- */
-
 import { supabase, dbToolToAdminTool } from '../supabase';
+import { escapeLike } from '../utils';
 import { AdminTool } from '@/types';
 
-// Pricing keywords to detect in query
+const MAX_SEARCH_LIMIT = 200;
+
 const PRICING_KEYWORDS: Record<string, string> = {
     'free': 'Free',
     'freemium': 'Freemium',
     'paid': 'Paid',
 };
 
-// Stop words to filter out from search
 const STOP_WORDS = new Set([
     'a', 'an', 'the', 'and', 'or', 'but', 'for', 'with', 'to', 'of', 'in', 'on', 'at',
     'is', 'are', 'was', 'were', 'be', 'been', 'being',
@@ -22,9 +18,6 @@ const STOP_WORDS = new Set([
     'what', 'which', 'how', 'can', 'find', 'get', 'use', 'using'
 ]);
 
-/**
- * Extract meaningful keywords from query
- */
 function extractKeywords(q: string): string[] {
     if (!q) return [];
     return q.toLowerCase()
@@ -33,9 +26,6 @@ function extractKeywords(q: string): string[] {
         .filter(word => word.length >= 2 && !STOP_WORDS.has(word) && !PRICING_KEYWORDS[word]);
 }
 
-/**
- * Detect pricing from query string
- */
 function detectPricing(query: string, explicitPricing?: string): string | undefined {
     if (explicitPricing) return explicitPricing;
     const queryLower = query?.toLowerCase() || '';
@@ -55,19 +45,15 @@ export interface SearchParams {
     limit?: number;
 }
 
-/**
- * Server-side search function
- * Tokenizes query, removes stop words, matches categories/tasks
- * Returns sorted by relevance
- */
 export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
-    const { query, category, task, pricing, limit = 100 } = params;
+    const { query, category, task, pricing, limit: rawLimit = 100 } = params;
+    const limit = Math.min(Math.max(1, rawLimit ?? 100), MAX_SEARCH_LIMIT);
 
     const detectedPricing = detectPricing(query || '', pricing);
     const keywords = query ? extractKeywords(query) : [];
     const fullQuery = keywords.join(' ').trim();
+    const safeFullQuery = escapeLike(fullQuery);
 
-    // Build the query
     let dbQuery = supabase
         .from('tools')
         .select('*')
@@ -77,14 +63,15 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
         const conditions: string[] = [];
 
         if (fullQuery.length >= 3) {
-            conditions.push(`name.ilike.%${fullQuery}%`);
-            conditions.push(`summary.ilike.%${fullQuery}%`);
+            conditions.push(`name.ilike.%${safeFullQuery}%`);
+            conditions.push(`summary.ilike.%${safeFullQuery}%`);
         }
 
         for (const keyword of keywords.slice(0, 5)) {
-            conditions.push(`name.ilike.%${keyword}%`);
-            conditions.push(`summary.ilike.%${keyword}%`);
-            conditions.push(`description.ilike.%${keyword}%`);
+            const safeKeyword = escapeLike(keyword);
+            conditions.push(`name.ilike.%${safeKeyword}%`);
+            conditions.push(`summary.ilike.%${safeKeyword}%`);
+            conditions.push(`description.ilike.%${safeKeyword}%`);
             conditions.push(`category_name.cs.{${keyword}}`);
             conditions.push(`task_name.cs.{${keyword}}`);
             conditions.push(`tags.cs.{${keyword}}`);
@@ -107,7 +94,8 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
         dbQuery = dbQuery.eq('pricing', detectedPricing);
     }
 
-    dbQuery = dbQuery.limit(limit * 3);
+    const dbLimit = Math.min(limit * 3, 1000);
+    dbQuery = dbQuery.limit(dbLimit);
 
     const { data, error } = await dbQuery;
 
@@ -116,27 +104,23 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
         return [];
     }
 
-    let tools = (data || []).map(tool => dbToolToAdminTool(tool));
+    let tools = (data || []).map((tool) => dbToolToAdminTool(tool));
 
-    // Score and sort results by relevance
     if (keywords.length > 0 || fullQuery) {
-        tools = tools.map(tool => {
+        const scored = tools.map((tool) => {
             let score = 0;
             const nameL = tool.name.toLowerCase();
             const summaryL = (tool.summary || '').toLowerCase();
             const descL = (tool.description || '').toLowerCase();
-            const categories = (tool.categoryName || []).map(c => c.toLowerCase());
-            const tasks = (tool.taskName || []).map(t => t.toLowerCase());
-            const tags = (tool.tags || []).map(t => t.toLowerCase());
+            const categories = (tool.categoryName || []).map((c) => c.toLowerCase());
+            const tasks = (tool.taskName || []).map((t) => t.toLowerCase());
+            const tags = (tool.tags || []).map((t) => t.toLowerCase());
 
-            // Exact name match gets highest priority
             if (nameL === fullQuery) score += 200;
-            // Name starts with query gets high priority
             if (fullQuery && nameL.startsWith(fullQuery)) score += 100;
-            // Shorter names that contain the query rank higher (prefer "ChatGPT" over "ChatGPT Atlas")
             if (fullQuery && nameL.includes(fullQuery)) {
                 score += 80;
-                score += Math.max(0, 30 - (nameL.length - fullQuery.length)); // Bonus for shorter names
+                score += Math.max(0, 30 - (nameL.length - fullQuery.length));
             }
             if (fullQuery && summaryL.includes(fullQuery)) score += 30;
 
@@ -144,9 +128,9 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
                 if (nameL.includes(keyword)) score += 25;
                 if (summaryL.includes(keyword)) score += 15;
                 if (descL.includes(keyword)) score += 5;
-                if (categories.some(c => c.includes(keyword))) score += 20;
-                if (tasks.some(t => t.includes(keyword))) score += 20;
-                if (tags.some(t => t.includes(keyword))) score += 10;
+                if (categories.some((c) => c.includes(keyword))) score += 20;
+                if (tasks.some((t) => t.includes(keyword))) score += 20;
+                if (tags.some((t) => t.includes(keyword))) score += 10;
             }
 
             score += Math.min((tool.saveCount || 0) / 10, 20);
@@ -154,25 +138,18 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
             return { ...tool, _score: score };
         });
 
-        tools = tools
-            .filter((t: any) => t._score > 0)
-            .sort((a: any, b: any) => {
+        tools = scored
+            .filter((t) => t._score > 0)
+            .sort((a, b) => {
                 if (b._score !== a._score) return b._score - a._score;
-                return b.saveCount - a.saveCount;
+                return (b.saveCount ?? 0) - (a.saveCount ?? 0);
             })
-            .map((t: any) => {
-                const { _score, ...tool } = t;
-                return tool;
-            });
+            .map(({ _score, ...tool }) => tool);
     }
 
     return tools.slice(0, limit);
 }
 
-/**
- * Server-side search count function
- * Returns total count of matching tools (for pagination)
- */
 export async function searchToolsCount(params: Omit<SearchParams, 'limit'>): Promise<number> {
     const { query, category, task, pricing } = params;
 
@@ -187,9 +164,10 @@ export async function searchToolsCount(params: Omit<SearchParams, 'limit'>): Pro
     if (keywords.length > 0) {
         const conditions: string[] = [];
         for (const keyword of keywords.slice(0, 5)) {
-            conditions.push(`name.ilike.%${keyword}%`);
-            conditions.push(`summary.ilike.%${keyword}%`);
-            conditions.push(`description.ilike.%${keyword}%`);
+            const safeKeyword = escapeLike(keyword);
+            conditions.push(`name.ilike.%${safeKeyword}%`);
+            conditions.push(`summary.ilike.%${safeKeyword}%`);
+            conditions.push(`description.ilike.%${safeKeyword}%`);
         }
         if (conditions.length > 0) {
             dbQuery = dbQuery.or(conditions.join(','));

@@ -2,7 +2,24 @@
 
 import Link from 'next/link';
 import { Task } from '@/types';
+import { slugify } from '@/lib/utils';
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+
+function HomeIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+    );
+}
+function ChevronUpIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15" />
+        </svg>
+    );
+}
 
 interface TasksPageClientProps {
     tasks: Task[];
@@ -12,16 +29,19 @@ interface TasksPageClientProps {
 const ITEMS_PER_LOAD = 50;
 
 export default function TasksPageClient({ tasks, totalCount }: TasksPageClientProps) {
-    const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_LOAD);
     const [activeLetter, setActiveLetter] = useState<string>('');
     const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    // Sort tasks alphabetically and filter those with tools
+    // Sort tasks alphabetically, dedupe by id, and filter those with tools
     const sortedTasks = useMemo(() => {
-        return tasks
-            .filter(task => (task.count || 0) > 0)
-            .sort((a, b) => a.taskName.localeCompare(b.taskName));
+        const byId = new Map<string, Task>();
+        tasks.forEach((task) => {
+            if ((task.count || 0) > 0 && !byId.has(task.id)) {
+                byId.set(task.id, task);
+            }
+        });
+        return Array.from(byId.values()).sort((a, b) => a.taskName.localeCompare(b.taskName));
     }, [tasks]);
 
     // Get visible tasks
@@ -151,34 +171,16 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
                 </p>
             </section>
 
-            <div className="flex gap-4">
-                {/* Alphabet Sidebar - Fixed on desktop */}
-                <div className="hidden lg:flex flex-col items-center gap-0 sticky top-20 max-h-[calc(100vh-120px)] overflow-y-auto py-1 px-0.5 bg-bg-secondary/50 border border-border rounded-lg">
-                    {allLetters.map(letter => (
-                        <button
-                            key={letter}
-                            onClick={() => scrollToLetter(letter)}
-                            className={`w-7 h-7 flex items-center justify-center text-xs font-medium rounded transition-colors ${activeLetter === letter
-                                ? 'bg-accent-green text-white'
-                                : groupedTasks[letter]
-                                    ? 'text-text-primary hover:bg-accent-green/10 hover:text-accent-green'
-                                    : 'text-text-tertiary hover:bg-bg-secondary'
-                                }`}
-                        >
-                            {letter}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Main Content */}
-                <div className="flex-1 space-y-6">
+            <div className="flex gap-2 sm:gap-4">
+                {/* Main Content - left on mobile, right on desktop */}
+                <div className="order-1 lg:order-2 flex-1 min-w-0 space-y-6">
                     {sortedLetters.map(letter => (
                         <div key={letter} id={`section-${letter}`}>
                             <h2 className="text-lg font-bold text-text-primary mb-3 pb-2 border-b border-border">{letter}</h2>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                {groupedTasks[letter].map((task) => (
+                                {groupedTasks[letter].map((task, idx) => (
                                     <Link
-                                        key={task.taskName}
+                                        key={`${letter}-${task.id}-${idx}`}
                                         href={`/task/${slugify(task.taskName)}`}
                                         prefetch={false}
                                         className="flex flex-col gap-0.5 px-3 py-2.5 bg-bg-card border border-border rounded-lg no-underline transition-all duration-200 hover:border-accent-green/50 hover:bg-bg-secondary"
@@ -202,6 +204,24 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
                             <p className="text-sm text-text-tertiary">Showing all {totalCount.toLocaleString()} tasks</p>
                         ) : null}
                     </div>
+                </div>
+
+                {/* Alphabet bar - right on mobile (sticky), left on desktop */}
+                <div className="order-2 lg:order-1 flex flex-col items-center gap-0 sticky top-20 max-h-[calc(100vh-120px)] overflow-y-auto py-1 px-0.5 bg-bg-secondary/50 border border-border rounded-lg flex-shrink-0">
+                    {allLetters.map(letter => (
+                        <button
+                            key={letter}
+                            onClick={() => scrollToLetter(letter)}
+                            className={`w-7 h-7 flex items-center justify-center text-xs font-medium rounded transition-colors ${activeLetter === letter
+                                ? 'bg-accent-green text-white'
+                                : groupedTasks[letter]
+                                    ? 'text-text-primary hover:bg-accent-green/10 hover:text-accent-green'
+                                    : 'text-text-tertiary hover:bg-bg-secondary'
+                                }`}
+                        >
+                            {letter}
+                        </button>
+                    ))}
                 </div>
             </div>
 

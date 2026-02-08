@@ -24,10 +24,12 @@ export interface AITool {
     upvotes?: number;
     downvotes?: number;
     rating?: number | null; // Admin-set rating (0-5 scale)
-    released_on: string;
-    releasedAgo: string;
+    launchedOn: string;
+    launchedAgo: string;
     isFeatured: boolean;
+    listingType?: 'free' | 'fast' | 'verified' | 'featured' | 'spotlight'; // Pricing tier
     spotlightPosition?: number;
+    spotlightEnabled?: boolean;
     features?: string[];
     screenshots?: string[];
     videoUrl?: string;
@@ -111,7 +113,7 @@ export interface AdminTool extends AITool {
     versionHistory?: {
         version: string;
         releaseNotes: string;
-        released_on: string;
+        launchedOn: string;
     }[];
 
     // Section 9: Alternative Tools & References
@@ -135,6 +137,9 @@ export interface AdminTool extends AITool {
     // Timestamps
     createdAt?: string;
     updatedAt?: string;
+
+    // AI Generated content flag
+    isAiGenerated?: boolean;
 }
 
 

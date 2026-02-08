@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Google Apps Script Web App URL for saving to Google Sheets
 const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || '';
-
-// Cloudflare Turnstile secret key
 const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
 
 interface ContactFormData {
@@ -18,11 +15,10 @@ interface ContactFormData {
     turnstileToken: string;
 }
 
-// Verify Turnstile token with Cloudflare
 async function verifyTurnstile(token: string): Promise<boolean> {
     if (!TURNSTILE_SECRET_KEY) {
         console.warn('[Contact API] Turnstile secret key not configured, skipping verification');
-        return true; // Skip verification if not configured (for dev)
+        return true;
     }
 
     try {
@@ -43,11 +39,10 @@ async function verifyTurnstile(token: string): Promise<boolean> {
     }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const body: ContactFormData = await request.json();
 
-        // Validate required fields
         if (!body.firstName || !body.lastName || !body.email || !body.query || !body.reason) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
@@ -55,7 +50,26 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Verify Turnstile token
+        const MAX_LEN = { name: 100, email: 254, query: 500, reason: 2000, company: 200, contactNumber: 30, toolUrl: 500 };
+        if (body.firstName.length > MAX_LEN.name || body.lastName.length > MAX_LEN.name) {
+            return NextResponse.json({ error: 'Name fields too long' }, { status: 400 });
+        }
+        if (body.email.length > MAX_LEN.email) {
+            return NextResponse.json({ error: 'Email too long' }, { status: 400 });
+        }
+        if (body.query.length > MAX_LEN.query || body.reason.length > MAX_LEN.reason) {
+            return NextResponse.json({ error: 'Message too long' }, { status: 400 });
+        }
+        if (body.companyName && body.companyName.length > MAX_LEN.company) {
+            return NextResponse.json({ error: 'Company name too long' }, { status: 400 });
+        }
+        if (body.contactNumber && body.contactNumber.length > MAX_LEN.contactNumber) {
+            return NextResponse.json({ error: 'Contact number too long' }, { status: 400 });
+        }
+        if (body.toolUrl && body.toolUrl.length > MAX_LEN.toolUrl) {
+            return NextResponse.json({ error: 'Tool URL too long' }, { status: 400 });
+        }
+
         if (!body.turnstileToken) {
             return NextResponse.json(
                 { error: 'Security verification required' },
@@ -71,10 +85,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Remove turnstileToken from data before saving
         const { turnstileToken: _, ...formData } = body;
 
-        // If Google Apps Script URL is configured, send to Google Sheets
         if (GOOGLE_APPS_SCRIPT_URL) {
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {

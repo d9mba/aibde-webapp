@@ -235,10 +235,11 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'No path provided' }, { status: 400 });
         }
 
-        // Remove leading slash if present
         const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+        if (cleanPath.includes('..') || cleanPath.includes('//') || /[<>"|?*]/.test(cleanPath)) {
+            return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+        }
 
-        // Import deleteFile from r2
         const { deleteFile } = await import('@/services/storage.service');
         await deleteFile(cleanPath);
 

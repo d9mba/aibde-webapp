@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool, DbTool } from '@/lib/supabase';
 import { toolSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
+import { escapeLike } from '@/lib/utils';
 
 // All fields for tools - needed for edit form to work correctly
 // WARNING: Contains sensitive fields - use only for single-tool detail view
@@ -11,7 +12,7 @@ const ALL_FIELDS = `
     pricing, pricing_label, logo_url,
     website_url, affiliate_url, affiliate_enabled,
     save_count, view_count, upvotes, downvotes, rating,
-    is_featured, released_on,
+    is_featured, launched_on, listing_type,
     status, images, videos, spotlight_position, spotlight_enabled,
     created_at, updated_at,
     play_store_url, app_store_url, social_links,
@@ -34,7 +35,7 @@ const TABLE_FIELDS = `
     images, videos, play_store_url, app_store_url, social_links,
     pricing_tiers, has_free_trial, free_trial_days, discount, billing_frequency,
     contact_name, contact_email, contact_company, contact_address, contact_mobile,
-    back_links, created_at, updated_at, released_on
+    back_links, created_at, updated_at, launched_on, listing_type
 `;
 
 // Complete fields for edit form (fetched via GET /api/tools/[id])
@@ -45,7 +46,7 @@ const LIST_FIELDS = `
     pricing, pricing_label, logo_url,
     website_url, affiliate_url, affiliate_enabled,
     save_count, view_count, upvotes, downvotes, rating,
-    is_featured, released_on,
+    is_featured, launched_on, listing_type,
     status, images, videos, spotlight_position, spotlight_enabled,
     play_store_url, app_store_url, social_links,
     core_features, use_cases, pros, cons, faq,
@@ -91,7 +92,7 @@ function applyMissingDataFilter(query: any, filter: string) {
         case 'no-videos':
             return query.is('videos', null);
         case 'no-release-date':
-            return query.is('released_on', null);
+            return query.is('launched_on', null);
         default:
             return query;
     }
@@ -103,7 +104,7 @@ function applyFilters(query: any, filters: { search?: string | null, category?: 
         query = query.eq('status', filters.status);
     }
     if (filters.search) {
-        query = query.ilike('name', `%${filters.search}%`);
+        query = query.ilike('name', `%${escapeLike(filters.search)}%`);
     }
     if (filters.category && filters.category !== 'all') {
         query = query.contains('category_name', [filters.category]);

@@ -1,5 +1,7 @@
 import { Metadata } from 'next';
 import { getTasks, getToolsByTask, getToolsCountByTask } from '@/lib/data';
+import { getBreadcrumbJsonLd, getItemListJsonLd, SEO } from '@/lib/seo';
+import { slugify } from '@/lib/utils';
 import TaskSlugPageClient from './TaskSlugPageClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
@@ -7,9 +9,6 @@ export const revalidate = 300;
 interface PageProps {
     params: Promise<{ slug: string }>;
 }
-
-// Helper to slugify task name
-const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
 // Generate dynamic metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -26,7 +25,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     // Get count efficiently (not loading all tools)
     const toolCount = await getToolsCountByTask(task.taskName);
-    const title = `${task.taskName} AI Tools (${toolCount}+) | Best AI for ${task.taskName} | AiBDE`;
+    const title = `${task.taskName} AI Tools | AiBDE`;
     const description = task.description || `Find ${toolCount}+ best AI tools for ${task.taskName}. Compare top-rated AI solutions to automate and enhance your ${task.taskName.toLowerCase()} workflow.`;
 
     return {
@@ -44,8 +43,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: `https://aibde.tech/task/${slug}`,
+            siteName: SEO.siteName,
+            url: `${SEO.siteUrl}/task/${slug}`,
         },
         twitter: {
             card: 'summary_large_image',
@@ -53,8 +52,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             description,
         },
         alternates: {
-            canonical: `https://aibde.tech/task/${slug}`,
+            canonical: `${SEO.siteUrl}/task/${slug}`,
         },
+        robots: { index: true, follow: true },
     };
 }
 
@@ -75,13 +75,30 @@ export default async function TaskPage({ params }: PageProps) {
         task ? getToolsCountByTask(task.taskName) : Promise.resolve(0)
     ]);
 
+    const taskUrl = task ? `${SEO.siteUrl}/task/${slug}` : '';
+    const breadcrumbLd = task ? getBreadcrumbJsonLd([{ name: 'Home', url: SEO.siteUrl }, { name: task.taskName, url: taskUrl }]) : null;
+    const itemListLd = task && tools.length ? getItemListJsonLd(
+        `${task.taskName} AI Tools`,
+        taskUrl,
+        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.app_username}` })),
+        task.description || undefined
+    ) : null;
+
     return (
-        <TaskSlugPageClient
+        <>
+            {breadcrumbLd && (
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+            )}
+            {itemListLd && (
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }} />
+            )}
+            <TaskSlugPageClient
             task={task}
             tools={tools}
             allTasks={tasks}
             slug={slug}
             totalCount={totalCount}
-        />
+            />
+        </>
     );
 }

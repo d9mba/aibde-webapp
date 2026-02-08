@@ -111,6 +111,15 @@ export async function PUT(
             }
         }
 
+        // Sync isFeatured when listingType is set to 'featured'
+        if (body.listingType === 'featured') {
+            dbTool.is_featured = true;
+        } else if (body.listingType && body.listingType !== 'featured') {
+            // If listingType is explicitly set to non-featured, clear isFeatured
+            // (only if we're explicitly updating listingType)
+            dbTool.is_featured = false;
+        }
+
         // Update timestamp
         dbTool.updated_at = new Date().toISOString();
 

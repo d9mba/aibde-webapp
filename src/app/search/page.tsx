@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { getToolsCount, getCategoriesCount, getTasksCount, getCategories, getTasks } from '@/lib/data';
+import { SEO } from '@/lib/seo';
+import { SearchPageSkeleton } from '@/components/ui/Skeleton';
 import SearchPageClient from './SearchPageClient';
 
 // Generate dynamic metadata with tool count (uses fast count query)
@@ -27,8 +29,8 @@ export async function generateMetadata(): Promise<Metadata> {
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: 'https://aibde.tech/search',
+            siteName: SEO.siteName,
+            url: `${SEO.siteUrl}/search`,
         },
         twitter: {
             card: 'summary_large_image',
@@ -36,7 +38,11 @@ export async function generateMetadata(): Promise<Metadata> {
             description,
         },
         alternates: {
-            canonical: 'https://aibde.tech/search',
+            canonical: `${SEO.siteUrl}/search`,
+        },
+        robots: {
+            index: true,
+            follow: true,
         },
     };
 }
@@ -55,7 +61,7 @@ export default async function SearchPage() {
     ]);
 
     return (
-        <Suspense fallback={<div className="max-w-[1200px] mx-auto px-4 py-10 text-center text-text-secondary">Loading...</div>}>
+        <Suspense fallback={<div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10"><SearchPageSkeleton /></div>}>
             <SearchPageClient
                 categories={categories}
                 tasks={tasks}

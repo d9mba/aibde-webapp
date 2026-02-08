@@ -335,7 +335,7 @@ export async function POST(request: NextRequest) {
                     rating: tool.rating ? parseFloat(tool.rating) : undefined,
 
                     // Meta
-                    released_on: formatDate(tool.released_on || tool.releasedAt || tool.foundedDate || tool.released_at || tool.founded_date),
+                    launched_on: formatDate(tool.launched_on || tool.released_on || tool.releasedAt || tool.foundedDate || tool.released_at || tool.founded_date),
                     status: tool.status || 'pending',
                 };
 
@@ -487,7 +487,7 @@ export async function GET() {
         'name', 'summary', 'description', 'websiteUrl', 'logoUrl',
         'pricing', 'pricingLabel', 'categories', 'tasks', 'tags',
         'features', 'coreFeatures', 'useCases', 'pros', 'cons',
-        'rating', 'faq', 'released_on', 'status'
+        'rating', 'faq', 'launched_on', 'status'
     ].join(',');
 
     const exampleRow = [

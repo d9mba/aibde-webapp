@@ -63,8 +63,8 @@ const EXPORT_COLUMNS = {
         { key: 'downvotes', label: 'Downvotes' },
     ],
     dates: [
-        { key: 'released_on', label: 'Release Date' },
-        { key: 'releasedAgo', label: 'Released Ago' },
+        { key: 'launchedOn', label: 'Launch Date' },
+        { key: 'launchedAgo', label: 'Launched Ago' },
         { key: 'createdAt', label: 'Created At' },
         { key: 'updatedAt', label: 'Updated At' },
         { key: 'scheduledAt', label: 'Scheduled At' },
@@ -107,7 +107,7 @@ const GROUP_LABELS: Record<string, string> = {
 };
 
 const ALL_COLUMNS = Object.values(EXPORT_COLUMNS).flat();
-const DEFAULT_COLUMNS = new Set(['name', 'summary', 'websiteUrl', 'status', 'pricing', 'categoryName', 'released_on', 'createdAt']);
+const DEFAULT_COLUMNS = new Set(['name', 'summary', 'websiteUrl', 'status', 'pricing', 'categoryName', 'launchedOn', 'createdAt']);
 
 export default function ExportToolsModal({ isOpen, onClose, tools }: ExportToolsModalProps) {
     const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set(DEFAULT_COLUMNS));
@@ -234,8 +234,8 @@ export default function ExportToolsModal({ isOpen, onClose, tools }: ExportTools
                                 type="button"
                                 onClick={() => setExportFormat('csv')}
                                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${exportFormat === 'csv'
-                                        ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
-                                        : 'border-border bg-bg-secondary text-text-secondary hover:border-text-tertiary'
+                                    ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
+                                    : 'border-border bg-bg-secondary text-text-secondary hover:border-text-tertiary'
                                     }`}
                             >
                                 <FileSpreadsheet size={20} />
@@ -246,8 +246,8 @@ export default function ExportToolsModal({ isOpen, onClose, tools }: ExportTools
                                 type="button"
                                 onClick={() => setExportFormat('json')}
                                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${exportFormat === 'json'
-                                        ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
-                                        : 'border-border bg-bg-secondary text-text-secondary hover:border-text-tertiary'
+                                    ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
+                                    : 'border-border bg-bg-secondary text-text-secondary hover:border-text-tertiary'
                                     }`}
                             >
                                 <FileJson size={20} />

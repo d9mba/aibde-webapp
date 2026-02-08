@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool, Category } from '@/types';
+import { slugify } from '@/lib/utils';
 import { Folder, ArrowLeft, ChevronRight } from 'lucide-react';
 
 interface CategorySlugPageClientProps {
@@ -23,8 +24,6 @@ export default function CategorySlugPageClient({
     slug,
     totalCount
 }: CategorySlugPageClientProps) {
-    const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
     const [allTools, setAllTools] = useState<AdminTool[]>(tools);
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
     const [isLoading, setIsLoading] = useState(false);
@@ -170,7 +169,7 @@ export default function CategorySlugPageClient({
                         .slice(0, 8)
                         .map((cat) => (
                             <Link
-                                key={cat.categoryName}
+                                key={cat.id}
                                 href={`/category/${slugify(cat.categoryName)}`}
                                 prefetch={false}
                                 className="px-3 sm:px-4 py-1.5 sm:py-2 bg-bg-card border border-border rounded-full text-xs sm:text-sm text-text-secondary no-underline transition-all duration-200 hover:border-accent-primary hover:text-accent-primary hover:bg-accent-primary/5"

@@ -85,7 +85,7 @@ export default function DashboardHome() {
         .slice(0, 8);
 
     const recentPublished = [...publishedTools]
-        .sort((a, b) => new Date(b.released_on || b.createdAt || 0).getTime() - new Date(a.released_on || a.createdAt || 0).getTime())
+        .sort((a, b) => new Date(b.launchedOn || b.createdAt || 0).getTime() - new Date(a.launchedOn || a.createdAt || 0).getTime())
         .slice(0, 5);
 
     if (!isLoaded) {

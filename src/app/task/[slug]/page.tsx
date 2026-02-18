@@ -1,10 +1,10 @@
 import { Metadata } from 'next';
 import { getTasks, getToolsByTask, getToolsCountByTask } from '@/lib/data';
-import { getBreadcrumbJsonLd, getItemListJsonLd, SEO } from '@/lib/seo';
+import { getBreadcrumbJsonLd, getItemListJsonLd, safeJsonLdStringify, SEO } from '@/lib/seo';
 import { slugify } from '@/lib/utils';
 import TaskSlugPageClient from './TaskSlugPageClient';
 
-// PERFORMANCE: ISR - regenerate page every 5 minutes
+// PERFORMANCE: ISR - regenerate page every 24 hours
 export const revalidate = 86400;
 interface PageProps {
     params: Promise<{ slug: string }>;
@@ -87,10 +87,10 @@ export default async function TaskPage({ params }: PageProps) {
     return (
         <>
             {breadcrumbLd && (
-                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(breadcrumbLd) }} />
             )}
             {itemListLd && (
-                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }} />
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(itemListLd) }} />
             )}
             <TaskSlugPageClient
                 task={task}

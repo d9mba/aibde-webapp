@@ -70,12 +70,14 @@ async function verifyTurnstile(token: string): Promise<boolean> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        const identifier = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'anonymous';
+        const forwarded = request.headers.get('x-forwarded-for');
+        const clientIp = forwarded?.split(',')[0]?.trim() || null;
+        const identifier = clientIp ?? request.headers.get('x-real-ip') ?? 'anonymous';
         const rateLimit = await checkRateLimit(`submit:${identifier}`, rateLimits.sensitive);
         if (!rateLimit.success) {
             return NextResponse.json(
                 { error: 'Too many submissions. Try again later.' },
-                { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimit.resetTime - Date.now()) / 1000)) } }
+                { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rateLimit.resetTime - Date.now()) / 1000))) } }
             );
         }
 

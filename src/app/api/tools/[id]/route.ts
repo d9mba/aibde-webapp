@@ -137,7 +137,9 @@ export async function PUT(
         }
 
         // Bust ISR cache so updated tool appears instantly
-        revalidatePath(`/app/${data.app_username}`);
+        if (data.app_username) {
+            revalidatePath(`/app/${data.app_username}`);
+        }
         revalidatePath('/');
         revalidatePath('/new');
         revalidatePath('/trending');

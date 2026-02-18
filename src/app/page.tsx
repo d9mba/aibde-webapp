@@ -20,7 +20,7 @@ import {
 import { SEO } from '@/lib/seo';
 import HomePageClient from './HomePageClient';
 
-// PERFORMANCE: ISR - regenerate page every 5 minutes
+// PERFORMANCE: ISR - regenerate page every 24 hours
 export const revalidate = 86400;
 
 // Generate dynamic metadata with tool count

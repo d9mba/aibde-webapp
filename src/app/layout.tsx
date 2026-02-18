@@ -29,7 +29,7 @@ export const metadata: Metadata = {
         follow: true,
         googleBot: { index: true, follow: true, 'max-snippet': -1, 'max-image-preview': 'large', 'max-video-preview': -1 },
     },
-    alternates: { canonical: SEO.siteUrl },
+    alternates: {},
 };
 
 // Viewport configuration for safe area support on iOS devices

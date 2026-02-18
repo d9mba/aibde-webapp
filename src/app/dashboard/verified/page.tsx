@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { useToast } from '@/components/ui/Toast';
 import { Search, ChevronLeft, ChevronRight, Save, BadgeCheck } from 'lucide-react';
@@ -20,12 +20,15 @@ export default function VerifiedPage() {
     const [pendingVerifiedIds, setPendingVerifiedIds] = useState<string[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
 
-    // Initialize from current data
+    // Initialize from current data (one-time)
+    const verifiedInitializedRef = useRef(false);
     useEffect(() => {
+        if (verifiedInitializedRef.current) return;
         const currentVerified = tools.filter((t: AdminTool) => t.listingType === 'verified');
         const ids = currentVerified.map(t => t.id);
 
-        if (pendingVerifiedIds.length === 0 && ids.length > 0) {
+        if (ids.length > 0) {
+            verifiedInitializedRef.current = true;
             setPendingVerifiedIds(ids);
         }
     }, [tools]);
@@ -101,7 +104,7 @@ export default function VerifiedPage() {
 
     const handleAddToVerified = (toolId: string) => {
         const tool = tools.find(t => t.id === toolId);
-        setPendingVerifiedIds(prev => [...prev, toolId]);
+        setPendingVerifiedIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
     };
@@ -137,9 +140,14 @@ export default function VerifiedPage() {
                 }
             }
 
-            await Promise.all(updates);
+            const results = await Promise.allSettled(updates);
+            const failures = results.filter(r => r.status === 'rejected');
             setHasChanges(false);
-            showToast('Verified tools saved successfully!', 'success');
+            if (failures.length > 0) {
+                showToast(`${updates.length - failures.length} saved, ${failures.length} failed. Please review.`, 'error');
+            } else {
+                showToast('Verified tools saved successfully!', 'success');
+            }
         } catch (error) {
             console.error('Failed to save:', error);
             showToast('Failed to save. Please try again.', 'error');
@@ -340,6 +348,7 @@ export default function VerifiedPage() {
                                             onClick={() => handleRemoveFromVerified(tool.id)}
                                             className="p-1 text-text-tertiary hover:text-accent-red"
                                             title="Remove"
+                                            aria-label={`Remove ${tool.name} from verified`}
                                         >
                                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                                         </button>

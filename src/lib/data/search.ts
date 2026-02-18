@@ -26,6 +26,7 @@ export interface SearchParams {
     task?: string;
     pricing?: string;
     limit?: number;
+    offset?: number;
 }
 
 /**
@@ -51,7 +52,7 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
         filter_task: task || null,
         filter_pricing: detectedPricing || null,
         result_limit: limit,
-        result_offset: 0,
+        result_offset: Math.max(0, params.offset ?? 0),
     });
 
     if (error) {
@@ -60,7 +61,31 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((tool: any) => dbToolToAdminTool(tool));
+    const tools = (data || []).map((tool: any) => dbToolToAdminTool(tool));
+
+    // Re-sort to prioritize exact and close name matches over fuzzy content matches.
+    // PostgreSQL ts_rank_cd treats all text-match positions equally, so "ChatGPT Buddy"
+    // can outrank "ChatGPT" when the query is "chatgpt". This re-sort fixes that.
+    if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        tools.sort((a, b) => nameRelevance(b.name, q) - nameRelevance(a.name, q));
+    }
+
+    return tools;
+}
+
+/**
+ * Score a tool name against the query for relevance sorting.
+ * Higher = better match. Only used as a tiebreaker after DB retrieval.
+ */
+function nameRelevance(name: string, query: string): number {
+    const n = (name || '').toLowerCase();
+    if (n === query) return 100;           // Exact match
+    if (n.startsWith(query)) return 80;    // Name starts with query
+    if (n.includes(query)) return 60;      // Name contains query
+    // Query starts with tool name (e.g. query="chatgpt pro", name="ChatGPT")
+    if (query.startsWith(n)) return 50;
+    return 0;
 }
 
 /**

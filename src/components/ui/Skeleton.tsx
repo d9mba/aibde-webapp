@@ -336,7 +336,7 @@ export function TableSkeleton({ rows = 5, columns = 5 }: { rows?: number; column
                         <Skeleton variant="text" className="w-2/3 h-3" />
                     </div>
                     {/* Desktop: table layout */}
-                    <div className="hidden sm:contents">
+                    <div className="hidden sm:flex sm:gap-4" role="presentation">
                         {Array.from({ length: columns }).map((_, colIndex) => (
                             <Skeleton key={colIndex} variant="text" width={`${100 / columns}%`} className="h-3" />
                         ))}

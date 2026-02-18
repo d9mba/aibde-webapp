@@ -42,6 +42,10 @@ const nextConfig = {
             rule.test?.test?.('.svg')
         );
 
+        if (!fileLoaderRule) {
+            throw new Error('Could not find SVG file loader rule in webpack config');
+        }
+
         config.module.rules.push(
             // Reapply existing rule for svg imports ending with ?url
             {
@@ -53,7 +57,7 @@ const nextConfig = {
             {
                 test: /\.svg$/i,
                 issuer: fileLoaderRule.issuer,
-                resourceQuery: { not: [...fileLoaderRule.resourceQuery.not, /url/] },
+                resourceQuery: { not: [...(Array.isArray(fileLoaderRule.resourceQuery?.not) ? fileLoaderRule.resourceQuery.not : []), /url/] },
                 use: ['@svgr/webpack'],
             }
         );

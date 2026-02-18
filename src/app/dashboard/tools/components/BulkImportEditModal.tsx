@@ -203,7 +203,7 @@ export default function BulkImportEditModal({
                             <Input
                                 label="Launched On"
                                 type="date"
-                                value={tool.launched_on || ''}
+                                value={tool.launched_on || tool.released_on || ''}
                                 onChange={(e) => handleUpdate({ launched_on: e.target.value })}
                             />
                         </div>

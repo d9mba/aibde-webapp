@@ -68,7 +68,7 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
     // can outrank "ChatGPT" when the query is "chatgpt". This re-sort fixes that.
     if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        tools.sort((a, b) => nameRelevance(b.name, q) - nameRelevance(a.name, q));
+        tools.sort((a: AdminTool, b: AdminTool) => nameRelevance(b.name, q) - nameRelevance(a.name, q));
     }
 
     return tools;

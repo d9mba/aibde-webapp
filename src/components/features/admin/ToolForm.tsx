@@ -15,6 +15,23 @@ interface ToolFormProps { toolId?: string; }
 // Slugify helper
 const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+// Example JSON template for the Copy Example button (module-level to avoid hooks issues)
+const EXAMPLE_JSON = JSON.stringify({
+    name: 'Tool Name',
+    summary: 'Short description of the tool',
+    description: '<p>Full HTML description</p>',
+    websiteUrl: 'https://example.com',
+    logoUrl: 'https://example.com/logo.png',
+    categoryName: ['AI Writing', 'Productivity'],
+    taskName: ['Content Creation'],
+    tags: ['ai', 'writing'],
+    pricing: 'freemium',
+    coreFeatures: ['Feature 1', 'Feature 2'],
+    useCases: ['Use case 1'],
+    pros: ['Pro 1'],
+    cons: ['Con 1'],
+}, null, 2);
+
 // FAQ Editor Component
 const FAQEditor = ({ items, onChange }: { items: { question: string; answer: string }[]; onChange: (items: { question: string; answer: string }[]) => void }) => {
     const [q, setQ] = useState('');
@@ -207,6 +224,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     const [showJsonImport, setShowJsonImport] = useState(false);
     const [jsonInput, setJsonInput] = useState('');
     const [jsonError, setJsonError] = useState('');
+    const [parsedJsonData, setParsedJsonData] = useState<Record<string, any> | null>(null);
 
     const { register, control, handleSubmit, watch, setValue, reset, formState: { errors, isSubmitting } } = useForm<ToolFormData>({
         resolver: zodResolver(toolSchema),
@@ -408,114 +426,103 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
 
 
-    // Handle JSON import
-    const handleJsonImport = () => {
+    // Field mappings for JSON import (common aliases → our schema names)
+    const fieldMappings: Record<string, string> = {
+        'tool_name': 'name', 'toolName': 'name', 'title': 'name',
+        'short_description': 'summary', 'shortDescription': 'summary',
+        'long_description': 'description', 'longDescription': 'description',
+        'website': 'websiteUrl', 'website_url': 'websiteUrl', 'url': 'websiteUrl',
+        'logo': 'logoUrl', 'logo_url': 'logoUrl',
+        'category': 'categoryName', 'categories': 'categoryName',
+        'task': 'taskName', 'tasks': 'taskName',
+        'price': 'pricing', 'pricing_model': 'pricing',
+        'features': 'coreFeatures', 'core_features': 'coreFeatures',
+        'use_cases': 'useCases', 'launched_on': 'launchedOn',
+        'free_trial': 'hasFreeTrial', 'freeTrial': 'hasFreeTrial',
+        'trial_days': 'freeTrialDays',
+        'affiliate_url': 'affiliateUrl',
+        'social': 'socialLinks', 'social_links': 'socialLinks',
+        'username': 'app_username', 'appUsername': 'app_username',
+        'ai_generated': 'isAiGenerated', 'aiGenerated': 'isAiGenerated',
+        'listing_type': 'listingType', 'listing': 'listingType',
+        'play_store': 'playStoreUrl', 'playStore': 'playStoreUrl',
+        'app_store': 'appStoreUrl', 'appStore': 'appStoreUrl',
+        'internal_notes': 'internalNotes', 'notes': 'internalNotes',
+        'version_history': 'versionHistory', 'versions': 'versionHistory',
+        'alternative_tools': 'alternativeTools', 'alternatives': 'alternativeTools',
+    };
+
+    const stringArrayFields = ['categoryName', 'taskName', 'tags', 'coreFeatures', 'useCases', 'pros', 'cons', 'images', 'videos', 'alternativeTools', 'references'];
+
+    // Ensure a value is an array of strings
+    const ensureArray = (value: unknown): string[] => {
+        if (Array.isArray(value)) return value.map(String);
+        if (typeof value === 'string') return value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+        if (value != null) return [String(value)];
+        return [];
+    };
+
+    // Step 1: Parse JSON → store normalised data for dynamic editing
+    const handleJsonParse = () => {
         setJsonError('');
-        if (!jsonInput.trim()) {
-            setJsonError('Please paste JSON data');
-            return;
-        }
+        if (!jsonInput.trim()) { setJsonError('Please paste JSON data'); return; }
 
         try {
-            const data = JSON.parse(jsonInput);
+            const raw = JSON.parse(jsonInput);
+            const normalised: Record<string, any> = {};
 
-            // Map common field names to our schema
-            const fieldMappings: Record<string, string> = {
-                'tool_name': 'name',
-                'toolName': 'name',
-                'title': 'name',
-                'short_description': 'summary',
-                'shortDescription': 'summary',
-                'long_description': 'description',
-                'longDescription': 'description',
-                'website': 'websiteUrl',
-                'website_url': 'websiteUrl',
-                'url': 'websiteUrl',
-                'logo': 'logoUrl',
-                'logo_url': 'logoUrl',
-                'category': 'categoryName',
-                'categories': 'categoryName',
-                'task': 'taskName',
-                'tasks': 'taskName',
-                'price': 'pricing',
-                'pricing_model': 'pricing',
-                'features': 'coreFeatures',
-                'core_features': 'coreFeatures',
-                'use_cases': 'useCases',
-                'launched_on': 'launchedOn',
-                'free_trial': 'hasFreeTrial',
-                'freeTrial': 'hasFreeTrial',
-                'trial_days': 'freeTrialDays',
-                'affiliate_url': 'affiliateUrl',
-                'social': 'socialLinks',
-                'social_links': 'socialLinks',
-            };
-
-            // Process and set values
-            let importedCount = 0;
-            for (const [key, value] of Object.entries(data)) {
+            for (const [key, value] of Object.entries(raw)) {
                 if (value === null || value === undefined) continue;
-
-                // Map to our field name
                 const fieldName = fieldMappings[key] || key;
+                if (!(fieldName in defaultToolValues)) continue;
 
-                // Check if field exists in our form
-                if (fieldName in defaultToolValues) {
-                    // All array fields that need to be arrays
-                    const stringArrayFields = ['categoryName', 'taskName', 'tags', 'coreFeatures', 'useCases', 'pros', 'cons', 'images', 'videos', 'alternativeTools', 'references'];
-                    const objectArrayFields = ['faq', 'pricingTiers', 'internalNotes', 'versionHistory'];
-
-                    // Handle string arrays - ensure they're arrays of strings
-                    if (stringArrayFields.includes(fieldName)) {
-                        let arrayValue: string[] = [];
-                        if (Array.isArray(value)) {
-                            arrayValue = value.map(v => String(v));
-                        } else if (typeof value === 'string') {
-                            // Split by comma or newline if it's a string
-                            arrayValue = value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
-                        } else {
-                            arrayValue = [String(value)];
-                        }
-                        setValue(fieldName as any, arrayValue, { shouldDirty: true });
-                    }
-                    // Handle object arrays (faq, pricingTiers, etc.) - only accept if already array
-                    else if (objectArrayFields.includes(fieldName)) {
-                        if (Array.isArray(value)) {
-                            setValue(fieldName as any, value, { shouldDirty: true });
-                        }
-                        // Skip if not an array - don't try to convert
-                    }
-                    // Handle booleans
-                    else if (typeof (defaultToolValues as any)[fieldName] === 'boolean') {
-                        setValue(fieldName as any, Boolean(value), { shouldDirty: true });
-                    }
-                    // Handle numbers
-                    else if (typeof (defaultToolValues as any)[fieldName] === 'number') {
-                        setValue(fieldName as any, Number(value) || 0, { shouldDirty: true });
-                    }
-                    // Handle socialLinks object
-                    else if (fieldName === 'socialLinks' && typeof value === 'object' && !Array.isArray(value)) {
-                        setValue('socialLinks', value as any, { shouldDirty: true });
-                    }
-                    // Default - string values
-                    else if (typeof value === 'string' || typeof value === 'number') {
-                        setValue(fieldName as any, String(value), { shouldDirty: true });
-                    }
-                    importedCount++;
+                if (stringArrayFields.includes(fieldName)) {
+                    normalised[fieldName] = ensureArray(value);
+                } else if (typeof (defaultToolValues as any)[fieldName] === 'boolean') {
+                    normalised[fieldName] = Boolean(value);
+                } else if (typeof (defaultToolValues as any)[fieldName] === 'number') {
+                    normalised[fieldName] = Number(value) || 0;
+                } else if (fieldName === 'socialLinks' && typeof value === 'object' && !Array.isArray(value)) {
+                    normalised[fieldName] = value;
+                } else if (Array.isArray(value)) {
+                    normalised[fieldName] = value;
+                } else {
+                    normalised[fieldName] = String(value);
                 }
             }
 
-            if (importedCount > 0) {
-                showToast(`Imported ${importedCount} fields successfully!`, 'success');
-                setJsonInput('');
-                setShowJsonImport(false);
-            } else {
+            if (Object.keys(normalised).length === 0) {
                 setJsonError('No matching fields found in JSON');
+                return;
             }
+            setParsedJsonData(normalised);
         } catch (e) {
-            const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-            setJsonError(`Invalid JSON: ${errorMessage}`);
+            setJsonError(`Invalid JSON: ${e instanceof Error ? e.message : 'Unknown error'}`);
         }
+    };
+
+    // Update a field in the parsed preview
+    const updateParsedField = (field: string, value: any) => {
+        setParsedJsonData(prev => prev ? { ...prev, [field]: value } : prev);
+    };
+
+    // Step 2: Apply previewed data to the actual form
+    const handleApplyImport = () => {
+        if (!parsedJsonData) return;
+        let count = 0;
+        for (const [fieldName, value] of Object.entries(parsedJsonData)) {
+            setValue(fieldName as any, value, { shouldDirty: true });
+            count++;
+        }
+        showToast(`Imported ${count} fields successfully!`, 'success');
+        setParsedJsonData(null);
+        setJsonInput('');
+        setShowJsonImport(false);
+    };
+
+    const copyExampleJson = async () => {
+        await navigator.clipboard.writeText(EXAMPLE_JSON);
+        showToast('Example JSON copied to clipboard!', 'success');
     };
 
     return (
@@ -544,21 +551,30 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                 <div className="mb-6 p-4 bg-bg-card border border-accent-primary/30 rounded-xl">
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-medium text-text-primary">📋 Quick Import from JSON</h3>
-                        <button type="button" onClick={() => setShowJsonImport(false)} className="text-text-tertiary hover:text-text-primary">×</button>
+                        <button type="button" onClick={() => { setShowJsonImport(false); setParsedJsonData(null); }} className="text-text-tertiary hover:text-text-primary">×</button>
                     </div>
 
-                    {/* Collapsible Schema Reference */}
-                    <details className="mb-4 bg-bg-secondary rounded-lg border border-border">
-                        <summary className="px-3 py-2 text-xs font-medium text-text-secondary cursor-pointer hover:text-text-primary">
-                            📖 View Full Database Schema (Click to expand)
-                        </summary>
-                        <div className="px-3 py-2 text-xs text-text-tertiary font-mono border-t border-border max-h-64 overflow-y-auto">
-                            <pre className="whitespace-pre-wrap">{`{
+                    {!parsedJsonData ? (
+                        /* Step 1: Paste JSON */
+                        <>
+                            {/* Copy Example + Schema Reference */}
+                            <div className="flex items-center gap-2 mb-4">
+                                <button type="button" onClick={copyExampleJson} className="px-3 py-1.5 text-xs font-medium border border-accent-primary/40 text-accent-primary rounded-lg hover:bg-accent-primary/10 transition-colors flex items-center gap-1.5">
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                                    Copy Example JSON
+                                </button>
+                                <details className="flex-1 bg-bg-secondary rounded-lg border border-border">
+                                    <summary className="px-3 py-1.5 text-xs font-medium text-text-secondary cursor-pointer hover:text-text-primary">
+                                        📖 View Full Schema
+                                    </summary>
+                                    <div className="px-3 py-2 text-xs text-text-tertiary font-mono border-t border-border max-h-64 overflow-y-auto">
+                                        <pre className="whitespace-pre-wrap">{`{
   // BASIC SETTINGS (Required: name, summary, description)
   "name": "string",           // Tool name *required
-  "slug": "string",           // URL slug (auto-generated)
+  "app_username": "string",   // App username/handle
   "summary": "string",        // Short description *required
   "description": "string",    // Full description (HTML) *required
+  "isAiGenerated": false,     // AI-generated content flag
   "logoUrl": "string",        // Logo image URL
   "websiteUrl": "string",     // Official website
   "affiliateUrl": "string",   // Affiliate link
@@ -621,10 +637,24 @@ export default function ToolForm({ toolId }: ToolFormProps) {
   "playStoreUrl": "string",
   "appStoreUrl": "string",
 
+  // INTERNAL NOTES
+  "internalNotes": [{         // Admin notes
+    "note": "string",
+    "createdAt": "datetime"
+  }],
+
+  // VERSION HISTORY
+  "versionHistory": [{        // Release versions
+    "version": "string",
+    "releaseNotes": "string",
+    "launchedOn": "YYYY-MM-DD"
+  }],
+
   // PUBLISHING
   "status": "draft|pending|published|unpublished|scheduled",
   "launchedOn": "YYYY-MM-DD", // Founded date
   "scheduledAt": "datetime",  // Scheduled publish date
+  "listingType": "free|fast|verified|featured|spotlight",
 
   // SPOTLIGHT
   "spotlightEnabled": false,
@@ -635,39 +665,135 @@ export default function ToolForm({ toolId }: ToolFormProps) {
   // OTHER
   "backLinks": false,          // Enable dofollow backlinks
   "saveCount": 0,             // Bookmark count
+  "rating": 4.5,              // Rating (0-5)
   "alternativeTools": ["slug"], // Alt tool slugs
   "references": ["url"]       // Reference URLs
 }`}</pre>
-                        </div>
-                    </details>
+                                    </div>
+                                </details>
+                            </div>
 
-                    {/* JSON Editor with Line Numbers */}
-                    <div className="relative flex border border-border rounded-lg overflow-hidden bg-bg-secondary">
-                        {/* Line numbers */}
-                        <div className="flex-shrink-0 bg-bg-tertiary border-r border-border px-2 py-2 text-right select-none">
-                            {(jsonInput || ' ').split('\n').map((_, i) => (
-                                <div key={i} className="text-xs text-text-tertiary font-mono leading-5">{i + 1}</div>
-                            ))}
-                        </div>
-                        {/* Textarea */}
-                        <textarea
-                            value={jsonInput}
-                            onChange={(e) => { setJsonInput(e.target.value); setJsonError(''); }}
-                            placeholder='Paste your JSON here...'
-                            rows={10}
-                            className="flex-1 px-3 py-2 bg-transparent text-sm text-text-primary font-mono resize-none focus:outline-none leading-5"
-                            spellCheck={false}
-                        />
-                    </div>
-                    {jsonError && (
-                        <div className="mt-2 p-2 bg-accent-red/10 border border-accent-red/30 rounded-lg">
-                            <p className="text-xs text-accent-red font-mono">{jsonError}</p>
-                        </div>
+                            {/* JSON Editor with Line Numbers */}
+                            <div className="relative flex border border-border rounded-lg overflow-hidden bg-bg-secondary">
+                                <div className="flex-shrink-0 bg-bg-tertiary border-r border-border px-2 py-2 text-right select-none">
+                                    {(jsonInput || ' ').split('\n').map((_, i) => (
+                                        <div key={i} className="text-xs text-text-tertiary font-mono leading-5">{i + 1}</div>
+                                    ))}
+                                </div>
+                                <textarea
+                                    value={jsonInput}
+                                    onChange={(e) => { setJsonInput(e.target.value); setJsonError(''); }}
+                                    placeholder='Paste your JSON here...'
+                                    rows={10}
+                                    className="flex-1 px-3 py-2 bg-transparent text-sm text-text-primary font-mono resize-none focus:outline-none leading-5"
+                                    spellCheck={false}
+                                />
+                            </div>
+                            {jsonError && (
+                                <div className="mt-2 p-2 bg-accent-red/10 border border-accent-red/30 rounded-lg">
+                                    <p className="text-xs text-accent-red font-mono">{jsonError}</p>
+                                </div>
+                            )}
+                            <div className="flex justify-end gap-2 mt-3">
+                                <button type="button" onClick={() => { setJsonInput(''); setJsonError(''); }} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary">Clear</button>
+                                <button type="button" onClick={handleJsonParse} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90">Parse & Preview →</button>
+                            </div>
+                        </>
+                    ) : (
+                        /* Step 2: Dynamic Edit Preview */
+                        <>
+                            <p className="text-xs text-text-tertiary mb-4">Review and edit the imported fields before applying them to the form. {Object.keys(parsedJsonData).length} fields detected.</p>
+
+                            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                                {/* Basic Settings */}
+                                {(parsedJsonData.name != null || parsedJsonData.summary != null || parsedJsonData.description != null || parsedJsonData.websiteUrl != null || parsedJsonData.logoUrl != null || parsedJsonData.launchedOn != null) && (
+                                    <Section title="1. Basic Settings">
+                                        <div className="space-y-4">
+                                            {parsedJsonData.name != null && <Input label="Name" required value={parsedJsonData.name} onChange={(e) => updateParsedField('name', e.target.value)} />}
+                                            {parsedJsonData.summary != null && <Input label="Summary" value={parsedJsonData.summary} onChange={(e) => updateParsedField('summary', e.target.value)} maxLength={200} />}
+                                            {parsedJsonData.logoUrl != null && <MediaUpload label="Logo" uploadType="logo" toolName={parsedJsonData.name || 'tool'} value={parsedJsonData.logoUrl} onChange={(url) => updateParsedField('logoUrl', url)} />}
+                                            {parsedJsonData.description != null && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-text-secondary mb-1.5">Description</label>
+                                                    <RichTextEditor value={parsedJsonData.description} onChange={(val) => updateParsedField('description', val)} placeholder="Description..." />
+                                                </div>
+                                            )}
+                                            {parsedJsonData.websiteUrl != null && <Input label="Website" type="url" value={parsedJsonData.websiteUrl} onChange={(e) => updateParsedField('websiteUrl', e.target.value)} />}
+                                            {parsedJsonData.launchedOn != null && <Input label="Launched On" type="date" value={parsedJsonData.launchedOn} onChange={(e) => updateParsedField('launchedOn', e.target.value)} />}
+                                        </div>
+                                    </Section>
+                                )}
+
+                                {/* Categories & Classification */}
+                                {(parsedJsonData.categoryName != null || parsedJsonData.taskName != null || parsedJsonData.tags != null) && (
+                                    <Section title="2. Categories & Classification">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {parsedJsonData.categoryName != null && (
+                                                <Combobox label="Categories" required multiple value={ensureArray(parsedJsonData.categoryName)} onChange={(val) => updateParsedField('categoryName', val)} options={categories.map(c => ({ value: c.categoryName, label: c.categoryName }))} allowCreate onCreateNew={async (n) => { await addCategory({ categoryName: n, count: 0, description: '' }); }} />
+                                            )}
+                                            {parsedJsonData.taskName != null && (
+                                                <Combobox label="Tasks" required multiple value={ensureArray(parsedJsonData.taskName)} onChange={(val) => updateParsedField('taskName', val)} options={tasks.map(t => ({ value: t.taskName, label: t.taskName }))} allowCreate onCreateNew={async (n) => { await addTask({ taskName: n, count: 0, description: '' }); }} />
+                                            )}
+                                        </div>
+                                        {parsedJsonData.tags != null && (
+                                            <div className="mt-4">
+                                                <Combobox label="Tags" multiple value={ensureArray(parsedJsonData.tags)} onChange={(val) => updateParsedField('tags', val)} options={tags.map(t => ({ value: t.tagName, label: t.tagName }))} allowCreate onCreateNew={async (n) => { await addTag({ tagName: n, count: 0 }); }} />
+                                            </div>
+                                        )}
+                                    </Section>
+                                )}
+
+                                {/* Pricing */}
+                                {(parsedJsonData.pricing != null || parsedJsonData.pricingLabel != null) && (
+                                    <Section title="3. Pricing">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            {parsedJsonData.pricing != null && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-text-secondary mb-1.5">Pricing Model</label>
+                                                    <SearchableSelect value={parsedJsonData.pricing} onChange={(val) => updateParsedField('pricing', val)} options={[{ value: 'free', label: 'Free' }, { value: 'freemium', label: 'Freemium' }, { value: 'paid', label: 'Paid' }]} showSearch={false} />
+                                                </div>
+                                            )}
+                                            {parsedJsonData.pricingLabel != null && <Input label="Pricing Label" value={parsedJsonData.pricingLabel} onChange={(e) => updateParsedField('pricingLabel', e.target.value)} placeholder="From $20/mo" />}
+                                        </div>
+                                    </Section>
+                                )}
+
+                                {/* Features & Content */}
+                                {(parsedJsonData.coreFeatures != null || parsedJsonData.useCases != null || parsedJsonData.pros != null || parsedJsonData.cons != null) && (
+                                    <Section title="4. Features & Content">
+                                        <div className="space-y-4">
+                                            {parsedJsonData.coreFeatures != null && <ListEditor label="Core Features" items={ensureArray(parsedJsonData.coreFeatures)} onChange={(val) => updateParsedField('coreFeatures', val)} />}
+                                            {parsedJsonData.useCases != null && <ListEditor label="Use Cases" items={ensureArray(parsedJsonData.useCases)} onChange={(val) => updateParsedField('useCases', val)} />}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {parsedJsonData.pros != null && <ListEditor label="Pros" items={ensureArray(parsedJsonData.pros)} onChange={(val) => updateParsedField('pros', val)} />}
+                                                {parsedJsonData.cons != null && <ListEditor label="Cons" items={ensureArray(parsedJsonData.cons)} onChange={(val) => updateParsedField('cons', val)} />}
+                                            </div>
+                                        </div>
+                                    </Section>
+                                )}
+
+                                {/* Media */}
+                                {(parsedJsonData.images != null || parsedJsonData.videos != null) && (
+                                    <Section title="5. Media">
+                                        {parsedJsonData.images != null && <MediaUpload multiple label="Screenshots" uploadType="image" toolName={parsedJsonData.name || 'tool'} items={ensureArray(parsedJsonData.images)} onItemsChange={(items) => updateParsedField('images', items)} showAltText={false} />}
+                                        {parsedJsonData.videos != null && <MediaUpload multiple label="Videos" uploadType="video" mediaType="video" accept="video/*" toolName={parsedJsonData.name || 'tool'} items={ensureArray(parsedJsonData.videos)} onItemsChange={(items) => updateParsedField('videos', items)} showAltText={false} />}
+                                    </Section>
+                                )}
+
+                                {/* FAQ */}
+                                {parsedJsonData.faq != null && Array.isArray(parsedJsonData.faq) && (
+                                    <Section title="6. FAQ" defaultOpen={false}>
+                                        <FAQEditor items={parsedJsonData.faq} onChange={(items) => updateParsedField('faq', items)} />
+                                    </Section>
+                                )}
+                            </div>
+
+                            <div className="flex justify-between gap-2 mt-4 pt-3 border-t border-border">
+                                <button type="button" onClick={() => setParsedJsonData(null)} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary">← Back to JSON</button>
+                                <button type="button" onClick={handleApplyImport} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90">Apply {Object.keys(parsedJsonData).length} Fields to Form</button>
+                            </div>
+                        </>
                     )}
-                    <div className="flex justify-end gap-2 mt-3">
-                        <button type="button" onClick={() => { setJsonInput(''); setJsonError(''); }} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary">Clear</button>
-                        <button type="button" onClick={handleJsonImport} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90">Import & Fill Form</button>
-                    </div>
                 </div>
             )}
 

@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getToolByAppUsername, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
-import { getToolJsonLd, SEO } from '@/lib/seo';
+import { getToolJsonLd, safeJsonLdStringify, SEO } from '@/lib/seo';
 import ToolDetailClient from './ToolDetailClient';
 
-// PERFORMANCE: ISR - regenerate page every 5 minutes
-export const revalidate = 300;
+// PERFORMANCE: ISR - regenerate page every 24 hours
+export const revalidate = 86400;
 // Generate dynamic metadata for SEO
 export async function generateMetadata({
     params,
@@ -25,7 +25,7 @@ export async function generateMetadata({
     const description = tool.summary || tool.description?.slice(0, 155) || `Discover ${tool.name} - an AI tool for ${tool.categoryName?.join(', ') || 'various tasks'}`;
     const categoryLabel = tool.categoryName?.[0] || 'AI Tool';
     const taskLabels = tool.taskName?.slice(0, 3).join(', ') || '';
-    const title = `${tool.name} | ${categoryLabel} | AiBDE`;
+    const title = `${tool.name} | ${categoryLabel}`;
 
     return {
         title,
@@ -95,7 +95,7 @@ export default async function ToolDetailPage({
         <>
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(getToolJsonLd(tool)) }}
+                dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(getToolJsonLd(tool)) }}
             />
             <ToolDetailClient
                 tool={tool}

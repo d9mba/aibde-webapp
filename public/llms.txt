@@ -14,3 +14,9 @@ AiBDE is an AI tools directory. Find the best AI software for your workflow. Upd
 - [Trending AI tools](https://www.aibde.tech/trending)
 - [Submit a tool](https://www.aibde.tech/submit)
 - [About](https://www.aibde.tech/about)
+- [Contact](https://www.aibde.tech/contact)
+
+## Optional
+
+- [Privacy Policy](https://www.aibde.tech/privacy)
+- [Terms of Service](https://www.aibde.tech/terms)

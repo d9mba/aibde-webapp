@@ -114,6 +114,7 @@ export const defaultToolValues: ToolFormData = {
     app_username: '',
     summary: '',
     description: '',
+    isAiGenerated: false,
     logoUrl: '',
     websiteUrl: '',
     affiliateUrl: '',

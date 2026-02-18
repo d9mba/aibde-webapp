@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin, adminToolToDbTool } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
@@ -466,6 +467,13 @@ export async function POST(request: NextRequest) {
                 console.error('[Bulk Import] Failed to update counts:', countError);
                 // Don't fail the import if count update fails
             }
+        }
+
+        // Bust ISR cache so new tools appear instantly
+        if (results.success > 0) {
+            revalidatePath('/');
+            revalidatePath('/new');
+            revalidatePath('/trending');
         }
 
         return NextResponse.json({

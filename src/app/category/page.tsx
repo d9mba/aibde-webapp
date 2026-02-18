@@ -3,13 +3,15 @@ import { getCategories, getCategoriesCount } from '@/lib/data';
 import { SEO } from '@/lib/seo';
 import CategoryPageClient from './CategoryPageClient';
 
+export const revalidate = 86400;
+
 /**
  * Dynamic SEO Metadata for Categories Page
  */
 export async function generateMetadata(): Promise<Metadata> {
     const categoryCount = await getCategoriesCount();
 
-    const title = `Browse ${categoryCount}+ AI Categories | AI Tools Directory | AiBDE`;
+    const title = 'Browse AI Categories | AI Tools Directory';
     const description = `Explore ${categoryCount}+ categories of AI tools including chatbots, image generators, writing assistants, code tools, video editors, and more. Find the best AI for any use case.`;
 
     return {

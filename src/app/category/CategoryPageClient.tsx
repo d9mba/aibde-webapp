@@ -5,15 +5,6 @@ import { Category } from '@/types';
 import { slugify } from '@/lib/utils';
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 
-function HomeIcon({ className }: { className?: string }) {
-    return (
-        <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
-    );
-}
-
 interface CategoryPageClientProps {
     categories: Category[];
     totalCount: number;
@@ -199,11 +190,8 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                     </div>
                 </div>
 
-                {/* Alphabet bar - right on mobile (sticky), left on desktop; home icon above like ref (scroll-to-top is global ScrollToTop) */}
+                {/* Alphabet bar - right on mobile (sticky), left on desktop */}
                 <div className="order-2 lg:order-1 flex flex-col items-center gap-0.5 sticky top-20 max-h-[calc(100vh-120px)] overflow-y-auto py-1.5 px-1 bg-bg-secondary/50 border border-border rounded-lg flex-shrink-0">
-                    <Link href="/" prefetch={false} className="w-8 h-8 flex items-center justify-center rounded text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 transition-colors" aria-label="Home">
-                        <HomeIcon className="w-5 h-5" />
-                    </Link>
                     {allLetters.map(letter => (
                         <button
                             key={letter}

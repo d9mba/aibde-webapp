@@ -3,13 +3,15 @@ import { getTasks, getTasksCount } from '@/lib/data';
 import { SEO } from '@/lib/seo';
 import TasksPageClient from './TasksPageClient';
 
+export const revalidate = 86400;
+
 /**
  * Dynamic SEO Metadata for Tasks Page
  */
 export async function generateMetadata(): Promise<Metadata> {
     const taskCount = await getTasksCount();
 
-    const title = `Browse ${taskCount}+ AI Tasks | Find AI Tools by Task | AiBDE`;
+    const title = 'Browse AI Tasks | Find AI Tools by Task';
     const description = `Discover AI tools for ${taskCount}+ different tasks including writing, coding, image generation, video editing, marketing automation, and more. Find the perfect AI solution for your needs.`;
 
     return {

@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { escapeLike } from '@/lib/utils';
 
 const MAX_SEARCH_LIMIT = 100;
 const MAX_QUERY_LENGTH = 200;
-const DB_FETCH_CAP = 500;
 
 interface PublicTool {
     id: string;
@@ -47,56 +45,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const rawLimit = parseInt(searchParams.get('limit') || '100', 10);
         const limit = Math.min(Math.max(1, Number.isNaN(rawLimit) ? 100 : rawLimit), MAX_SEARCH_LIMIT);
 
-        const PUBLIC_SEARCH_FIELDS = `
-            id, name, app_username, logo_url, summary, description,
-            category_name, task_name, tags,
-            pricing, pricing_label, save_count, is_featured,
-            status, created_at, updated_at
-        `;
-
-        let dbQuery = supabase
-            .from('tools')
-            .select(PUBLIC_SEARCH_FIELDS)
-            .in('status', ['published', 'approved']);
-
-        if (query) {
-            const safeQuery = escapeLike(query);
-            dbQuery = dbQuery.or(`name.ilike.${safeQuery}%,summary.ilike.${safeQuery}%`);
-        }
-
-        if (category) dbQuery = dbQuery.contains('category_name', [category]);
-        if (task) dbQuery = dbQuery.contains('task_name', [task]);
-        if (pricing) dbQuery = dbQuery.eq('pricing', pricing);
-
-        dbQuery = dbQuery.limit(Math.min(limit * 2, DB_FETCH_CAP));
-
-        const { data, error } = await dbQuery;
+        const { data, error } = await supabase.rpc('search_tools', {
+            search_query: query || null,
+            filter_category: category || null,
+            filter_task: task || null,
+            filter_pricing: pricing || null,
+            result_limit: limit,
+            result_offset: 0,
+        });
 
         if (error) {
             console.error('Search error:', error);
             return NextResponse.json({ error: 'Search failed' }, { status: 500 });
         }
 
-        let tools = (data || []).map((row) => toPublicTool(row));
-
-        if (query) {
-            const lowerQuery = query.toLowerCase();
-            tools = tools.sort((a, b) => {
-                const aNameMatch = a.name.toLowerCase().includes(lowerQuery);
-                const bNameMatch = b.name.toLowerCase().includes(lowerQuery);
-                const aNameStarts = a.name.toLowerCase().startsWith(lowerQuery);
-                const bNameStarts = b.name.toLowerCase().startsWith(lowerQuery);
-
-                if (aNameStarts && !bNameStarts) return -1;
-                if (!aNameStarts && bNameStarts) return 1;
-                if (aNameMatch && !bNameMatch) return -1;
-                if (!aNameMatch && bNameMatch) return 1;
-
-                return b.saveCount - a.saveCount;
-            });
-        }
-
-        tools = tools.slice(0, limit);
+        const tools = (data || []).map((row: Record<string, unknown>) => toPublicTool(row));
 
         return NextResponse.json({ tools, count: tools.length });
     } catch (err) {

@@ -3,6 +3,10 @@ import { getAllSitemapIds } from '../sitemap';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aibde.tech';
 
+function escapeXml(str: string | number): string {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 /**
  * Sitemap index at /sitemap-index.xml — lists all sitemap URLs (static + paginated tools, categories, tasks).
  * Using a separate path avoids conflict with Next.js metadata sitemap (which serves /sitemap/[id].xml).
@@ -14,7 +18,7 @@ export async function GET(): Promise<NextResponse> {
     const sitemapEntries = ids
         .map(
             (id) =>
-                `  <sitemap>\n    <loc>${BASE_URL}/sitemap/${id}.xml</loc>\n    <lastmod>${now}</lastmod>\n  </sitemap>`
+                `  <sitemap>\n    <loc>${BASE_URL}/sitemap/${escapeXml(id)}.xml</loc>\n    <lastmod>${now}</lastmod>\n  </sitemap>`
         )
         .join('\n');
 

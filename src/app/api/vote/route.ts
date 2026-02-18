@@ -10,12 +10,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const clientIp = forwarded
             ? forwarded.split(',').map((s) => s.trim()).find(Boolean)
             : null;
-        const identifier = clientIp ?? request.headers.get('x-real-ip') ?? 'anonymous';
+        const identifier = clientIp
+            ?? request.headers.get('x-real-ip')
+            ?? `anon-${(request.headers.get('user-agent') ?? '').slice(0, 32)}`;
         const rateLimit = await checkRateLimit(`vote:${identifier}`, rateLimits.sensitive);
         if (!rateLimit.success) {
             return NextResponse.json(
                 { error: 'Too many requests. Try again later.' },
-                { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimit.resetTime - Date.now()) / 1000)) } }
+                { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rateLimit.resetTime - Date.now()) / 1000))) } }
             );
         }
 
@@ -31,6 +33,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!['up', 'down'].includes(voteType)) {
             return NextResponse.json(
                 { error: 'Invalid request. voteType (up/down) is required.' },
+                { status: 400 }
+            );
+        }
+        if (!['add', 'remove', 'change'].includes(action)) {
+            return NextResponse.json(
+                { error: 'Invalid action. Must be add, remove, or change.' },
+                { status: 400 }
+            );
+        }
+        if (action === 'change' && !['up', 'down'].includes(previousVote)) {
+            return NextResponse.json(
+                { error: 'previousVote (up/down) is required for change action.' },
                 { status: 400 }
             );
         }

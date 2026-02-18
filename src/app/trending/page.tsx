@@ -2,13 +2,15 @@ import { Metadata } from 'next';
 import { getTrendingTools, getToolsCount } from '@/lib/data';
 import TrendingPageClient from './TrendingPageClient';
 
+export const revalidate = 86400;
+
 /**
  * Dynamic SEO Metadata for Trending Page
  */
 export async function generateMetadata(): Promise<Metadata> {
     const toolCount = await getToolsCount(['published', 'approved']);
 
-    const title = `Trending AI Tools | Most Popular AI Tools Today | AiBDE`;
+    const title = `Trending AI Tools | Most Popular AI Tools Today`;
     const description = `Discover the most popular and trending AI tools right now. See what ${toolCount.toLocaleString()}+ AI tools are getting the most attention for writing, coding, design, and more.`;
 
     return {

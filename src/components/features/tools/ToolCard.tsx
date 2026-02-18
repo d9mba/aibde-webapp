@@ -263,7 +263,6 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                 <button
                     className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-full border border-border cursor-pointer transition-all duration-fast bg-bg-tertiary text-text-secondary hover:bg-bg-card hover:border-text-tertiary hover:text-text-primary"
                     onClick={handleViewClick}
-                    suppressHydrationWarning
                 >
                     <EyeIcon className="w-3.5 h-3.5" />
                     View
@@ -271,7 +270,6 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                 <button
                     className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-full border border-border cursor-pointer transition-all duration-fast bg-bg-tertiary text-text-secondary hover:bg-bg-card hover:border-text-tertiary hover:text-text-primary"
                     onClick={handleShareClick}
-                    suppressHydrationWarning
                 >
                     <ShareIcon className="w-3.5 h-3.5" />
                     Share

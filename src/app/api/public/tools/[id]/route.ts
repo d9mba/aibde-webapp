@@ -38,7 +38,7 @@ export async function GET(
 
         // PERFORMANCE: Cache public responses
         const response = NextResponse.json(dbToolToAdminTool(data));
-        response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+        response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
         return response;
     } catch (err) {
         console.error('Public tool error:', err);

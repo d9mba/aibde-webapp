@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { useToast } from '@/components/ui/Toast';
 import { Search, ChevronLeft, ChevronRight, Save, Rocket } from 'lucide-react';
@@ -20,12 +20,15 @@ export default function FastListingsPage() {
     const [pendingFastIds, setPendingFastIds] = useState<string[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
 
-    // Initialize from current data
+    // Initialize from current data (one-time)
+    const fastInitializedRef = useRef(false);
     useEffect(() => {
+        if (fastInitializedRef.current) return;
         const currentFast = tools.filter((t: AdminTool) => t.listingType === 'fast');
         const ids = currentFast.map(t => t.id);
 
-        if (pendingFastIds.length === 0 && ids.length > 0) {
+        if (ids.length > 0) {
+            fastInitializedRef.current = true;
             setPendingFastIds(ids);
         }
     }, [tools]);
@@ -101,7 +104,7 @@ export default function FastListingsPage() {
 
     const handleAddToFast = (toolId: string) => {
         const tool = tools.find(t => t.id === toolId);
-        setPendingFastIds(prev => [...prev, toolId]);
+        setPendingFastIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
     };

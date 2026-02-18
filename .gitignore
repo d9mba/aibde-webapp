@@ -11,6 +11,7 @@ dist/
 
 # Testing
 coverage/
+playwright-viewport-screenshots/
 
 # Environment files
 .env

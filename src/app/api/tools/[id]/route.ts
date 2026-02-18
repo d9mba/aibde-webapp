@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
 import { toolUpdateSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
@@ -135,6 +136,14 @@ export async function PUT(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // Bust ISR cache so updated tool appears instantly
+        if (data.app_username) {
+            revalidatePath(`/app/${data.app_username}`);
+        }
+        revalidatePath('/');
+        revalidatePath('/new');
+        revalidatePath('/trending');
+
         return NextResponse.json(dbToolToAdminTool(data));
     } catch (err) {
         console.error('[PUT API] Unexpected error:', err);
@@ -210,6 +219,11 @@ export async function DELETE(
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        // Bust ISR cache so deleted tool disappears instantly
+        revalidatePath('/');
+        revalidatePath('/new');
+        revalidatePath('/trending');
 
         return NextResponse.json({ success: true });
     } catch (err) {

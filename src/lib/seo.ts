@@ -2,6 +2,13 @@
  * SEO helpers: JSON-LD structured data and shared constants
  */
 
+/** Safely stringify JSON-LD, escaping sequences that could break out of a script tag */
+export function safeJsonLdStringify(data: unknown): string {
+    return JSON.stringify(data)
+        .replace(/</g, '\\u003c')
+        .replace(/>/g, '\\u003e');
+}
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aibde.tech';
 const SITE_NAME = 'AiBDE';
 
@@ -103,6 +110,22 @@ export function getItemListJsonLd(
             position: i + 1,
             url: item.url,
             name: item.name,
+        })),
+    };
+}
+
+/** FAQPage for pages with FAQ sections (rich results in Google) */
+export function getFaqJsonLd(faqs: { question: string; answer: string }[]) {
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: faqs.map((faq) => ({
+            '@type': 'Question',
+            name: faq.question,
+            acceptedAnswer: {
+                '@type': 'Answer',
+                text: faq.answer,
+            },
         })),
     };
 }

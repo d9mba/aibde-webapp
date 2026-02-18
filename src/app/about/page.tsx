@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'About AiBDE | AI Tools Directory Mission & Vision',
+    title: 'About | AI Tools Directory Mission & Vision',
     description: 'Learn about AiBDE - your trusted AI tools directory. Our mission is to make AI accessible by curating the best AI tools for writing, design, coding, marketing, and productivity.',
     keywords: [
         'about AiBDE',
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
         'AI tools mission',
     ].join(', '),
     openGraph: {
-        title: 'About AiBDE | AI Tools Directory',
+        title: 'About | AI Tools Directory',
         description: 'Learn about AiBDE - your trusted AI tools directory. Our mission is to make AI accessible to everyone.',
         type: 'website',
         siteName: 'AiBDE',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary',
-        title: 'About AiBDE | AI Tools Directory',
+        title: 'About | AI Tools Directory',
         description: 'Learn about AiBDE - your trusted AI tools directory.',
     },
     alternates: {
@@ -30,11 +30,11 @@ export const metadata: Metadata = {
 export default function AboutPage() {
     return (
         <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-12 sm:py-16">
-            <h1 className="text-3xl sm:text-4xl font-bold text-text-primary mb-6">About AIBDE</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-text-primary mb-6">About AiBDE</h1>
 
             <div className="prose prose-lg text-text-secondary space-y-6">
                 <p>
-                    AIBDE is your go-to directory for discovering the best AI tools for your everyday tasks.
+                    AiBDE is your go-to directory for discovering the best AI tools for your everyday tasks.
                     We curate and organize AI-powered applications across various categories to help you find
                     the perfect tool for any job.
                 </p>

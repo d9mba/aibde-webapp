@@ -2,13 +2,15 @@ import { Metadata } from 'next';
 import { getRecentlyReleasedTools, getToolsCount } from '@/lib/data';
 import NewPageClient from './NewPageClient';
 
+export const revalidate = 86400;
+
 /**
  * Dynamic SEO Metadata for New/Just Released Page
  */
 export async function generateMetadata(): Promise<Metadata> {
     const toolCount = await getToolsCount(['published', 'approved']);
 
-    const title = `New AI Tools | Latest AI Releases | AiBDE`;
+    const title = `New AI Tools | Latest AI Releases`;
     const description = `Discover the newest AI tools launched recently. Stay ahead with the latest AI innovations in writing, coding, design, marketing, and more. Browse ${toolCount.toLocaleString()}+ tools.`;
 
     return {

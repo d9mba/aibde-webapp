@@ -193,8 +193,10 @@ export default function TopHeader() {
                     <div
                         ref={searchRef}
                         className={cn(
-                            "relative flex-1 max-w-xl transition-all duration-300 py-1 z-[200]",
-                            showHeaderSearch ? "opacity-100" : "opacity-0 pointer-events-none"
+                            "relative max-w-xl transition-all duration-300 py-1 z-[200]",
+                            showHeaderSearch
+                                ? "flex-1 opacity-100"
+                                : "w-0 opacity-0 pointer-events-none overflow-hidden"
                         )}
                     >
                         {/* Search Input */}

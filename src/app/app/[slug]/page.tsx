@@ -5,7 +5,7 @@ import { getToolJsonLd, SEO } from '@/lib/seo';
 import ToolDetailClient from './ToolDetailClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
-export const revalidate = 300;
+export const revalidate = 86400;
 // Generate dynamic metadata for SEO
 export async function generateMetadata({
     params,
@@ -25,7 +25,7 @@ export async function generateMetadata({
     const description = tool.summary || tool.description?.slice(0, 155) || `Discover ${tool.name} - an AI tool for ${tool.categoryName?.join(', ') || 'various tasks'}`;
     const categoryLabel = tool.categoryName?.[0] || 'AI Tool';
     const taskLabels = tool.taskName?.slice(0, 3).join(', ') || '';
-    const title = `${tool.name} | ${categoryLabel} | AiBDE`;
+    const title = `${tool.name} | ${categoryLabel}`;
 
     return {
         title,

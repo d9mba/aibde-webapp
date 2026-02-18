@@ -5,7 +5,7 @@ import { slugify } from '@/lib/utils';
 import CategorySlugPageClient from './CategorySlugPageClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
-export const revalidate = 300;
+export const revalidate = 86400;
 interface PageProps {
     params: Promise<{ slug: string }>;
 }
@@ -93,11 +93,11 @@ export default async function CategoryPage({ params }: PageProps) {
                 <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }} />
             )}
             <CategorySlugPageClient
-            category={category}
-            tools={tools}
-            allCategories={categories}
-            slug={slug}
-            totalCount={totalCount}
+                category={category}
+                tools={tools}
+                allCategories={categories}
+                slug={slug}
+                totalCount={totalCount}
             />
         </>
     );

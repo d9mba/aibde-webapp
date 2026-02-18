@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool, DbTool } from '@/lib/supabase';
 import { toolSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
@@ -278,6 +279,11 @@ export async function POST(request: NextRequest) {
             }
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        // Bust ISR cache so new tool appears instantly
+        revalidatePath('/');
+        revalidatePath('/new');
+        revalidatePath('/trending');
 
         return NextResponse.json(dbToolToAdminTool(data), { status: 201 });
     } catch (err) {

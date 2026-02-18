@@ -21,7 +21,7 @@ import { SEO } from '@/lib/seo';
 import HomePageClient from './HomePageClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
-export const revalidate = 300;
+export const revalidate = 86400;
 
 // Generate dynamic metadata with tool count
 export async function generateMetadata(): Promise<Metadata> {

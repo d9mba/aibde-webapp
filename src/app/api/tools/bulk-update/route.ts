@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin, adminToolToDbTool } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
@@ -379,6 +380,13 @@ export async function PUT(request: NextRequest) {
             } catch (countError) {
                 console.error('[Bulk Upsert] Failed to update counts:', countError);
             }
+        }
+
+        // Bust ISR cache so changes appear instantly
+        if (results.updated > 0 || results.created > 0) {
+            revalidatePath('/');
+            revalidatePath('/new');
+            revalidatePath('/trending');
         }
 
         return NextResponse.json({

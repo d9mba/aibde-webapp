@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'About AiBDE | AI Tools Directory Mission & Vision',
+    title: 'About | AI Tools Directory Mission & Vision',
     description: 'Learn about AiBDE - your trusted AI tools directory. Our mission is to make AI accessible by curating the best AI tools for writing, design, coding, marketing, and productivity.',
     keywords: [
         'about AiBDE',
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
         'AI tools mission',
     ].join(', '),
     openGraph: {
-        title: 'About AiBDE | AI Tools Directory',
+        title: 'About | AI Tools Directory',
         description: 'Learn about AiBDE - your trusted AI tools directory. Our mission is to make AI accessible to everyone.',
         type: 'website',
         siteName: 'AiBDE',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary',
-        title: 'About AiBDE | AI Tools Directory',
+        title: 'About | AI Tools Directory',
         description: 'Learn about AiBDE - your trusted AI tools directory.',
     },
     alternates: {

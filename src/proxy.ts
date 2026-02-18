@@ -16,7 +16,10 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     // ----------------------------------------------------------------
 
     // STEP 1: Handle Secret Entry (e.g. /login/my-secret-password)
-    if (isSecretEntry(req)) {
+    // Skip Clerk's internal auth routes (factor-one, factor-two, sso-callback, etc.)
+    const clerkRoutes = ['factor-one', 'factor-two', 'sso-callback', 'verify', 'reset-password', 'continue']
+    const lastSegment = path.split('/').pop() || ''
+    if (isSecretEntry(req) && !clerkRoutes.includes(lastSegment)) {
         // Extract secret from URL (last segment)
         const urlSecret = path.split('/').pop();
         const validSecret = process.env.ADMIN_LOGIN_SECRET;

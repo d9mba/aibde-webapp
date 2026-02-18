@@ -42,15 +42,6 @@ const nextConfig = {
             rule.test?.test?.('.svg')
         );
 
-        if (!fileLoaderRule) {
-            return config;
-        }
-
-        const existingNot = Array.isArray(fileLoaderRule.resourceQuery?.not)
-            ? fileLoaderRule.resourceQuery.not
-            : [];
-        const resourceQueryNot = [...existingNot, /url/];
-
         config.module.rules.push(
             // Reapply existing rule for svg imports ending with ?url
             {
@@ -62,11 +53,12 @@ const nextConfig = {
             {
                 test: /\.svg$/i,
                 issuer: fileLoaderRule.issuer,
-                resourceQuery: { not: resourceQueryNot },
+                resourceQuery: { not: [...fileLoaderRule.resourceQuery.not, /url/] },
                 use: ['@svgr/webpack'],
             }
         );
 
+        // Modify the existing rule to exclude *.svg
         fileLoaderRule.exclude = /\.svg$/i;
 
         return config;
@@ -109,10 +101,6 @@ const nextConfig = {
     },
     // Disable powered by header
     poweredByHeader: false,
-    // Sitemap index lives at /sitemap-index.xml (metadata sitemap serves /sitemap/[id].xml only)
-    async redirects() {
-        return [{ source: '/sitemap.xml', destination: '/sitemap-index.xml', permanent: true }];
-    },
     // Apply security headers to all routes
     async headers() {
         return [

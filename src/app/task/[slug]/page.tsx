@@ -5,7 +5,7 @@ import { slugify } from '@/lib/utils';
 import TaskSlugPageClient from './TaskSlugPageClient';
 
 // PERFORMANCE: ISR - regenerate page every 5 minutes
-export const revalidate = 300;
+export const revalidate = 86400;
 interface PageProps {
     params: Promise<{ slug: string }>;
 }
@@ -93,11 +93,11 @@ export default async function TaskPage({ params }: PageProps) {
                 <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }} />
             )}
             <TaskSlugPageClient
-            task={task}
-            tools={tools}
-            allTasks={tasks}
-            slug={slug}
-            totalCount={totalCount}
+                task={task}
+                tools={tools}
+                allTasks={tasks}
+                slug={slug}
+                totalCount={totalCount}
             />
         </>
     );

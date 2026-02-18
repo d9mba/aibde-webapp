@@ -9,7 +9,7 @@ import SearchPageClient from './SearchPageClient';
 export async function generateMetadata(): Promise<Metadata> {
     const toolCount = await getToolsCount(['published', 'approved']);
 
-    const title = `Search ${toolCount.toLocaleString()}+ AI Tools | Find the Best AI for Any Task | AiBDE`;
+    const title = 'Search AI Tools | Find the Best AI for Any Task';
     const description = `Search and discover ${toolCount.toLocaleString()}+ AI tools for writing, coding, design, marketing, and more. Filter by category, task, or pricing to find your perfect AI solution.`;
 
     return {

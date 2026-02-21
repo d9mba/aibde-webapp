@@ -17,10 +17,11 @@ import {
     getTasks,
     getHomeSettings
 } from '@/lib/data';
+import { SEO } from '@/lib/seo';
 import HomePageClient from './HomePageClient';
 
-// PERFORMANCE: ISR - regenerate page every 5 minutes
-export const revalidate = 300;
+// PERFORMANCE: ISR - regenerate page every 24 hours
+export const revalidate = 86400;
 
 // Generate dynamic metadata with tool count
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
         getTasksCount(),
     ]);
 
-    const title = `AiBDE - Browse, Discover, and Explore ${toolCount.toLocaleString()}+ Top AI Tools`;
+    const title = `AiBDE - Browse, Discover, and Explore. Top AI Tools For Your Everyday Tasks`;
     const description = `Discover ${toolCount.toLocaleString()}+ AI tools across ${categoryCount} categories for ${taskCount}+ tasks. Find the best AI solutions for writing, design, coding, marketing, and more. Updated daily.`;
 
     return {
@@ -55,8 +56,8 @@ export async function generateMetadata(): Promise<Metadata> {
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: 'https://aibde.tech',
+            siteName: SEO.siteName,
+            url: SEO.siteUrl,
         },
         twitter: {
             card: 'summary_large_image',
@@ -64,7 +65,7 @@ export async function generateMetadata(): Promise<Metadata> {
             description,
         },
         alternates: {
-            canonical: 'https://aibde.tech',
+            canonical: SEO.siteUrl,
         },
         robots: {
             index: true,

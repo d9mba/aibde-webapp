@@ -23,9 +23,9 @@ export default function FeaturedPage() {
     // Spotlight tools (always featured, can't be removed from featured directly)
     const spotlightTools = useMemo(() => tools.filter((t: AdminTool) => t.spotlightEnabled), [tools]);
 
-    // Initialize from current data
+    // Initialize from current data - include both isFeatured and listingType='featured'
     useEffect(() => {
-        const currentFeatured = tools.filter((t: AdminTool) => t.isFeatured);
+        const currentFeatured = tools.filter((t: AdminTool) => t.isFeatured || t.listingType === 'featured');
         const ids = currentFeatured.map(t => t.id);
 
         if (pendingFeaturedIds.length === 0 && ids.length > 0) {
@@ -108,7 +108,7 @@ export default function FeaturedPage() {
         showToast('Saving featured changes...', 'info');
         setSaving(true);
         try {
-            const currentFeatured = tools.filter(t => t.isFeatured && !t.spotlightEnabled);
+            const currentFeatured = tools.filter(t => (t.isFeatured || t.listingType === 'featured') && !t.spotlightEnabled);
             const currentIds = new Set(currentFeatured.map(t => t.id));
             const pendingSet = new Set(pendingFeaturedIds);
 
@@ -117,7 +117,10 @@ export default function FeaturedPage() {
             // Remove tools that were featured but no longer are (except spotlights)
             for (const tool of currentFeatured) {
                 if (!pendingSet.has(tool.id) && !tool.spotlightEnabled) {
-                    updates.push(updateTool(tool.id, { isFeatured: false }));
+                    // Only update if actually changed
+                    if (tool.isFeatured || tool.listingType === 'featured') {
+                        updates.push(updateTool(tool.id, { isFeatured: false, listingType: 'free' }));
+                    }
                 }
             }
 
@@ -125,7 +128,7 @@ export default function FeaturedPage() {
             for (const toolId of pendingFeaturedIds) {
                 const tool = tools.find(t => t.id === toolId);
                 if (tool && !currentIds.has(toolId) && !tool.spotlightEnabled) {
-                    updates.push(updateTool(toolId, { isFeatured: true }));
+                    updates.push(updateTool(toolId, { isFeatured: true, listingType: 'featured' }));
                 }
             }
 

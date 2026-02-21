@@ -2,11 +2,34 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import Providers from '@/components/Providers';
 import { LayoutWrapper } from '@/components/layout/LayoutWrapper';
+import { getWebSiteJsonLd, SEO } from '@/lib/seo';
 import '@/styles/globals.css';
 
 export const metadata: Metadata = {
-    title: 'aibde - AI Tool Directory',
-    description: 'Discover AI tools for writing, image generation, coding, video, and more.',
+    metadataBase: new URL(SEO.siteUrl),
+    title: {
+        default: 'AiBDE - AI Tool Directory | Discover 10,000+ AI Tools',
+        template: '%s | AiBDE',
+    },
+    description: 'Discover and compare 10,000+ AI tools for writing, design, coding, marketing, and more. Browse by category and task. Updated daily.',
+    keywords: ['AI tools', 'AI directory', 'best AI tools', 'AI software', 'artificial intelligence tools', 'AiBDE'],
+    applicationName: SEO.siteName,
+    openGraph: {
+        type: 'website',
+        locale: 'en_US',
+        siteName: SEO.siteName,
+        url: SEO.siteUrl,
+    },
+    twitter: {
+        card: 'summary_large_image',
+        site: '@aibde',
+    },
+    robots: {
+        index: true,
+        follow: true,
+        googleBot: { index: true, follow: true, 'max-snippet': -1, 'max-image-preview': 'large', 'max-video-preview': -1 },
+    },
+    alternates: {},
 };
 
 // Viewport configuration for safe area support on iOS devices
@@ -29,6 +52,11 @@ export default async function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
+                {/* JSON-LD: WebSite + Organization for SEO and sitelinks search box */}
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(getWebSiteJsonLd()) }}
+                />
                 {/* Theme script - runs BEFORE React hydrates to prevent flash */}
                 <script
                     dangerouslySetInnerHTML={{

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin, adminToolToDbTool } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
@@ -335,7 +336,7 @@ export async function POST(request: NextRequest) {
                     rating: tool.rating ? parseFloat(tool.rating) : undefined,
 
                     // Meta
-                    released_on: formatDate(tool.released_on || tool.releasedAt || tool.foundedDate || tool.released_at || tool.founded_date),
+                    launched_on: formatDate(tool.launched_on || tool.released_on || tool.releasedAt || tool.foundedDate || tool.released_at || tool.founded_date),
                     status: tool.status || 'pending',
                 };
 
@@ -468,6 +469,13 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Bust ISR cache so new tools appear instantly
+        if (results.success > 0) {
+            revalidatePath('/');
+            revalidatePath('/new');
+            revalidatePath('/trending');
+        }
+
         return NextResponse.json({
             message: `Imported ${results.success} tools successfully. ${results.failed} failed.`,
             ...results
@@ -487,7 +495,7 @@ export async function GET() {
         'name', 'summary', 'description', 'websiteUrl', 'logoUrl',
         'pricing', 'pricingLabel', 'categories', 'tasks', 'tags',
         'features', 'coreFeatures', 'useCases', 'pros', 'cons',
-        'rating', 'faq', 'released_on', 'status'
+        'rating', 'faq', 'launched_on', 'status'
     ].join(',');
 
     const exampleRow = [

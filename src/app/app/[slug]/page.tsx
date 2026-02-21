@@ -1,10 +1,11 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getToolByAppUsername, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
+import { getToolJsonLd, safeJsonLdStringify, SEO } from '@/lib/seo';
 import ToolDetailClient from './ToolDetailClient';
 
-// PERFORMANCE: ISR - regenerate page every 5 minutes
-export const revalidate = 300;
+// PERFORMANCE: ISR - regenerate page every 24 hours
+export const revalidate = 86400;
 // Generate dynamic metadata for SEO
 export async function generateMetadata({
     params,
@@ -24,7 +25,7 @@ export async function generateMetadata({
     const description = tool.summary || tool.description?.slice(0, 155) || `Discover ${tool.name} - an AI tool for ${tool.categoryName?.join(', ') || 'various tasks'}`;
     const categoryLabel = tool.categoryName?.[0] || 'AI Tool';
     const taskLabels = tool.taskName?.slice(0, 3).join(', ') || '';
-    const title = `${tool.name} | ${categoryLabel} | AiBDE`;
+    const title = `${tool.name} | ${categoryLabel}`;
 
     return {
         title,
@@ -45,8 +46,8 @@ export async function generateMetadata({
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: `https://aibde.tech/app/${slug}`,
+            siteName: SEO.siteName,
+            url: `${SEO.siteUrl}/app/${slug}`,
             images: tool.logoUrl ? [{ url: tool.logoUrl, alt: tool.name }] : undefined,
         },
         twitter: {
@@ -56,7 +57,7 @@ export async function generateMetadata({
             images: tool.logoUrl ? [tool.logoUrl] : undefined,
         },
         alternates: {
-            canonical: `https://aibde.tech/app/${slug}`,
+            canonical: `${SEO.siteUrl}/app/${slug}`,
         },
         robots: {
             index: true,
@@ -91,15 +92,21 @@ export default async function ToolDetailPage({
     ]);
 
     return (
-        <ToolDetailClient
-            tool={tool}
-            relatedTools={relatedTools}
-            suggestedTools={suggestedTools}
-            featuredTools={featuredTools}
-            recentlyAdded={recentlyAdded}
-            categories={categories}
-            tasks={tasks}
-            showFeaturedAlternatives={settings.showFeaturedAlternatives}
-        />
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(getToolJsonLd(tool)) }}
+            />
+            <ToolDetailClient
+                tool={tool}
+                relatedTools={relatedTools}
+                suggestedTools={suggestedTools}
+                featuredTools={featuredTools}
+                recentlyAdded={recentlyAdded}
+                categories={categories}
+                tasks={tasks}
+                showFeaturedAlternatives={settings.showFeaturedAlternatives}
+            />
+        </>
     );
 }

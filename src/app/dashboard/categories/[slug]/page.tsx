@@ -173,10 +173,10 @@ export default function CategoryDetailPage() {
                                         <p className="text-sm text-text-primary">{previewTool.saveCount.toLocaleString()}</p>
                                     </div>
                                 )}
-                                {previewTool.releasedAgo && (
+                                {previewTool.launchedAgo && (
                                     <div>
-                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Released</h3>
-                                        <p className="text-sm text-text-primary">{previewTool.releasedAgo}</p>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Launched</h3>
+                                        <p className="text-sm text-text-primary">{previewTool.launchedAgo}</p>
                                     </div>
                                 )}
                             </div>

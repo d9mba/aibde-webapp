@@ -6,6 +6,10 @@ import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
 import { AdminTool } from '@/types';
 import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
+import SearchIcon from '@/assets/svg/ui/search.svg';
+import CloseIcon from '@/assets/svg/ui/close.svg';
+import TaskIcon from '@/assets/svg/actions/task.svg';
+import FolderIcon from '@/assets/svg/actions/folder.svg';
 
 interface HeroSectionProps {
     toolCount: number;
@@ -116,10 +120,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                 {/* Search Input */}
                 <div className={`bg-bg-card border rounded-full transition-all duration-200 ${isMainSearchFocused ? 'border-accent-primary/50 shadow-[0_0_0_3px_rgba(52,178,123,0.25)]' : 'border-border shadow-lg hover:shadow-xl hover:border-text-tertiary'}`}>
                     <div className="flex items-center gap-3 w-full px-5 py-3.5">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`flex-shrink-0 transition-colors ${isMainSearchFocused ? 'text-text-secondary' : 'text-text-tertiary'}`}>
-                            <circle cx="11" cy="11" r="8" />
-                            <path d="M21 21l-4.35-4.35" />
-                        </svg>
+                        <SearchIcon className={`w-[22px] h-[22px] flex-shrink-0 transition-colors ${isMainSearchFocused ? 'text-text-secondary' : 'text-text-tertiary'}`} />
                         <input
                             ref={inputRef}
                             type="text"
@@ -157,9 +158,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                                 }}
                                 suppressHydrationWarning
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M18 6L6 18M6 6l12 12" />
-                                </svg>
+                                <CloseIcon className="w-4 h-4" />
                             </button>
                         )}
                     </div>
@@ -204,10 +203,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                     prefetch={false}
                     className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
                 >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70">
-                        <path d="M9 11l3 3L22 4" />
-                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-                    </svg>
+                    <TaskIcon className="w-3.5 h-3.5 opacity-70" />
                     Browse by Task
                 </Link>
                 <Link
@@ -215,9 +211,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                     prefetch={false}
                     className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
                 >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70">
-                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-                    </svg>
+                    <FolderIcon className="w-3.5 h-3.5 opacity-70" />
                     Browse by Category
                 </Link>
             </div>

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimits } from '@/lib/rate-limit';
 
-// Google Apps Script Web App URL for tool submissions
 const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_TOOL_SUBMISSIONS_URL || '';
-
-// Cloudflare Turnstile secret key
 const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
+
+const MAX_LEN = { name: 100, email: 254, toolName: 200, url: 500, shortDesc: 1000, longDesc: 5000, tags: 500, features: 2000 };
 
 interface SocialLink {
     platform: string;
@@ -44,7 +44,6 @@ interface ToolSubmissionData {
     description?: string;
 }
 
-// Verify Turnstile token with Cloudflare
 async function verifyTurnstile(token: string): Promise<boolean> {
     if (!TURNSTILE_SECRET_KEY) {
         console.warn('[Submit Tool API] Turnstile secret key not configured, skipping verification');
@@ -69,11 +68,21 @@ async function verifyTurnstile(token: string): Promise<boolean> {
     }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
+        const forwarded = request.headers.get('x-forwarded-for');
+        const clientIp = forwarded?.split(',')[0]?.trim() || null;
+        const identifier = clientIp ?? request.headers.get('x-real-ip') ?? 'anonymous';
+        const rateLimit = await checkRateLimit(`submit:${identifier}`, rateLimits.sensitive);
+        if (!rateLimit.success) {
+            return NextResponse.json(
+                { error: 'Too many submissions. Try again later.' },
+                { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rateLimit.resetTime - Date.now()) / 1000))) } }
+            );
+        }
+
         const body: ToolSubmissionData = await request.json();
 
-        // Validate required fields
         if (!body.submitterName || !body.submitterEmail || !body.toolName || !body.toolUrl || !body.shortDescription) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
@@ -81,7 +90,31 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Verify Turnstile token
+        if (body.submitterName.length > MAX_LEN.name) {
+            return NextResponse.json({ error: 'Submitter name too long' }, { status: 400 });
+        }
+        if (body.submitterEmail.length > MAX_LEN.email) {
+            return NextResponse.json({ error: 'Email too long' }, { status: 400 });
+        }
+        const lengthErrors: string[] = [];
+        if (body.toolName.length > MAX_LEN.toolName) lengthErrors.push('Tool name too long');
+        if (body.toolUrl.length > MAX_LEN.url) lengthErrors.push('Tool URL too long');
+        if (lengthErrors.length > 0) {
+            return NextResponse.json({ error: lengthErrors.join('; ') }, { status: 400 });
+        }
+        if (body.shortDescription.length > MAX_LEN.shortDesc) {
+            return NextResponse.json({ error: 'Short description too long' }, { status: 400 });
+        }
+        if (body.longDescription && body.longDescription.length > MAX_LEN.longDesc) {
+            return NextResponse.json({ error: 'Long description too long' }, { status: 400 });
+        }
+        if (body.tags && body.tags.length > MAX_LEN.tags) {
+            return NextResponse.json({ error: 'Tags too long' }, { status: 400 });
+        }
+        if (body.features && body.features.length > MAX_LEN.features) {
+            return NextResponse.json({ error: 'Features too long' }, { status: 400 });
+        }
+
         if (!body.turnstileToken) {
             return NextResponse.json(
                 { error: 'Security verification required' },

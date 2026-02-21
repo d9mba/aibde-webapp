@@ -33,8 +33,10 @@ export const toolSchema = z.object({
     images: z.array(z.string()).optional().nullable(),
     videos: z.array(z.string()).optional().nullable(),
     saveCount: z.number().int().min(0).optional(),
-    released_on: z.string().optional().nullable(),
+    launchedOn: z.string().optional().nullable(),
     isFeatured: z.boolean().optional(),
+    listingType: z.enum(['free', 'fast', 'verified', 'featured', 'spotlight']).optional().nullable(),
+    rating: z.number().min(0).max(5, 'Rating must be between 0 and 5').optional().nullable(),
     status: z.enum(['draft', 'pending', 'published', 'unpublished', 'scheduled']).optional(),
 
     // Features & Content
@@ -64,7 +66,7 @@ export const toolSchema = z.object({
     versionHistory: z.array(z.object({
         version: z.string(),
         releaseNotes: z.string(),
-        released_on: z.string()
+        launchedOn: z.string()
     })).optional().nullable(),
 
     // Alternatives

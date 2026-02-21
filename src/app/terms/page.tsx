@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Terms and Conditions | AiBDE - AI Tools Directory',
+    title: 'Terms and Conditions | AI Tools Directory',
     description: 'Read the AiBDE Terms and Conditions. Understand your rights and responsibilities when using our AI tools directory and services.',
     keywords: 'AiBDE terms, terms of service, user agreement, AI tools directory terms, conditions of use',
     openGraph: {
-        title: 'Terms and Conditions | AiBDE',
+        title: 'Terms and Conditions | AI Tools Directory',
         description: 'Read the AiBDE Terms and Conditions.',
         type: 'website',
         siteName: 'AiBDE',
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary',
-        title: 'Terms and Conditions | AiBDE',
+        title: 'Terms and Conditions | AI Tools Directory',
         description: 'Read the AiBDE Terms and Conditions.',
     },
     alternates: {

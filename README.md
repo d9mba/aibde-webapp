@@ -25,146 +25,102 @@ A modern, production-ready AI tool directory built with Next.js 16, Supabase, an
 ```
 src/
 ├── app/                            # Next.js App Router
-│   ├── page.tsx                    # Homepage
+│   ├── page.tsx                    # Homepage (ISR)
 │   ├── layout.tsx                  # Root layout with analytics
 │   ├── HomePageClient.tsx          # Client-side homepage logic
 │   ├── home-components/            # Homepage sections
 │   │   ├── HeroSection.tsx         # Hero with search
 │   │   ├── SpotlightSection.tsx    # Featured tools
-│   │   ├── TrendingSection.tsx     # Trending tools
+│   │   ├── ToolsGridSection.tsx    # Tools grid
 │   │   ├── CategoriesSection.tsx   # Category grid
-│   │   └── TasksSection.tsx        # Task grid
+│   │   ├── TasksSection.tsx        # Task grid
+│   │   └── SubmitCTA.tsx           # Submit CTA
 │   │
-│   ├── app/[slug]/                 # Tool detail pages
+│   ├── [...slug]/                  # Catch-all → redirect to /search?q=...
+│   ├── app/[slug]/                 # Tool detail pages (ISR)
+│   │   ├── page.tsx, ToolDetailClient.tsx
+│   │   └── components/             # StickyHeader, ToolHeader, ToolSidebar
+│   │       └── sections/           # Overview, Pricing, ProsCons, UseCases, FAQ, etc.
 │   ├── category/                   # Category pages
-│   │   ├── page.tsx                # All categories grid
+│   │   ├── page.tsx, CategoryPageClient.tsx
 │   │   └── [slug]/                 # Single category
 │   ├── task/[slug]/                # Task detail pages
 │   ├── tasks/                      # All tasks page
 │   ├── search/                     # Search page
-│   │   ├── page.tsx                # SSR search page
-│   │   └── SearchPageClient.tsx    # Client-side search logic
+│   │   ├── page.tsx, SearchPageClient.tsx
+│   │   └── [query]/page.tsx        # Search by query segment
 │   ├── trending/                   # Trending tools page
-│   │
-│   ├── dashboard/                  # Admin dashboard (protected)
-│   │   ├── page.tsx                # Dashboard home
-│   │   ├── tools/                  # Tool management
-│   │   ├── categories/             # Category management
-│   │   ├── tasks/                  # Task management
-│   │   ├── tags/                   # Tag management
-│   │   ├── settings/               # Site settings
-│   │   └── notes/                  # Admin notes
-│   │
-│   ├── api/                        # API Routes
-│   │   ├── public/                 # Public APIs (rate limited)
-│   │   │   ├── tools/              # Tool listing & detail
-│   │   │   ├── search/             # Public search
-│   │   │   └── categories/         # Category data
-│   │   ├── tools/                  # Protected tool CRUD
-│   │   ├── categories/             # Protected category CRUD
-│   │   ├── tasks/                  # Protected task CRUD
-│   │   ├── tags/                   # Protected tag CRUD
-│   │   ├── upload/                 # Media upload (images/videos)
-│   │   ├── analytics/              # Analytics tracking
-│   │   ├── vote/                   # Tool voting
-│   │   ├── submit-tool/            # Public tool submission
-│   │   ├── contact/                # Contact form
-│   │   └── settings/               # Site settings
-│   │
+│   ├── new/                        # New tools page
 │   ├── submit/                     # Public tool submission page
 │   ├── contact/                    # Contact page
-│   ├── go/[slug]/                  # Affiliate redirect
+│   ├── about/, privacy/, terms/    # Static pages
+│   ├── go/[slug]/                  # Affiliate redirect (route handler)
 │   ├── login/                      # Hidden admin login
-│   ├── about/                      # About page
-│   ├── privacy/                    # Privacy policy
-│   ├── terms/                      # Terms of service
-│   ├── new/                        # New tools page
+│   │   ├── [secret]/page.tsx       # Validate ADMIN_LOGIN_SECRET → cookie
+│   │   └── [[...sign-in]]/page.tsx # Clerk sign-in
 │   │
-│   ├── sitemap.ts                  # Dynamic sitemap (10k+ pages)
+│   ├── dashboard/                  # Admin dashboard (Clerk-protected)
+│   │   ├── layout.tsx, page.tsx, error.tsx
+│   │   ├── tools/                  # Tool list, new, edit [id]
+│   │   │   └── components/         # BulkImport, BulkUpdate, Export modals
+│   │   ├── categories/, category/[slug]/
+│   │   ├── tasks/, tasks/[slug]/
+│   │   ├── tags/, tags/[tag]/
+│   │   ├── spotlight/, trending/, featured/, fast-listings/, verified/
+│   │   ├── contacts/, notes/, moderation/
+│   │   ├── settings/
+│   │   └── analytics/, analytics/tool/[slug]/
+│   │
+│   ├── api/                        # API Routes
+│   │   ├── public/                 # Public (rate limited, browser-only when not admin)
+│   │   │   ├── tools/, tools/[id]/
+│   │   │   ├── categories/, tasks/
+│   │   │   └── impressions/
+│   │   ├── search/                 # Search API
+│   │   ├── vote/                   # Tool voting
+│   │   ├── submit-tool/, contact/  # Public submission & contact
+│   │   ├── tools/                  # Protected: CRUD, bulk, bulk-update, by-category, by-task
+│   │   ├── categories/, tasks/, tags/
+│   │   ├── upload/, upload/cleanup/, upload/from-url/
+│   │   ├── analytics/posthog/
+│   │   ├── contacts/, notes/, settings/, sync-counts/
+│   │   └── settings/
+│   │
+│   ├── sitemap.ts                  # Dynamic sitemap
 │   ├── robots.ts                   # robots.txt
 │   ├── not-found.tsx               # 404 page
 │   └── global-error.tsx            # Error boundary
 │
 ├── components/
 │   ├── features/
-│   │   ├── admin/                  # Dashboard components
-│   │   │   ├── ToolForm.tsx        # Multi-step tool form
-│   │   │   └── ToolTable.tsx       # Tool management table
-│   │   └── tools/
-│   │       ├── ToolCard.tsx        # Tool card component
-│   │       └── ToolGrid.tsx        # Tool grid layout
-│   ├── layout/
-│   │   ├── Header.tsx              # Main header with search
-│   │   ├── Footer.tsx              # Site footer
-│   │   ├── Sidebar.tsx             # Desktop sidebar
-│   │   ├── MobileNav.tsx           # Mobile bottom navigation
-│   │   └── TopHeader.tsx           # Announcement bar
-│   ├── ui/                         # Reusable UI components
-│   │   ├── SearchSuggestionsDropdown.tsx  # Shared search dropdown
-│   │   ├── SearchableSelect.tsx    # Searchable dropdown
-│   │   ├── RichTextEditor.tsx      # WYSIWYG editor
-│   │   ├── MediaUpload.tsx         # Image/video upload
-│   │   ├── ShareModal.tsx          # Social sharing modal
-│   │   ├── VoteButtons.tsx         # Upvote/downvote
-│   │   ├── Toast.tsx               # Toast notifications
-│   │   ├── ConfirmModal.tsx        # Confirmation dialogs
-│   │   ├── Combobox.tsx            # Autocomplete input
-│   │   ├── ListEditor.tsx          # Dynamic list editor
-│   │   ├── Skeleton.tsx            # Loading skeletons
-│   │   └── SafeHtml.tsx            # XSS-safe HTML renderer
-│   ├── providers/
-│   │   └── PostHogProvider.tsx     # Analytics provider
+│   │   ├── admin/                  # AdminLayout, ToolForm (FullPreview, LivePreview, schema)
+│   │   └── tools/                  # ToolCard
+│   ├── icons/                      # ToolBadge
+│   ├── layout/                     # Header, Footer, LayoutWrapper, ScrollToTop, TopHeader
+│   ├── ui/                         # SearchSuggestionsDropdown, SearchableSelect, RichTextEditor,
+│   │                               # MediaUpload, ShareModal, VoteButtons, Toast, ConfirmModal,
+│   │                               # Combobox, ListEditor, Skeleton, SafeHtml, Input, Section, Toggle
+│   ├── providers/                  # PostHogProvider
 │   ├── Providers.tsx               # Combined providers
 │   └── ConditionalClerkProvider.tsx # Clerk SSR wrapper
 │
-├── context/
-│   ├── AdminContext.tsx            # Admin data management
-│   ├── SearchContext.tsx           # Global search state
-│   ├── SidebarContext.tsx          # Sidebar pin state
-│   └── ThemeContext.tsx            # Dark/light/system theme
-│
-├── hooks/
-│   ├── useToolAnalytics.ts         # GA4 analytics tracking
-│   ├── usePostHogAnalytics.ts      # PostHog tracking
-│   ├── useTypingPlaceholder.ts     # Animated placeholder
-│   └── useDebounce.ts              # Debounce hook
+├── context/                        # AdminContext, SearchContext, SidebarContext, ThemeContext
+├── contexts/                       # ImpressionsContext
+├── hooks/                          # useToolAnalytics, usePostHogAnalytics, useTypingPlaceholder, useDebounce
 │
 ├── lib/                            # Utilities & Data Layer
 │   ├── supabase.ts                 # Supabase client & mapping
-│   ├── supabase/                   # Supabase helpers
-│   │   ├── client.ts               # Browser client
-│   │   ├── server.ts               # Server client
-│   │   └── admin.ts                # Service role client
+│   ├── supabase/                   # client.ts (browser), server.ts (server + createAdminClient)
 │   ├── data.ts                     # Re-exports from data/
-│   ├── data/                       # Modular data layer
-│   │   ├── index.ts                # Central exports
-│   │   ├── counts.ts               # Count queries
-│   │   ├── categories.ts           # Category/Task queries
-│   │   ├── tools.ts                # Tool fetching
-│   │   ├── related.ts              # Related/suggested tools
-│   │   └── search.ts               # Search with scoring
-│   ├── actions.ts                  # Server Actions (hidden APIs)
+│   ├── data/                       # counts, categories, tools, related, search
+│   ├── actions.ts                  # Server Actions (search, suggestions)
 │   ├── search.ts                   # Legacy fuzzy search
-│   ├── validations.ts              # Zod schemas
-│   ├── rate-limit.ts               # API rate limiting
-│   ├── formatters.ts               # Data formatters
-│   ├── url.ts                      # URL utilities
-│   ├── url-utils.ts                # Additional URL helpers
-│   ├── utils.ts                    # General utilities
-│   └── auth-utils.ts               # Auth helpers
-│
-├── services/
-│   └── storage.service.ts          # R2 storage service
-│
-├── types/
-│   ├── index.ts                    # TypeScript types
-│   └── css.d.ts                    # CSS module types
-│
-├── styles/
-│   └── globals.css                 # CSS variables & global styles
-│
-├── proxy.ts                        # Security middleware
-└── middleware.ts                   # Next.js middleware entry
+│   ├── validations.ts, rate-limit.ts, formatters.ts, url.ts, url-utils.ts, utils.ts, auth-utils.ts
+│   └── ...
+├── services/                       # storage.service.ts (R2)
+├── types/                          # index.ts, css.d.ts, svg.d.ts
+├── styles/                         # globals.css
+└── proxy.ts                        # Auth & route protection (use as src/middleware.ts to activate)
 ```
 
 ---
@@ -194,13 +150,15 @@ getSearchSuggestionsAction(query)   // Quick suggestions
 |--------|-----------|
 | `counts.ts` | `getToolsCount`, `getCategoriesCount`, `getTasksCount`, `getTagsCount`, `getToolsCountByCategory`, `getToolsCountByTask` |
 | `categories.ts` | `getCategories`, `getTasks`, `getTags` |
-| `tools.ts` | `getPublishedTools`, `getSpotlightTools`, `getTrendingTools`, `getToolsByCategory`, `getToolsByTask`, `getToolBySlug`, `getHomeSettings`, `getFeaturedTools`, `getRecentlyAddedTools` |
+| `tools.ts` | `getPublishedTools`, `getPublishedToolsRange`, `getSpotlightTools`, `getTrendingTools`, `getToolsByCategory`, `getToolsByTask`, `getToolByAppUsername`, `getHomeSettings`, `getFeaturedTools`, `getRecentlyAddedTools` |
 | `related.ts` | `getRelatedTools`, `getSuggestedTools` |
 | `search.ts` | `searchTools`, `searchToolsCount` |
 
 ---
 
 ## 🔐 Security (proxy.ts)
+
+Auth and route protection live in `src/proxy.ts`. For Next.js to run it on every request, add `src/middleware.ts` that re-exports it: `export { default } from './proxy';`
 
 ### Hidden Admin Login Flow
 1. Admin visits `/login/[SECRET]` (secret URL)
@@ -209,9 +167,9 @@ getSearchSuggestionsAction(query)   // Quick suggestions
 4. Invalid secret → Silent redirect to homepage
 
 ### API Protection
-- **Public APIs**: Blocked for direct browser/CLI access
+- **Public APIs**: Blocked for direct document navigation and non-browser (e.g. CLI) access; admins bypass
 - **Protected APIs**: Require Clerk authentication
-- **Rate Limiting**: Per-IP limits on public endpoints
+- **Rate Limiting**: Per-IP limits via Upstash Redis on public endpoints
 
 ### Environment Variable
 ```env
@@ -224,11 +182,11 @@ ADMIN_LOGIN_SECRET=your-secret-string
 
 ### CSS Variables (Light/Dark Mode)
 ```css
-/* Light Mode */
---bg-primary: #ffffff
+/* Light Mode (globals.css) */
+--bg-primary: #fafafa
 --bg-secondary: #f5f5f5
 --bg-card: #ffffff
---text-primary: #171717
+--text-primary: #1a1a1a
 --text-secondary: #525252
 --accent-primary: #34b27b
 

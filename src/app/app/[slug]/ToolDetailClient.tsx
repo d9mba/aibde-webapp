@@ -119,6 +119,7 @@ export default function ToolDetailClient({
                         <OverviewSection
                             name={tool.name}
                             description={extendedInfo?.longDescription || ''}
+                            isAiGenerated={tool.isAiGenerated}
                         />
 
                         {(tool.images?.length || tool.videos?.length) ? (

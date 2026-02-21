@@ -51,8 +51,9 @@ export interface DbTool {
     upvotes?: number;
     downvotes?: number;
     rating?: number; // Admin-set rating (0-5 scale)
-    released_on?: string;
+    launched_on?: string;
     is_featured: boolean;
+    listing_type?: 'free' | 'fast' | 'verified' | 'featured' | 'spotlight';
 
     // Features & Content
     core_features?: string[];
@@ -78,7 +79,7 @@ export interface DbTool {
     version_history?: {
         version: string;
         releaseNotes: string;
-        released_on: string;
+        launched_on: string;
     }[];
 
     // Alternative Tools
@@ -135,6 +136,9 @@ export interface DbTool {
     // Timestamps
     created_at: string;
     updated_at: string;
+
+    // AI Generated flag
+    is_ai_generated?: boolean;
 }
 
 export interface DbCategory {
@@ -296,9 +300,10 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         upvotes: dbTool.upvotes || 0,
         downvotes: dbTool.downvotes || 0,
         rating: dbTool.rating,
-        released_on: (dbTool.released_on || '').split('T')[0].split(' ')[0],
-        releasedAgo: formatRelativeTime(dbTool.released_on || dbTool.created_at, dbTool.updated_at),
+        launchedOn: (dbTool.launched_on || '').split('T')[0].split(' ')[0],
+        launchedAgo: formatRelativeTime(dbTool.launched_on || dbTool.created_at, dbTool.updated_at),
         isFeatured: dbTool.is_featured,
+        listingType: dbTool.listing_type,
 
         // Features & Content
         coreFeatures: dbTool.core_features,
@@ -315,7 +320,11 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         billingFrequency: dbTool.billing_frequency,
 
         // Version & Alternatives
-        versionHistory: parseJsonField(dbTool.version_history, []),
+        versionHistory: parseJsonField(dbTool.version_history, []).map((v: { version: string; releaseNotes: string; launched_on: string }) => ({
+            version: v.version,
+            releaseNotes: v.releaseNotes,
+            launchedOn: v.launched_on
+        })),
         alternativeTools: dbTool.alternative_tools,
         manualAlternatives: dbTool.manual_alternatives,
         references: dbTool.tool_references,
@@ -352,6 +361,9 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         // Timestamps
         createdAt: dbTool.created_at,
         updatedAt: dbTool.updated_at,
+
+        // AI Generated flag
+        isAiGenerated: dbTool.is_ai_generated,
     };
 }
 
@@ -378,8 +390,9 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         downvotes: 'downvotes',
 
 
-        released_on: 'released_on',
+        launchedOn: 'launched_on',
         isFeatured: 'is_featured',
+        listingType: 'listing_type',
 
 
         // Features
@@ -439,10 +452,13 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         // Timestamps
         createdAt: 'created_at',
         updatedAt: 'updated_at',
+
+        // AI Generated flag
+        isAiGenerated: 'is_ai_generated',
     };
 
     // Fields that should be null instead of empty string for PostgreSQL timestamps
-    const timestampFields = ['scheduled_at', 'spotlight_start_date', 'spotlight_end_date', 'released_on'];
+    const timestampFields = ['scheduled_at', 'spotlight_start_date', 'spotlight_end_date', 'launched_on'];
 
     // Helper to extract relative path from full URL (converts CDN URLs to relative paths for storage)
     const extractRelativePath = (url: string | undefined | null): string | null => {
@@ -463,7 +479,7 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
     };
 
     for (const [key, value] of Object.entries(tool)) {
-        if (key === 'releasedAgo') continue; // Skip computed field
+        if (key === 'launchedAgo') continue; // Skip computed field
         if (key === 'references') continue; // Skip - doesn't exist in DB
 
         const dbKey = mapping[key] || key;
@@ -506,6 +522,16 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         // Extract relative paths for images array
         if (dbKey === 'images' && Array.isArray(value)) {
             result[dbKey] = value.map(img => extractRelativePath(img)).filter(Boolean);
+            continue;
+        }
+
+        // Convert versionHistory launchedOn to launched_on for DB
+        if (dbKey === 'version_history' && Array.isArray(value)) {
+            result[dbKey] = value.map((v: { version: string; releaseNotes: string; launchedOn: string }) => ({
+                version: v.version,
+                releaseNotes: v.releaseNotes,
+                launched_on: v.launchedOn
+            }));
             continue;
         }
 

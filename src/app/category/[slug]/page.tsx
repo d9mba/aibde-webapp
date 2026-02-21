@@ -1,15 +1,14 @@
 import { Metadata } from 'next';
 import { getCategories, getToolsByCategory, getToolsCountByCategory } from '@/lib/data';
+import { getBreadcrumbJsonLd, getItemListJsonLd, safeJsonLdStringify, SEO } from '@/lib/seo';
+import { slugify } from '@/lib/utils';
 import CategorySlugPageClient from './CategorySlugPageClient';
 
-// PERFORMANCE: ISR - regenerate page every 5 minutes
-export const revalidate = 300;
+// PERFORMANCE: ISR - regenerate page every 24 hours
+export const revalidate = 86400;
 interface PageProps {
     params: Promise<{ slug: string }>;
 }
-
-// Helper to slugify category name
-const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
 // Generate dynamic metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -26,7 +25,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     // Get count efficiently (not loading all tools)
     const toolCount = await getToolsCountByCategory(category.categoryName);
-    const title = `${category.categoryName} AI Tools (${toolCount}+) | Best ${category.categoryName} Tools | AiBDE`;
+    const title = `${category.categoryName} AI Tools | AiBDE`;
     const description = category.description || `Discover ${toolCount}+ best ${category.categoryName} AI tools. Compare features, pricing, and find the perfect AI solution for your ${category.categoryName.toLowerCase()} needs.`;
 
     return {
@@ -44,8 +43,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: `https://aibde.tech/category/${slug}`,
+            siteName: SEO.siteName,
+            url: `${SEO.siteUrl}/category/${slug}`,
         },
         twitter: {
             card: 'summary_large_image',
@@ -53,8 +52,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             description,
         },
         alternates: {
-            canonical: `https://aibde.tech/category/${slug}`,
+            canonical: `${SEO.siteUrl}/category/${slug}`,
         },
+        robots: { index: true, follow: true },
     };
 }
 
@@ -75,13 +75,30 @@ export default async function CategoryPage({ params }: PageProps) {
         category ? getToolsCountByCategory(category.categoryName) : Promise.resolve(0)
     ]);
 
+    const categoryUrl = category ? `${SEO.siteUrl}/category/${slug}` : '';
+    const breadcrumbLd = category ? getBreadcrumbJsonLd([{ name: 'Home', url: SEO.siteUrl }, { name: category.categoryName, url: categoryUrl }]) : null;
+    const itemListLd = category && tools.length ? getItemListJsonLd(
+        `${category.categoryName} AI Tools`,
+        categoryUrl,
+        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.app_username}` })),
+        category.description || undefined
+    ) : null;
+
     return (
-        <CategorySlugPageClient
-            category={category}
-            tools={tools}
-            allCategories={categories}
-            slug={slug}
-            totalCount={totalCount}
-        />
+        <>
+            {breadcrumbLd && (
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(breadcrumbLd) }} />
+            )}
+            {itemListLd && (
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(itemListLd) }} />
+            )}
+            <CategorySlugPageClient
+                category={category}
+                tools={tools}
+                allCategories={categories}
+                slug={slug}
+                totalCount={totalCount}
+            />
+        </>
     );
 }

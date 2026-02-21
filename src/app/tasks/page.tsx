@@ -1,6 +1,9 @@
 import { Metadata } from 'next';
 import { getTasks, getTasksCount } from '@/lib/data';
+import { SEO } from '@/lib/seo';
 import TasksPageClient from './TasksPageClient';
+
+export const revalidate = 86400;
 
 /**
  * Dynamic SEO Metadata for Tasks Page
@@ -8,7 +11,7 @@ import TasksPageClient from './TasksPageClient';
 export async function generateMetadata(): Promise<Metadata> {
     const taskCount = await getTasksCount();
 
-    const title = `Browse ${taskCount}+ AI Tasks | Find AI Tools by Task | AiBDE`;
+    const title = 'Browse AI Tasks | Find AI Tools by Task';
     const description = `Discover AI tools for ${taskCount}+ different tasks including writing, coding, image generation, video editing, marketing automation, and more. Find the perfect AI solution for your needs.`;
 
     return {
@@ -28,8 +31,8 @@ export async function generateMetadata(): Promise<Metadata> {
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: 'https://aibde.tech/tasks',
+            siteName: SEO.siteName,
+            url: `${SEO.siteUrl}/tasks`,
         },
         twitter: {
             card: 'summary_large_image',
@@ -37,8 +40,9 @@ export async function generateMetadata(): Promise<Metadata> {
             description,
         },
         alternates: {
-            canonical: 'https://aibde.tech/tasks',
+            canonical: `${SEO.siteUrl}/tasks`,
         },
+        robots: { index: true, follow: true },
     };
 }
 

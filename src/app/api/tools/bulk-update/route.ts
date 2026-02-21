@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin, adminToolToDbTool } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
@@ -251,8 +252,8 @@ export async function PUT(request: NextRequest) {
                     const socialLinks = parseSocialLinks(tool.socialLinks || tool.social_links);
                     if (socialLinks) updateData.socialLinks = socialLinks;
                     if (tool.rating) updateData.rating = parseFloat(tool.rating);
-                    const releasedOn = tool.released_on || tool.releasedAt;
-                    if (releasedOn) updateData.released_on = formatDate(releasedOn);
+                    const launchedOn = tool.launched_on || tool.released_on || tool.releasedAt;
+                    if (launchedOn) updateData.launched_on = formatDate(launchedOn);
                     if (tool.status) updateData.status = tool.status;
 
                     if (Object.keys(updateData).length === 0) {
@@ -325,7 +326,7 @@ export async function PUT(request: NextRequest) {
                         appStoreUrl: tool.appStoreUrl || tool.app_store_url || '',
                         socialLinks: parseSocialLinks(tool.socialLinks || tool.social_links),
                         rating: tool.rating ? parseFloat(tool.rating) : undefined,
-                        released_on: formatDate(tool.released_on || tool.releasedAt || ''),
+                        launched_on: formatDate(tool.launched_on || tool.released_on || tool.releasedAt || ''),
                         status: tool.status || 'pending',
                     };
 
@@ -379,6 +380,13 @@ export async function PUT(request: NextRequest) {
             } catch (countError) {
                 console.error('[Bulk Upsert] Failed to update counts:', countError);
             }
+        }
+
+        // Bust ISR cache so changes appear instantly
+        if (results.updated > 0 || results.created > 0) {
+            revalidatePath('/');
+            revalidatePath('/new');
+            revalidatePath('/trending');
         }
 
         return NextResponse.json({

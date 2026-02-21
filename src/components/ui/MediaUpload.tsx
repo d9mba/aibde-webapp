@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { getFullUrl, CDN_URL } from '@/lib/url';
+import UploadIcon from '@/assets/svg/actions/upload.svg';
 
 const getRelativePath = (url: string): string => {
     if (!url) return '';
@@ -251,7 +252,7 @@ export default function MediaUpload({
                 <div className="flex items-center gap-3">
                     <input ref={fileInputRef} type="file" accept={accept} multiple={multiple} onChange={handleFileChange} className="hidden" disabled={isUploading} />
                     <button type="button" className="inline-flex items-center gap-2 px-4 py-2 bg-bg-tertiary text-text-secondary rounded-lg hover:text-text-primary disabled:opacity-50" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                        {isUploading ? <span className="animate-spin">↻</span> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>}
+                        {isUploading ? <span className="animate-spin">↻</span> : <UploadIcon className="w-5 h-5" />}
                         {isUploading ? 'Uploading...' : (multiple ? 'Choose Files' : 'Choose File')}
                     </button>
                     {multiple && <span className="text-xs text-text-tertiary">Multiple files allowed</span>}

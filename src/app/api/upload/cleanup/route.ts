@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { deleteFile } from '@/services/storage.service';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
-// POST /api/upload/cleanup - Delete unused files from R2
-export async function POST(request: NextRequest) {
+function isSafeStoragePath(p: string): boolean {
+    const path = p.startsWith('/') ? p.slice(1) : p;
+    if (!path) return false;
+    if (path.includes('..') || path.includes('//') || /[<>"|?*]/.test(path)) return false;
+    return true;
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        // SECURITY: Require admin authentication
         const authResult = await requireAdmin();
         if (isAuthError(authResult)) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
@@ -17,21 +22,25 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid request: files array required' }, { status: 400 });
         }
 
+        const MAX_FILES_CLEANUP = 100;
+        const toProcess = files.slice(0, MAX_FILES_CLEANUP);
+
         const results: { path: string; deleted: boolean; error?: string }[] = [];
 
-        for (const filePath of files) {
+        for (const filePath of toProcess) {
             try {
-                // Remove leading slash if present
-                const path = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+                const path = String(filePath).startsWith('/') ? String(filePath).slice(1) : String(filePath);
 
-                if (path) {
+                if (path && isSafeStoragePath(path)) {
                     await deleteFile(path);
                     results.push({ path, deleted: true });
+                } else {
+                    results.push({ path: String(filePath), deleted: false, error: 'Invalid path' });
                 }
             } catch (err) {
                 console.error(`Failed to delete ${filePath}:`, err);
                 results.push({
-                    path: filePath,
+                    path: String(filePath),
                     deleted: false,
                     error: err instanceof Error ? err.message : 'Unknown error'
                 });

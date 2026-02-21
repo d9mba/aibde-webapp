@@ -245,67 +245,11 @@ export default function SpotlightPage() {
                 )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                    {/* Current Spotlight */}
-                    <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
-                        <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border flex items-center gap-2">
-                            <svg className="w-4 h-4 text-accent-yellow" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
-                            <h2 className="text-sm sm:text-base font-semibold text-text-primary">Current Spotlight</h2>
-                        </div>
-                        <div className="divide-y divide-border">
-                            {spotlightTools.length === 0 ? (
-                                <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
-                                    No spotlight tools. Add from below.
-                                </div>
-                            ) : (
-                                spotlightTools.map((tool, idx) => (
-                                    <div key={tool.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-bg-secondary transition-colors">
-                                        <span className="text-xs font-mono text-text-tertiary w-5 sm:w-6">#{idx + 1}</span>
-                                        {tool.logoUrl ? (
-                                            <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain" />
-                                        ) : (
-                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary text-xs font-bold">
-                                                {(tool.name || 'T')[0]}
-                                            </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-medium text-text-primary text-sm truncate">{tool.name}</div>
-                                        </div>
-                                        <div className="flex items-center gap-0.5 sm:gap-1">
-                                            <button
-                                                onClick={() => handleMoveUp(tool.id)}
-                                                disabled={idx === 0}
-                                                className="p-1 text-text-tertiary hover:text-text-primary disabled:opacity-30"
-                                                title="Move Up"
-                                            >
-                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
-                                            </button>
-                                            <button
-                                                onClick={() => handleMoveDown(tool.id)}
-                                                disabled={idx === spotlightTools.length - 1}
-                                                className="p-1 text-text-tertiary hover:text-text-primary disabled:opacity-30"
-                                                title="Move Down"
-                                            >
-                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
-                                            </button>
-                                            <button
-                                                onClick={() => handleRemoveFromSpotlight(tool.id)}
-                                                className="p-1 text-text-tertiary hover:text-accent-red"
-                                                title="Remove"
-                                            >
-                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Available Tools */}
+                    {/* Available Tools (Left) */}
                     <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
                         <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border flex items-center gap-2">
                             <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
-                            <h2 className="text-sm sm:text-base font-semibold text-text-primary">Available Tools</h2>
+                            <h2 className="text-sm sm:text-base font-semibold text-text-primary">Add to Spotlight</h2>
                         </div>
 
                         {/* Search Input */}
@@ -356,7 +300,7 @@ export default function SpotlightPage() {
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
                                 <span className="text-sm text-text-tertiary">
-                                    Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredAvailableTools.length)} of {filteredAvailableTools.length}
+                                    {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredAvailableTools.length)} of {filteredAvailableTools.length}
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button
@@ -368,7 +312,7 @@ export default function SpotlightPage() {
                                         Previous
                                     </button>
                                     <span className="text-sm text-text-tertiary">
-                                        Page {currentPage} of {totalPages}
+                                        {currentPage}/{totalPages}
                                     </span>
                                     <button
                                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
@@ -381,6 +325,62 @@ export default function SpotlightPage() {
                                 </div>
                             </div>
                         )}
+                    </div>
+
+                    {/* Current Spotlight (Right) */}
+                    <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
+                        <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border flex items-center gap-2">
+                            <svg className="w-4 h-4 text-accent-yellow" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                            <h2 className="text-sm sm:text-base font-semibold text-text-primary">Current Spotlight</h2>
+                        </div>
+                        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+                            {spotlightTools.length === 0 ? (
+                                <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
+                                    No spotlight tools yet
+                                </div>
+                            ) : (
+                                spotlightTools.map((tool, idx) => (
+                                    <div key={tool.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-bg-secondary transition-colors">
+                                        <span className="text-xs font-mono text-text-tertiary w-5 sm:w-6">#{idx + 1}</span>
+                                        {tool.logoUrl ? (
+                                            <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain" />
+                                        ) : (
+                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-accent-primary-bg flex items-center justify-center text-accent-primary text-xs font-bold">
+                                                {(tool.name || 'T')[0]}
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-medium text-text-primary text-sm truncate">{tool.name}</div>
+                                        </div>
+                                        <div className="flex items-center gap-0.5 sm:gap-1">
+                                            <button
+                                                onClick={() => handleMoveUp(tool.id)}
+                                                disabled={idx === 0}
+                                                className="p-1 text-text-tertiary hover:text-text-primary disabled:opacity-30"
+                                                title="Move Up"
+                                            >
+                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+                                            </button>
+                                            <button
+                                                onClick={() => handleMoveDown(tool.id)}
+                                                disabled={idx === spotlightTools.length - 1}
+                                                className="p-1 text-text-tertiary hover:text-text-primary disabled:opacity-30"
+                                                title="Move Down"
+                                            >
+                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
+                                            </button>
+                                            <button
+                                                onClick={() => handleRemoveFromSpotlight(tool.id)}
+                                                className="p-1 text-text-tertiary hover:text-accent-red"
+                                                title="Remove"
+                                            >
+                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

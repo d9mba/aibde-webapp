@@ -29,18 +29,18 @@ export default function Footer() {
                                 <a href="mailto:support@aibde.tech" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Email">
                                     <Mail size={18} />
                                 </a>
-                                <a href="https://instagram.com/aibde" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Instagram">
+                                <a href="https://instagram.com/aibde.official" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Instagram">
                                     <Instagram size={18} />
                                 </a>
-                                <a href="https://youtube.com/@aibde" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="YouTube">
+                                {/* <a href="https://youtube.com/@aibde" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="YouTube">
                                     <Youtube size={18} />
-                                </a>
-                                <a href="https://x.com/aibde" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="X/Twitter">
+                                </a> */}
+                                <a href="https://x.com/aibde_Official" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="X/Twitter">
                                     <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                                     </svg>
                                 </a>
-                                <a href="https://facebook.com/aibde" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Facebook">
+                                <a href="https://facebook.com/aibde.official" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Facebook">
                                     <Facebook size={18} />
                                 </a>
                             </div>

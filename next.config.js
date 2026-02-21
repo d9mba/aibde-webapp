@@ -26,6 +26,47 @@ const securityHeaders = [
 
 const nextConfig = {
     reactStrictMode: true,
+    // Enable turbopack for Next.js 16+ with SVG support
+    turbopack: {
+        rules: {
+            '*.svg': {
+                loaders: ['@svgr/webpack'],
+                as: '*.js',
+            },
+        },
+    },
+    // Configure webpack to handle SVG imports as React components
+    webpack(config) {
+        // Find and modify the existing SVG rule
+        const fileLoaderRule = config.module.rules.find((rule) =>
+            rule.test?.test?.('.svg')
+        );
+
+        if (!fileLoaderRule) {
+            throw new Error('Could not find SVG file loader rule in webpack config');
+        }
+
+        config.module.rules.push(
+            // Reapply existing rule for svg imports ending with ?url
+            {
+                ...fileLoaderRule,
+                test: /\.svg$/i,
+                resourceQuery: /url/, // *.svg?url
+            },
+            // Convert all other *.svg imports to React components
+            {
+                test: /\.svg$/i,
+                issuer: fileLoaderRule.issuer,
+                resourceQuery: { not: [...(Array.isArray(fileLoaderRule.resourceQuery?.not) ? fileLoaderRule.resourceQuery.not : []), /url/] },
+                use: ['@svgr/webpack'],
+            }
+        );
+
+        // Modify the existing rule to exclude *.svg
+        fileLoaderRule.exclude = /\.svg$/i;
+
+        return config;
+    },
     // Fix ESM compatibility issues with jsdom/dompurify on Vercel serverless
     serverExternalPackages: [
         'isomorphic-dompurify',

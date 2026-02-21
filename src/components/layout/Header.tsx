@@ -121,6 +121,18 @@ export default function Header() {
         }
     }, [searchOpen]);
 
+    // Lock body scroll when menu or search is open
+    useEffect(() => {
+        if (sidebarOpen || searchOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [sidebarOpen, searchOpen]);
+
     // Handle search submission
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -193,65 +205,65 @@ export default function Header() {
     return (
         <>
             {/* Mobile Bottom Navigation Bar - Compact Capsule Style */}
-            <nav className="fixed bottom-3 left-4 right-4 z-[201] lg:hidden bg-bg-secondary border border-border rounded-full flex items-center justify-around py-1.5 px-2 shadow-lg">
+            <nav className="fixed bottom-3 left-4 right-4 sm:bottom-3 sm:left-4 sm:right-4 z-[201] lg:hidden bg-bg-secondary border border-border rounded-full flex items-center justify-between sm:justify-around py-1 px-1.5 sm:py-1.5 sm:px-2 shadow-lg min-w-0">
                 <Link
                     href="/"
                     prefetch={false}
                     className={cn(
-                        "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
+                        "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         pathname === '/' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    <Home size={20} strokeWidth={1.5} />
-                    <span className="text-[9px] font-medium">Home</span>
+                    <Home strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Home</span>
                 </Link>
 
                 <button
                     onClick={() => setSearchOpen(true)}
                     className={cn(
-                        "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
+                        "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         searchOpen ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                     suppressHydrationWarning
                 >
-                    <Search size={20} strokeWidth={1.5} />
-                    <span className="text-[9px] font-medium">Search</span>
+                    <Search strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Search</span>
                 </button>
 
                 <Link
                     href="/trending"
                     prefetch={false}
                     className={cn(
-                        "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
+                        "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         pathname === '/trending' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    <TrendingUp size={20} strokeWidth={1.5} />
-                    <span className="text-[9px] font-medium">Trending</span>
+                    <TrendingUp strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Trending</span>
                 </Link>
 
                 <Link
                     href="/new"
                     prefetch={false}
                     className={cn(
-                        "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
+                        "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         pathname === '/new' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    <Sparkles size={20} strokeWidth={1.5} />
-                    <span className="text-[9px] font-medium">New</span>
+                    <Sparkles strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">New</span>
                 </Link>
 
                 <button
                     onClick={() => setSidebarOpen(!sidebarOpen)}
                     className={cn(
-                        "flex flex-col items-center gap-0.5 p-1.5 rounded-full transition-colors focus:outline-none",
+                        "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         sidebarOpen ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                     suppressHydrationWarning
                 >
-                    <Menu size={20} strokeWidth={1.5} />
-                    <span className="text-[9px] font-medium">Menu</span>
+                    <Menu strokeWidth={1.5} className={cn("w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0 transition-transform", sidebarOpen && "rotate-90")} />
+                    <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Menu</span>
                 </button>
             </nav>
 
@@ -308,7 +320,19 @@ export default function Header() {
                                             </div>
                                         )}
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-medium text-text-primary truncate">{tool.name}</div>
+                                            <div className="text-sm font-medium text-text-primary truncate flex items-center gap-1">
+                                                {tool.name}
+                                                {tool.listingType === 'verified' && (
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#1d9bf0" className="flex-shrink-0" role="img" aria-label="Verified">
+                                                        <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" />
+                                                    </svg>
+                                                )}
+                                                {(tool.listingType === 'featured' || tool.listingType === 'spotlight' || tool.spotlightEnabled || tool.isFeatured) && tool.listingType !== 'verified' && (
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b" className="flex-shrink-0" role="img" aria-label="Featured">
+                                                        <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" />
+                                                    </svg>
+                                                )}
+                                            </div>
                                             <div className="text-xs text-text-tertiary truncate">{tool.summary}</div>
                                         </div>
                                     </button>
@@ -337,20 +361,11 @@ export default function Header() {
             {/* Full Page Mobile Menu */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-[300] lg:hidden bg-bg-primary flex flex-col animate-[fadeIn_0.15s_ease]"
+                    className="fixed inset-0 z-[200] lg:hidden bg-bg-primary flex flex-col animate-[fadeIn_0.15s_ease]"
+                    style={{ paddingBottom: '70px' }}
                 >
-                    {/* Close button */}
-                    <div className="flex justify-end p-4">
-                        <button
-                            onClick={() => setSidebarOpen(false)}
-                            className="p-2 text-text-secondary hover:text-text-primary focus:outline-none"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-                        </button>
-                    </div>
-
                     {/* Menu items */}
-                    <nav className="flex-1 flex flex-col gap-1 px-6 py-4">
+                    <nav className="flex-1 flex flex-col gap-1 px-6 py-6 overflow-y-auto">
                         {mainNav.map((item) => (
                             <Link
                                 key={item.href}
@@ -426,7 +441,7 @@ export default function Header() {
                     {/* Theme toggle at bottom */}
                     <div className="p-6 border-t border-border">
                         <p className="text-xs text-text-tertiary uppercase tracking-wider mb-3">Theme</p>
-                        <div className="flex items-center gap-2 bg-bg-tertiary rounded-lg p-1">
+                        <div className="flex items-center gap-2 bg-bg-tertiary border border-border rounded-lg p-1">
                             <button
                                 className={cn(
                                     "flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all",
@@ -613,7 +628,7 @@ export default function Header() {
 
                         {/* Expanded: Three theme options */}
                         <div className={cn(
-                            "flex items-center gap-1 bg-bg-tertiary rounded-lg p-0.5",
+                            "flex items-center gap-1 bg-bg-tertiary border border-border rounded-lg p-0.5",
                             (sidebarOpen || isPinned) ? "flex" : "hidden lg:group-hover:flex"
                         )}>
                             <button

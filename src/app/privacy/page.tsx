@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Privacy Policy | AiBDE - AI Tools Directory',
+    title: 'Privacy Policy | AI Tools Directory',
     description: 'Read the AiBDE Privacy Policy. Learn how we collect, use, and protect your personal information when using our AI tools directory.',
     keywords: 'AiBDE privacy policy, data protection, cookie policy, personal data, AI tools directory privacy',
     openGraph: {
-        title: 'Privacy Policy | AiBDE',
+        title: 'Privacy Policy | AI Tools Directory',
         description: 'Read the AiBDE Privacy Policy. Learn how we protect your data.',
         type: 'website',
         siteName: 'AiBDE',
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary',
-        title: 'Privacy Policy | AiBDE',
+        title: 'Privacy Policy | AI Tools Directory',
         description: 'Read the AiBDE Privacy Policy.',
     },
     alternates: {

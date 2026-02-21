@@ -1,0 +1,22 @@
+# AiBDE
+
+> Discover and compare 10,000+ AI tools for writing, design, coding, marketing, and more. Browse by category and task.
+
+AiBDE is an AI tools directory. Find the best AI software for your workflow. Updated daily.
+
+## Main pages
+
+- [Home](https://www.aibde.tech/)
+- [Search AI tools](https://www.aibde.tech/search)
+- [Browse by category](https://www.aibde.tech/category)
+- [Browse by task](https://www.aibde.tech/tasks)
+- [New AI tools](https://www.aibde.tech/new)
+- [Trending AI tools](https://www.aibde.tech/trending)
+- [Submit a tool](https://www.aibde.tech/submit)
+- [About](https://www.aibde.tech/about)
+- [Contact](https://www.aibde.tech/contact)
+
+## Optional
+
+- [Privacy Policy](https://www.aibde.tech/privacy)
+- [Terms of Service](https://www.aibde.tech/terms)

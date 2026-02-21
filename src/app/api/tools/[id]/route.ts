@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool } from '@/lib/supabase';
 import { toolUpdateSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
@@ -111,6 +112,15 @@ export async function PUT(
             }
         }
 
+        // Sync isFeatured when listingType is set to 'featured'
+        if (body.listingType === 'featured') {
+            dbTool.is_featured = true;
+        } else if (body.listingType && body.listingType !== 'featured') {
+            // If listingType is explicitly set to non-featured, clear isFeatured
+            // (only if we're explicitly updating listingType)
+            dbTool.is_featured = false;
+        }
+
         // Update timestamp
         dbTool.updated_at = new Date().toISOString();
 
@@ -125,6 +135,14 @@ export async function PUT(
             console.error('[PUT API] Supabase update error:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        // Bust ISR cache so updated tool appears instantly
+        if (data.app_username) {
+            revalidatePath(`/app/${data.app_username}`);
+        }
+        revalidatePath('/');
+        revalidatePath('/new');
+        revalidatePath('/trending');
 
         return NextResponse.json(dbToolToAdminTool(data));
     } catch (err) {
@@ -150,7 +168,7 @@ export async function DELETE(
         // First, fetch the tool to get file URLs for R2 cleanup
         const { data: tool, error: fetchError } = await supabaseAdmin
             .from('tools')
-            .select('logo_url, images')
+            .select('logo_url, images, app_username')
             .eq('id', id)
             .single();
 
@@ -200,6 +218,14 @@ export async function DELETE(
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Bust ISR cache so deleted tool disappears instantly
+        revalidatePath('/');
+        revalidatePath('/new');
+        revalidatePath('/trending');
+        if (tool?.app_username) {
+            revalidatePath(`/app/${tool.app_username}`);
         }
 
         return NextResponse.json({ success: true });

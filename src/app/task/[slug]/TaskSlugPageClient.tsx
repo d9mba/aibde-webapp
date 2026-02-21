@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool, Task } from '@/types';
+import { slugify } from '@/lib/utils';
 import { Target, ArrowLeft, ChevronRight } from 'lucide-react';
 
 interface TaskSlugPageClientProps {
@@ -23,8 +24,6 @@ export default function TaskSlugPageClient({
     slug,
     totalCount
 }: TaskSlugPageClientProps) {
-    const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
     const [allTools, setAllTools] = useState<AdminTool[]>(tools);
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
     const [isLoading, setIsLoading] = useState(false);
@@ -170,7 +169,7 @@ export default function TaskSlugPageClient({
                         .slice(0, 8)
                         .map((t) => (
                             <Link
-                                key={t.taskName}
+                                key={t.id}
                                 href={`/task/${slugify(t.taskName)}`}
                                 prefetch={false}
                                 className="px-3 sm:px-4 py-1.5 sm:py-2 bg-bg-card border border-border rounded-full text-xs sm:text-sm text-text-secondary no-underline transition-all duration-200 hover:border-accent-green hover:text-accent-green hover:bg-accent-green/5"

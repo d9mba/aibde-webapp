@@ -52,6 +52,9 @@ export function SearchableSelect({
         setDisplayLimit(search ? 100 : 20); // Show more results when searching
     }, [search]);
 
+    // Always open downward - removed dynamic direction calculation
+    // This ensures consistent behavior
+
     // Close on outside click
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
@@ -134,10 +137,10 @@ export function SearchableSelect({
                 <ChevronDown className={`w-4 h-4 text-text-tertiary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Dropdown - absolute positioning (scrolls with page) */}
+            {/* Dropdown - always opens downward */}
             {isOpen && (
                 <div
-                    className="absolute z-50 w-full mt-1 bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden"
+                    className="absolute z-50 w-full top-full mt-1 bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden"
                     tabIndex={showSearch ? undefined : -1}
                     onKeyDown={showSearch ? undefined : handleKeyDown}
                     ref={el => { if (el && !showSearch) el.focus(); }}

@@ -19,7 +19,7 @@ export default function Toggle({ label, checked, onChange, disabled }: TogglePro
                     className="sr-only"
                 />
                 <div
-                    className={`w-10 h-5 rounded-full transition-colors ${checked ? 'bg-accent-primary' : 'bg-bg-tertiary'
+                    className={`w-10 h-5 rounded-full transition-colors border ${checked ? 'bg-accent-primary border-accent-primary' : 'bg-bg-tertiary border-border'
                         } ${disabled ? 'opacity-50' : ''}`}
                 >
                     <div

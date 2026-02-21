@@ -24,13 +24,11 @@ export default function VerifiedPage() {
     const verifiedInitializedRef = useRef(false);
     useEffect(() => {
         if (verifiedInitializedRef.current) return;
+        verifiedInitializedRef.current = true;
         const currentVerified = tools.filter((t: AdminTool) => t.listingType === 'verified');
         const ids = currentVerified.map(t => t.id);
 
-        if (ids.length > 0) {
-            verifiedInitializedRef.current = true;
-            setPendingVerifiedIds(ids);
-        }
+        if (ids.length > 0) setPendingVerifiedIds(ids);
     }, [tools]);
 
     // Current verified tools based on pending changes
@@ -142,10 +140,10 @@ export default function VerifiedPage() {
 
             const results = await Promise.allSettled(updates);
             const failures = results.filter(r => r.status === 'rejected');
-            setHasChanges(false);
             if (failures.length > 0) {
                 showToast(`${updates.length - failures.length} saved, ${failures.length} failed. Please review.`, 'error');
             } else {
+                setHasChanges(false);
                 showToast('Verified tools saved successfully!', 'success');
             }
         } catch (error) {

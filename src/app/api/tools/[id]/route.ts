@@ -168,7 +168,7 @@ export async function DELETE(
         // First, fetch the tool to get file URLs for R2 cleanup
         const { data: tool, error: fetchError } = await supabaseAdmin
             .from('tools')
-            .select('logo_url, images')
+            .select('logo_url, images, app_username')
             .eq('id', id)
             .single();
 
@@ -224,6 +224,9 @@ export async function DELETE(
         revalidatePath('/');
         revalidatePath('/new');
         revalidatePath('/trending');
+        if (tool?.app_username) {
+            revalidatePath(`/app/${tool.app_username}`);
+        }
 
         return NextResponse.json({ success: true });
     } catch (err) {

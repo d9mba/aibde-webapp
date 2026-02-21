@@ -227,7 +227,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [hasMore, visibleCount]);
+    }, [hasMore]);
 
     const clearFilters = () => {
         setQuery('');

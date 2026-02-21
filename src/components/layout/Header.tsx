@@ -214,7 +214,7 @@ export default function Header() {
                         pathname === '/' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    <Home size={20} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                    <Home strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Home</span>
                 </Link>
 
@@ -226,7 +226,7 @@ export default function Header() {
                     )}
                     suppressHydrationWarning
                 >
-                    <Search size={20} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                    <Search strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Search</span>
                 </button>
 
@@ -238,7 +238,7 @@ export default function Header() {
                         pathname === '/trending' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    <TrendingUp size={20} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                    <TrendingUp strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Trending</span>
                 </Link>
 
@@ -250,7 +250,7 @@ export default function Header() {
                         pathname === '/new' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    <Sparkles size={20} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                    <Sparkles strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">New</span>
                 </Link>
 
@@ -262,7 +262,7 @@ export default function Header() {
                     )}
                     suppressHydrationWarning
                 >
-                    <Menu size={20} strokeWidth={1.5} className={cn("sm:w-5 sm:h-5 flex-shrink-0 transition-transform", sidebarOpen && "rotate-90")} />
+                    <Menu strokeWidth={1.5} className={cn("w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0 transition-transform", sidebarOpen && "rotate-90")} />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Menu</span>
                 </button>
             </nav>

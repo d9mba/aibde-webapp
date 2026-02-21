@@ -96,8 +96,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (body.submitterEmail.length > MAX_LEN.email) {
             return NextResponse.json({ error: 'Email too long' }, { status: 400 });
         }
-        if (body.toolName.length > MAX_LEN.toolName || body.toolUrl.length > MAX_LEN.url) {
-            return NextResponse.json({ error: 'Tool name or URL too long' }, { status: 400 });
+        const lengthErrors: string[] = [];
+        if (body.toolName.length > MAX_LEN.toolName) lengthErrors.push('Tool name too long');
+        if (body.toolUrl.length > MAX_LEN.url) lengthErrors.push('Tool URL too long');
+        if (lengthErrors.length > 0) {
+            return NextResponse.json({ error: lengthErrors.join('; ') }, { status: 400 });
         }
         if (body.shortDescription.length > MAX_LEN.shortDesc) {
             return NextResponse.json({ error: 'Short description too long' }, { status: 400 });

@@ -17,11 +17,18 @@ interface ContactFormData {
 
 async function verifyTurnstile(token: string): Promise<boolean> {
     if (!TURNSTILE_SECRET_KEY) {
-        console.warn('[Contact API] Turnstile secret key not configured, skipping verification');
+        if (process.env.NODE_ENV === 'production') {
+            console.error('[Contact API] Turnstile secret key not configured');
+            return false;
+        }
+        console.warn('[Contact API] Turnstile secret key not configured, skipping in dev');
         return true;
     }
 
     try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+
         const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -29,7 +36,12 @@ async function verifyTurnstile(token: string): Promise<boolean> {
                 secret: TURNSTILE_SECRET_KEY,
                 response: token,
             }),
+            signal: controller.signal,
         });
+
+        clearTimeout(timeout);
+
+        if (!response.ok) return false;
 
         const data = await response.json();
         return data.success === true;

@@ -150,7 +150,7 @@ getSearchSuggestionsAction(query)   // Quick suggestions
 |--------|-----------|
 | `counts.ts` | `getToolsCount`, `getCategoriesCount`, `getTasksCount`, `getTagsCount`, `getToolsCountByCategory`, `getToolsCountByTask` |
 | `categories.ts` | `getCategories`, `getTasks`, `getTags` |
-| `tools.ts` | `getPublishedTools`, `getSpotlightTools`, `getTrendingTools`, `getToolsByCategory`, `getToolsByTask`, `getToolByAppUsername`, `getHomeSettings`, `getFeaturedTools`, `getRecentlyAddedTools` |
+| `tools.ts` | `getPublishedTools`, `getPublishedToolsRange`, `getSpotlightTools`, `getTrendingTools`, `getToolsByCategory`, `getToolsByTask`, `getToolByAppUsername`, `getHomeSettings`, `getFeaturedTools`, `getRecentlyAddedTools` |
 | `related.ts` | `getRelatedTools`, `getSuggestedTools` |
 | `search.ts` | `searchTools`, `searchToolsCount` |
 

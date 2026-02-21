@@ -10,12 +10,16 @@ export default function PageProgress() {
     const [active, setActive] = useState(false);
     const tickRef = useRef<NodeJS.Timeout>();
     const hideRef = useRef<NodeJS.Timeout>();
+    const completeTimerRef = useRef<NodeJS.Timeout>();
+    const safetyInnerRef = useRef<NodeJS.Timeout>();
     const startTimeRef = useRef(0);
     const isNavigatingRef = useRef(false);
 
     const cleanup = useCallback(() => {
         if (tickRef.current) clearInterval(tickRef.current);
         if (hideRef.current) clearTimeout(hideRef.current);
+        if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
+        if (safetyInnerRef.current) clearTimeout(safetyInnerRef.current);
     }, []);
 
     // Complete and hide progress bar with minimum visible duration
@@ -29,7 +33,7 @@ export default function PageProgress() {
 
         hideRef.current = setTimeout(() => {
             setProgress(100);
-            hideRef.current = setTimeout(() => {
+            completeTimerRef.current = setTimeout(() => {
                 setActive(false);
                 setProgress(0);
             }, 400);
@@ -95,9 +99,12 @@ export default function PageProgress() {
         history.replaceState = function (...args) {
             // Only start for actual page navigations, not same-page state changes
             const url = args[2];
-            if (url && typeof url === 'string' && url !== window.location.pathname + window.location.search) {
-                if (!isNavigatingRef.current) {
-                    start();
+            if (url && typeof url === 'string') {
+                const normalize = (u: string): string => u.replace(/\/$/, '') || '/';
+                if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
+                    if (!isNavigatingRef.current) {
+                        start();
+                    }
                 }
             }
             return originalReplaceState(...args);
@@ -131,7 +138,7 @@ export default function PageProgress() {
             cleanup();
             isNavigatingRef.current = false;
             setProgress(100);
-            setTimeout(() => { setActive(false); setProgress(0); }, 400);
+            safetyInnerRef.current = setTimeout(() => { setActive(false); setProgress(0); }, 400);
         }, 8000);
         return () => clearTimeout(safety);
     }, [active, cleanup]);

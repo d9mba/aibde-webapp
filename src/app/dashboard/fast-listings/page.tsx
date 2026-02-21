@@ -24,13 +24,11 @@ export default function FastListingsPage() {
     const fastInitializedRef = useRef(false);
     useEffect(() => {
         if (fastInitializedRef.current) return;
+        fastInitializedRef.current = true;
         const currentFast = tools.filter((t: AdminTool) => t.listingType === 'fast');
         const ids = currentFast.map(t => t.id);
 
-        if (ids.length > 0) {
-            fastInitializedRef.current = true;
-            setPendingFastIds(ids);
-        }
+        if (ids.length > 0) setPendingFastIds(ids);
     }, [tools]);
 
     // Current fast tools based on pending changes
@@ -221,6 +219,7 @@ export default function FastListingsPage() {
                                     value={search}
                                     onChange={e => handleSearch(e.target.value)}
                                     placeholder="Search tools..."
+                                    aria-label="Search tools"
                                     className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-text-tertiary"
                                 />
                             </div>
@@ -312,6 +311,7 @@ export default function FastListingsPage() {
                                     value={fastSearch}
                                     onChange={e => handleFastSearch(e.target.value)}
                                     placeholder="Search fast listings..."
+                                    aria-label="Search fast listings"
                                     className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-text-tertiary"
                                 />
                             </div>
@@ -343,6 +343,7 @@ export default function FastListingsPage() {
                                             onClick={() => handleRemoveFromFast(tool.id)}
                                             className="p-1 text-text-tertiary hover:text-accent-red"
                                             title="Remove"
+                                            aria-label="Remove from fast listings"
                                         >
                                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                                         </button>

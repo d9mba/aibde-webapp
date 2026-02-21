@@ -7,18 +7,14 @@ import {
     getCategoriesCount,
     getTasksCount,
 } from '@/lib/data';
+import { slugify } from '@/lib/utils';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aibde.tech';
 
 /** Max URLs per sitemap (Google limit 50k; 5k keeps files fast and crawl-friendly). */
 const SITEMAP_PAGE_SIZE = 5000;
 
-/** Must match slugify in lib/utils and [slug] pages */
-function slugify(str: string): string {
-    return str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-}
-
-function isSafeToolSlug(s: string): boolean {
+function isSafeSlug(s: string): boolean {
     return s.length > 0 && !s.includes('..') && !/^\s*$/.test(s);
 }
 
@@ -76,7 +72,7 @@ export default async function sitemap(props: { id: Promise<string> }): Promise<M
         const offset = page * SITEMAP_PAGE_SIZE;
         const tools = await getPublishedToolsRange(offset, SITEMAP_PAGE_SIZE);
         return tools
-            .filter((tool) => isSafeToolSlug(tool.app_username))
+            .filter((tool) => isSafeSlug(tool.app_username))
             .map((tool) => ({
                 url: `${BASE_URL}/app/${encodeURIComponent(tool.app_username)}`,
                 lastModified: tool.updatedAt ? new Date(tool.updatedAt) : new Date(),
@@ -90,12 +86,14 @@ export default async function sitemap(props: { id: Promise<string> }): Promise<M
         const page = parseInt(categoriesMatch[1], 10);
         const offset = page * SITEMAP_PAGE_SIZE;
         const categories = await getCategoriesRange(offset, SITEMAP_PAGE_SIZE);
-        return categories.map((category) => ({
-            url: `${BASE_URL}/category/${encodeURIComponent(slugify(category.categoryName))}`,
-            lastModified: new Date(),
-            changeFrequency: 'weekly' as const,
-            priority: 0.7,
-        }));
+        return categories
+            .filter((category) => isSafeSlug(category.categoryName))
+            .map((category) => ({
+                url: `${BASE_URL}/category/${encodeURIComponent(slugify(category.categoryName))}`,
+                lastModified: new Date(),
+                changeFrequency: 'weekly' as const,
+                priority: 0.7,
+            }));
     }
 
     const tasksMatch = id.match(/^tasks-(\d+)$/);
@@ -103,12 +101,14 @@ export default async function sitemap(props: { id: Promise<string> }): Promise<M
         const page = parseInt(tasksMatch[1], 10);
         const offset = page * SITEMAP_PAGE_SIZE;
         const tasks = await getTasksRange(offset, SITEMAP_PAGE_SIZE);
-        return tasks.map((task) => ({
-            url: `${BASE_URL}/task/${encodeURIComponent(slugify(task.taskName))}`,
-            lastModified: new Date(),
-            changeFrequency: 'weekly' as const,
-            priority: 0.7,
-        }));
+        return tasks
+            .filter((task) => isSafeSlug(task.taskName))
+            .map((task) => ({
+                url: `${BASE_URL}/task/${encodeURIComponent(slugify(task.taskName))}`,
+                lastModified: new Date(),
+                changeFrequency: 'weekly' as const,
+                priority: 0.7,
+            }));
     }
 
     return [];

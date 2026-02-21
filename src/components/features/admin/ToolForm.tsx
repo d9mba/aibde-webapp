@@ -458,6 +458,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     const ensureArray = (value: unknown): string[] => {
         if (Array.isArray(value)) return value.map(String);
         if (typeof value === 'string') return value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+        if (typeof value === 'object') return [];
         if (value != null) return [String(value)];
         return [];
     };
@@ -521,8 +522,12 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     };
 
     const copyExampleJson = async () => {
-        await navigator.clipboard.writeText(EXAMPLE_JSON);
-        showToast('Example JSON copied to clipboard!', 'success');
+        try {
+            await navigator.clipboard.writeText(EXAMPLE_JSON);
+            showToast('Example JSON copied to clipboard!', 'success');
+        } catch {
+            showToast('Failed to copy to clipboard', 'error');
+        }
     };
 
     return (

@@ -35,7 +35,7 @@ const CLERK_DARK = {
 };
 
 function useResolvedTheme() {
-    const [isDark, setIsDark] = useState(false);
+    const [isDark, setIsDark] = useState<boolean | null>(null);
 
     useEffect(() => {
         function check() {
@@ -53,6 +53,8 @@ function useResolvedTheme() {
 
 export default function LoginPage() {
     const isDark = useResolvedTheme();
+
+    if (isDark === null) return null;
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-bg-primary">

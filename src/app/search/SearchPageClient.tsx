@@ -321,7 +321,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                 {query && query.length >= 2 && !hasSearched && !showSuggestions && (
                     <p className="text-xs text-text-tertiary">Press Enter to search</p>
                 )}
-                {committedQuery && hasSearched && (
+                {committedQuery && hasSearched && !isSearching && (
                     <p className="text-sm text-text-secondary">
                         Found <span className="font-medium text-text-primary">{totalCount.toLocaleString()}</span> results for &ldquo;<span className="font-medium text-text-primary">{committedQuery}</span>&rdquo;
                     </p>
@@ -419,10 +419,12 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             {/* Search Results */}
             {hasSearched && (
                 <div className="mb-12">
-                    <p className="text-sm text-text-tertiary mb-4">
-                        Showing {Math.min(visibleCount, searchResults.length)} of {totalCount.toLocaleString()} tool{totalCount !== 1 ? 's' : ''}
-                        {committedQuery && ` for "${committedQuery}"`}
-                    </p>
+                    {!isSearching && (
+                        <p className="text-sm text-text-tertiary mb-4">
+                            Showing {Math.min(visibleCount, searchResults.length)} of {totalCount.toLocaleString()} tool{totalCount !== 1 ? 's' : ''}
+                            {committedQuery && ` for "${committedQuery}"`}
+                        </p>
+                    )}
 
                     {searchResults.length === 0 ? (
                         <div className="text-center py-16 px-4">

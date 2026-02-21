@@ -205,7 +205,7 @@ export default function Header() {
     return (
         <>
             {/* Mobile Bottom Navigation Bar - Compact Capsule Style */}
-            <nav className="fixed bottom-2 left-2 right-2 sm:bottom-3 sm:left-4 sm:right-4 z-[201] lg:hidden bg-bg-secondary border border-border rounded-full flex items-center justify-between sm:justify-around py-1 px-1.5 sm:py-1.5 sm:px-2 shadow-lg min-w-0">
+            <nav className="fixed bottom-3 left-4 right-4 sm:bottom-3 sm:left-4 sm:right-4 z-[201] lg:hidden bg-bg-secondary border border-border rounded-full flex items-center justify-between sm:justify-around py-1 px-1.5 sm:py-1.5 sm:px-2 shadow-lg min-w-0">
                 <Link
                     href="/"
                     prefetch={false}
@@ -214,7 +214,7 @@ export default function Header() {
                         pathname === '/' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    <Home size={18} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                    <Home size={20} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Home</span>
                 </Link>
 
@@ -226,7 +226,7 @@ export default function Header() {
                     )}
                     suppressHydrationWarning
                 >
-                    <Search size={18} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                    <Search size={20} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Search</span>
                 </button>
 
@@ -238,7 +238,7 @@ export default function Header() {
                         pathname === '/trending' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    <TrendingUp size={18} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                    <TrendingUp size={20} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Trending</span>
                 </Link>
 
@@ -250,7 +250,7 @@ export default function Header() {
                         pathname === '/new' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    <Sparkles size={18} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                    <Sparkles size={20} strokeWidth={1.5} className="sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">New</span>
                 </Link>
 
@@ -262,7 +262,7 @@ export default function Header() {
                     )}
                     suppressHydrationWarning
                 >
-                    <Menu size={18} strokeWidth={1.5} className={cn("sm:w-5 sm:h-5 flex-shrink-0 transition-transform", sidebarOpen && "rotate-90")} />
+                    <Menu size={20} strokeWidth={1.5} className={cn("sm:w-5 sm:h-5 flex-shrink-0 transition-transform", sidebarOpen && "rotate-90")} />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Menu</span>
                 </button>
             </nav>

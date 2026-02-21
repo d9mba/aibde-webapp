@@ -48,7 +48,9 @@ const renderIcon = (iconName: string, size: number = 18) => {
 };
 
 export default function DashboardHome() {
-    const { tools, categories, tasks, isLoaded, settings } = useAdmin();
+    const { tools, categories, tasks, isLoaded, isLoading, settings } = useAdmin();
+
+    const dataReady = isLoaded && !isLoading;
 
     const publishedTools = tools.filter(t => t.status === 'published');
     const draftTools = tools.filter(t => t.status === 'draft');
@@ -130,7 +132,13 @@ export default function DashboardHome() {
                             <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-bg-tertiary border border-border flex items-center justify-center ${stat.color} group-hover:scale-110 transition-transform mb-2`}>
                                 {renderIcon(stat.icon, 20)}
                             </div>
-                            <div className={`text-xl sm:text-2xl font-bold ${stat.color}`}>{stat.value}</div>
+                            {dataReady ? (
+                                <div className={`text-xl sm:text-2xl font-bold ${stat.color}`}>{stat.value}</div>
+                            ) : (
+                                <div className="h-7 sm:h-8 flex items-center">
+                                    <div className="w-8 h-5 bg-border rounded animate-pulse" />
+                                </div>
+                            )}
                             <div className="text-[10px] sm:text-xs text-text-tertiary mt-0.5 truncate">{stat.label}</div>
                         </Link>
                     ))}
@@ -172,7 +180,18 @@ export default function DashboardHome() {
                             </Link>
                         </div>
                         <div className="divide-y divide-border">
-                            {recentTools.length === 0 ? (
+                            {!dataReady ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <div key={i} className="flex items-center gap-3 px-5 py-3 animate-pulse">
+                                        <div className="w-9 h-9 rounded-lg bg-border flex-shrink-0" />
+                                        <div className="flex-1 min-w-0 space-y-2">
+                                            <div className="h-3.5 bg-border rounded w-2/3" />
+                                            <div className="h-3 bg-border rounded w-1/3" />
+                                        </div>
+                                        <div className="h-5 w-16 bg-border rounded-full flex-shrink-0" />
+                                    </div>
+                                ))
+                            ) : recentTools.length === 0 ? (
                                 <div className="p-8 text-center text-text-tertiary text-sm">
                                     No tools yet. <Link href="/dashboard/tools/new" prefetch={false} className="text-accent-primary hover:underline">Add your first tool</Link>
                                 </div>
@@ -218,7 +237,18 @@ export default function DashboardHome() {
                             </Link>
                         </div>
                         <div className="divide-y divide-border">
-                            {recentPublished.length === 0 ? (
+                            {!dataReady ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <div key={i} className="flex items-center gap-3 px-5 py-3 animate-pulse">
+                                        <div className="w-9 h-9 rounded-lg bg-border flex-shrink-0" />
+                                        <div className="flex-1 min-w-0 space-y-2">
+                                            <div className="h-3.5 bg-border rounded w-3/4" />
+                                            <div className="h-3 bg-border rounded w-1/2" />
+                                        </div>
+                                        <div className="w-3.5 h-3.5 bg-border rounded flex-shrink-0" />
+                                    </div>
+                                ))
+                            ) : recentPublished.length === 0 ? (
                                 <div className="p-8 text-center text-text-tertiary text-sm">
                                     No published tools yet.
                                 </div>

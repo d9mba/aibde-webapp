@@ -34,12 +34,19 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     );
 }
 
+const noOp = () => { };
+const defaultSearch: SearchContextType = {
+    searchQuery: '',
+    setSearchQuery: noOp,
+    isMainSearchFocused: false,
+    setIsMainSearchFocused: noOp,
+    sharedTools: [],
+    setSharedTools: noOp,
+};
+
 export function useSearch() {
     const context = useContext(SearchContext);
-    if (!context) {
-        throw new Error('useSearch must be used within a SearchProvider');
-    }
-    return context;
+    return context ?? defaultSearch;
 }
 
 // Optional hook that doesn't throw if used outside provider

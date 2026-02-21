@@ -1,10 +1,12 @@
 'use client';
 
+import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import TopHeader from '@/components/layout/TopHeader';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ScrollToTop from '@/components/layout/ScrollToTop';
+import PageProgress from '@/components/ui/PageProgress';
 
 interface LayoutWrapperProps {
     children: React.ReactNode;
@@ -21,6 +23,11 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
 
     return (
         <>
+            {/* Page transition progress bar */}
+            <Suspense fallback={null}>
+                <PageProgress />
+            </Suspense>
+
             {/* Top Header for public pages */}
             {!isDashboard && <TopHeader />}
 

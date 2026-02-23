@@ -8,60 +8,61 @@ const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/cron(.*)',
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api(.*)'])
 
 export const proxy = clerkMiddleware(async (auth, req) => {
-    const { userId } = await auth()
     const path = req.nextUrl.pathname
 
     // ----------------------------------------------------------------
-    // 🔒 SECURITY: HIDDEN LOGIN FLOW
+    // 🔒 SECURITY: HIDDEN LOGIN FLOW (checked BEFORE auth to prevent bypass)
     // ----------------------------------------------------------------
 
-    // STEP 1: Handle Secret Entry (e.g. /login/my-secret-password)
-    // Skip Clerk's internal auth routes (factor-one, factor-two, sso-callback, etc.)
+    // Clerk's internal auth sub-routes that must be allowed through
     const clerkRoutes = ['factor-one', 'factor-two', 'sso-callback', 'verify', 'reset-password', 'continue']
     const lastSegment = path.split('/').pop() || ''
-    if (isSecretEntry(req) && !clerkRoutes.includes(lastSegment)) {
-        // Extract secret from URL (last segment)
-        const urlSecret = path.split('/').pop();
-        const validSecret = process.env.ADMIN_LOGIN_SECRET;
 
-        if (!validSecret) {
-            console.error('[Security] ADMIN_LOGIN_SECRET not configured');
+    // STEP 1: Protect the Login Page FIRST (before Clerk auth resolves)
+    // Block /login access unless user has admin_access cookie
+    // Allow Clerk's internal auth sub-routes (factor-one, sso-callback, etc.)
+    if (isLoginPage(req) && !clerkRoutes.includes(lastSegment)) {
+        const hasAccess = req.cookies.get('admin_access');
+
+        // Check if this is the secret entry route
+        if (isSecretEntry(req)) {
+            const urlSecret = path.split('/').pop();
+            const validSecret = process.env.ADMIN_LOGIN_SECRET;
+
+            if (!validSecret) {
+                console.error('[Security] ADMIN_LOGIN_SECRET not configured');
+                return NextResponse.redirect(new URL('/', req.url));
+            }
+
+            if (urlSecret === validSecret) {
+                // Valid secret — set cookie and redirect to /login
+                const { userId } = await auth()
+                if (userId) {
+                    return NextResponse.redirect(new URL('/dashboard', req.url));
+                }
+                const response = NextResponse.redirect(new URL('/login', req.url));
+                response.cookies.set('admin_access', 'true', {
+                    path: '/',
+                    maxAge: 3600,
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax'
+                });
+                return response;
+            }
+
+            // Invalid secret — redirect to home silently
+            console.error(`[Security] Invalid login secret attempt from: ${req.headers.get('x-forwarded-for') || 'unknown'}`);
             return NextResponse.redirect(new URL('/', req.url));
         }
 
-        // If secret matches
-        if (urlSecret === validSecret) {
-            // Already signed in? Go straight to dashboard
-            if (userId) {
-                return NextResponse.redirect(new URL('/dashboard', req.url));
-            }
-
-            // Not signed in? Set cookie and redirect to Clerk sign-in
-            const response = NextResponse.redirect(new URL('/login', req.url));
-            // Set a cookie that allows access to the login page for 1 hour
-            response.cookies.set('admin_access', 'true', {
-                path: '/',
-                maxAge: 3600, // 1 hour
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax'
-            });
-            return response;
-        }
-
-        // Invalid secret? Redirect to home (Stealth Mode)
-        console.error(`[Security] Invalid login secret attempt from: ${req.headers.get('x-forwarded-for') || 'unknown'}`);
-        return NextResponse.redirect(new URL('/', req.url));
-    }
-
-    // STEP 2: Protect the actual Login Page
-    // If someone tries to go to /login directly without the cookie, kick them out.
-    if (isLoginPage(req) && !userId) {
-        const hasAccess = req.cookies.get('admin_access');
+        // Not a secret entry — must have admin_access cookie
         if (!hasAccess) {
             return NextResponse.redirect(new URL('/', req.url));
         }
     }
+
+    const { userId } = await auth()
 
     // ----------------------------------------------------------------
     // 🛡️ STANDARD ROUTE PROTECTION

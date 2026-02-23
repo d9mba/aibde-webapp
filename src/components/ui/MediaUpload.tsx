@@ -7,18 +7,8 @@ import UploadIcon from '@/assets/svg/actions/upload.svg';
 const getRelativePath = (url: string): string => {
     if (!url) return '';
     if (!url.startsWith('http://') && !url.startsWith('https://')) return url;
-
-    // Check for R2 URL patterns
-    const r2Pattern = /^https?:\/\/[^/]+\.r2\.(dev|cloudflarestorage\.com)\//;
-    if (r2Pattern.test(url)) {
-        return '/' + url.replace(r2Pattern, '');
-    }
-
-    // Check known CDN domains
-    const domains = [CDN_URL, process.env.R2_DEV_URL || ''].filter(Boolean);
-    for (const domain of domains) {
-        if (url.startsWith(domain)) return url.replace(domain, '');
-    }
+    // Only strip our specific CDN domain
+    if (CDN_URL && url.startsWith(CDN_URL)) return url.replace(CDN_URL, '');
     return url;
 };
 
@@ -31,15 +21,11 @@ function getSourceBadge(isCloud: boolean, isExternal: boolean): { label: string;
 
 const isUploadedFile = (url: string): boolean => {
     if (!url) return false;
+    // Relative paths are always our uploaded files
     if (url.startsWith('/')) return true;
-
-    // Check for R2 URL patterns
-    const r2Pattern = /^https?:\/\/[^/]+\.r2\.(dev|cloudflarestorage\.com)\//;
-    if (r2Pattern.test(url)) return true;
-
-    // Check known CDN domains
-    const cdnDomains = [CDN_URL, process.env.R2_DEV_URL || ''].filter(Boolean);
-    return cdnDomains.some(domain => url.startsWith(domain));
+    // Only match our specific CDN domain, not generic R2 patterns
+    if (CDN_URL && url.startsWith(CDN_URL)) return true;
+    return false;
 };
 
 const cleanupFile = async (url: string) => {

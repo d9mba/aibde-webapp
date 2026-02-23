@@ -279,7 +279,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const newTool = await res.json();
             if (!res.ok) throw new Error(newTool.error || 'Failed to add tool');
-            setState((prev) => ({ ...prev, tools: [...prev.tools, newTool] }));
+            setState((prev) => ({ ...prev, tools: [newTool, ...prev.tools] }));
             return newTool;
         } else {
             const newTool: AdminTool = {
@@ -288,7 +288,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
-            setState((prev) => ({ ...prev, tools: [...prev.tools, newTool] }));
+            setState((prev) => ({ ...prev, tools: [newTool, ...prev.tools] }));
             return newTool;
         }
     };

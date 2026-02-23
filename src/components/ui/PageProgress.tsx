@@ -85,25 +85,26 @@ export default function PageProgress() {
     }, [start]);
 
     // Also intercept programmatic navigation (router.push)
+    // Note: start() is deferred with setTimeout because Next.js 16 calls
+    // pushState/replaceState from useInsertionEffect, which forbids state updates.
     useEffect(() => {
         const originalPushState = history.pushState.bind(history);
         const originalReplaceState = history.replaceState.bind(history);
 
         history.pushState = function (...args) {
             if (!isNavigatingRef.current) {
-                start();
+                setTimeout(start, 0);
             }
             return originalPushState(...args);
         };
 
         history.replaceState = function (...args) {
-            // Only start for actual page navigations, not same-page state changes
             const url = args[2];
             if (url && typeof url === 'string') {
                 const normalize = (u: string): string => u.replace(/\/$/, '') || '/';
                 if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
                     if (!isNavigatingRef.current) {
-                        start();
+                        setTimeout(start, 0);
                     }
                 }
             }

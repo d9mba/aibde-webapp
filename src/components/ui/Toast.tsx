@@ -143,7 +143,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                                 <div className="font-semibold text-text-primary text-sm">
                                     {toast.title || defaultTitles[toast.type]}
                                 </div>
-                                <div className="text-text-secondary text-xs mt-0.5 truncate">
+                                <div className="text-text-secondary text-xs mt-0.5 break-words">
                                     {toast.message}
                                 </div>
                             </div>

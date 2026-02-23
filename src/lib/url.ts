@@ -43,15 +43,12 @@ export function extractRelativePath(url: string | undefined | null): string | nu
     if (!url) return null;
     // If it's already a relative path starting with /, return as is
     if (url.startsWith('/') && !url.startsWith('//')) return url;
-
-    try {
-        const urlObj = new URL(url);
-        // Return just the pathname (relative path)
-        return urlObj.pathname;
-    } catch {
-        // Not a valid URL, return as-is
-        return url;
+    // Strip our CDN URL if present
+    if (CDN_URL && url.startsWith(CDN_URL)) {
+        return url.substring(CDN_URL.length) || '/';
     }
+    // External URL — return as-is
+    return url;
 }
 
 /**
@@ -62,17 +59,12 @@ export function toRelativePath(url: string | undefined | null): string {
     if (!url) return '';
     // Already relative
     if (url.startsWith('/') && !url.startsWith('//')) return url;
-    // Strip CDN URL if present
+    // Strip our CDN URL if present
     if (CDN_URL && url.startsWith(CDN_URL)) {
         return url.substring(CDN_URL.length);
     }
-    // Try to extract pathname from full URL
-    try {
-        const urlObj = new URL(url);
-        return urlObj.pathname;
-    } catch {
-        return url;
-    }
+    // External URL — return as-is
+    return url;
 }
 
 /**

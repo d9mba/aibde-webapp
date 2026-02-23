@@ -114,7 +114,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
             </h1>
             <p className="font-orbitron text-text-secondary text-sm sm:text-base -mt-2 tracking-wide">Browse, Discover, Explore</p>
             <p className="text-text-tertiary text-xs sm:text-sm -mt-2">
-                <Link href="/search" prefetch={false}><span className="text-text-primary font-semibold">{toolCount.toLocaleString()}</span> AI tools</Link> for <Link href="/tasks" prefetch={false}><span className="text-text-primary font-semibold">{taskCount}</span> tasks</Link> and <Link href="/category" prefetch={false}><span className="text-text-primary font-semibold">{categoryCount}</span> categories</Link>
+                <Link href="/new" prefetch={false}><span className="text-text-primary font-semibold">{toolCount.toLocaleString()}</span> AI tools</Link> for <Link href="/tasks" prefetch={false}><span className="text-text-primary font-semibold">{taskCount}</span> tasks</Link> and <Link href="/category" prefetch={false}><span className="text-text-primary font-semibold">{categoryCount}</span> categories</Link>
             </p>
             <div className="relative w-full max-w-[500px] mt-1 py-1 z-50">
                 {/* Search Input */}

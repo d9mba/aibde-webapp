@@ -11,13 +11,13 @@ const ensureUrl = (url: string): string => {
     return url.startsWith('http') ? url : `https://${url}`;
 };
 
-// Format founded date - show "Founded in 2025" for year-only dates (stored as YYYY-01-01)
+// Format launched date - show "Launched in 2025" for year-only dates (stored as YYYY-01-01)
 // Uses UTC parsing to avoid timezone issues
-const formatFoundedDate = (dateStr: string): string => {
+const formatLaunchedDate = (dateStr: string): string => {
     // Parse date string manually to avoid timezone issues
     const parts = dateStr.split('T')[0].split('-');
     if (parts.length !== 3) {
-        return `Founded ${dateStr}`;
+        return `Released On ${dateStr}`;
     }
 
     const year = parseInt(parts[0], 10);
@@ -26,12 +26,12 @@ const formatFoundedDate = (dateStr: string): string => {
 
     // If date is January 1st, it was likely a year-only entry
     if (month === 1 && day === 1) {
-        return `Founded in ${year}`;
+        return `Released in ${year}`;
     }
 
     // Otherwise show full date using UTC to avoid timezone shifts
     const date = new Date(Date.UTC(year, month - 1, day));
-    return `Founded ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`;
+    return `Released On ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`;
 };
 
 interface ToolSidebarProps {
@@ -76,17 +76,15 @@ export default function ToolSidebar({
                             </a>
                         )}
 
-                        {/* Date - Founded if launchedOn exists, otherwise Listed on createdAt */}
-                        <div className="flex items-center gap-2.5 text-sm text-text-secondary">
-                            <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
-                            </svg>
-                            {tool.launchedOn ? (
-                                <span>{formatFoundedDate(tool.launchedOn)}</span>
-                            ) : tool.createdAt ? (
-                                <span>Listed on {new Date(tool.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                            ) : null}
-                        </div>
+                        {/* Date - only show if launchedOn exists in DB */}
+                        {tool.launchedOn && (
+                            <div className="flex items-center gap-2.5 text-sm text-text-secondary">
+                                <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
+                                </svg>
+                                <span>{formatLaunchedDate(tool.launchedOn)}</span>
+                            </div>
+                        )}
 
 
                         {/* Social Links */}

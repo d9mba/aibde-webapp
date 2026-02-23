@@ -461,21 +461,17 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
     const timestampFields = ['scheduled_at', 'spotlight_start_date', 'spotlight_end_date', 'launched_on'];
 
     // Helper to extract relative path from full URL (converts CDN URLs to relative paths for storage)
+    // External URLs are stored as-is (full URL)
     const extractRelativePath = (url: string | undefined | null): string | null => {
         if (!url) return null;
         // Already a relative path starting with /, return as is
         if (url.startsWith('/') && !url.startsWith('//')) return url;
-        // Strip CDN URL if present
+        // Strip our CDN URL if present, store as relative path
         if (CDN_URL && url.startsWith(CDN_URL)) {
             return url.substring(CDN_URL.length);
         }
-        // Try to extract pathname from full URL
-        try {
-            const urlObj = new URL(url);
-            return urlObj.pathname;
-        } catch {
-            return url;
-        }
+        // External URL — store the full URL as-is
+        return url;
     };
 
     for (const [key, value] of Object.entries(tool)) {

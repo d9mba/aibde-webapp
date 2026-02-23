@@ -17,19 +17,72 @@ const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').r
 
 // Example JSON template for the Copy Example button (module-level to avoid hooks issues)
 const EXAMPLE_JSON = JSON.stringify({
-    name: 'Tool Name',
-    summary: 'Short description of the tool',
-    description: '<p>Full HTML description</p>',
-    websiteUrl: 'https://example.com',
+    name: 'ChatGPT',
+    app_username: 'chatgpt',
+    summary: 'AI-powered chatbot by OpenAI for conversations, writing, and coding',
+    description: '<p>ChatGPT is an advanced AI assistant built on GPT-4...</p>',
+    isAiGenerated: false,
     logoUrl: 'https://example.com/logo.png',
-    categoryName: ['AI Writing', 'Productivity'],
-    taskName: ['Content Creation'],
-    tags: ['ai', 'writing'],
+    websiteUrl: 'https://chat.openai.com',
+    affiliateUrl: '',
+    affiliateEnabled: false,
+    playStoreUrl: 'https://play.google.com/store/apps/details?id=com.openai.chatgpt',
+    appStoreUrl: 'https://apps.apple.com/app/chatgpt/id6448311069',
+    categoryName: ['AI Chatbot', 'AI Writing'],
+    taskName: ['Content Creation', 'Code Generation'],
+    tags: ['ai', 'chatbot', 'gpt', 'writing'],
     pricing: 'freemium',
-    coreFeatures: ['Feature 1', 'Feature 2'],
-    useCases: ['Use case 1'],
-    pros: ['Pro 1'],
-    cons: ['Con 1'],
+    pricingLabel: 'From $20/mo',
+    billingFrequency: 'monthly',
+    discount: '',
+    hasFreeTrial: false,
+    freeTrialDays: 14,
+    pricingTiers: [
+        {
+            name: 'Free',
+            price: '$0',
+            billingFrequency: 'monthly',
+            features: ['GPT-3.5 access', 'Limited messages'],
+            highlighted: false
+        },
+        {
+            name: 'Plus',
+            price: '$20',
+            billingFrequency: 'monthly',
+            features: ['GPT-4 access', 'Unlimited messages', 'Priority support'],
+            highlighted: true
+        }
+    ],
+    coreFeatures: ['Natural language understanding', 'Code generation', 'Creative writing'],
+    useCases: ['Writing assistance', 'Programming help', 'Research'],
+    pros: ['Easy to use', 'Versatile', 'Constantly improving'],
+    cons: ['Can hallucinate', 'Paid tier required for GPT-4'],
+    faq: [
+        {
+            question: 'Is ChatGPT free?',
+            answer: 'Yes, a free tier is available with GPT-3.5. GPT-4 requires ChatGPT Plus at $20/mo.'
+        }
+    ],
+    images: ['https://example.com/screenshot1.png'],
+    videos: ['https://youtube.com/watch?v=example'],
+    contactName: 'OpenAI',
+    contactEmail: 'support@openai.com',
+    contactCompany: 'OpenAI',
+    contactAddress: '',
+    contactMobile: '',
+    socialLinks: {
+        twitter: 'https://twitter.com/openai',
+        linkedin: 'https://linkedin.com/company/openai',
+        discord: '',
+        youtube: 'https://youtube.com/@openai'
+    },
+    versionHistory: [
+        {
+            version: '4.0',
+            releaseNotes: 'GPT-4 model launch',
+            launchedOn: '2024-03-14'
+        }
+    ],
 }, null, 2);
 
 // FAQ Editor Component
@@ -576,7 +629,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                         <pre className="whitespace-pre-wrap">{`{
   // BASIC SETTINGS (Required: name, summary, description)
   "name": "string",           // Tool name *required
-  "app_username": "string",   // App username/handle
+  "app_username": "string",   // URL slug/handle
   "summary": "string",        // Short description *required
   "description": "string",    // Full description (HTML) *required
   "isAiGenerated": false,     // AI-generated content flag
@@ -584,6 +637,10 @@ export default function ToolForm({ toolId }: ToolFormProps) {
   "websiteUrl": "string",     // Official website
   "affiliateUrl": "string",   // Affiliate link
   "affiliateEnabled": false,  // Enable affiliate redirect
+
+  // APP STORE LINKS
+  "playStoreUrl": "string",
+  "appStoreUrl": "string",
 
   // CATEGORIES & CLASSIFICATION
   "categoryName": ["string"], // Categories array
@@ -638,41 +695,12 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     "other": "string"
   },
 
-  // APP STORE LINKS
-  "playStoreUrl": "string",
-  "appStoreUrl": "string",
-
-  // INTERNAL NOTES
-  "internalNotes": [{         // Admin notes
-    "note": "string",
-    "createdAt": "datetime"
-  }],
-
   // VERSION HISTORY
   "versionHistory": [{        // Release versions
     "version": "string",
     "releaseNotes": "string",
     "launchedOn": "YYYY-MM-DD"
-  }],
-
-  // PUBLISHING
-  "status": "draft|pending|published|unpublished|scheduled",
-  "launchedOn": "YYYY-MM-DD", // Founded date
-  "scheduledAt": "datetime",  // Scheduled publish date
-  "listingType": "free|fast|verified|featured|spotlight",
-
-  // SPOTLIGHT
-  "spotlightEnabled": false,
-  "spotlightPosition": 1,
-  "spotlightStartDate": "YYYY-MM-DD",
-  "spotlightEndDate": "YYYY-MM-DD",
-
-  // OTHER
-  "backLinks": false,          // Enable dofollow backlinks
-  "saveCount": 0,             // Bookmark count
-  "rating": 4.5,              // Rating (0-5)
-  "alternativeTools": ["slug"], // Alt tool slugs
-  "references": ["url"]       // Reference URLs
+  }]
 }`}</pre>
                                     </div>
                                 </details>

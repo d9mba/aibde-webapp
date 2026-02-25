@@ -648,7 +648,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
   "tags": ["string"],         // Tags array
 
   // PRICING
-  "pricing": "free|freemium|paid",
+  "pricing": "free|freemium|paid|open_source",
   "pricingLabel": "string",   // e.g., "From $20/mo"
   "billingFrequency": "monthly|yearly|one-time|custom",
   "discount": "string",       // e.g., "20% off"
@@ -783,7 +783,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                             {parsedJsonData.pricing != null && (
                                                 <div>
                                                     <label className="block text-sm font-medium text-text-secondary mb-1.5">Pricing Model</label>
-                                                    <SearchableSelect value={parsedJsonData.pricing} onChange={(val) => updateParsedField('pricing', val)} options={[{ value: 'free', label: 'Free' }, { value: 'freemium', label: 'Freemium' }, { value: 'paid', label: 'Paid' }]} showSearch={false} />
+                                                    <SearchableSelect value={parsedJsonData.pricing} onChange={(val) => updateParsedField('pricing', val)} options={[{ value: 'free', label: 'Free' }, { value: 'freemium', label: 'Freemium' }, { value: 'paid', label: 'Paid' }, { value: 'open_source', label: 'Open Source' }]} showSearch={false} />
                                                 </div>
                                             )}
                                             {parsedJsonData.pricingLabel != null && <Input label="Pricing Label" value={parsedJsonData.pricingLabel} onChange={(e) => updateParsedField('pricingLabel', e.target.value)} placeholder="From $20/mo" />}
@@ -930,6 +930,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                             { value: 'free', label: 'Free' },
                                             { value: 'freemium', label: 'Freemium' },
                                             { value: 'paid', label: 'Paid' },
+                                            { value: 'open_source', label: 'Open Source' },
                                         ]}
                                         showSearch={false}
                                     />

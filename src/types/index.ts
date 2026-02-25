@@ -15,7 +15,7 @@ export interface AITool {
     categoryName: string[]; // Array of category names
     task: string;  // Comma-separated for backwards compatibility
     taskName: string[];  // Array of task names
-    pricing: 'free' | 'freemium' | 'paid';
+    pricing: 'free' | 'freemium' | 'paid' | 'open_source';
     pricingLabel: string;
     websiteUrl: string;
     logoUrl?: string;
@@ -231,7 +231,7 @@ export interface ToolFilters {
     query?: string;
     category?: string;
     task?: string;
-    pricing?: 'free' | 'freemium' | 'paid';
+    pricing?: 'free' | 'freemium' | 'paid' | 'open_source';
     status?: 'draft' | 'published' | 'scheduled';
     isFeatured?: boolean;
 }

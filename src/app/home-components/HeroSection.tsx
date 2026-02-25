@@ -25,6 +25,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
     // API-based search suggestions
     const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [isLoading, setIsLoading] = useState(false);
     const searchTimeout = useRef<NodeJS.Timeout>();
 
     // Fetch suggestions using Server Action (hidden from Network tab)
@@ -34,12 +35,15 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
             return;
         }
 
+        setIsLoading(true);
         try {
             const { getSearchSuggestionsAction } = await import('@/lib/actions');
             const tools = await getSearchSuggestionsAction(query, 5);
             setSuggestions(tools);
         } catch (error) {
             console.error('Search suggestions failed:', error);
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -120,7 +124,11 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                 {/* Search Input */}
                 <div className={`bg-bg-card border rounded-full transition-all duration-200 ${isMainSearchFocused ? 'border-accent-primary/50 shadow-[0_0_0_3px_rgba(52,178,123,0.25)]' : 'border-border shadow-lg hover:shadow-xl hover:border-text-tertiary'}`}>
                     <div className="flex items-center gap-3 w-full px-5 py-3.5">
-                        <SearchIcon className={`w-[22px] h-[22px] flex-shrink-0 transition-colors ${isMainSearchFocused ? 'text-text-secondary' : 'text-text-tertiary'}`} />
+                        {isLoading ? (
+                            <span className="w-[22px] h-[22px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
+                        ) : (
+                            <SearchIcon className={`w-[22px] h-[22px] flex-shrink-0 transition-colors ${isMainSearchFocused ? 'text-text-secondary' : 'text-text-tertiary'}`} />
+                        )}
                         <input
                             ref={inputRef}
                             type="text"
@@ -197,6 +205,13 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                     className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
                 >
                     Freemium
+                </Link>
+                <Link
+                    href="/search?pricing=open_source"
+                    prefetch={false}
+                    className="group inline-flex items-center gap-1.5 px-4 py-1.5 bg-bg-tertiary hover:bg-border border border-border rounded-full text-sm font-medium text-text-secondary hover:text-text-primary transition-all hover:scale-105"
+                >
+                    Open Source
                 </Link>
                 <Link
                     href="/tasks"

@@ -273,7 +273,11 @@ export default function Header() {
                     {/* Search header */}
                     <div className="flex items-center gap-3 p-4 border-b border-border">
                         <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-3 bg-bg-secondary rounded-full px-4 py-2.5 border border-border focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
-                            <Search size={18} className="text-text-tertiary flex-shrink-0" />
+                            {isLoading ? (
+                                <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
+                            ) : (
+                                <Search size={18} className="text-text-tertiary flex-shrink-0" />
+                            )}
                             <input
                                 ref={searchInputRef}
                                 type="text"

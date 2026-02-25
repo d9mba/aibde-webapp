@@ -34,7 +34,7 @@ export interface DbTool {
     category_name?: string[];
     task_name?: string[];
     tags?: string[];
-    pricing?: 'free' | 'freemium' | 'paid';
+    pricing?: 'free' | 'freemium' | 'paid' | 'open_source';
     pricing_label?: string;
     website_url?: string;
     affiliate_url?: string;

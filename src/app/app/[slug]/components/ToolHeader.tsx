@@ -11,6 +11,7 @@ import { trackToolVisit } from '@/hooks/useToolAnalytics';
 import { useImpressions } from '@/contexts/ImpressionsContext';
 import VoteButtons from '@/components/ui/VoteButtons';
 import { ToolBadge } from '@/components/icons';
+import { getPricingLabel } from '@/lib/formatters';
 
 // Click-to-open More Options Menu
 function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
@@ -196,14 +197,15 @@ export default function ToolHeader({
                     className={`flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full transition-colors no-underline ${tool.pricing === 'free' ? 'bg-green-50 border border-green-100 text-green-700 hover:bg-green-100' :
                         tool.pricing === 'freemium' ? 'bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100' :
                             tool.pricing === 'paid' ? 'bg-rose-50 border border-rose-100 text-rose-700 hover:bg-rose-100' :
-                                'bg-amber-50 border border-amber-100 text-amber-700 hover:bg-amber-100'
+                                tool.pricing === 'open_source' ? 'bg-sky-50 border border-sky-100 text-sky-700 hover:bg-sky-100' :
+                                    'bg-amber-50 border border-amber-100 text-amber-700 hover:bg-amber-100'
                         }`}
                 >
                     <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
                         <line x1="7" y1="7" x2="7.01" y2="7" />
                     </svg>
-                    {tool.pricing?.charAt(0).toUpperCase() + tool.pricing?.slice(1)}
+                    {getPricingLabel(tool.pricing)}
                 </Link>
                 {tool.discount && (
                     <span

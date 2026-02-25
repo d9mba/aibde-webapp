@@ -208,7 +208,11 @@ export default function TopHeader() {
                         )}>
                             <form onSubmit={handleSearch} className="w-full">
                                 <div className="flex items-center gap-3 px-4 py-2.5">
-                                    <Search size={18} strokeWidth={1.5} className={cn("flex-shrink-0 transition-colors", isFocused ? "text-accent-primary" : "text-text-tertiary")} />
+                                    {isLoading ? (
+                                        <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
+                                    ) : (
+                                        <Search size={18} strokeWidth={1.5} className={cn("flex-shrink-0 transition-colors", isFocused ? "text-accent-primary" : "text-text-tertiary")} />
+                                    )}
                                     <input
                                         ref={inputRef}
                                         type="text"
@@ -236,16 +240,13 @@ export default function TopHeader() {
                                         className="flex-1 border-none outline-none bg-transparent text-sm text-text-primary placeholder:text-text-tertiary/50"
                                         suppressHydrationWarning
                                     />
-                                    {isLoading && (
-                                        <span className="w-4 h-4 border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0"></span>
-                                    )}
-                                    {!searchQuery && !isLoading && (
+                                    {!searchQuery && (
                                         <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
                                             <kbd className="px-1 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
                                             <kbd className="px-1 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
                                         </span>
                                     )}
-                                    {searchQuery && !isLoading && (
+                                    {searchQuery && (
                                         <button
                                             type="button"
                                             onClick={() => {

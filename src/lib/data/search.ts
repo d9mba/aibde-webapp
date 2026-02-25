@@ -7,6 +7,7 @@ const PRICING_KEYWORDS: Record<string, string> = {
     'free': 'Free',
     'freemium': 'Freemium',
     'paid': 'Paid',
+    'open_source': 'Open Source',
 };
 
 function detectPricing(query: string, explicitPricing?: string): string | undefined {

@@ -23,7 +23,7 @@ export const toolSchema = z.object({
     tags: z.array(z.string()).default([]),
 
     // Pricing
-    pricing: z.enum(['free', 'freemium', 'paid']).default('free'),
+    pricing: z.enum(['free', 'freemium', 'paid', 'open_source']).default('free'),
     pricingLabel: z.string().default(''),
     billingFrequency: z.string().default('monthly'),
     discount: z.string().default(''),

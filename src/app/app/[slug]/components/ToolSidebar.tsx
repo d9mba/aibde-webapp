@@ -54,7 +54,7 @@ export default function ToolSidebar({
             <div className="space-y-6">
                 {/* Company Info Section */}
                 <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-text-primary">Company Info</h3>
+                    <h3 className="text-sm font-semibold text-text-primary">App Info</h3>
                     <div className="space-y-3">
                         {tool.websiteUrl && (
                             <a

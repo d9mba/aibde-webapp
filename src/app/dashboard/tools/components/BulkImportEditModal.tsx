@@ -265,6 +265,7 @@ export default function BulkImportEditModal({
                                         { value: 'free', label: 'Free' },
                                         { value: 'freemium', label: 'Freemium' },
                                         { value: 'paid', label: 'Paid' },
+                                        { value: 'open_source', label: 'Open Source' },
                                     ]}
                                     showSearch={false}
                                 />

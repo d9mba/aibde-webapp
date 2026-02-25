@@ -24,7 +24,7 @@ export const toolSchema = z.object({
     categoryName: z.array(z.string()).optional().nullable(),
     taskName: z.array(z.string()).optional().nullable(),
     tags: z.array(z.string()).optional().nullable(),
-    pricing: z.enum(['free', 'freemium', 'paid']).optional().nullable(),
+    pricing: z.enum(['free', 'freemium', 'paid', 'open_source']).optional().nullable(),
     pricingLabel: z.string().max(50).optional().nullable(),
     websiteUrl: z.string().url('Invalid website URL').optional().nullable().or(z.literal('')),
     affiliateUrl: z.string().url('Invalid affiliate URL').optional().nullable().or(z.literal('')),

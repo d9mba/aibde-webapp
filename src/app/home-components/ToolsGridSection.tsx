@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool } from '@/types';
 
 const INITIAL_LOAD = 30;           // Initial load: 30 tools
-const LOAD_MORE = 6;               // Load 6 more each time
+const LOAD_MORE = 12;              // Load 12 more each time (4 rows on desktop)
 const MAX_LATEST = 90;             // Maximum 90 for "Just Released"
 const MAX_TRENDING = 50;           // Maximum 50 for "Trending"
 
@@ -19,6 +19,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
     const [activeTab, setActiveTab] = useState<'latest' | 'trending'>('latest');
     const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD);
     const loadMoreRef = useRef<HTMLDivElement>(null);
+    const sectionRef = useRef<HTMLElement>(null);
 
     const newTools = useMemo(() => {
         const toTimestamp = (t: AdminTool) => {
@@ -42,38 +43,33 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
         setVisibleCount(INITIAL_LOAD);
     }, [activeTab]);
 
-    const hasMoreRef = useRef(hasMore);
+    // Re-observe the sentinel after each batch so loading continues
+    // if the sentinel is still in the viewport after adding items.
     useEffect(() => {
-        hasMoreRef.current = hasMore;
-    }, [hasMore]);
+        if (!showLoadMore || !hasMore) return;
 
-    const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
-        const [entry] = entries;
-        if (entry.isIntersecting && hasMoreRef.current) {
-            setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));
-        }
-    }, [maxItems]);
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));
+                }
+            },
+            { root: null, rootMargin: '200px', threshold: 0.1 }
+        );
 
-    useEffect(() => {
-        const observer = new IntersectionObserver(handleObserver, {
-            root: null,
-            rootMargin: '100px',
-            threshold: 0.1,
-        });
-
-        if (loadMoreRef.current && showLoadMore) {
+        if (loadMoreRef.current) {
             observer.observe(loadMoreRef.current);
         }
 
         return () => observer.disconnect();
-    }, [handleObserver, showLoadMore]);
+    }, [showLoadMore, hasMore, maxItems, visibleCount]);
 
     const handleLoadMore = () => {
         setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));
     };
 
     return (
-        <section className="flex flex-col gap-4">
+        <section ref={sectionRef} className="flex flex-col gap-4">
             <div className="flex justify-center mb-2 sticky top-14 sm:top-16 z-10 py-4 -mx-4 sm:-mx-6 px-4 sm:px-6">
                 <div className="inline-flex gap-1 p-1 bg-bg-tertiary rounded-full">
                     <button
@@ -81,7 +77,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                             ? 'bg-bg-card text-text-primary shadow-sm'
                             : 'bg-transparent text-text-tertiary hover:text-text-secondary'
                             }`}
-                        onClick={() => setActiveTab('latest')}
+                        onClick={() => { setActiveTab('latest'); sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -93,7 +89,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                             ? 'bg-bg-card text-text-primary shadow-sm'
                             : 'bg-transparent text-text-tertiary hover:text-text-secondary'
                             }`}
-                        onClick={() => setActiveTab('trending')}
+                        onClick={() => { setActiveTab('trending'); sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M22 2L11 13" />

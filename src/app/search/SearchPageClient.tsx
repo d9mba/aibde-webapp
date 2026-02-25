@@ -35,6 +35,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     const [totalCount, setTotalCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
     const [isSearching, setIsSearching] = useState(false);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
@@ -81,11 +82,14 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             setSuggestions([]);
             return;
         }
+        setIsLoadingSuggestions(true);
         try {
             const tools = await getSearchSuggestionsAction(q, 6);
             setSuggestions(tools);
         } catch (error) {
             console.error('Suggestions failed:', error);
+        } finally {
+            setIsLoadingSuggestions(false);
         }
     }, []);
 
@@ -255,10 +259,14 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                 <div className="relative w-full max-w-[500px] mt-1 py-1">
                     <div className="bg-bg-card border border-border rounded-full shadow-lg hover:shadow-xl hover:border-text-tertiary focus-within:border-accent-primary/50 focus-within:shadow-[0_0_0_3px_rgba(52,178,123,0.25)] transition-all duration-200">
                         <div className="flex items-center gap-3 w-full px-5 py-3.5">
-                            <svg className="text-text-tertiary flex-shrink-0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="M21 21l-4.35-4.35" />
-                            </svg>
+                            {(isSearching || isLoadingSuggestions) ? (
+                                <span className="w-[22px] h-[22px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
+                            ) : (
+                                <svg className="text-text-tertiary flex-shrink-0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="11" cy="11" r="8" />
+                                    <path d="M21 21l-4.35-4.35" />
+                                </svg>
+                            )}
                             <input
                                 ref={inputRef}
                                 type="text"
@@ -279,16 +287,13 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 }}
                                 onBlur={() => setTimeout(() => setShowSuggestions(false), 300)}
                             />
-                            {isSearching && (
-                                <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
-                            )}
-                            {!query && !isSearching && (
+                            {!query && (
                                 <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
                                     <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
                                     <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
                                 </span>
                             )}
-                            {query && !isSearching && (
+                            {query && (
                                 <button
                                     className="flex items-center justify-center p-1 bg-transparent border-none cursor-pointer text-text-tertiary transition-colors hover:text-text-primary"
                                     onClick={() => { searchCommittedRef.current = false; setQuery(''); }}
@@ -352,6 +357,15 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                         >
                             Freemium
                         </button>
+                        <button
+                            onClick={() => setSelectedPricing('open_source')}
+                            className={`px-4 py-2 text-sm rounded-full border transition-all duration-200 ${selectedPricing === 'open_source'
+                                ? 'bg-sky-500/20 border-sky-500 text-sky-500'
+                                : 'bg-bg-card border-border text-text-secondary hover:border-text-tertiary hover:text-text-primary'
+                                }`}
+                        >
+                            Open Source
+                        </button>
                         <a
                             href="/tasks"
                             className="px-4 py-2 text-sm rounded-full border border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary transition-all duration-200"
@@ -397,6 +411,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                         { value: 'free', label: 'Free' },
                         { value: 'freemium', label: 'Freemium' },
                         { value: 'paid', label: 'Paid' },
+                        { value: 'open_source', label: 'Open Source' },
                     ]}
                     value={selectedPricing || ''}
                     onChange={(value) => setSelectedPricing(value || null)}
@@ -470,8 +485,8 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                                 onClick={() => goToPage(page)}
                                                 disabled={isSearching}
                                                 className={`w-10 h-10 text-sm rounded-lg border transition-all ${page === currentPage
-                                                        ? 'bg-accent-primary border-accent-primary text-white font-semibold'
-                                                        : 'border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary'
+                                                    ? 'bg-accent-primary border-accent-primary text-white font-semibold'
+                                                    : 'border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary'
                                                     } disabled:cursor-not-allowed`}
                                             >
                                                 {page}

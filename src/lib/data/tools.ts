@@ -1,9 +1,12 @@
 /**
- * Tool Fetching Functions
- * Fetch tools for various pages
+ * Tool Fetching Functions (SERVER-ONLY)
+ *
+ * Uses supabaseAdmin to bypass RLS — these functions are only called
+ * from Next.js server components (page.tsx) and never from client code.
  */
 
-import { supabase, dbToolToAdminTool } from '../supabase';
+// Deliberate: supabaseAdmin bypasses RLS so all published tools are visible on public pages
+import { supabaseAdmin as supabase, dbToolToAdminTool } from '../supabase';
 import { AdminTool } from '@/types';
 
 /**

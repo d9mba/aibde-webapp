@@ -4,6 +4,7 @@ import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool } from '@/lib/supab
 import { toolUpdateSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { deleteFile, getPathFromUrl } from '@/services/storage.service';
+import { syncToolCounts } from '@/lib/sync-counts';
 
 // GET /api/tools/:id - Get single tool
 // SECURITY: Only admins can view non-published (draft/pending) tools
@@ -57,6 +58,13 @@ export async function PUT(
 
         const { id } = await params;
         const body = await request.json();
+
+        // Fetch old categories/tasks before update (for count syncing)
+        const { data: oldTool } = await supabaseAdmin
+            .from('tools')
+            .select('category_name, task_name')
+            .eq('id', id)
+            .single();
 
         // Validate input with Zod schema (partial for updates)
         const parseResult = toolUpdateSchema.safeParse(body);
@@ -144,6 +152,13 @@ export async function PUT(
         revalidatePath('/new');
         revalidatePath('/trending');
 
+        // Sync category/task counts — merge old + new to handle reassignment
+        const oldCats = Array.isArray(oldTool?.category_name) ? oldTool.category_name : [];
+        const newCats = Array.isArray(body?.categoryName) ? body.categoryName : [];
+        const oldTasks = Array.isArray(oldTool?.task_name) ? oldTool.task_name : [];
+        const newTasks = Array.isArray(body?.taskName) ? body.taskName : [];
+        void syncToolCounts([...oldCats, ...newCats], [...oldTasks, ...newTasks]).catch(() => { });
+
         return NextResponse.json(dbToolToAdminTool(data));
     } catch (err) {
         console.error('[PUT API] Unexpected error:', err);
@@ -168,7 +183,7 @@ export async function DELETE(
         // First, fetch the tool to get file URLs for R2 cleanup
         const { data: tool, error: fetchError } = await supabaseAdmin
             .from('tools')
-            .select('logo_url, images, app_username')
+            .select('logo_url, images, app_username, category_name, task_name')
             .eq('id', id)
             .single();
 
@@ -227,6 +242,11 @@ export async function DELETE(
         if (tool?.app_username) {
             revalidatePath(`/app/${tool.app_username}`);
         }
+
+        // Sync category/task counts after deletion
+        const cats = Array.isArray(tool?.category_name) ? tool.category_name : [];
+        const tasks = Array.isArray(tool?.task_name) ? tool.task_name : [];
+        void syncToolCounts(cats, tasks).catch(() => { });
 
         return NextResponse.json({ success: true });
     } catch (err) {

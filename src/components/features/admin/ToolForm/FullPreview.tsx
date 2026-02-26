@@ -3,6 +3,7 @@
 import { X, ExternalLink, Play } from 'lucide-react';
 import { SafeHtml } from '@/components/ui/SafeHtml';
 import { getStatusClass, getPricingLabel } from '@/lib/formatters';
+import { getFullUrl } from '@/lib/url';
 
 interface FullPreviewProps {
     data: {
@@ -45,7 +46,7 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                 <div className="p-6 border-b border-border">
                     <div className="flex items-start gap-4">
                         {data.logoUrl ? (
-                            <img src={data.logoUrl} alt="" className="w-20 h-20 rounded-xl object-contain" />
+                            <img src={getFullUrl(data.logoUrl)} alt="" className="w-20 h-20 rounded-xl object-contain" />
                         ) : (
                             <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
                                 {data.name?.[0] || '?'}

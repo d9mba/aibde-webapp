@@ -34,7 +34,21 @@ export const proxy = clerkMiddleware(async (auth, req) => {
                 return NextResponse.redirect(new URL('/', req.url));
             }
 
-            if (urlSecret === validSecret) {
+            // Constant-time comparison to prevent timing attacks
+            const encoder = new TextEncoder();
+            const secretBytes = encoder.encode(urlSecret || '');
+            const validBytes = encoder.encode(validSecret);
+            const secretHash = new Uint8Array(await crypto.subtle.digest('SHA-256', secretBytes));
+            const validHash = new Uint8Array(await crypto.subtle.digest('SHA-256', validBytes));
+            // Non-short-circuiting XOR accumulator — always iterates all bytes
+            let acc = secretHash.length ^ validHash.length;
+            const len = Math.max(secretHash.length, validHash.length);
+            for (let i = 0; i < len; i++) {
+                acc |= (secretHash[i] ?? 0) ^ (validHash[i] ?? 0);
+            }
+            const isMatch = acc === 0;
+
+            if (isMatch) {
                 // Valid secret — set cookie and redirect to /login
                 const { userId } = await auth()
                 if (userId) {

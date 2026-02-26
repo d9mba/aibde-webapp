@@ -52,8 +52,9 @@ export function extractRelativePath(url: string | undefined | null): string | nu
 }
 
 /**
- * Convert full URL to relative path for database storage
- * Strips the CDN domain and returns just the path
+ * Convert full URL to relative path for database storage.
+ * Strips the CDN domain and returns just the path.
+ * External (non-CDN) URLs are returned as-is.
  */
 export function toRelativePath(url: string | undefined | null): string {
     if (!url) return '';
@@ -61,7 +62,7 @@ export function toRelativePath(url: string | undefined | null): string {
     if (url.startsWith('/') && !url.startsWith('//')) return url;
     // Strip our CDN URL if present
     if (CDN_URL && url.startsWith(CDN_URL)) {
-        return url.substring(CDN_URL.length);
+        return url.substring(CDN_URL.length) || '/';
     }
     // External URL — return as-is
     return url;

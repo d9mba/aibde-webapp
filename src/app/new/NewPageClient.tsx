@@ -19,10 +19,11 @@ export default function NewPageClient({ tools }: NewPageClientProps) {
         }
     }, [tools, setSharedTools]);
 
-    // Sort by launched date (newest first), with fallback for null/undefined/empty dates
+    // Sort by creation date (newest first) — tools already come sorted from the server,
+    // but re-sort to guarantee order regardless of launchedOn
     const newTools = [...tools].sort((a, b) => {
-        const dateA = a.launchedOn ? new Date(a.launchedOn).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-        const dateB = b.launchedOn ? new Date(b.launchedOn).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
     });
 

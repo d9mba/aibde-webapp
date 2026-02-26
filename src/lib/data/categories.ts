@@ -1,9 +1,13 @@
 /**
- * Category and Task Queries
- * Fetch categories and tasks for navigation
+ * Category and Task Queries (SERVER-ONLY)
+ *
+ * Uses supabaseAdmin to bypass RLS — these functions are only called
+ * from Next.js server components (page.tsx) and never from client code.
+ * The service role key stays on the server and is never exposed to the browser.
  */
 
-import { supabase } from '../supabase';
+// Deliberate: supabaseAdmin bypasses RLS so all categories/tasks are visible on public pages
+import { supabaseAdmin as supabase } from '../supabase';
 import { Category, Task } from '@/types';
 
 /**

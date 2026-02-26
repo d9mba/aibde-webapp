@@ -9,6 +9,7 @@ import { Input, Toggle, Section, ListEditor, Combobox, RichTextEditor, MediaUplo
 import { toolSchema, ToolFormData, defaultToolValues } from './ToolForm/schema';
 import FullPreview from './ToolForm/FullPreview';
 import { getPricingClass, getPricingLabel } from '@/lib/formatters';
+import { getFullUrl } from '@/lib/url';
 
 interface ToolFormProps { toolId?: string; }
 
@@ -36,7 +37,7 @@ const EXAMPLE_JSON = JSON.stringify({
     billingFrequency: 'monthly',
     discount: '',
     hasFreeTrial: false,
-    freeTrialDays: 14,
+    freeTrialDays: 0,
     pricingTiers: [
         {
             name: 'Free',
@@ -244,7 +245,7 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
             </div>
             <div className="flex gap-4 items-start">
                 <div className="w-16 h-16 rounded-xl bg-bg-tertiary flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {values.logoUrl ? <img src={values.logoUrl} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-2xl text-text-tertiary">🔧</span>}
+                    {values.logoUrl ? <img src={getFullUrl(values.logoUrl)} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-2xl text-text-tertiary">🔧</span>}
                 </div>
                 <div className="flex-1 min-w-0">
                     <h2 className="text-lg font-bold text-text-primary truncate">{values.name || 'Tool Name'}</h2>

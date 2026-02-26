@@ -7,6 +7,9 @@ const PRICING_KEYWORDS: Record<string, string> = {
     'free': 'Free',
     'freemium': 'Freemium',
     'paid': 'Paid',
+    'open source': 'Open Source',
+    'open-source': 'Open Source',
+    'opensource': 'Open Source',
     'open_source': 'Open Source',
 };
 

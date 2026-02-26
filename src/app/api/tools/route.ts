@@ -4,6 +4,7 @@ import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool, DbTool } from '@/l
 import { toolSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { escapeLike } from '@/lib/utils';
+import { syncToolCounts } from '@/lib/sync-counts';
 
 // All fields for tools - needed for edit form to work correctly
 // WARNING: Contains sensitive fields - use only for single-tool detail view
@@ -284,6 +285,11 @@ export async function POST(request: NextRequest) {
         revalidatePath('/');
         revalidatePath('/new');
         revalidatePath('/trending');
+
+        // Sync category/task counts in the background
+        const categories = Array.isArray(body.categoryName) ? body.categoryName : [];
+        const tasks = Array.isArray(body.taskName) ? body.taskName : [];
+        void syncToolCounts(categories, tasks).catch(() => { });
 
         return NextResponse.json(dbToolToAdminTool(data), { status: 201 });
     } catch (err) {

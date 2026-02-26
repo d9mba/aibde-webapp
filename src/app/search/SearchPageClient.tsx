@@ -228,7 +228,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         const end = Math.min(totalPages - 1, currentPage + 1);
         for (let i = start; i <= end; i++) pages.push(i);
         if (currentPage < totalPages - 2) pages.push('ellipsis');
-        if (totalPages > 1) pages.push(totalPages);
+        if (totalPages > 1 && pages[pages.length - 1] !== totalPages) pages.push(totalPages);
         return pages;
     }
 
@@ -435,8 +435,10 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                 <div className="mb-12" ref={resultsRef}>
                     {!isSearching && (
                         <p className="text-sm text-text-tertiary mb-4">
-                            Showing {((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(currentPage * PAGE_SIZE, totalCount).toLocaleString()} of {totalCount.toLocaleString()} tool{totalCount !== 1 ? 's' : ''}
-                            {committedQuery && ` for "${committedQuery}"`}
+                            {totalCount > 0
+                                ? <>Showing {((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(currentPage * PAGE_SIZE, totalCount).toLocaleString()} of {totalCount.toLocaleString()} tool{totalCount !== 1 ? 's' : ''}{committedQuery && ` for "${committedQuery}"`}</>
+                                : <>No tools found{committedQuery && ` for "${committedQuery}"`}</>
+                            }
                         </p>
                     )}
 

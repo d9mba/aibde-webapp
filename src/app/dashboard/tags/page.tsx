@@ -1,18 +1,38 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAdmin, Tag } from '@/context/AdminContext';
+import useSWR from 'swr';
+import { Tag } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
+function useDebounce(value: string, delay: number): string {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedValue(value), delay);
+        return () => clearTimeout(timer);
+    }, [value, delay]);
+    return debouncedValue;
+}
+
+interface PaginatedResponse {
+    data: Tag[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
 
 export default function TagsPage() {
     const router = useRouter();
-    const { tags, tools, addTag, updateTag, deleteTag } = useAdmin();
     const { showToast, updateToast } = useToast();
     const { confirm } = useConfirm();
     const [newName, setNewName] = useState('');
@@ -20,39 +40,58 @@ export default function TagsPage() {
     const [editName, setEditName] = useState('');
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [pageLoading, setPageLoading] = useState(false);
+    const debouncedSearch = useDebounce(search, 300);
 
-    // Count tools that have this tag in their tags array
-    const tagCounts = tags.reduce((acc: Record<string, number>, tag: Tag) => {
-        acc[tag.id] = tools.filter((t) => t.tags?.includes(tag.tagName)).length;
-        return acc;
-    }, {} as Record<string, number>);
+    const apiUrl = useMemo(() => {
+        const params = new URLSearchParams();
+        params.set('page', String(currentPage));
+        params.set('limit', String(ITEMS_PER_PAGE));
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        return `/api/tags?${params.toString()}`;
+    }, [currentPage, debouncedSearch]);
 
-    const filteredTags = useMemo(() => {
-        return tags.filter((tag: Tag) =>
-            (tag.tagName || '').toLowerCase().includes(search.toLowerCase())
-        );
-    }, [tags, search]);
+    const { data: response, isLoading, mutate } = useSWR<PaginatedResponse>(
+        apiUrl,
+        fetcher,
+        {
+            revalidateOnFocus: false,
+            keepPreviousData: true,
+            onSuccess: () => setPageLoading(false),
+        }
+    );
 
-    // Pagination
-    const totalPages = Math.ceil(filteredTags.length / ITEMS_PER_PAGE);
-    const paginatedTags = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredTags.slice(start, start + ITEMS_PER_PAGE);
-    }, [filteredTags, currentPage]);
+    const tags = response?.data || [];
+    const pagination = response?.pagination;
+    const totalPages = pagination?.totalPages || 0;
 
-    // Reset to page 1 when search changes
-    const handleSearch = (value: string) => {
+    const handlePageChange = useCallback((newPage: number) => {
+        setPageLoading(true);
+        setCurrentPage(newPage);
+    }, []);
+
+    const handleSearch = useCallback((value: string) => {
         setSearch(value);
         setCurrentPage(1);
-    };
+        if (value !== search) setPageLoading(true);
+    }, [search]);
 
     const handleAdd = async () => {
         if (!newName.trim()) return;
         const toastId = showToast('Creating tag...', 'loading');
         try {
-            await addTag({ tagName: newName.trim(), count: 0 });
+            const res = await fetch('/api/tags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tagName: newName.trim(), count: 0 }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to create tag');
+            }
             updateToast(toastId, `Tag "#${newName}" created!`, 'success');
             setNewName('');
+            mutate();
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to create tag';
             updateToast(toastId, message, 'error');
@@ -69,9 +108,15 @@ export default function TagsPage() {
         if (!editName.trim()) return;
         const toastId = showToast('Saving changes...', 'loading');
         try {
-            await updateTag(id, { tagName: editName.trim() });
+            const res = await fetch('/api/tags', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, tagName: editName.trim() }),
+            });
+            if (!res.ok) throw new Error('Failed to update tag');
             updateToast(toastId, 'Tag updated!', 'success');
             setEditingId(null);
+            mutate();
         } catch (err) {
             updateToast(toastId, 'Failed to update tag', 'error');
         }
@@ -89,19 +134,32 @@ export default function TagsPage() {
         if (!confirmed) return;
         const toastId = showToast('Deleting tag...', 'loading');
         try {
-            await deleteTag(tag.id);
+            const res = await fetch(`/api/tags?id=${tag.id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed to delete tag');
             updateToast(toastId, `Tag "#${tag.tagName}" deleted!`, 'success');
+            mutate();
         } catch (err) {
             updateToast(toastId, 'Failed to delete tag', 'error');
         }
     };
 
+    if (!response && isLoading) {
+        return (
+            <div className="p-6 flex items-center justify-center min-h-[300px]">
+                <div className="animate-spin w-8 h-8 border-3 border-accent-primary border-t-transparent rounded-full" />
+            </div>
+        );
+    }
+
     return (
         <div className="p-6">
+
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-text-primary">Tags</h1>
-                    <p className="text-text-secondary text-sm mt-1">{tags.length} tags across {tools.length} tools</p>
+                    <p className="text-text-secondary text-sm mt-1">
+                        {pagination ? `${pagination.total} tags` : 'Loading...'}
+                    </p>
                 </div>
             </div>
 
@@ -136,11 +194,11 @@ export default function TagsPage() {
                             <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {paginatedTags.length === 0 ? (
+                    <tbody style={{ opacity: pageLoading ? 0.4 : 1, transition: 'opacity 0.2s' }}>
+                        {tags.length === 0 ? (
                             <tr><td colSpan={3} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tags match your search' : 'No tags found'}</td></tr>
                         ) : (
-                            paginatedTags.map((tag: Tag) => (
+                            tags.map((tag: Tag) => (
                                 <tr key={tag.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`)}>
                                     <td className="px-4 py-3">
                                         {editingId === tag.id ? (
@@ -154,7 +212,7 @@ export default function TagsPage() {
                                     </td>
                                     <td className="px-4 py-3 text-text-secondary text-sm">
                                         <span className="inline-flex items-center gap-1">
-                                            {tagCounts[tag.id] || 0} tool{(tagCounts[tag.id] || 0) !== 1 ? 's' : ''}
+                                            {tag.count || 0} tool{(tag.count || 0) !== 1 ? 's' : ''}
                                             <span className="text-text-tertiary">→</span>
                                         </span>
                                     </td>
@@ -186,22 +244,25 @@ export default function TagsPage() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4 px-1">
                     <span className="text-sm text-text-tertiary">
-                        Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredTags.length)} of {filteredTags.length}
+                        Page {currentPage} of {totalPages} ({pagination?.total} total)
                     </span>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                             disabled={currentPage === 1}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                             <ChevronLeft className="w-4 h-4" />
                             Previous
                         </button>
-                        <span className="text-sm text-text-tertiary">
+                        <span className="text-sm text-text-tertiary flex items-center gap-2">
                             Page {currentPage} of {totalPages}
+                            {pageLoading && (
+                                <span className="animate-spin w-4 h-4 border-2 border-accent-primary border-t-transparent rounded-full inline-block" />
+                            )}
                         </span>
                         <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                             disabled={currentPage >= totalPages}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                         >

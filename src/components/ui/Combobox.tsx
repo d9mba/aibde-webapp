@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 // Helper to determine input value based on state
 function getInputValue(isOpen: boolean, multiple: boolean, search: string, selectedLabel: string): string {
@@ -44,6 +44,7 @@ export default function Combobox(props: Props) {
     const [search, setSearch] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [focusedIdx, setFocusedIdx] = useState(-1);
+    const [displayLimit, setDisplayLimit] = useState(20);
     const [localOptions, setLocalOptions] = useState<ComboboxOption[]>([]);
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -87,8 +88,19 @@ export default function Combobox(props: Props) {
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
-    // Reset focus on search change
-    useEffect(() => { setFocusedIdx(-1); }, [search]);
+    // Reset focus and display limit on search change
+    useEffect(() => {
+        setFocusedIdx(-1);
+        setDisplayLimit(search ? 100 : 20);
+    }, [search]);
+
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.target as HTMLDivElement;
+        const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 50;
+        if (nearBottom && filteredOptions.length > displayLimit) {
+            setDisplayLimit(prev => prev + 20);
+        }
+    }, [filteredOptions.length, displayLimit]);
 
     // Scroll focused item into view
     useEffect(() => {
@@ -194,8 +206,8 @@ export default function Combobox(props: Props) {
 
             {/* Dropdown */}
             {isOpen && (
-                <div ref={listRef} className="absolute z-50 w-full mt-1 bg-bg-card border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                    {filteredOptions.map((option, idx) => {
+                <div ref={listRef} className="absolute z-50 w-full mt-1 bg-bg-card border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto" onScroll={handleScroll}>
+                    {filteredOptions.slice(0, displayLimit).map((option, idx) => {
                         // Only one item should be highlighted at a time
                         const isHighlighted = idx === focusedIdx;
 
@@ -214,6 +226,11 @@ export default function Combobox(props: Props) {
                             </div>
                         );
                     })}
+                    {filteredOptions.length > displayLimit && (
+                        <div className="px-3 py-2 text-xs text-text-tertiary text-center">
+                            {search ? 'Scroll for more...' : `Scroll to see ${filteredOptions.length - displayLimit} more`}
+                        </div>
+                    )}
                     {filteredOptions.length === 0 && !canAddNew && (
                         <div className="px-3 py-2 text-sm text-text-tertiary">No options found</div>
                     )}

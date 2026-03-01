@@ -52,10 +52,13 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(mappedData);
         }
 
-        // Get total count
-        const { count: totalCount, error: countError } = await supabaseAdmin
-            .from('tags')
-            .select('*', { count: 'exact', head: true });
+        const search = searchParams.get('search') || '';
+
+        // Build base query with optional search filter
+        let countQuery = supabaseAdmin.from('tags').select('*', { count: 'exact', head: true });
+        if (search) countQuery = countQuery.ilike('tag_name', `%${search}%`);
+
+        const { count: totalCount, error: countError } = await countQuery;
 
         if (countError) {
             return NextResponse.json({ error: countError.message }, { status: 500 });
@@ -63,11 +66,14 @@ export async function GET(request: NextRequest) {
 
         // Get paginated data
         const offset = (page - 1) * limit;
-        const { data, error } = await supabaseAdmin
+        let dataQuery = supabaseAdmin
             .from('tags')
             .select('*')
             .order('tag_name', { ascending: true })
             .range(offset, offset + limit - 1);
+        if (search) dataQuery = dataQuery.ilike('tag_name', `%${search}%`);
+
+        const { data, error } = await dataQuery;
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });

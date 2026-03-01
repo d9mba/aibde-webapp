@@ -1,22 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAdmin } from '@/context/AdminContext';
-import { Task, AdminTool } from '@/context/AdminContext';
+import useSWR from 'swr';
+import { Task } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
 import { Pencil, Trash2 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-// Helper to slugify task name for URLs
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+function useDebounce(value: string, delay: number): string {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedValue(value), delay);
+        return () => clearTimeout(timer);
+    }, [value, delay]);
+    return debouncedValue;
+}
+
+interface PaginatedResponse {
+    data: Task[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
 
 export default function TasksPage() {
     const router = useRouter();
-    const { tasks, tools, addTask, updateTask, deleteTask } = useAdmin();
     const { showToast, updateToast } = useToast();
     const { confirm } = useConfirm();
     const [newName, setNewName] = useState('');
@@ -26,35 +44,58 @@ export default function TasksPage() {
     const [editDesc, setEditDesc] = useState('');
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [pageLoading, setPageLoading] = useState(false);
+    const debouncedSearch = useDebounce(search, 300);
 
-    const taskCounts = tasks.reduce((acc: Record<string, number>, task: Task) => {
-        acc[task.id] = tools.filter((t: AdminTool) => (t.taskName || []).includes(task.taskName)).length;
-        return acc;
-    }, {} as Record<string, number>);
+    const apiUrl = useMemo(() => {
+        const params = new URLSearchParams();
+        params.set('page', String(currentPage));
+        params.set('limit', String(ITEMS_PER_PAGE));
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        return `/api/tasks?${params.toString()}`;
+    }, [currentPage, debouncedSearch]);
 
-    const filteredTasks = tasks.filter((task: Task) =>
-        task.taskName.toLowerCase().includes(search.toLowerCase()) ||
-        (task.description || '').toLowerCase().includes(search.toLowerCase())
+    const { data: response, isLoading, mutate } = useSWR<PaginatedResponse>(
+        apiUrl,
+        fetcher,
+        {
+            revalidateOnFocus: false,
+            keepPreviousData: true,
+            onSuccess: () => setPageLoading(false),
+        }
     );
 
-    // Pagination
-    const totalPages = Math.ceil(filteredTasks.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedTasks = filteredTasks.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    const tasks = response?.data || [];
+    const pagination = response?.pagination;
+    const totalPages = pagination?.totalPages || 0;
 
-    // Reset to page 1 when search changes
-    const handleSearchChange = (value: string) => {
+    const handlePageChange = useCallback((newPage: number) => {
+        setPageLoading(true);
+        setCurrentPage(newPage);
+    }, []);
+
+    const handleSearchChange = useCallback((value: string) => {
         setSearch(value);
         setCurrentPage(1);
-    };
+        if (value !== search) setPageLoading(true);
+    }, [search]);
 
     const handleAdd = async () => {
         if (!newName.trim()) return;
         const toastId = showToast('Creating task...', 'loading');
         try {
-            await addTask({ taskName: newName.trim(), count: 0, description: newDesc.trim() });
+            const res = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskName: newName.trim(), count: 0, description: newDesc.trim() }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to create task');
+            }
             updateToast(toastId, `Task "${newName}" created!`, 'success');
             setNewName(''); setNewDesc('');
+            mutate();
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to create task';
             updateToast(toastId, message, 'error');
@@ -71,9 +112,15 @@ export default function TasksPage() {
         if (!editName.trim()) return;
         const toastId = showToast('Saving changes...', 'loading');
         try {
-            await updateTask(id, { taskName: editName.trim(), description: editDesc.trim() });
+            const res = await fetch('/api/tasks', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, taskName: editName.trim(), description: editDesc.trim() }),
+            });
+            if (!res.ok) throw new Error('Failed to update task');
             updateToast(toastId, 'Task updated!', 'success');
             setEditingId(null);
+            mutate();
         } catch (err) {
             updateToast(toastId, 'Failed to update task', 'error');
         }
@@ -91,19 +138,32 @@ export default function TasksPage() {
         if (!confirmed) return;
         const toastId = showToast('Deleting task...', 'loading');
         try {
-            await deleteTask(task.id);
+            const res = await fetch(`/api/tasks?id=${task.id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed to delete task');
             updateToast(toastId, `Task "${task.taskName}" deleted!`, 'success');
+            mutate();
         } catch (err) {
             updateToast(toastId, 'Failed to delete task', 'error');
         }
     };
 
+    if (!response && isLoading) {
+        return (
+            <div className="p-3 sm:p-6 flex items-center justify-center min-h-[300px]">
+                <div className="animate-spin w-8 h-8 border-3 border-accent-primary border-t-transparent rounded-full" />
+            </div>
+        );
+    }
+
     return (
         <div className="p-3 sm:p-6">
+
             <div className="flex justify-between items-center mb-4 sm:mb-6">
                 <div>
                     <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Tasks</h1>
-                    <p className="text-text-secondary text-xs sm:text-sm mt-0.5 sm:mt-1">{tasks.length} tasks across {tools.length} tools</p>
+                    <p className="text-text-secondary text-xs sm:text-sm mt-0.5 sm:mt-1">
+                        {pagination ? `${pagination.total} tasks` : 'Loading...'}
+                    </p>
                 </div>
             </div>
 
@@ -126,14 +186,15 @@ export default function TasksPage() {
                 </div>
             </div>
 
+
             {/* Mobile Card View */}
-            <div className="sm:hidden space-y-2">
-                {paginatedTasks.length === 0 ? (
+            <div className="sm:hidden space-y-2" style={{ opacity: pageLoading ? 0.4 : 1, transition: 'opacity 0.2s', pointerEvents: pageLoading ? 'none' : 'auto' }}>
+                {tasks.length === 0 ? (
                     <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary text-sm">
                         {search ? 'No tasks match your search' : 'No tasks found'}
                     </div>
                 ) : (
-                    paginatedTasks.map((task: Task) => (
+                    tasks.map((task: Task) => (
                         <div
                             key={task.id}
                             className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary"
@@ -153,7 +214,7 @@ export default function TasksPage() {
                                     )}
                                 </div>
                                 <span className="text-xs px-2 py-0.5 bg-bg-tertiary text-text-secondary rounded-full flex-shrink-0">
-                                    {taskCounts[task.id] || 0}
+                                    {task.count || 0}
                                 </span>
                             </div>
                             <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-border" onClick={e => e.stopPropagation()}>
@@ -185,11 +246,11 @@ export default function TasksPage() {
                             <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {paginatedTasks.length === 0 ? (
+                    <tbody style={{ opacity: pageLoading ? 0.4 : 1, transition: 'opacity 0.2s' }}>
+                        {tasks.length === 0 ? (
                             <tr><td colSpan={4} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tasks match your search' : 'No tasks found'}</td></tr>
                         ) : (
-                            paginatedTasks.map((task: Task) => (
+                            tasks.map((task: Task) => (
                                 <tr key={task.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tasks/${slugify(task.taskName)}`)}>
                                     <td className="px-4 py-3">
                                         {editingId === task.id ? (
@@ -207,7 +268,7 @@ export default function TasksPage() {
                                     </td>
                                     <td className="px-4 py-3 text-text-secondary text-sm">
                                         <span className="inline-flex items-center gap-1">
-                                            {taskCounts[task.id] || 0} tool{(taskCounts[task.id] || 0) !== 1 ? 's' : ''}
+                                            {task.count || 0} tool{(task.count || 0) !== 1 ? 's' : ''}
                                             <span className="text-text-tertiary">→</span>
                                         </span>
                                     </td>
@@ -239,23 +300,26 @@ export default function TasksPage() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4 px-1">
                     <span className="text-sm text-text-tertiary">
-                        Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredTasks.length)} of {filteredTasks.length}
+                        Page {currentPage} of {totalPages} ({pagination?.total} total)
                     </span>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                             disabled={currentPage === 1}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
                             Previous
                         </button>
-                        <span className="text-sm text-text-tertiary">
+                        <span className="text-sm text-text-tertiary flex items-center gap-2">
                             Page {currentPage} of {totalPages}
+                            {pageLoading && (
+                                <span className="animate-spin w-4 h-4 border-2 border-accent-primary border-t-transparent rounded-full inline-block" />
+                            )}
                         </span>
                         <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
+                            onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage >= totalPages}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                             Next

@@ -143,7 +143,7 @@ export function SearchableSelect({
                     className="absolute z-50 w-full top-full mt-1 bg-bg-card border border-border rounded-xl shadow-xl overflow-hidden"
                     tabIndex={showSearch ? undefined : -1}
                     onKeyDown={showSearch ? undefined : handleKeyDown}
-                    ref={el => { if (el && !showSearch) el.focus(); }}
+                    ref={el => { if (el && !showSearch) el.focus({ preventScroll: true }); }}
                     style={{ outline: 'none' }}
                 >
                     {/* Search Input */}

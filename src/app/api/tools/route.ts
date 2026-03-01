@@ -101,7 +101,7 @@ function applyMissingDataFilter(query: any, filter: string) {
 }
 
 // Helper to apply all common filters
-function applyFilters(query: any, filters: { search?: string | null, category?: string | null, missingData?: string | null, status?: string | null }) {
+function applyFilters(query: any, filters: { search?: string | null, category?: string | null, task?: string | null, tag?: string | null, missingData?: string | null, status?: string | null }) {
     if (filters.status) {
         query = query.eq('status', filters.status);
     }
@@ -110,6 +110,12 @@ function applyFilters(query: any, filters: { search?: string | null, category?: 
     }
     if (filters.category && filters.category !== 'all') {
         query = query.contains('category_name', [filters.category]);
+    }
+    if (filters.task && filters.task !== 'all') {
+        query = query.contains('task_name', [filters.task]);
+    }
+    if (filters.tag && filters.tag !== 'all') {
+        query = query.contains('tags', [filters.tag]);
     }
     if (filters.missingData && filters.missingData !== 'all') {
         query = applyMissingDataFilter(query, filters.missingData);
@@ -142,6 +148,8 @@ export async function GET(request: NextRequest) {
 
         const search = searchParams.get('search')?.trim();
         const category = searchParams.get('category');
+        const task = searchParams.get('task');
+        const tag = searchParams.get('tag');
         const missingData = searchParams.get('missing');
 
         // Get total count for pagination with ALL filters applied
@@ -150,7 +158,7 @@ export async function GET(request: NextRequest) {
             .select('*', { count: 'exact', head: true });
 
         // Apply all filters to count query (must match data query filters)
-        countQuery = applyFilters(countQuery, { search, category, missingData, status });
+        countQuery = applyFilters(countQuery, { search, category, task, tag, missingData, status });
 
         const countResult = await countQuery;
         const totalCount = countResult.count || 0;
@@ -175,7 +183,7 @@ export async function GET(request: NextRequest) {
                     .order('created_at', { ascending: false })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
-                query = applyFilters(query, { search, category, missingData, status });
+                query = applyFilters(query, { search, category, task, tag, missingData, status });
 
                 const { data: pageData, error: pageError } = await query;
 
@@ -203,7 +211,7 @@ export async function GET(request: NextRequest) {
                 .select(TABLE_FIELDS)
                 .order('created_at', { ascending: false });
 
-            query = applyFilters(query, { search, category, missingData, status });
+            query = applyFilters(query, { search, category, task, tag, missingData, status });
 
             const result = await query.range(offset, offset + validLimit - 1);
             data = result.data;

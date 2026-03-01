@@ -1,31 +1,79 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import useSWR from 'swr';
 import { useAdmin, AdminTool, Category } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStatusClass } from '@/lib/formatters';
+
+const ITEMS_PER_PAGE = 24;
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 // Helper to slugify category name for URL comparison
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+interface PaginatedResponse {
+    data: AdminTool[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
 
 export default function CategoryDetailPage() {
     const params = useParams();
     const router = useRouter();
     const slug = params.slug as string;
-    const { categories, tools, isLoaded } = useAdmin();
+    const { categories, isLoaded } = useAdmin();
+
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
 
     // Find category by matching slug
     const category = categories.find((c: Category) => slugify(c.categoryName) === slug);
-    const allLinkedTools = category
-        ? tools.filter((t: AdminTool) => (t.categoryName || []).includes(category.categoryName))
-        : [];
-    const linkedTools = search
-        ? allLinkedTools.filter((t: AdminTool) => (t.name || '').toLowerCase().includes(search.toLowerCase()))
-        : allLinkedTools;
+
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (debouncedSearch !== search) {
+                setDebouncedSearch(search);
+                setCurrentPage(1);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search, debouncedSearch]);
+
+    // Build API URL with server-side pagination
+    const apiUrl = useMemo(() => {
+        if (!category) return null;
+        const params = new URLSearchParams();
+        params.set('page', currentPage.toString());
+        params.set('limit', ITEMS_PER_PAGE.toString());
+        params.set('category', category.categoryName);
+        if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+        return `/api/tools?${params.toString()}`;
+    }, [category, currentPage, debouncedSearch]);
+
+    // Fetch tools with SWR (server-side pagination)
+    const { data: toolsData, isValidating } = useSWR<PaginatedResponse>(
+        apiUrl,
+        fetcher,
+        { revalidateOnFocus: false, keepPreviousData: true }
+    );
+
+    const tools = toolsData?.data || [];
+    const pagination = toolsData?.pagination;
+    const totalPages = pagination?.totalPages || 0;
+
+    function handleSearchChange(value: string): void {
+        setSearch(value);
+    }
 
     // Show loading state while data is being fetched
     if (!isLoaded) {
@@ -51,7 +99,13 @@ export default function CategoryDetailPage() {
     }
 
     return (
-        <div className="p-3 sm:p-6">
+        <div className="p-3 sm:p-6 relative">
+            {/* Page-level loading overlay */}
+            {isValidating && toolsData && (
+                <div className="absolute inset-0 bg-bg-primary/60 z-10 flex items-center justify-center rounded-xl">
+                    <div className="animate-spin w-8 h-8 border-3 border-accent-primary border-t-transparent rounded-full" />
+                </div>
+            )}
             {/* Back Button */}
             <button onClick={() => router.push('/dashboard/categories')} className="flex items-center gap-1.5 text-text-secondary hover:text-accent-primary text-sm mb-4">
                 <ArrowLeft className="w-4 h-4" /> Back to Categories
@@ -70,46 +124,83 @@ export default function CategoryDetailPage() {
 
             {/* Search & Count */}
             <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-text-secondary">{linkedTools.length} tool{linkedTools.length !== 1 ? 's' : ''}</span>
+                <span className="text-sm text-text-secondary">
+                    {pagination ? `${pagination.total} tool${pagination.total !== 1 ? 's' : ''}` : 'Loading...'}
+                </span>
                 <div className="relative w-64">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">{renderIcon('search', 16)}</span>
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tools..."
+                    <input value={search} onChange={e => handleSearchChange(e.target.value)} placeholder="Search tools..."
                         className="w-full pl-9 pr-3 py-2 bg-bg-secondary border border-border rounded-xl text-sm text-text-primary" />
                 </div>
             </div>
 
             {/* Tools Grid */}
-            {linkedTools.length === 0 ? (
+            {!toolsData && !tools.length ? (
+                <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full" />
+                </div>
+            ) : tools.length === 0 ? (
                 <div className="bg-bg-card border border-border rounded-xl p-12 text-center">
                     <div className="text-text-tertiary mb-2">{renderIcon('tools', 48)}</div>
                     <p className="text-text-tertiary">{search ? 'No tools match your search' : 'No tools in this category'}</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {linkedTools.map((tool: AdminTool) => (
-                        <div key={tool.id} onClick={() => setPreviewTool(tool)}
-                            className="bg-bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-accent-primary/50 hover:shadow-lg transition-all">
-                            <div className="flex items-center gap-3 mb-3">
-                                {tool.logoUrl ? (
-                                    <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-xl object-contain" />
-                                ) : (
-                                    <div className="w-12 h-12 bg-accent-primary/20 rounded-xl flex items-center justify-center text-xl font-bold text-accent-primary">
-                                        {tool.name[0]}
+                <>
+                    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 transition-opacity ${isValidating ? 'opacity-50' : ''}`}>
+                        {tools.map((tool: AdminTool) => (
+                            <div key={tool.id} onClick={() => setPreviewTool(tool)}
+                                className="bg-bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-accent-primary/50 hover:shadow-lg transition-all">
+                                <div className="flex items-center gap-3 mb-3">
+                                    {tool.logoUrl ? (
+                                        <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-xl object-contain" />
+                                    ) : (
+                                        <div className="w-12 h-12 bg-accent-primary/20 rounded-xl flex items-center justify-center text-xl font-bold text-accent-primary">
+                                            {tool.name[0]}
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-text-primary truncate">{tool.name}</div>
+                                        <div className="text-xs text-text-tertiary">{tool.status}</div>
                                     </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-text-primary truncate">{tool.name}</div>
-                                    <div className="text-xs text-text-tertiary">{tool.status}</div>
+                                </div>
+                                <p className="text-sm text-text-secondary line-clamp-2">{tool.summary || tool.description || 'No description'}</p>
+                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                                    <span className="text-xs text-text-tertiary">{tool.pricingLabel}</span>
+                                    <span className="text-accent-primary text-sm flex items-center gap-1">Preview {renderIcon('arrow-right', 14)}</span>
                                 </div>
                             </div>
-                            <p className="text-sm text-text-secondary line-clamp-2">{tool.summary || tool.description || 'No description'}</p>
-                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                                <span className="text-xs text-text-tertiary">{tool.pricingLabel}</span>
-                                <span className="text-accent-primary text-sm flex items-center gap-1">Preview {renderIcon('arrow-right', 14)}</span>
+                        ))}
+                    </div>
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 px-1">
+                            <span className="text-sm text-text-tertiary">
+                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, pagination!.total)} of {pagination!.total}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    <ChevronLeft className="w-4 h-4" /> Previous
+                                </button>
+                                <span className="px-3 py-1.5 text-sm font-medium text-text-primary bg-accent-primary/10 rounded-lg flex items-center gap-2">
+                                    {isValidating && (
+                                        <span className="animate-spin w-3.5 h-3.5 border-2 border-accent-primary border-t-transparent rounded-full" />
+                                    )}
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage >= totalPages}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    Next <ChevronRight className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
-                    ))}
-                </div>
+                    )}
+                </>
             )}
 
             {/* Detailed Quick Preview Modal */}

@@ -59,9 +59,23 @@ export async function getSearchSuggestionsAction(query: string, limit: number = 
     if (!query || query.length < 2) {
         return [];
     }
-    // Over-fetch so client-side nameRelevance re-sort can surface exact matches
+    // Over-fetch so server-side nameRelevance re-sort can surface exact matches
     const overFetch = Math.max(limit, 30);
     const results = await searchTools({ query, limit: overFetch });
+    const q = query.toLowerCase();
+    results.sort((a, b) => {
+        const aName = (a.name || '').toLowerCase();
+        const bName = (b.name || '').toLowerCase();
+        // Score: exact=100, startsWith=80, includes=60, prefix-of-query=50
+        const score = (n: string) => {
+            if (n === q) return 100;
+            if (n.startsWith(q)) return 80;
+            if (n.includes(q)) return 60;
+            if (q.startsWith(n)) return 50;
+            return 0;
+        };
+        return score(bName) - score(aName);
+    });
     return results.slice(0, limit);
 }
 
@@ -95,31 +109,33 @@ export async function getImpressionsAction(): Promise<Record<string, number>> {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        const response = await fetch(`${POSTHOG_API_HOST}/api/projects/${projectId}/query/`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                query: { kind: 'HogQLQuery', query: hogqlQuery },
-            }),
-            signal: controller.signal,
-        });
+        try {
+            const response = await fetch(`${POSTHOG_API_HOST}/api/projects/${projectId}/query/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: { kind: 'HogQLQuery', query: hogqlQuery },
+                }),
+                signal: controller.signal,
+            });
 
-        clearTimeout(timeoutId);
+            if (!response.ok) return {};
 
-        if (!response.ok) return {};
+            const data = await response.json();
+            if (data.error) return {};
 
-        const data = await response.json();
-        if (data.error) return {};
-
-        const impressions: Record<string, number> = {};
-        for (const row of data.results || []) {
-            const slug = row[0] as string;
-            if (slug) impressions[slug] = (row[1] as number) || 0;
+            const impressions: Record<string, number> = {};
+            for (const row of data.results || []) {
+                const slug = row[0] as string;
+                if (slug) impressions[slug] = (row[1] as number) || 0;
+            }
+            return impressions;
+        } finally {
+            clearTimeout(timeoutId);
         }
-        return impressions;
     } catch {
         return {};
     }

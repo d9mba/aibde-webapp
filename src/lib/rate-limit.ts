@@ -76,9 +76,12 @@ export const rateLimits = {
 // Type for preset names
 type RateLimitPreset = keyof typeof rateLimits;
 
+// Track whether the Redis-unavailable warning has already been logged (once per cold start)
+let rateLimitOutageLogged = false;
+
 /**
  * Check rate limit for a given identifier
- * Uses Redis if available, falls back to allowing request if not
+ * Uses Redis if available, denies request if not (fail-closed)
  */
 export async function checkRateLimit(
     identifier: string,
@@ -100,17 +103,23 @@ export async function checkRateLimit(
                 resetTime: result.reset,
             };
         } catch (error) {
-            console.error('[RateLimit] Redis error, allowing request:', error);
-            // Fall through to allow request
+            console.error('[RateLimit] Redis error, denying request as safety measure:', error);
+            return {
+                success: false,
+                remaining: 0,
+                resetTime: Date.now() + config.windowMs,
+            };
         }
     } else if (!redis) {
         // Log warning once per cold start
-        console.warn('[RateLimit] Redis not configured - rate limiting disabled');
+        if (!rateLimitOutageLogged) {
+            rateLimitOutageLogged = true;
+            console.warn('[RateLimit] Redis not configured — denying requests as safety measure');
+        }
     }
 
     // Fallback: deny request when rate limiting is unavailable
     // SECURITY: Defaulting to allow would let attackers exploit Redis outages
-    console.warn('[RateLimit] Redis not available — denying request as a safety measure');
     return {
         success: false,
         remaining: 0,
@@ -127,6 +136,11 @@ export function isRedisConfigured(): boolean {
 
 /**
  * Extract client IP from a request for rate-limit identification.
+ *
+ * NOTE: x-forwarded-for is only trustworthy when the app runs behind a trusted
+ * reverse proxy (e.g., Vercel, Cloudflare). In other deployments the header can
+ * be spoofed by clients. The 'anonymous' fallback aggregates all unidentifiable
+ * requests into one bucket — acceptable for rate-limiting but not for audit.
  */
 export function getClientIp(request: { headers: { get: (name: string) => string | null } }): string {
     const forwarded = request.headers.get('x-forwarded-for');

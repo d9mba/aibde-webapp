@@ -25,7 +25,7 @@ const securityHeaders = [
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
-            "img-src 'self' data: blob: https://cdn.aibde.tech https://pub-1585beb392424c639abc85d5b9baf9be.r2.dev https://lh3.googleusercontent.com https://avatars.githubusercontent.com https://asset.brandfetch.io https://img.clerk.com",
+            "img-src 'self' data: blob: https:",
             "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://e.aibde.tech https://*.upstash.io",
             "frame-src https://challenges.cloudflare.com https://*.clerk.accounts.dev",
             "object-src 'none'",
@@ -86,24 +86,12 @@ const nextConfig = {
     images: {
         domains: [],
         remotePatterns: [
-            // TODO: Replace with your actual R2 bucket hostname
-            {
-                protocol: 'https',
-                hostname: 'pub-1585beb392424c639abc85d5b9baf9be.r2.dev',
-            },
-            // Trusted image providers
-            {
-                protocol: 'https',
-                hostname: 'lh3.googleusercontent.com', // Google user avatars
-            },
-            {
-                protocol: 'https',
-                hostname: 'avatars.githubusercontent.com', // GitHub avatars
-            },
-            {
-                protocol: 'https',
-                hostname: 'asset.brandfetch.io', // Brand logos
-            },
+            { protocol: 'https', hostname: 'cdn.aibde.tech' },
+            { protocol: 'https', hostname: 'pub-1585beb392424c639abc85d5b9baf9be.r2.dev' },
+            { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+            { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+            { protocol: 'https', hostname: 'asset.brandfetch.io' },
+            { protocol: 'https', hostname: 'img.clerk.com' },
         ],
     },
     // Improve development stability

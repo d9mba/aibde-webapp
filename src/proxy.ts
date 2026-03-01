@@ -88,7 +88,9 @@ export const proxy = clerkMiddleware(async (auth, req) => {
             }
 
             // Invalid secret — redirect to home silently
-            console.error(`[Security] Invalid login secret attempt from: ${req.headers.get('x-forwarded-for') || 'unknown'}`);
+            const rawIp = req.headers.get('x-forwarded-for') || 'unknown';
+            const maskedIp = rawIp.length > 3 ? rawIp.slice(0, 3) + '***' : '***';
+            console.error(`[Security] Invalid login secret attempt from: ${maskedIp}`);
             return NextResponse.redirect(new URL('/', req.url));
         }
 

@@ -3,6 +3,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { tagSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
+/** Escape special LIKE pattern characters so user input is treated literally. */
+function escapeLikePattern(value: string): string {
+    return value.replace(/[\\%_]/g, (ch) => '\\' + ch);
+}
+
 // GET /api/tags - List tags with pagination (ADMIN ONLY)
 export async function GET(request: NextRequest) {
     try {
@@ -15,6 +20,7 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '25');
         const all = searchParams.get('all') === 'true';
+        const allSearch = searchParams.get('search') || '';
 
         // If all=true, fetch all records (for dashboard stats, etc.)
         if (all) {
@@ -24,11 +30,13 @@ export async function GET(request: NextRequest) {
             let hasMore = true;
 
             while (hasMore) {
-                const { data, error } = await supabaseAdmin
+                let query = supabaseAdmin
                     .from('tags')
                     .select('*')
                     .order('tag_name', { ascending: true })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+                if (allSearch) query = query.ilike('tag_name', `%${escapeLikePattern(allSearch)}%`);
+                const { data, error } = await query;
 
                 if (error) {
                     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -56,7 +64,7 @@ export async function GET(request: NextRequest) {
 
         // Build base query with optional search filter
         let countQuery = supabaseAdmin.from('tags').select('*', { count: 'exact', head: true });
-        if (search) countQuery = countQuery.ilike('tag_name', `%${search}%`);
+        if (search) countQuery = countQuery.ilike('tag_name', `%${escapeLikePattern(search)}%`);
 
         const { count: totalCount, error: countError } = await countQuery;
 
@@ -71,7 +79,7 @@ export async function GET(request: NextRequest) {
             .select('*')
             .order('tag_name', { ascending: true })
             .range(offset, offset + limit - 1);
-        if (search) dataQuery = dataQuery.ilike('tag_name', `%${search}%`);
+        if (search) dataQuery = dataQuery.ilike('tag_name', `%${escapeLikePattern(search)}%`);
 
         const { data, error } = await dataQuery;
 

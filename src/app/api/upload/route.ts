@@ -135,9 +135,19 @@ export async function POST(request: NextRequest) {
             try {
                 const { JSDOM } = await import('jsdom');
                 const { default: DOMPurify } = await import('dompurify');
-                const window = new JSDOM('').window;
+                const dom = new JSDOM('');
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const purify = DOMPurify(window as any);
+                const purify = DOMPurify(dom.window as any);
+
+                // Strip any attribute starting with "on" (event handlers) or with javascript: URIs
+                purify.addHook('uponSanitizeAttribute', (_node, data) => {
+                    if (data.attrName.toLowerCase().startsWith('on')) {
+                        data.keepAttr = false;
+                    }
+                    if (/^\s*javascript\s*:/i.test(data.attrValue)) {
+                        data.keepAttr = false;
+                    }
+                });
 
                 const svgContent = new TextDecoder().decode(originalBuffer);
                 const sanitized = purify.sanitize(svgContent, {
@@ -146,8 +156,12 @@ export async function POST(request: NextRequest) {
                     FORBID_TAGS: ['script', 'style', 'foreignObject', 'iframe', 'object', 'embed', 'use'],
                     FORBID_ATTR: ['xlink:href', 'onclick', 'onerror', 'onload', 'onmouseover'],
                     ALLOW_DATA_ATTR: false,
+                    ALLOWED_URI_REGEXP: /^(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|#):/i,
                 });
                 safeBuffer = Buffer.from(new TextEncoder().encode(sanitized));
+
+                // Clean up JSDOM to prevent memory leaks
+                dom.window.close();
             } catch (err) {
                 console.error('[Upload] SVG sanitization failed, rejecting file:', err);
                 return NextResponse.json({ error: 'Failed to sanitize SVG file' }, { status: 400 });

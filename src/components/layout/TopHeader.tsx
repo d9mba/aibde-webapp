@@ -209,7 +209,7 @@ export default function TopHeader() {
                             <form onSubmit={handleSearch} className="w-full">
                                 <div className="flex items-center gap-3 px-4 py-2.5">
                                     {isLoading ? (
-                                        <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
+                                        <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" role="status" aria-label="Loading"><span className="sr-only">Loading…</span></span>
                                     ) : (
                                         <Search size={18} strokeWidth={1.5} className={cn("flex-shrink-0 transition-colors", isFocused ? "text-accent-primary" : "text-text-tertiary")} />
                                     )}

@@ -9,7 +9,14 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStatusClass } from '@/lib/formatters';
 
 const ITEMS_PER_PAGE = 24;
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`${res.status}: ${body}`);
+    }
+    return res.json();
+};
 
 // Helper to slugify task name for URL comparison
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -52,16 +59,16 @@ export default function TaskDetailPage() {
     // Build API URL with server-side pagination
     const apiUrl = useMemo(() => {
         if (!task) return null;
-        const params = new URLSearchParams();
-        params.set('page', currentPage.toString());
-        params.set('limit', ITEMS_PER_PAGE.toString());
-        params.set('task', task.taskName);
-        if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
-        return `/api/tools?${params.toString()}`;
+        const queryParams = new URLSearchParams();
+        queryParams.set('page', currentPage.toString());
+        queryParams.set('limit', ITEMS_PER_PAGE.toString());
+        queryParams.set('task', task.taskName);
+        if (debouncedSearch.trim()) queryParams.set('search', debouncedSearch.trim());
+        return `/api/tools?${queryParams.toString()}`;
     }, [task, currentPage, debouncedSearch]);
 
     // Fetch tools with SWR (server-side pagination)
-    const { data: toolsData, isValidating } = useSWR<PaginatedResponse>(
+    const { data: toolsData, error, isValidating } = useSWR<PaginatedResponse>(
         apiUrl,
         fetcher,
         { revalidateOnFocus: false, keepPreviousData: true }
@@ -98,12 +105,25 @@ export default function TaskDetailPage() {
         );
     }
 
+    if (error) {
+        return (
+            <div className="p-3 sm:p-6">
+                <button onClick={() => router.push('/dashboard/tasks')} className="flex items-center gap-1.5 text-text-secondary hover:text-accent-primary text-sm mb-4">
+                    <ArrowLeft className="w-4 h-4" /> Back to Tasks
+                </button>
+                <div className="bg-bg-card border border-border rounded-xl p-8 text-center">
+                    <p className="text-text-tertiary">Failed to load tools. Please try again.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-3 sm:p-6 relative">
             {/* Page-level loading overlay */}
             {isValidating && toolsData && (
                 <div className="absolute inset-0 bg-bg-primary/60 z-10 flex items-center justify-center rounded-xl">
-                    <div className="animate-spin w-8 h-8 border-3 border-accent-primary border-t-transparent rounded-full" />
+                    <div className="animate-spin w-8 h-8 border-[3px] border-accent-primary border-t-transparent rounded-full" />
                 </div>
             )}
             {/* Back Button */}
@@ -156,7 +176,7 @@ export default function TaskDetailPage() {
                                         <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-xl object-contain" />
                                     ) : (
                                         <div className="w-12 h-12 bg-accent-primary/20 rounded-xl flex items-center justify-center text-xl font-bold text-accent-primary">
-                                            {tool.name[0]}
+                                            {tool.name?.[0] ?? '?'}
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
@@ -175,7 +195,7 @@ export default function TaskDetailPage() {
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between mt-4 px-1">
                             <span className="text-sm text-text-tertiary">
-                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, pagination!.total)} of {pagination!.total}
+                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, pagination?.total ?? 0)} of {pagination?.total ?? 0}
                             </span>
                             <div className="flex items-center gap-2">
                                 <button
@@ -215,7 +235,7 @@ export default function TaskDetailPage() {
                                     <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-contain" />
                                 ) : (
                                     <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
-                                        {previewTool.name[0]}
+                                        {previewTool.name?.[0] ?? '?'}
                                     </div>
                                 )}
                                 <div className="flex-1">

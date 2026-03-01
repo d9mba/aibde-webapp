@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '25');
         const all = searchParams.get('all') === 'true';
+        const allSearch = searchParams.get('search') || '';
 
         // If all=true, fetch all records (for dashboard stats, etc.)
         if (all) {
@@ -24,11 +25,13 @@ export async function GET(request: NextRequest) {
             let hasMore = true;
 
             while (hasMore) {
-                const { data, error } = await supabaseAdmin
+                let query = supabaseAdmin
                     .from('categories')
                     .select('*')
                     .order('category_name', { ascending: true })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+                if (allSearch) query = query.ilike('category_name', `%${allSearch}%`);
+                const { data, error } = await query;
 
                 if (error) {
                     return NextResponse.json({ error: error.message }, { status: 500 });

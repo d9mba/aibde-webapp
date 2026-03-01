@@ -9,7 +9,14 @@ import { getStatusClass } from '@/lib/formatters';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 24;
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`${res.status}: ${body}`);
+    }
+    return res.json();
+};
 
 interface PaginatedResponse {
     data: AdminTool[];
@@ -55,7 +62,7 @@ export default function TagDetailPage() {
     }, [tag, currentPage, debouncedSearch]);
 
     // Fetch tools with SWR (server-side pagination)
-    const { data: toolsData, isValidating } = useSWR<PaginatedResponse>(
+    const { data: toolsData, error, isValidating } = useSWR<PaginatedResponse>(
         apiUrl,
         fetcher,
         { revalidateOnFocus: false, keepPreviousData: true }
@@ -77,8 +84,21 @@ export default function TagDetailPage() {
         );
     }
 
+    if (error) {
+        return (
+            <div className="p-6">
+                <button onClick={() => router.push('/dashboard/tags')} className="flex items-center gap-2 text-text-secondary hover:text-accent-primary text-sm mb-4">
+                    <span className="inline-flex">{renderIcon('arrow-left', 16)}</span> Back to Tags
+                </button>
+                <div className="bg-bg-card border border-border rounded-xl p-8 text-center">
+                    <p className="text-text-tertiary">Failed to load tools. Please try again.</p>
+                </div>
+            </div>
+        );
+    }
+
     // If no tools at all and no data yet, show loading. If data loaded and zero, show empty state.
-    if (toolsData && pagination && pagination.total === 0 && !search) {
+    if (toolsData && pagination && pagination.total === 0 && !debouncedSearch) {
         return (
             <div className="p-6">
                 <button onClick={() => router.push('/dashboard/tags')} className="flex items-center gap-2 text-text-secondary hover:text-accent-primary text-sm mb-4">
@@ -97,7 +117,7 @@ export default function TagDetailPage() {
             {/* Page-level loading overlay */}
             {isValidating && toolsData && (
                 <div className="absolute inset-0 bg-bg-primary/60 z-10 flex items-center justify-center rounded-xl">
-                    <div className="animate-spin w-8 h-8 border-3 border-accent-primary border-t-transparent rounded-full" />
+                    <div className="animate-spin w-8 h-8 border-[3px] border-accent-primary border-t-transparent rounded-full" />
                 </div>
             )}
             {/* Back Button */}
@@ -149,7 +169,7 @@ export default function TagDetailPage() {
                                         <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-xl object-contain" />
                                     ) : (
                                         <div className="w-12 h-12 bg-accent-primary/20 rounded-xl flex items-center justify-center text-xl font-bold text-accent-primary">
-                                            {tool.name[0]}
+                                            {tool.name?.[0] ?? '?'}
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
@@ -168,7 +188,7 @@ export default function TagDetailPage() {
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between mt-4 px-1">
                             <span className="text-sm text-text-tertiary">
-                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, pagination!.total)} of {pagination!.total}
+                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, pagination?.total ?? 0)} of {pagination?.total ?? 0}
                             </span>
                             <div className="flex items-center gap-2">
                                 <button
@@ -208,7 +228,7 @@ export default function TagDetailPage() {
                                     <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-contain" />
                                 ) : (
                                     <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
-                                        {previewTool.name[0]}
+                                        {previewTool.name?.[0] ?? '?'}
                                     </div>
                                 )}
                                 <div className="flex-1">

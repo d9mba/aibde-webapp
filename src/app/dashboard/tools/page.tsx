@@ -220,7 +220,7 @@ export default function ToolsListPage() {
                 {/* Page-level loading overlay */}
                 {isValidating && toolsData && (
                     <div className="absolute inset-0 bg-bg-primary/60 z-10 flex items-center justify-center rounded-xl">
-                        <div className="animate-spin w-8 h-8 border-3 border-accent-primary border-t-transparent rounded-full" />
+                        <div className="animate-spin w-8 h-8 border-[3px] border-accent-primary border-t-transparent rounded-full" />
                     </div>
                 )}
                 {/* Header */}

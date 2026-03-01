@@ -20,7 +20,26 @@ interface ContactFormData {
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         // Rate limiting
-        const identifier = getClientIp(request);
+        const ip = getClientIp(request);
+        let identifier: string;
+        if (ip !== 'anonymous') {
+            identifier = ip;
+        } else {
+            // Build a fingerprint from stable request headers to reduce bucket collisions
+            const ua = request.headers.get('user-agent') || '';
+            const lang = request.headers.get('accept-language') || '';
+            const accept = request.headers.get('accept') || '';
+            const chUa = request.headers.get('sec-ch-ua') || '';
+            const chPlatform = request.headers.get('sec-ch-ua-platform') || '';
+            const chMobile = request.headers.get('sec-ch-ua-mobile') || '';
+            const raw = `${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}`;
+            // Simple hash for bucketing (not cryptographic)
+            let hash = 0;
+            for (let i = 0; i < raw.length; i++) {
+                hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
+            }
+            identifier = `anon:${hash.toString(36)}`;
+        }
         const rateLimit = await checkRateLimit(`contact:${identifier}`, rateLimits.sensitive);
         if (!rateLimit.success) {
             return NextResponse.json(

@@ -36,8 +36,14 @@ export function getFullUrl(path: string): string {
 export function toRelativePath(url: string | undefined | null): string {
     if (!url) return '';
     if (url.startsWith('/') && !url.startsWith('//')) return url;
-    if (CDN_URL && url.startsWith(CDN_URL)) {
-        return url.substring(CDN_URL.length) || '/';
+    if (CDN_URL) {
+        try {
+            const parsedUrl = new URL(url);
+            const cdnOrigin = new URL(CDN_URL).origin;
+            if (parsedUrl.origin === cdnOrigin) {
+                return parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+            }
+        } catch { /* invalid URL, return as-is */ }
     }
     return url;
 }

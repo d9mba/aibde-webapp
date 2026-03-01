@@ -9,7 +9,14 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStatusClass } from '@/lib/formatters';
 
 const ITEMS_PER_PAGE = 24;
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`${res.status}: ${body}`);
+    }
+    return res.json();
+};
 
 // Helper to slugify category name for URL comparison
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -61,7 +68,7 @@ export default function CategoryDetailPage() {
     }, [category, currentPage, debouncedSearch]);
 
     // Fetch tools with SWR (server-side pagination)
-    const { data: toolsData, isValidating } = useSWR<PaginatedResponse>(
+    const { data: toolsData, error, isValidating } = useSWR<PaginatedResponse>(
         apiUrl,
         fetcher,
         { revalidateOnFocus: false, keepPreviousData: true }
@@ -98,12 +105,25 @@ export default function CategoryDetailPage() {
         );
     }
 
+    if (error) {
+        return (
+            <div className="p-3 sm:p-6">
+                <button onClick={() => router.push('/dashboard/categories')} className="flex items-center gap-1.5 text-text-secondary hover:text-accent-primary text-sm mb-4">
+                    <ArrowLeft className="w-4 h-4" /> Back to Categories
+                </button>
+                <div className="bg-bg-card border border-border rounded-xl p-8 text-center">
+                    <p className="text-text-tertiary">Failed to load tools. Please try again.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-3 sm:p-6 relative">
             {/* Page-level loading overlay */}
             {isValidating && toolsData && (
                 <div className="absolute inset-0 bg-bg-primary/60 z-10 flex items-center justify-center rounded-xl">
-                    <div className="animate-spin w-8 h-8 border-3 border-accent-primary border-t-transparent rounded-full" />
+                    <div className="animate-spin w-8 h-8 border-[3px] border-accent-primary border-t-transparent rounded-full" />
                 </div>
             )}
             {/* Back Button */}
@@ -149,13 +169,16 @@ export default function CategoryDetailPage() {
                     <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 transition-opacity ${isValidating ? 'opacity-50' : ''}`}>
                         {tools.map((tool: AdminTool) => (
                             <div key={tool.id} onClick={() => setPreviewTool(tool)}
-                                className="bg-bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-accent-primary/50 hover:shadow-lg transition-all">
+                                role="button" tabIndex={0}
+                                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreviewTool(tool); } }}
+                                aria-label={`Preview ${tool.name}`}
+                                className="bg-bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-accent-primary/50 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-accent-primary/50">
                                 <div className="flex items-center gap-3 mb-3">
                                     {tool.logoUrl ? (
                                         <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-xl object-contain" />
                                     ) : (
                                         <div className="w-12 h-12 bg-accent-primary/20 rounded-xl flex items-center justify-center text-xl font-bold text-accent-primary">
-                                            {tool.name[0]}
+                                            {tool.name?.[0] ?? '?'}
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
@@ -174,7 +197,7 @@ export default function CategoryDetailPage() {
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between mt-4 px-1">
                             <span className="text-sm text-text-tertiary">
-                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, pagination!.total)} of {pagination!.total}
+                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, pagination?.total ?? 0)} of {pagination?.total ?? 0}
                             </span>
                             <div className="flex items-center gap-2">
                                 <button
@@ -214,7 +237,7 @@ export default function CategoryDetailPage() {
                                     <img src={previewTool.logoUrl} alt="" className="w-20 h-20 rounded-xl object-contain" />
                                 ) : (
                                     <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
-                                        {previewTool.name[0]}
+                                        {previewTool.name?.[0] ?? '?'}
                                     </div>
                                 )}
                                 <div className="flex-1">

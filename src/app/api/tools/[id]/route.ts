@@ -157,7 +157,7 @@ export async function PUT(
         const newCats = Array.isArray(body?.categoryName) ? body.categoryName : [];
         const oldTasks = Array.isArray(oldTool?.task_name) ? oldTool.task_name : [];
         const newTasks = Array.isArray(body?.taskName) ? body.taskName : [];
-        void syncToolCounts([...oldCats, ...newCats], [...oldTasks, ...newTasks]).catch(() => { });
+        void syncToolCounts([...oldCats, ...newCats], [...oldTasks, ...newTasks]).catch(err => console.error('[Tools] syncToolCounts failed:', err));
 
         return NextResponse.json(dbToolToAdminTool(data));
     } catch (err) {
@@ -246,7 +246,7 @@ export async function DELETE(
         // Sync category/task counts after deletion
         const cats = Array.isArray(tool?.category_name) ? tool.category_name : [];
         const tasks = Array.isArray(tool?.task_name) ? tool.task_name : [];
-        void syncToolCounts(cats, tasks).catch(() => { });
+        void syncToolCounts(cats, tasks).catch(err => console.error('[Tools] syncToolCounts failed:', err));
 
         return NextResponse.json({ success: true });
     } catch (err) {

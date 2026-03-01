@@ -7,8 +7,17 @@ import UploadIcon from '@/assets/svg/actions/upload.svg';
 const getRelativePath = (url: string): string => {
     if (!url) return '';
     if (!url.startsWith('http://') && !url.startsWith('https://')) return url;
-    // Only strip our specific CDN domain
-    if (CDN_URL && url.startsWith(CDN_URL)) return url.replace(CDN_URL, '');
+    // Only strip our specific CDN domain with origin boundary check
+    if (CDN_URL) {
+        try {
+            const parsed = new URL(url);
+            const cdnOrigin = new URL(CDN_URL).origin;
+            if (parsed.origin === cdnOrigin) {
+                const stripped = url.replace(CDN_URL, '');
+                return stripped.startsWith('/') ? stripped : '/' + stripped;
+            }
+        } catch { /* invalid URL, return as-is */ }
+    }
     return url;
 };
 
@@ -23,8 +32,14 @@ const isUploadedFile = (url: string): boolean => {
     if (!url) return false;
     // Relative paths are always our uploaded files
     if (url.startsWith('/')) return true;
-    // Only match our specific CDN domain, not generic R2 patterns
-    if (CDN_URL && url.startsWith(CDN_URL)) return true;
+    // Only match our specific CDN domain with origin boundary check
+    if (CDN_URL) {
+        try {
+            const parsed = new URL(url);
+            const cdnOrigin = new URL(CDN_URL).origin;
+            if (parsed.origin === cdnOrigin) return true;
+        } catch { /* invalid URL */ }
+    }
     return false;
 };
 

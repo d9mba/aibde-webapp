@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
         // Sync category/task counts in the background
         const categories = Array.isArray(body.categoryName) ? body.categoryName : [];
         const tasks = Array.isArray(body.taskName) ? body.taskName : [];
-        void syncToolCounts(categories, tasks).catch(() => { });
+        void syncToolCounts(categories, tasks).catch(err => console.error('[Tools] syncToolCounts failed:', err));
 
         return NextResponse.json(dbToolToAdminTool(data), { status: 201 });
     } catch (err) {

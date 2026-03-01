@@ -58,7 +58,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
         }
 
         return () => observer.disconnect();
-    }, [hasMore, maxItems, visibleCount]);
+    }, [hasMore, maxItems]);
 
     function handleLoadMore(): void {
         setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));

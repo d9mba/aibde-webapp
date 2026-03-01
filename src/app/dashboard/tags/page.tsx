@@ -10,7 +10,14 @@ import { useConfirm } from '@/components/ui/ConfirmModal';
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`${res.status}: ${body}`);
+    }
+    return res.json();
+};
 
 function useDebounce(value: string, delay: number): string {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -58,6 +65,7 @@ export default function TagsPage() {
             revalidateOnFocus: false,
             keepPreviousData: true,
             onSuccess: () => setPageLoading(false),
+            onError: () => setPageLoading(false),
         }
     );
 
@@ -134,7 +142,7 @@ export default function TagsPage() {
         if (!confirmed) return;
         const toastId = showToast('Deleting tag...', 'loading');
         try {
-            const res = await fetch(`/api/tags?id=${tag.id}`, { method: 'DELETE' });
+            const res = await fetch(`/api/tags?id=${encodeURIComponent(tag.id)}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Failed to delete tag');
             updateToast(toastId, `Tag "#${tag.tagName}" deleted!`, 'success');
             mutate();
@@ -146,7 +154,7 @@ export default function TagsPage() {
     if (!response && isLoading) {
         return (
             <div className="p-6 flex items-center justify-center min-h-[300px]">
-                <div className="animate-spin w-8 h-8 border-3 border-accent-primary border-t-transparent rounded-full" />
+                <div className="animate-spin w-8 h-8 border-[3px] border-accent-primary border-t-transparent rounded-full" />
             </div>
         );
     }

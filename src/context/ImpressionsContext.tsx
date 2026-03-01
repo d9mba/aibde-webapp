@@ -25,7 +25,7 @@ export function useImpressions() {
 
 export function ImpressionsProvider({ children }: { children: ReactNode }) {
     const [impressions, setImpressions] = useState<ToolImpressions>({});
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -36,7 +36,6 @@ export function ImpressionsProvider({ children }: { children: ReactNode }) {
         if (!mounted) return;
 
         const fetchImpressions = async () => {
-            setLoading(true);
             try {
                 const data = await getImpressionsAction();
                 setImpressions(data);

@@ -1,3 +1,5 @@
+import 'server-only';
+
 /**
  * Category and Task Queries (SERVER-ONLY)
  *

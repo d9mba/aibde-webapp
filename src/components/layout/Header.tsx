@@ -213,6 +213,7 @@ export default function Header() {
                         "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         pathname === '/' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
+                    onClick={() => setSidebarOpen(false)}
                 >
                     <Home strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Home</span>
@@ -237,6 +238,7 @@ export default function Header() {
                         "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         pathname === '/trending' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
+                    onClick={() => setSidebarOpen(false)}
                 >
                     <TrendingUp strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Trending</span>
@@ -249,6 +251,7 @@ export default function Header() {
                         "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         pathname === '/new' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
+                    onClick={() => setSidebarOpen(false)}
                 >
                     <Sparkles strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">New</span>

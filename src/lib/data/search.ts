@@ -50,51 +50,66 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
     const detectedPricing = detectPricing(query || '', pricing);
     const searchQuery = (query || '').trim() || null;
 
-    const { data, error } = await supabase.rpc('search_tools', {
-        search_query: searchQuery,
-        filter_category: category || null,
-        filter_task: task || null,
-        filter_pricing: detectedPricing || null,
-        result_limit: limit,
-        result_offset: Math.max(0, params.offset ?? 0),
-    });
+    // Try the search, retry once with reduced limit on timeout
+    let attempts = 0;
+    let currentLimit = limit;
 
-    if (error) {
-        console.error('Search error:', error);
-        return [];
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tools = (data || []).map((tool: any) => dbToolToAdminTool(tool));
-
-    // Re-sort to prioritize exact and close name matches over fuzzy content matches.
-    // PostgreSQL ts_rank_cd treats all text-match positions equally, so "ChatGPT Buddy"
-    // can outrank "ChatGPT" when the query is "chatgpt". This re-sort fixes that.
-    if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        tools.sort((a: AdminTool, b: AdminTool) => {
-            // 1. Name accuracy
-            const nameDiff = nameRelevance(b.name, q) - nameRelevance(a.name, q);
-            if (nameDiff !== 0) return nameDiff;
-            // 2. Spotlight
-            const spotDiff = (b.spotlightEnabled ? 1 : 0) - (a.spotlightEnabled ? 1 : 0);
-            if (spotDiff !== 0) return spotDiff;
-            // 3. Featured
-            const featDiff = (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
-            if (featDiff !== 0) return featDiff;
-            // 4. Listing type priority
-            const listOrder: Record<string, number> = { spotlight: 0, featured: 1, verified: 2, fast: 3 };
-            const aList = listOrder[a.listingType ?? ''] ?? 4;
-            const bList = listOrder[b.listingType ?? ''] ?? 4;
-            if (aList !== bList) return aList - bList;
-            // 5. Popularity: impressions first, then saves
-            const viewDiff = (b.viewCount ?? 0) - (a.viewCount ?? 0);
-            if (viewDiff !== 0) return viewDiff;
-            return (b.saveCount ?? 0) - (a.saveCount ?? 0);
+    while (attempts < 2) {
+        const { data, error } = await supabase.rpc('search_tools', {
+            search_query: searchQuery,
+            filter_category: category || null,
+            filter_task: task || null,
+            filter_pricing: detectedPricing || null,
+            result_limit: currentLimit,
+            result_offset: Math.max(0, params.offset ?? 0),
         });
+
+        if (error) {
+            // Retry once on statement timeout with reduced limit
+            if (error.code === '57014' && attempts === 0) {
+                console.warn('Search timeout, retrying with reduced limit...');
+                attempts++;
+                currentLimit = Math.max(20, Math.floor(currentLimit / 2));
+                continue;
+            }
+            console.error('Search error:', error);
+            return [];
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tools = (data || []).map((tool: any) => dbToolToAdminTool(tool));
+
+        // Re-sort to prioritize exact and close name matches over fuzzy content matches.
+        // PostgreSQL ts_rank_cd treats all text-match positions equally, so "ChatGPT Buddy"
+        // can outrank "ChatGPT" when the query is "chatgpt". This re-sort fixes that.
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            tools.sort((a: AdminTool, b: AdminTool) => {
+                // 1. Name accuracy
+                const nameDiff = nameRelevance(b.name, q) - nameRelevance(a.name, q);
+                if (nameDiff !== 0) return nameDiff;
+                // 2. Spotlight
+                const spotDiff = (b.spotlightEnabled ? 1 : 0) - (a.spotlightEnabled ? 1 : 0);
+                if (spotDiff !== 0) return spotDiff;
+                // 3. Featured
+                const featDiff = (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
+                if (featDiff !== 0) return featDiff;
+                // 4. Listing type priority
+                const listOrder: Record<string, number> = { spotlight: 0, featured: 1, verified: 2, fast: 3 };
+                const aList = listOrder[a.listingType ?? ''] ?? 4;
+                const bList = listOrder[b.listingType ?? ''] ?? 4;
+                if (aList !== bList) return aList - bList;
+                // 5. Popularity: impressions first, then saves
+                const viewDiff = (b.viewCount ?? 0) - (a.viewCount ?? 0);
+                if (viewDiff !== 0) return viewDiff;
+                return (b.saveCount ?? 0) - (a.saveCount ?? 0);
+            });
+        }
+
+        return tools;
     }
 
-    return tools;
+    return [];
 }
 
 /**
@@ -145,17 +160,25 @@ export async function searchToolsCount(params: Omit<SearchParams, 'limit'>): Pro
     const detectedPricing = detectPricing(query || '', pricing);
     const searchQuery = (query || '').trim() || null;
 
-    const { data, error } = await supabase.rpc('search_tools_count', {
-        search_query: searchQuery,
-        filter_category: category || null,
-        filter_task: task || null,
-        filter_pricing: detectedPricing || null,
-    });
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const { data, error } = await supabase.rpc('search_tools_count', {
+            search_query: searchQuery,
+            filter_category: category || null,
+            filter_task: task || null,
+            filter_pricing: detectedPricing || null,
+        });
 
-    if (error) {
-        console.error('Count error:', error);
-        return 0;
+        if (error) {
+            if (error.code === '57014' && attempt === 0) {
+                console.warn('Count timeout, retrying...');
+                continue;
+            }
+            console.error('Count error:', error);
+            return 0;
+        }
+
+        return data || 0;
     }
 
-    return data || 0;
+    return 0;
 }

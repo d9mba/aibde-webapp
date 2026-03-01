@@ -65,7 +65,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
     }
 
     return (
-        <section ref={sectionRef} className="flex flex-col gap-4">
+        <section ref={sectionRef} className="flex flex-col gap-4 scroll-mt-14 sm:scroll-mt-16">
             <div className="flex justify-center mb-2 sticky top-14 sm:top-16 z-10 py-4 -mx-4 sm:-mx-6 px-4 sm:px-6">
                 <div className="inline-flex gap-1 p-1 bg-bg-tertiary rounded-full">
                     <button

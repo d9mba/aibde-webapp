@@ -72,7 +72,26 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
     // can outrank "ChatGPT" when the query is "chatgpt". This re-sort fixes that.
     if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        tools.sort((a: AdminTool, b: AdminTool) => nameRelevance(b.name, q) - nameRelevance(a.name, q));
+        tools.sort((a: AdminTool, b: AdminTool) => {
+            // 1. Name accuracy
+            const nameDiff = nameRelevance(b.name, q) - nameRelevance(a.name, q);
+            if (nameDiff !== 0) return nameDiff;
+            // 2. Spotlight
+            const spotDiff = (b.spotlightEnabled ? 1 : 0) - (a.spotlightEnabled ? 1 : 0);
+            if (spotDiff !== 0) return spotDiff;
+            // 3. Featured
+            const featDiff = (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
+            if (featDiff !== 0) return featDiff;
+            // 4. Listing type priority
+            const listOrder: Record<string, number> = { spotlight: 0, featured: 1, verified: 2, fast: 3 };
+            const aList = listOrder[a.listingType ?? ''] ?? 4;
+            const bList = listOrder[b.listingType ?? ''] ?? 4;
+            if (aList !== bList) return aList - bList;
+            // 5. Popularity: impressions first, then saves
+            const viewDiff = (b.viewCount ?? 0) - (a.viewCount ?? 0);
+            if (viewDiff !== 0) return viewDiff;
+            return (b.saveCount ?? 0) - (a.saveCount ?? 0);
+        });
     }
 
     return tools;
@@ -80,16 +99,40 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
 
 /**
  * Score a tool name against the query for relevance sorting.
- * Higher = better match. Only used as a tiebreaker after DB retrieval.
+ * Handles both exact and fuzzy (typo) matches.
  */
 function nameRelevance(name: string, query: string): number {
     const n = (name || '').toLowerCase();
-    if (n === query) return 100;           // Exact match
-    if (n.startsWith(query)) return 80;    // Name starts with query
-    if (n.includes(query)) return 60;      // Name contains query
-    // Query starts with tool name (e.g. query="chatgpt pro", name="ChatGPT")
+    if (n === query) return 100;
+    if (n.startsWith(query)) return 80;
+    if (n.includes(query)) return 60;
     if (query.startsWith(n)) return 50;
-    return 0;
+
+    // Space-collapsed matching: "chat gpt" → "chatgpt" = exact match
+    const nCompact = n.replace(/\s+/g, '');
+    const qCompact = query.replace(/\s+/g, '');
+    if (nCompact === qCompact) return 95;
+    if (nCompact.startsWith(qCompact)) return 75;
+    if (nCompact.includes(qCompact)) return 55;
+
+    // Bigram overlap for fuzzy/typo matches (e.g. "chatgtp" → "chatgpt")
+    const nBi = bigrams(nCompact);
+    const qBi = bigrams(qCompact);
+    if (nBi.size === 0 || qBi.size === 0) return 0;
+    let overlap = 0;
+    for (const b of qBi) {
+        if (nBi.has(b)) overlap++;
+    }
+    const sim = (2 * overlap) / (nBi.size + qBi.size);
+    return sim > 0.3 ? Math.round(sim * 40) : 0;
+}
+
+function bigrams(str: string): Set<string> {
+    const s = new Set<string>();
+    for (let i = 0; i < str.length - 1; i++) {
+        s.add(str.slice(i, i + 2));
+    }
+    return s;
 }
 
 /**

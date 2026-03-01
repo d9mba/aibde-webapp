@@ -72,7 +72,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .in('status', ['published', 'approved'])
                     .neq('app_username', tool.app_username)
                     .overlaps('category_name', categories)
-                    .limit(limit * 5)
+                    .limit(limit * 2)
                     .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'category' })))
             )
         );
@@ -87,7 +87,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .in('status', ['published', 'approved'])
                     .neq('app_username', tool.app_username)
                     .overlaps('task_name', tasks)
-                    .limit(limit * 5)
+                    .limit(limit * 2)
                     .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'task' })))
             )
         );
@@ -102,7 +102,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .in('status', ['published', 'approved'])
                     .neq('app_username', tool.app_username)
                     .overlaps('tags', tags)
-                    .limit(limit * 5)
+                    .limit(limit * 2)
                     .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'tag' })))
             )
         );

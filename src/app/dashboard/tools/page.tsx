@@ -13,6 +13,7 @@ import { useConfirm } from '@/components/ui/ConfirmModal';
 import BulkImportModal from './components/BulkImportModal';
 import BulkUpdateModal from './components/BulkUpdateModal';
 import ExportToolsModal from './components/ExportToolsModal';
+import { SafeHtml } from '@/components/ui/SafeHtml';
 
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -573,9 +574,9 @@ export default function ToolsListPage() {
                                 {previewTool.description && (
                                     <div>
                                         <h3 className="text-sm font-medium text-text-tertiary mb-1">Description</h3>
-                                        <div
+                                        <SafeHtml
+                                            html={previewTool.description}
                                             className="text-text-primary text-sm leading-relaxed rich-text"
-                                            dangerouslySetInnerHTML={{ __html: previewTool.description }}
                                         />
                                     </div>
                                 )}

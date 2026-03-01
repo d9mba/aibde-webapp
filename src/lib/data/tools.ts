@@ -5,8 +5,9 @@
  * from Next.js server components (page.tsx) and never from client code.
  */
 
-// Deliberate: supabaseAdmin bypasses RLS so all published tools are visible on public pages
-import { supabaseAdmin as supabase, dbToolToAdminTool } from '../supabase';
+import 'server-only';
+
+import { supabaseAdmin, dbToolToAdminTool } from '../supabase';
 import { AdminTool } from '@/types';
 
 /**
@@ -20,7 +21,7 @@ export async function getPublishedTools(): Promise<AdminTool[]> {
     let hasMore = true;
 
     while (hasMore) {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('tools')
             .select('*')
             .in('status', ['published', 'approved'])
@@ -48,7 +49,7 @@ export async function getPublishedTools(): Promise<AdminTool[]> {
  * Fetch a page of published tools (for sitemap pagination).
  */
 export async function getPublishedToolsRange(offset: number, limit: number): Promise<AdminTool[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])
@@ -66,7 +67,7 @@ export async function getPublishedToolsRange(offset: number, limit: number): Pro
  * Fetch spotlight/featured tools for homepage
  */
 export async function getSpotlightTools(limit: number = 8): Promise<AdminTool[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])
@@ -86,7 +87,7 @@ export async function getSpotlightTools(limit: number = 8): Promise<AdminTool[]>
  * Fetch recently released tools (limited set for homepage)
  */
 export async function getRecentlyReleasedTools(limit: number = 20): Promise<AdminTool[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])
@@ -105,7 +106,7 @@ export async function getRecentlyReleasedTools(limit: number = 20): Promise<Admi
  * Fetch trending tools (Manual positions)
  */
 export async function getTrendingTools(limit: number = 100): Promise<AdminTool[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])
@@ -125,7 +126,7 @@ export async function getTrendingTools(limit: number = 100): Promise<AdminTool[]
  * Fetch tools by category name
  */
 export async function getToolsByCategory(categoryName: string, limit: number = 100): Promise<AdminTool[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])
@@ -145,7 +146,7 @@ export async function getToolsByCategory(categoryName: string, limit: number = 1
  * Fetch tools by task name
  */
 export async function getToolsByTask(taskName: string, limit: number = 100): Promise<AdminTool[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])
@@ -165,7 +166,7 @@ export async function getToolsByTask(taskName: string, limit: number = 100): Pro
  * Fetch a single published tool by app_username
  */
 export async function getToolByAppUsername(app_username: string): Promise<AdminTool | null> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('tools')
         .select('*')
         .eq('app_username', app_username)
@@ -187,7 +188,7 @@ export async function getToolByAppUsername(app_username: string): Promise<AdminT
  * Fetch homepage settings
  */
 export async function getHomeSettings() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('settings')
         .select('*')
         .eq('id', 1)
@@ -218,7 +219,7 @@ export async function getHomeSettings() {
  * Fetch featured tools (sorted by save count)
  */
 export async function getFeaturedTools(excludeSlug?: string, limit: number = 6): Promise<AdminTool[]> {
-    let query = supabase
+    let query = supabaseAdmin
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])
@@ -245,7 +246,7 @@ export async function getFeaturedTools(excludeSlug?: string, limit: number = 6):
  * Fetch recently added tools
  */
 export async function getRecentlyAddedTools(excludeSlug?: string, limit: number = 5): Promise<AdminTool[]> {
-    let query = supabase
+    let query = supabaseAdmin
         .from('tools')
         .select('*')
         .in('status', ['published', 'approved'])

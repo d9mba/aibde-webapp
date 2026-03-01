@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool } from '@/types';
 import { useSearch } from '@/context/SearchContext';
+
+const INITIAL_LOAD = 30;
+const LOAD_MORE = 12;
 
 interface NewPageClientProps {
     tools: AdminTool[];
@@ -11,21 +14,45 @@ interface NewPageClientProps {
 
 export default function NewPageClient({ tools }: NewPageClientProps) {
     const { setSharedTools } = useSearch();
+    const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    // Set sharedTools for search recommendations in header
     useEffect(() => {
         if (tools.length > 0) {
             setSharedTools(tools);
         }
     }, [tools, setSharedTools]);
 
-    // Sort by creation date (newest first) — tools already come sorted from the server,
-    // but re-sort to guarantee order regardless of launchedOn
-    const newTools = [...tools].sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-    });
+    const newTools = useMemo(() =>
+        [...tools].sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+        }),
+        [tools]
+    );
+
+    const hasMore = visibleCount < newTools.length;
+
+    // Scroll-based lazy loading via IntersectionObserver
+    useEffect(() => {
+        if (!hasMore) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setVisibleCount(prev => Math.min(prev + LOAD_MORE, newTools.length));
+                }
+            },
+            { root: null, rootMargin: '200px', threshold: 0.1 }
+        );
+
+        if (loadMoreRef.current) {
+            observer.observe(loadMoreRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, newTools.length]);
 
     return (
         <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10">
@@ -35,10 +62,18 @@ export default function NewPageClient({ tools }: NewPageClientProps) {
             </section>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {newTools.map((tool) => (
+                {newTools.slice(0, visibleCount).map((tool) => (
                     <AIToolCard key={tool.id} tool={tool} />
                 ))}
             </div>
+
+            {/* Auto-loading sentinel */}
+            {hasMore && (
+                <div ref={loadMoreRef} className="flex items-center justify-center gap-2.5 py-6 text-text-tertiary text-sm">
+                    <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
+                    <span>Loading more tools...</span>
+                </div>
+            )}
         </div>
     );
 }

@@ -8,7 +8,7 @@ import { addUtmParams } from '@/lib/url-utils';
 import { slugify } from '@/lib/utils';
 import { Share2 } from 'lucide-react';
 import { trackToolVisit } from '@/hooks/useToolAnalytics';
-import { useImpressions } from '@/contexts/ImpressionsContext';
+import { useImpressions } from '@/context/ImpressionsContext';
 import VoteButtons from '@/components/ui/VoteButtons';
 import { ToolBadge } from '@/components/icons';
 import { getPricingLabel } from '@/lib/formatters';

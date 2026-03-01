@@ -5,7 +5,7 @@ import { AdminProvider } from '@/context/AdminContext';
 import { SearchProvider } from '@/context/SearchContext';
 import { SidebarProvider } from '@/context/SidebarContext';
 import { PostHogProvider } from '@/components/providers/PostHogProvider';
-import { ImpressionsProvider } from '@/contexts/ImpressionsContext';
+import { ImpressionsProvider } from '@/context/ImpressionsContext';
 import { AdminTool } from '@/types';
 
 interface ProvidersProps {

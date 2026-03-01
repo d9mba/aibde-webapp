@@ -5,10 +5,10 @@ import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool } from '@/types';
 
-const INITIAL_LOAD = 30;           // Initial load: 30 tools
-const LOAD_MORE = 12;              // Load 12 more each time (4 rows on desktop)
-const MAX_LATEST = 90;             // Maximum 90 for "Just Released"
-const MAX_TRENDING = 50;           // Maximum 50 for "Trending"
+const INITIAL_LOAD = 30;
+const LOAD_MORE = 12;
+const MAX_LATEST = 90;
+const MAX_TRENDING = 50;
 
 interface ToolsGridSectionProps {
     tools: AdminTool[];
@@ -31,22 +31,18 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
         return [...tools].sort((a, b) => toTimestamp(b) - toTimestamp(a));
     }, [tools]);
 
-    // Use trendingTools directly from server - already filtered and sorted
     const displayTools = activeTab === 'latest' ? newTools : trendingTools;
     const maxItems = activeTab === 'latest' ? MAX_LATEST : MAX_TRENDING;
     const hasMore = visibleCount < Math.min(displayTools.length, maxItems);
     const reachedMax = visibleCount >= maxItems;
-    const showLoadMore = activeTab === 'latest'; // Only show load more for latest
 
-    // Reset visible count when tab changes
     useEffect(() => {
         setVisibleCount(INITIAL_LOAD);
     }, [activeTab]);
 
-    // Re-observe the sentinel after each batch so loading continues
-    // if the sentinel is still in the viewport after adding items.
+    // Scroll-based lazy loading via IntersectionObserver
     useEffect(() => {
-        if (!showLoadMore || !hasMore) return;
+        if (!hasMore) return;
 
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -62,11 +58,11 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
         }
 
         return () => observer.disconnect();
-    }, [showLoadMore, hasMore, maxItems, visibleCount]);
+    }, [hasMore, maxItems, visibleCount]);
 
-    const handleLoadMore = () => {
+    function handleLoadMore(): void {
         setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));
-    };
+    }
 
     return (
         <section ref={sectionRef} className="flex flex-col gap-4">
@@ -110,16 +106,16 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                 ))}
             </div>
 
-            {/* Auto-loading indicator (only for Just Released) */}
-            {hasMore && showLoadMore && (
+            {/* Auto-loading sentinel */}
+            {hasMore && (
                 <div ref={loadMoreRef} className="flex items-center justify-center gap-2.5 py-6 text-text-tertiary text-sm">
                     <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
                     <span>Loading more tools...</span>
                 </div>
             )}
 
-            {/* Manual Load More button (only for Just Released before max) */}
-            {hasMore && showLoadMore && !reachedMax && (
+            {/* Manual fallback button */}
+            {hasMore && !reachedMax && (
                 <div className="flex justify-center">
                     <button
                         onClick={handleLoadMore}
@@ -133,8 +129,8 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                 </div>
             )}
 
-            {/* Reached max - show Browse All (only for Just Released) */}
-            {reachedMax && showLoadMore && displayTools.length > maxItems && (
+            {/* Reached max — show Browse All */}
+            {reachedMax && displayTools.length > maxItems && (
                 <div className="flex flex-col items-center gap-2 py-4 text-center">
                     <p className="text-sm text-text-secondary">
                         Showing {maxItems} of {displayTools.length} tools
@@ -152,7 +148,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                 </div>
             )}
 
-            {/* View all link at bottom (always show) */}
+            {/* View all link */}
             <div className="flex justify-center mt-4">
                 <Link
                     href={activeTab === 'latest' ? '/search' : '/trending'}

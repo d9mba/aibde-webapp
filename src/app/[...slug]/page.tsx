@@ -6,7 +6,7 @@ interface PageProps {
 
 /**
  * Catch-All Route
- * 
+ *
  * Any unknown page route like /gemini redirects to /search?q=gemini
  */
 export default async function CatchAllPage({ params }: PageProps) {

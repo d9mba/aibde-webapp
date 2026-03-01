@@ -108,10 +108,12 @@ export async function checkRateLimit(
         console.warn('[RateLimit] Redis not configured - rate limiting disabled');
     }
 
-    // Fallback: allow request but log warning
+    // Fallback: deny request when rate limiting is unavailable
+    // SECURITY: Defaulting to allow would let attackers exploit Redis outages
+    console.warn('[RateLimit] Redis not available — denying request as a safety measure');
     return {
-        success: true,
-        remaining: config.maxRequests,
+        success: false,
+        remaining: 0,
         resetTime: Date.now() + config.windowMs,
     };
 }
@@ -121,4 +123,13 @@ export async function checkRateLimit(
  */
 export function isRedisConfigured(): boolean {
     return redis !== null;
+}
+
+/**
+ * Extract client IP from a request for rate-limit identification.
+ */
+export function getClientIp(request: { headers: { get: (name: string) => string | null } }): string {
+    const forwarded = request.headers.get('x-forwarded-for');
+    const clientIp = forwarded?.split(',')[0]?.trim() || null;
+    return clientIp ?? request.headers.get('x-real-ip') ?? 'anonymous';
 }

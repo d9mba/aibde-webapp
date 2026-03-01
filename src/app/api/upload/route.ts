@@ -129,6 +129,32 @@ export async function POST(request: NextRequest) {
         }
         // Note: Some file types (like some videos) may not be detected - allow them through
 
+        // SECURITY: Sanitize SVG content to prevent XSS using DOMPurify
+        let safeBuffer: Buffer = originalBuffer;
+        if (file.type === 'image/svg+xml') {
+            try {
+                const { JSDOM } = await import('jsdom');
+                const { default: DOMPurify } = await import('dompurify');
+                const window = new JSDOM('').window;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const purify = DOMPurify(window as any);
+
+                const svgContent = new TextDecoder().decode(originalBuffer);
+                const sanitized = purify.sanitize(svgContent, {
+                    USE_PROFILES: { svg: true, svgFilters: true },
+                    ADD_TAGS: ['svg'],
+                    FORBID_TAGS: ['script', 'style', 'foreignObject', 'iframe', 'object', 'embed', 'use'],
+                    FORBID_ATTR: ['xlink:href', 'onclick', 'onerror', 'onload', 'onmouseover'],
+                    ALLOW_DATA_ATTR: false,
+                });
+                safeBuffer = Buffer.from(new TextEncoder().encode(sanitized));
+            } catch (err) {
+                console.error('[Upload] SVG sanitization failed, rejecting file:', err);
+                return NextResponse.json({ error: 'Failed to sanitize SVG file' }, { status: 400 });
+            }
+        }
+
+
         // Determine folder based on upload type and file type
         let folder = 'uploads';
         if (uploadType === 'logo') {
@@ -172,13 +198,13 @@ export async function POST(request: NextRequest) {
 
         let finalMimeType = file.type;
 
-        // originalBuffer was already created earlier for magic byte validation
-        const originalSize = originalBuffer.length;
+        // safeBuffer is the sanitized version (SVGs have XSS content stripped)
+        const originalSize = safeBuffer.length;
 
         // Compress images
-        let finalBuffer: Uint8Array = new Uint8Array(originalBuffer);
+        let finalBuffer: Uint8Array = new Uint8Array(safeBuffer);
         if (isImage) {
-            const result = await compressImage(originalBuffer, file.type);
+            const result = await compressImage(safeBuffer, file.type);
             finalBuffer = new Uint8Array(result.buffer);
 
             // If format changed (e.g., PNG -> WebP), update filename and mime

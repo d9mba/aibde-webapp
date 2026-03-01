@@ -1,6 +1,27 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
+// SECURITY: HMAC-sign the admin_access cookie value
+async function signCookieValue(secret: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+        'raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode('admin_access'));
+    return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function verifyCookieValue(cookieValue: string, secret: string): Promise<boolean> {
+    const expected = await signCookieValue(secret);
+    if (cookieValue.length !== expected.length) return false;
+    // Constant-time comparison
+    let mismatch = 0;
+    for (let i = 0; i < expected.length; i++) {
+        mismatch |= cookieValue.charCodeAt(i) ^ expected.charCodeAt(i);
+    }
+    return mismatch === 0;
+}
+
 // 1. Define Routes
 const isSecretEntry = createRouteMatcher(['/login/:secret']) // Matches /login/super-secret
 const isLoginPage = createRouteMatcher(['/login(.*)', '/sign-in(.*)']) // Matches /login, /login/factor-one
@@ -49,13 +70,14 @@ export const proxy = clerkMiddleware(async (auth, req) => {
             const isMatch = acc === 0;
 
             if (isMatch) {
-                // Valid secret — set cookie and redirect to /login
+                // Valid secret — set HMAC-signed cookie and redirect to /login
                 const { userId } = await auth()
                 if (userId) {
                     return NextResponse.redirect(new URL('/dashboard', req.url));
                 }
                 const response = NextResponse.redirect(new URL('/login', req.url));
-                response.cookies.set('admin_access', 'true', {
+                const signedValue = await signCookieValue(validSecret);
+                response.cookies.set('admin_access', signedValue, {
                     path: '/',
                     maxAge: 3600,
                     httpOnly: true,
@@ -70,8 +92,12 @@ export const proxy = clerkMiddleware(async (auth, req) => {
             return NextResponse.redirect(new URL('/', req.url));
         }
 
-        // Not a secret entry — must have admin_access cookie
+        // Not a secret entry — must have valid HMAC-signed admin_access cookie
         if (!hasAccess) {
+            return NextResponse.redirect(new URL('/', req.url));
+        }
+        const adminSecret = process.env.ADMIN_LOGIN_SECRET;
+        if (!adminSecret || !(await verifyCookieValue(hasAccess.value, adminSecret))) {
             return NextResponse.redirect(new URL('/', req.url));
         }
     }
@@ -81,6 +107,18 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     // ----------------------------------------------------------------
     // 🛡️ STANDARD ROUTE PROTECTION
     // ----------------------------------------------------------------
+
+    // Block direct browser navigation to ALL /api routes (all environments)
+    // Programmatic fetch calls (from client JS) still work
+    if (path.startsWith('/api')) {
+        const fetchDest = req.headers.get('sec-fetch-dest');
+        const fetchMode = req.headers.get('sec-fetch-mode');
+
+        // Admins can still browse API routes directly
+        if (!userId && fetchDest === 'document' && fetchMode === 'navigate') {
+            return new NextResponse(null, { status: 403 });
+        }
+    }
 
     // Allow Public APIs - but block direct browser access AND CLI access for non-admins
     if (isPublicApiRoute(req)) {
@@ -103,8 +141,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
         // Allow: fetch calls (cors, same-origin with fetchDest=empty)
         if (fetchDest === 'document' && fetchMode === 'navigate') {
             // Redirect to search page with full original path as query (readable format)
-            const fullPath = (path.slice(1) + req.nextUrl.search).replace(/\//g, ' ').replace(/[?=&]/g, ' ');
-            return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(fullPath)}`, req.url));
+            return new NextResponse(null, { status: 403 });
         }
 
         return NextResponse.next();

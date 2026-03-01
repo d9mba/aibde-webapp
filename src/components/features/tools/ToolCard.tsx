@@ -7,7 +7,7 @@ import { trackToolClick, useToolImpression, trackFilterUsed } from '@/hooks/useT
 import { getPricingColor, getPricingLabel } from '@/lib/formatters';
 import { getFullUrl } from '@/lib/url';
 import { slugify } from '@/lib/utils';
-import { useImpressions } from '@/contexts/ImpressionsContext';
+import { useImpressions } from '@/context/ImpressionsContext';
 import { ToolBadge, StarIcon } from '@/components/icons';
 import GridIcon from '@/assets/svg/ui/grid.svg';
 import TaskIcon from '@/assets/svg/actions/task.svg';

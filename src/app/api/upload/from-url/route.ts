@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { uploadFile, generateUniqueFilename } from '@/services/storage.service';
 import sharp from 'sharp';
 import dns from 'dns/promises';
@@ -105,14 +105,14 @@ export async function POST(request: NextRequest) {
     const { checkRateLimit, rateLimits } = await import('@/lib/rate-limit');
 
     try {
-        // SECURITY: Require authentication
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        // SECURITY: Require admin role (consistent with /api/upload)
+        const authResult = await requireAdmin();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
         // SECURITY: Rate limiting - 10 uploads per minute per user
-        const rateLimit = await checkRateLimit(`upload:${userId}`, rateLimits.upload);
+        const rateLimit = await checkRateLimit(`upload:${authResult.userId}`, rateLimits.upload);
         if (!rateLimit.success) {
             return NextResponse.json(
                 { error: 'Rate limit exceeded. Please wait before uploading more.' },

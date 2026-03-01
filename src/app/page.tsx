@@ -87,9 +87,9 @@ export default async function HomePage() {
         getToolsCount(['published', 'approved']),
         getCategoriesCount(),
         getTasksCount(),
-        getRecentlyReleasedTools(90), // Fetch 90 tools to support Load More up to max
+        getRecentlyReleasedTools(90),
         getSpotlightTools(),
-        getTrendingTools(50), // Fetch top 50 trending tools
+        getTrendingTools(50),
         getCategories(),
         getTasks(),
         getHomeSettings(),

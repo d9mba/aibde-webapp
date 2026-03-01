@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
+import { verifyTurnstile } from '@/lib/turnstile';
 
 const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || '';
-const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
 
 interface ContactFormData {
     firstName: string;
@@ -15,44 +16,19 @@ interface ContactFormData {
     turnstileToken: string;
 }
 
-async function verifyTurnstile(token: string): Promise<boolean> {
-    if (!TURNSTILE_SECRET_KEY) {
-        if (process.env.NODE_ENV === 'production') {
-            console.error('[Contact API] Turnstile secret key not configured');
-            return false;
-        }
-        console.warn('[Contact API] Turnstile secret key not configured, skipping in dev');
-        return true;
-    }
-
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-
-        const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                secret: TURNSTILE_SECRET_KEY,
-                response: token,
-            }),
-            signal: controller.signal,
-        });
-
-        clearTimeout(timeout);
-
-        if (!response.ok) return false;
-
-        const data = await response.json();
-        return data.success === true;
-    } catch (err) {
-        console.error('[Contact API] Turnstile verification error:', err);
-        return false;
-    }
-}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
+        // Rate limiting
+        const identifier = getClientIp(request);
+        const rateLimit = await checkRateLimit(`contact:${identifier}`, rateLimits.sensitive);
+        if (!rateLimit.success) {
+            return NextResponse.json(
+                { error: 'Too many requests. Try again later.' },
+                { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rateLimit.resetTime - Date.now()) / 1000))) } }
+            );
+        }
+
         const body: ContactFormData = await request.json();
 
         if (!body.firstName || !body.lastName || !body.email || !body.query || !body.reason) {

@@ -125,9 +125,10 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     }, []);
 
     // Navigate to a specific page
-    function goToPage(page: number): void {
-        performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing, page);
-        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    async function goToPage(page: number): Promise<void> {
+        await performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing, page);
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
     }
 
     // Debounced suggestions on query change (NOT full search)
@@ -382,53 +383,59 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                 </div>
             )}
 
-            <div className="flex flex-wrap gap-3 mb-6 justify-center">
-                <SearchableSelect
-                    options={[
-                        { value: '', label: 'All Categories' },
-                        ...categories.map(cat => ({ value: cat.categoryName, label: cat.categoryName }))
-                    ]}
-                    value={selectedCategory || ''}
-                    onChange={(value) => setSelectedCategory(value || null)}
-                    placeholder="All Categories"
-                    className="min-w-[160px]"
-                />
+            {(hasSearched || hasActiveFilters) && (
+                <div className="flex flex-wrap gap-3 mb-6 justify-center">
+                    <SearchableSelect
+                        options={[
+                            { value: '', label: 'All Categories' },
+                            ...categories
+                                .map(cat => ({ value: cat.categoryName, label: cat.categoryName }))
+                                .sort((a, b) => a.label.localeCompare(b.label))
+                        ]}
+                        value={selectedCategory || ''}
+                        onChange={(value) => setSelectedCategory(value || null)}
+                        placeholder="All Categories"
+                        className="min-w-[160px]"
+                    />
 
-                <SearchableSelect
-                    options={[
-                        { value: '', label: 'All Tasks' },
-                        ...tasks.map(task => ({ value: task.taskName, label: task.taskName }))
-                    ]}
-                    value={selectedTask || ''}
-                    onChange={(value) => setSelectedTask(value || null)}
-                    placeholder="All Tasks"
-                    className="min-w-[160px]"
-                />
+                    <SearchableSelect
+                        options={[
+                            { value: '', label: 'All Tasks' },
+                            ...tasks
+                                .map(task => ({ value: task.taskName, label: task.taskName }))
+                                .sort((a, b) => a.label.localeCompare(b.label))
+                        ]}
+                        value={selectedTask || ''}
+                        onChange={(value) => setSelectedTask(value || null)}
+                        placeholder="All Tasks"
+                        className="min-w-[160px]"
+                    />
 
-                <SearchableSelect
-                    options={[
-                        { value: '', label: 'All Pricing' },
-                        { value: 'free', label: 'Free' },
-                        { value: 'freemium', label: 'Freemium' },
-                        { value: 'paid', label: 'Paid' },
-                        { value: 'open_source', label: 'Open Source' },
-                    ]}
-                    value={selectedPricing || ''}
-                    onChange={(value) => setSelectedPricing(value || null)}
-                    placeholder="All Pricing"
-                    showSearch={false}
-                    className="min-w-[140px]"
-                />
+                    <SearchableSelect
+                        options={[
+                            { value: '', label: 'All Pricing' },
+                            { value: 'free', label: 'Free' },
+                            { value: 'freemium', label: 'Freemium' },
+                            { value: 'paid', label: 'Paid' },
+                            { value: 'open_source', label: 'Open Source' },
+                        ]}
+                        value={selectedPricing || ''}
+                        onChange={(value) => setSelectedPricing(value || null)}
+                        placeholder="All Pricing"
+                        showSearch={false}
+                        className="min-w-[140px]"
+                    />
 
-                {hasActiveFilters && (
-                    <button
-                        onClick={clearFilters}
-                        className="px-4 py-2 text-sm text-text-tertiary hover:text-accent-primary transition-colors"
-                    >
-                        Clear all
-                    </button>
-                )}
-            </div>
+                    {hasActiveFilters && (
+                        <button
+                            onClick={clearFilters}
+                            className="px-4 py-2 text-sm text-text-tertiary hover:text-accent-primary transition-colors"
+                        >
+                            Clear all
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Search Results */}
             {hasSearched && (

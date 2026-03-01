@@ -187,113 +187,122 @@ export default function TasksPage() {
             </div>
 
 
-            {/* Mobile Card View */}
-            <div className="sm:hidden space-y-2" style={{ opacity: pageLoading ? 0.4 : 1, transition: 'opacity 0.2s', pointerEvents: pageLoading ? 'none' : 'auto' }}>
-                {tasks.length === 0 ? (
-                    <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary text-sm">
-                        {search ? 'No tasks match your search' : 'No tasks found'}
+            {/* Data section */}
+            <div className="relative">
+                {pageLoading && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center">
+                        <div className="animate-spin w-7 h-7 border-[3px] border-accent-primary border-t-transparent rounded-full" />
                     </div>
-                ) : (
-                    tasks.map((task: Task) => (
-                        <div
-                            key={task.id}
-                            className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary"
-                            onClick={() => router.push(`/dashboard/tasks/${slugify(task.taskName)}`)}
-                        >
-                            <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
+                )}
+
+                {/* Mobile Card View */}
+                <div className="sm:hidden space-y-2" style={{ opacity: pageLoading ? 0.4 : 1, transition: 'opacity 0.2s', pointerEvents: pageLoading ? 'none' : 'auto' }}>
+                    {tasks.length === 0 ? (
+                        <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary text-sm">
+                            {search ? 'No tasks match your search' : 'No tasks found'}
+                        </div>
+                    ) : (
+                        tasks.map((task: Task) => (
+                            <div
+                                key={task.id}
+                                className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary"
+                                onClick={() => router.push(`/dashboard/tasks/${slugify(task.taskName)}`)}
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                        {editingId === task.id ? (
+                                            <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full mb-1" />
+                                        ) : (
+                                            <div className="font-medium text-text-primary truncate">{task.taskName}</div>
+                                        )}
+                                        {editingId === task.id ? (
+                                            <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" placeholder="Description..." />
+                                        ) : (
+                                            <div className="text-xs text-text-tertiary line-clamp-1 mt-0.5">{task.description || 'No description'}</div>
+                                        )}
+                                    </div>
+                                    <span className="text-xs px-2 py-0.5 bg-bg-tertiary text-text-secondary rounded-full flex-shrink-0">
+                                        {task.count || 0}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-border" onClick={e => e.stopPropagation()}>
                                     {editingId === task.id ? (
-                                        <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full mb-1" />
+                                        <>
+                                            <button onClick={(e) => saveEdit(task.id, e)} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-xs font-medium">Save</button>
+                                            <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="px-3 py-1.5 bg-bg-secondary text-text-secondary rounded-lg text-xs">Cancel</button>
+                                        </>
                                     ) : (
-                                        <div className="font-medium text-text-primary truncate">{task.taskName}</div>
-                                    )}
-                                    {editingId === task.id ? (
-                                        <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" placeholder="Description..." />
-                                    ) : (
-                                        <div className="text-xs text-text-tertiary line-clamp-1 mt-0.5">{task.description || 'No description'}</div>
+                                        <>
+                                            <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-primary rounded-lg"><Pencil className="w-4 h-4" /></button>
+                                            <button onClick={(e) => handleDelete(task, e)} className="p-2 text-text-tertiary hover:text-accent-red rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                                        </>
                                     )}
                                 </div>
-                                <span className="text-xs px-2 py-0.5 bg-bg-tertiary text-text-secondary rounded-full flex-shrink-0">
-                                    {task.count || 0}
-                                </span>
                             </div>
-                            <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-border" onClick={e => e.stopPropagation()}>
-                                {editingId === task.id ? (
-                                    <>
-                                        <button onClick={(e) => saveEdit(task.id, e)} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-xs font-medium">Save</button>
-                                        <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="px-3 py-1.5 bg-bg-secondary text-text-secondary rounded-lg text-xs">Cancel</button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-primary rounded-lg"><Pencil className="w-4 h-4" /></button>
-                                        <button onClick={(e) => handleDelete(task, e)} className="p-2 text-text-tertiary hover:text-accent-red rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
+                        ))
+                    )}
+                </div>
 
-            {/* Desktop Table View */}
-            <div className="hidden sm:block bg-bg-card border border-border rounded-xl overflow-hidden">
-                <table className="w-full">
-                    <thead className="bg-bg-secondary">
-                        <tr>
-                            <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Name</th>
-                            <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Description</th>
-                            <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Tools</th>
-                            <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody style={{ opacity: pageLoading ? 0.4 : 1, transition: 'opacity 0.2s' }}>
-                        {tasks.length === 0 ? (
-                            <tr><td colSpan={4} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tasks match your search' : 'No tasks found'}</td></tr>
-                        ) : (
-                            tasks.map((task: Task) => (
-                                <tr key={task.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tasks/${slugify(task.taskName)}`)}>
-                                    <td className="px-4 py-3">
-                                        {editingId === task.id ? (
-                                            <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(task.id, e as unknown as React.MouseEvent); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
-                                        ) : (
-                                            <span className="font-medium text-text-primary">{task.taskName}</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-text-secondary text-sm">
-                                        {editingId === task.id ? (
-                                            <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
-                                        ) : (
-                                            task.description || '-'
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-text-secondary text-sm">
-                                        <span className="inline-flex items-center gap-1">
-                                            {task.count || 0} tool{(task.count || 0) !== 1 ? 's' : ''}
-                                            <span className="text-text-tertiary">→</span>
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {editingId === task.id ? (
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button onClick={(e) => saveEdit(task.id, e)} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-xs font-medium hover:bg-accent-primary/90">Save</button>
-                                                <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="px-3 py-1.5 bg-bg-secondary text-text-secondary border border-border rounded-lg text-xs font-medium hover:bg-bg-tertiary">Cancel</button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center justify-end gap-1">
-                                                <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors" title="Edit">
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={(e) => handleDelete(task, e)} className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors" title="Delete">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                {/* Desktop Table View */}
+                <div className="hidden sm:block bg-bg-card border border-border rounded-xl overflow-hidden">
+                    <table className="w-full">
+                        <thead className="bg-bg-secondary">
+                            <tr>
+                                <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Name</th>
+                                <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Description</th>
+                                <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Tools</th>
+                                <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody style={{ opacity: pageLoading ? 0.4 : 1, transition: 'opacity 0.2s' }}>
+                            {tasks.length === 0 ? (
+                                <tr><td colSpan={4} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tasks match your search' : 'No tasks found'}</td></tr>
+                            ) : (
+                                tasks.map((task: Task) => (
+                                    <tr key={task.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tasks/${slugify(task.taskName)}`)}>
+                                        <td className="px-4 py-3">
+                                            {editingId === task.id ? (
+                                                <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(task.id, e as unknown as React.MouseEvent); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
+                                            ) : (
+                                                <span className="font-medium text-text-primary">{task.taskName}</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-text-secondary text-sm">
+                                            {editingId === task.id ? (
+                                                <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
+                                            ) : (
+                                                task.description || '-'
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-text-secondary text-sm">
+                                            <span className="inline-flex items-center gap-1">
+                                                {task.count || 0} tool{(task.count || 0) !== 1 ? 's' : ''}
+                                                <span className="text-text-tertiary">→</span>
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {editingId === task.id ? (
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button onClick={(e) => saveEdit(task.id, e)} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-xs font-medium hover:bg-accent-primary/90">Save</button>
+                                                    <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="px-3 py-1.5 bg-bg-secondary text-text-secondary border border-border rounded-lg text-xs font-medium hover:bg-bg-tertiary">Cancel</button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors" title="Edit">
+                                                        <Pencil className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={(e) => handleDelete(task, e)} className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors" title="Delete">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Pagination */}
@@ -311,11 +320,8 @@ export default function TasksPage() {
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
                             Previous
                         </button>
-                        <span className="text-sm text-text-tertiary flex items-center gap-2">
+                        <span className="text-sm text-text-tertiary">
                             Page {currentPage} of {totalPages}
-                            {pageLoading && (
-                                <span className="animate-spin w-4 h-4 border-2 border-accent-primary border-t-transparent rounded-full inline-block" />
-                            )}
                         </span>
                         <button
                             onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}

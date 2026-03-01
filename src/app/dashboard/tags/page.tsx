@@ -184,60 +184,69 @@ export default function TagsPage() {
                 </div>
             </div>
 
-            {/* Tags Table */}
-            <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
-                <table className="w-full">
-                    <thead className="bg-bg-secondary">
-                        <tr>
-                            <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Tag</th>
-                            <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Tools</th>
-                            <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody style={{ opacity: pageLoading ? 0.4 : 1, transition: 'opacity 0.2s' }}>
-                        {tags.length === 0 ? (
-                            <tr><td colSpan={3} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tags match your search' : 'No tags found'}</td></tr>
-                        ) : (
-                            tags.map((tag: Tag) => (
-                                <tr key={tag.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`)}>
-                                    <td className="px-4 py-3">
-                                        {editingId === tag.id ? (
-                                            <div className="flex items-center gap-1">
-                                                <span className="text-accent-primary font-medium">#</span>
-                                                <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(tag.id, e as unknown as React.MouseEvent); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm" />
-                                            </div>
-                                        ) : (
-                                            <span className="inline-flex items-center px-2.5 py-1 bg-accent-primary/10 text-accent-primary rounded-lg text-sm font-medium">#{tag.tagName}</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-text-secondary text-sm">
-                                        <span className="inline-flex items-center gap-1">
-                                            {tag.count || 0} tool{(tag.count || 0) !== 1 ? 's' : ''}
-                                            <span className="text-text-tertiary">→</span>
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {editingId === tag.id ? (
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button onClick={(e) => saveEdit(tag.id, e)} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-xs font-medium hover:bg-accent-primary/90">Save</button>
-                                                <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="px-3 py-1.5 bg-bg-secondary text-text-secondary border border-border rounded-lg text-xs font-medium hover:bg-bg-tertiary">Cancel</button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center justify-end gap-1">
-                                                <button onClick={(e) => startEdit(tag, e)} className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors" title="Edit">
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={(e) => handleDelete(tag, e)} className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors" title="Delete">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+            {/* Data section */}
+            <div className="relative">
+                {pageLoading && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center">
+                        <div className="animate-spin w-7 h-7 border-[3px] border-accent-primary border-t-transparent rounded-full" />
+                    </div>
+                )}
+
+                {/* Tags Table */}
+                <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
+                    <table className="w-full">
+                        <thead className="bg-bg-secondary">
+                            <tr>
+                                <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Tag</th>
+                                <th className="text-left px-4 py-3 text-sm font-medium text-text-secondary">Tools</th>
+                                <th className="text-right px-4 py-3 text-sm font-medium text-text-secondary">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody style={{ opacity: pageLoading ? 0.4 : 1, transition: 'opacity 0.2s' }}>
+                            {tags.length === 0 ? (
+                                <tr><td colSpan={3} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tags match your search' : 'No tags found'}</td></tr>
+                            ) : (
+                                tags.map((tag: Tag) => (
+                                    <tr key={tag.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`)}>
+                                        <td className="px-4 py-3">
+                                            {editingId === tag.id ? (
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-accent-primary font-medium">#</span>
+                                                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(tag.id, e as unknown as React.MouseEvent); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm" />
+                                                </div>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2.5 py-1 bg-accent-primary/10 text-accent-primary rounded-lg text-sm font-medium">#{tag.tagName}</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-text-secondary text-sm">
+                                            <span className="inline-flex items-center gap-1">
+                                                {tag.count || 0} tool{(tag.count || 0) !== 1 ? 's' : ''}
+                                                <span className="text-text-tertiary">→</span>
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {editingId === tag.id ? (
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button onClick={(e) => saveEdit(tag.id, e)} className="px-3 py-1.5 bg-accent-primary text-white rounded-lg text-xs font-medium hover:bg-accent-primary/90">Save</button>
+                                                    <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="px-3 py-1.5 bg-bg-secondary text-text-secondary border border-border rounded-lg text-xs font-medium hover:bg-bg-tertiary">Cancel</button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button onClick={(e) => startEdit(tag, e)} className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors" title="Edit">
+                                                        <Pencil className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={(e) => handleDelete(tag, e)} className="p-2 text-text-tertiary hover:text-accent-red hover:bg-accent-red/10 rounded-lg transition-colors" title="Delete">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Pagination */}
@@ -255,11 +264,8 @@ export default function TagsPage() {
                             <ChevronLeft className="w-4 h-4" />
                             Previous
                         </button>
-                        <span className="text-sm text-text-tertiary flex items-center gap-2">
+                        <span className="text-sm text-text-tertiary">
                             Page {currentPage} of {totalPages}
-                            {pageLoading && (
-                                <span className="animate-spin w-4 h-4 border-2 border-accent-primary border-t-transparent rounded-full inline-block" />
-                            )}
                         </span>
                         <button
                             onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}

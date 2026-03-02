@@ -65,7 +65,7 @@ export default function CategoriesPage() {
     }, [currentPage, debouncedSearch]);
 
     // Fetch categories with server-side pagination
-    const { data: response, isLoading, mutate } = useSWR<PaginatedResponse>(
+    const { data: response, error: swrError, isLoading, mutate } = useSWR<PaginatedResponse>(
         apiUrl,
         fetcher,
         {
@@ -103,8 +103,9 @@ export default function CategoriesPage() {
                 body: JSON.stringify({ categoryName: newName.trim(), count: 0, description: newDesc.trim() }),
             });
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to create category');
+                let message = 'Failed to create category';
+                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                throw new Error(message);
             }
             updateToast(toastId, `Category "${newName}" created!`, 'success');
             setNewName(''); setNewDesc('');
@@ -131,8 +132,9 @@ export default function CategoriesPage() {
                 body: JSON.stringify({ id, categoryName: editName.trim(), description: editDesc.trim() }),
             });
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to update category');
+                let message = 'Failed to update category';
+                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                throw new Error(message);
             }
             updateToast(toastId, 'Category updated!', 'success');
             setEditingId(null);
@@ -157,8 +159,9 @@ export default function CategoriesPage() {
         try {
             const res = await fetch(`/api/categories?id=${cat.id}`, { method: 'DELETE' });
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to delete category');
+                let message = 'Failed to delete category';
+                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                throw new Error(message);
             }
             updateToast(toastId, `Category "${cat.categoryName}" deleted!`, 'success');
             mutate();
@@ -169,6 +172,14 @@ export default function CategoriesPage() {
     };
 
     // Initial loading state (only on first load, not page changes)
+    if (swrError && !response) {
+        return (
+            <div className="p-3 sm:p-6 text-center py-16">
+                <p className="text-text-secondary">Failed to load categories. Please try again.</p>
+            </div>
+        );
+    }
+
     if (!response && isLoading) {
         return (
             <div className="p-3 sm:p-6 flex items-center justify-center min-h-[300px]">

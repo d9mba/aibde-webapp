@@ -9,7 +9,7 @@ import { Category, Task } from '@/types';
 import { trackSearch, trackFilterUsed } from '@/hooks/useToolAnalytics';
 import { searchWithCountAction, getSearchSuggestionsAction } from '@/lib/actions';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 48;
 
 interface SearchPageClientProps {
     categories: Category[];
@@ -487,12 +487,13 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
 
                                     {getPageNumbers().map((page, i) =>
                                         page === 'ellipsis' ? (
-                                            <span key={`ellipsis-${i}`} className="px-2 text-text-tertiary">…</span>
+                                            <span key={`ellipsis-${i}`} className="px-2 text-text-tertiary" aria-hidden="true">…</span>
                                         ) : (
                                             <button
                                                 key={page}
                                                 onClick={() => goToPage(page)}
                                                 disabled={isSearching}
+                                                aria-current={page === currentPage ? 'page' : undefined}
                                                 className={`w-10 h-10 text-sm rounded-lg border transition-all ${page === currentPage
                                                     ? 'bg-accent-primary border-accent-primary text-white font-semibold'
                                                     : 'border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary'

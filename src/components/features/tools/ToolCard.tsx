@@ -167,6 +167,16 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
 
                     {/* Tags - 1 Category and 1 Task with different colors */}
                     <div className="flex flex-wrap gap-1 mt-1">
+                        {/* Recently Updated tag - Light blue color */}
+                        {tool.isReposted && (
+                            <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full pointer-events-none"
+                                style={{ color: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)' }}
+                            >
+                                <svg className="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                Recently Updated
+                            </span>
+                        )}
                         {/* Category tag - Light green color */}
                         {(tool.categoryName || [])[0] && (
                             <span

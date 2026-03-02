@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAdmin, AdminTool, Category, Task } from '@/context/AdminContext';
+import { useAdmin } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import {
     Search, Eye, MousePointer, Clock, ExternalLink, TrendingUp, BarChart3, X,
@@ -66,7 +66,8 @@ interface RealtimeEvent {
 
 export default function AnalysisPage() {
     const router = useRouter();
-    const { tools, categories, tasks } = useAdmin();
+    const { categories, tasks } = useAdmin();
+    const [publishedCount, setPublishedCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isConfigured, setIsConfigured] = useState(true);
@@ -223,8 +224,15 @@ export default function AnalysisPage() {
         if (selectedTab === 'realtime') loadRealtime();
     }, [selectedTab, loadRealtime]);
 
+    // Fetch publishedCount from stats API instead of loading all tools
+    useEffect(() => {
+        fetch('/api/dashboard/stats')
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (data?.counts) setPublishedCount(data.counts.published); })
+            .catch(() => { });
+    }, []);
+
     // Stats calculations
-    const publishedCount = tools.filter((t: AdminTool) => t.status === 'published').length;
     const maxDaily = Math.max(...dailyActivity.map(d => d.events), 1);
     const maxHourly = Math.max(...hourlyActivity.map(h => h.events), 1);
     const categoryFilters = filterStats.filter(f => f.filter_type === 'category');

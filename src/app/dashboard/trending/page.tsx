@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
+import { useTools } from '@/hooks/useTools';
 import { useToast } from '@/components/ui/Toast';
 import { Search, ChevronLeft, ChevronRight, Save, TrendingUp, AlertTriangle } from 'lucide-react';
 
@@ -9,12 +10,23 @@ const ITEMS_PER_PAGE = 25;
 const MAX_TRENDING_TOOLS = 100; // Maximum trending tools allowed
 
 export default function TrendingManagementPage() {
-    const { tools, updateTool, isLoaded } = useAdmin();
+    const { updateTool, toolsMutated } = useAdmin();
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [trendingPage, setTrendingPage] = useState(1);
     const [saving, setSaving] = useState(false);
+
+    // Fetch trending tools (small set) and available tools (paginated)
+    const { tools: trendingToolsRaw, loading: trendLoading } = useTools({
+        trending: true, status: 'published', all: true, deps: toolsMutated,
+    });
+    const { tools: availableToolsRaw, loading: availLoading } = useTools({
+        status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
+        search, deps: toolsMutated,
+    });
+
+    const isLoaded = !trendLoading && !availLoading;
 
     // Local state for pending changes
     const [pendingTrendingIds, setPendingTrendingIds] = useState<string[]>([]);
@@ -23,7 +35,7 @@ export default function TrendingManagementPage() {
 
     // Initialize from current data
     useEffect(() => {
-        const currentTrending = tools
+        const currentTrending = trendingToolsRaw
             .filter(t => t.trendingPosition && t.trendingPosition > 0 && t.status === 'published')
             .sort((a, b) => (a.trendingPosition ?? 999) - (b.trendingPosition ?? 999));
 
@@ -37,19 +49,22 @@ export default function TrendingManagementPage() {
             setPendingTrendingIds(ids);
             setPendingPositions(positions);
         }
-    }, [tools]);
+    }, [trendingToolsRaw]);
+
+    // Combined tools for lookups
+    const allTools = useMemo(() => [...trendingToolsRaw, ...availableToolsRaw], [trendingToolsRaw, availableToolsRaw]);
 
     // Current trending tools based on pending changes
     const trendingTools = useMemo(() => {
         return pendingTrendingIds
-            .map(id => tools.find(t => t.id === id))
+            .map(id => allTools.find(t => t.id === id))
             .filter((t): t is AdminTool => t !== undefined)
             .sort((a, b) => (pendingPositions[a.id] ?? 999) - (pendingPositions[b.id] ?? 999));
-    }, [tools, pendingTrendingIds, pendingPositions]);
+    }, [allTools, pendingTrendingIds, pendingPositions]);
 
     const availableTools = useMemo(() => {
-        return tools.filter(t => !pendingTrendingIds.includes(t.id) && t.status === 'published');
-    }, [tools, pendingTrendingIds]);
+        return availableToolsRaw.filter(t => !pendingTrendingIds.includes(t.id));
+    }, [availableToolsRaw, pendingTrendingIds]);
 
     // Filter available tools by search
     const filteredAvailableTools = useMemo(() => {
@@ -72,7 +87,7 @@ export default function TrendingManagementPage() {
     };
 
     const handleRemoveFromTrending = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = allTools.find((t: AdminTool) => t.id === toolId);
         setPendingTrendingIds(prev => prev.filter(id => id !== toolId));
         setPendingPositions(prev => {
             const updated = { ...prev };
@@ -88,7 +103,7 @@ export default function TrendingManagementPage() {
             showToast(`Maximum ${MAX_TRENDING_TOOLS} trending tools allowed! Remove one before adding.`, 'error');
             return;
         }
-        const tool = tools.find(t => t.id === toolId);
+        const tool = allTools.find((t: AdminTool) => t.id === toolId);
         const maxPos = Math.max(...Object.values(pendingPositions), 0);
         setPendingTrendingIds(prev => [...prev, toolId]);
         setPendingPositions(prev => ({ ...prev, [toolId]: maxPos + 1 }));
@@ -157,8 +172,8 @@ export default function TrendingManagementPage() {
     const handleSaveAll = async () => {
         setSaving(true);
         try {
-            const currentTrending = tools.filter(t => t.trendingPosition && t.trendingPosition > 0);
-            const currentIds = new Set(currentTrending.map(t => t.id));
+            const currentTrending = trendingToolsRaw.filter((t: AdminTool) => t.trendingPosition && t.trendingPosition > 0);
+            const currentIds = new Set(currentTrending.map((t: AdminTool) => t.id));
             const pendingSet = new Set(pendingTrendingIds);
 
             const updates: Promise<void>[] = [];
@@ -173,7 +188,7 @@ export default function TrendingManagementPage() {
             // Add/update tools
             for (const toolId of pendingTrendingIds) {
                 const position = pendingPositions[toolId];
-                const tool = tools.find(t => t.id === toolId);
+                const tool = allTools.find((t: AdminTool) => t.id === toolId);
                 if (tool) {
                     if (!currentIds.has(toolId) || tool.trendingPosition !== position) {
                         updates.push(updateTool(toolId, { trendingPosition: position }));

@@ -268,10 +268,19 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
 
 export default function ToolForm({ toolId }: ToolFormProps) {
     const router = useRouter();
-    const { tools, categories, tasks, tags, addTool, updateTool, addTag, addCategory, addTask, isLoaded } = useAdmin();
+    const { categories, tasks, tags, addTool, updateTool, addTag, addCategory, addTask, isLoaded } = useAdmin();
     const { showToast, updateToast } = useToast();
     const isEdit = !!toolId;
-    const existingTool = isEdit ? tools.find(t => t.id === toolId) : null;
+
+    // Fetch existing tool from API instead of context
+    const [existingTool, setExistingTool] = useState<AdminTool | null>(null);
+    useEffect(() => {
+        if (!isEdit) return;
+        fetch(`/api/tools/${toolId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => setExistingTool(data))
+            .catch(() => { });
+    }, [toolId, isEdit]);
 
     const [showFullPreview, setShowFullPreview] = useState(false);
     const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -279,6 +288,26 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     const [jsonInput, setJsonInput] = useState('');
     const [jsonError, setJsonError] = useState('');
     const [parsedJsonData, setParsedJsonData] = useState<Record<string, any> | null>(null);
+    const isRepostUpdate = useRef(false);
+
+    // Search-as-you-type for alternative tools combobox
+    const [alternativeOptions, setAlternativeOptions] = useState<{ value: string; label: string; image?: string }[]>([]);
+    const [altLoading, setAltLoading] = useState(false);
+    const altSearchRef = useRef<ReturnType<typeof setTimeout>>();
+    const handleAltSearch = useCallback((query: string) => {
+        clearTimeout(altSearchRef.current);
+        if (!query || query.length < 3) { setAlternativeOptions([]); setAltLoading(false); return; }
+        setAltLoading(true);
+        altSearchRef.current = setTimeout(() => {
+            fetch(`/api/tools?search=${encodeURIComponent(query)}&limit=20&status=published`)
+                .then(r => r.ok ? r.json() : { data: [] })
+                .then(json => setAlternativeOptions(
+                    (json.data || []).map((t: AdminTool) => ({ value: t.app_username, label: t.name, image: t.logoUrl }))
+                ))
+                .catch(() => { })
+                .finally(() => setAltLoading(false));
+        }, 300);
+    }, []);
 
     const { register, control, handleSubmit, watch, setValue, reset, formState: { errors, isSubmitting } } = useForm<ToolFormData>({
         resolver: zodResolver(toolSchema),
@@ -322,11 +351,21 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
     const watchName = watch('name');
     useEffect(() => {
-        if (!isEdit) {
+        if (!isEdit && watchName) {
             setValue('app_username', slugify(watchName || ''));
-            setShowDuplicateWarning(watchName ? !!tools.find(t => (t.name || '').toLowerCase() === watchName.toLowerCase()) : false);
+            // Check duplicate via API instead of in-memory tools array
+            const controller = new AbortController();
+            fetch(`/api/tools?search=${encodeURIComponent(watchName)}&limit=1&status=published`, { signal: controller.signal })
+                .then(r => r.ok ? r.json() : { data: [] })
+                .then(json => {
+                    const match = (json.data || []).find((t: AdminTool) => (t.name || '').toLowerCase() === watchName.toLowerCase());
+                    setShowDuplicateWarning(!!match);
+                })
+                .catch(() => { });
+            return () => controller.abort();
         }
-    }, [watchName, isEdit, tools, setValue]);
+        if (!isEdit) setValue('app_username', slugify(watchName || ''));
+    }, [watchName, isEdit, setValue]);
 
     // Track and cleanup unsaved uploads
     const UPLOAD_KEY = 'pending_uploads';
@@ -409,13 +448,19 @@ export default function ToolForm({ toolId }: ToolFormProps) {
         const statusMsg = statusMessages[status] || (isEdit ? 'Updating' : 'Creating');
         const toastId = showToast(`${statusMsg}...`, 'loading');
         try {
-            if (isEdit && toolId) await updateTool(toolId, data);
+            if (isEdit && toolId) {
+                const updateData = isRepostUpdate.current
+                    ? { ...data, isReposted: true }
+                    : data;
+                await updateTool(toolId, updateData);
+                isRepostUpdate.current = false;
+            }
             else await addTool(data as any);
             // Clear pending uploads on success - they're now saved
             sessionStorage.removeItem(UPLOAD_KEY);
 
             // Show appropriate success message
-            let successMsg = 'Tool updated successfully!';
+            let successMsg = isRepostUpdate.current ? 'Tool updated & posted to Just Released!' : 'Tool updated successfully!';
             if (!isEdit) {
                 successMsg = data.status === 'pending'
                     ? 'Tool submitted for review!'
@@ -456,6 +501,13 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             showToast(firstError?.message || 'Please fill in required fields', 'error');
         };
         await handleSubmit(onSubmit, onError)();
+    };
+
+    const handleUpdateAndPost = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isRepostUpdate.current = true;
+        await handleSubmit(onSubmit, onFormError)();
     };
 
     // Common form error handler - shows which fields are missing/invalid
@@ -602,6 +654,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                     <button type="button" onClick={handleSaveAsDraft} disabled={isSubmitting} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save as Draft'}</button>
                     {!isEdit && <button type="button" onClick={handleReadyForReview} disabled={isSubmitting} className="px-3 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Ready for Review'}</button>}
                     {isEdit && <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Update'}</button>}
+                    {isEdit && <button type="button" onClick={handleUpdateAndPost} disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Posting...' : 'Update & Post'}</button>}
                 </div>
             </div>
 
@@ -1040,8 +1093,12 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                 multiple
                                 value={field.value || []}
                                 onChange={field.onChange}
-                                options={tools.map(t => ({ value: t.app_username, label: t.name, image: t.logoUrl }))}
+                                options={alternativeOptions}
                                 allowCreate={false}
+                                loading={altLoading}
+                                emptyMessage="Type at least 3 characters to search"
+                                helperText="Type to search existing tools."
+                                onSearchChange={handleAltSearch}
                                 placeholder="Search existing tools..."
                             />
                         )} />
@@ -1147,6 +1204,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                 <button type="button" onClick={handleSaveAsDraft} disabled={isSubmitting} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save as Draft'}</button>
                 {!isEdit && <button type="button" onClick={handleReadyForReview} disabled={isSubmitting} className="px-3 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Ready for Review'}</button>}
                 {isEdit && <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Update'}</button>}
+                {isEdit && <button type="button" onClick={handleUpdateAndPost} disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Posting...' : 'Update & Post'}</button>}
             </div>
 
             {/* Full Preview Modal */}

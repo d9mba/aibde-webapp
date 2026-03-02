@@ -140,6 +140,9 @@ export interface DbTool {
     created_at: string;
     updated_at: string;
 
+    // Repost flag
+    is_reposted?: boolean;
+
     // AI Generated flag
     is_ai_generated?: boolean;
 }
@@ -343,8 +346,35 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         createdAt: dbTool.created_at,
         updatedAt: dbTool.updated_at,
 
+        // Repost flag
+        isReposted: dbTool.is_reposted ?? false,
+
         // AI Generated flag
         isAiGenerated: dbTool.is_ai_generated,
+    };
+}
+
+// Lean mapper for ToolCard display — only returns fields used by the card component
+export function dbToolToCardTool(dbTool: DbTool) {
+    return {
+        id: dbTool.id,
+        name: dbTool.name,
+        app_username: dbTool.app_username,
+        summary: dbTool.summary || '',
+        categoryName: toArray(dbTool.category_name),
+        taskName: toArray(dbTool.task_name),
+        pricing: dbTool.pricing || 'freemium',
+        pricingLabel: dbTool.pricing_label || '',
+        logoUrl: toFullUrl(dbTool.logo_url),
+        websiteUrl: dbTool.website_url || '',
+        backLinks: dbTool.back_links,
+        viewCount: dbTool.view_count || 0,
+        upvotes: dbTool.upvotes || 0,
+        rating: dbTool.rating,
+        launchedAgo: formatRelativeTime(dbTool.launched_on || dbTool.created_at, dbTool.updated_at),
+        isFeatured: dbTool.is_featured,
+        listingType: dbTool.listing_type,
+        spotlightEnabled: dbTool.spotlight_enabled,
     };
 }
 
@@ -418,6 +448,9 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
         // Back Links
         backLinks: 'back_links',
+
+        // Repost Flag
+        isReposted: 'is_reposted',
 
         // Trending
         trendingPosition: 'trending_position',

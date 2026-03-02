@@ -21,7 +21,11 @@ interface ComboboxProps {
     options: ComboboxOption[];
     placeholder?: string;
     allowCreate?: boolean;
+    emptyMessage?: string;
+    helperText?: string;
+    loading?: boolean;
     onCreateNew?: (name: string) => Promise<void> | void;
+    onSearchChange?: (search: string) => void;
 }
 
 interface SingleComboboxProps extends ComboboxProps {
@@ -39,7 +43,7 @@ interface MultiComboboxProps extends ComboboxProps {
 type Props = SingleComboboxProps | MultiComboboxProps;
 
 export default function Combobox(props: Props) {
-    const { label, required, options, placeholder, allowCreate = true, multiple, onCreateNew } = props;
+    const { label, required, options, placeholder, allowCreate = true, emptyMessage, helperText, loading, multiple, onCreateNew, onSearchChange } = props;
 
     const [search, setSearch] = useState('');
     const [isOpen, setIsOpen] = useState(false);
@@ -197,7 +201,7 @@ export default function Combobox(props: Props) {
                 ref={inputRef}
                 type="text"
                 value={getInputValue(isOpen, multiple ?? false, search, selectedLabel)}
-                onChange={e => { setSearch(e.target.value); setIsOpen(true); }}
+                onChange={e => { setSearch(e.target.value); setIsOpen(true); onSearchChange?.(e.target.value); }}
                 onFocus={() => setIsOpen(true)}
                 onKeyDown={handleKeyDown}
                 placeholder={multiple && selectedItems.length > 0 ? 'Add more...' : (placeholder || `Select ${label.toLowerCase()}...`)}
@@ -231,8 +235,14 @@ export default function Combobox(props: Props) {
                             {search ? 'Scroll for more...' : `Scroll to see ${filteredOptions.length - displayLimit} more`}
                         </div>
                     )}
-                    {filteredOptions.length === 0 && !canAddNew && (
-                        <div className="px-3 py-2 text-sm text-text-tertiary">No options found</div>
+                    {loading && (
+                        <div className="px-3 py-2.5 text-sm text-text-tertiary flex items-center gap-2">
+                            <span className="w-4 h-4 border-2 border-border border-t-accent-primary rounded-full animate-spin" />
+                            Searching...
+                        </div>
+                    )}
+                    {!loading && filteredOptions.length === 0 && !canAddNew && (
+                        <div className="px-3 py-2 text-sm text-text-tertiary">{emptyMessage || 'No options found'}</div>
                     )}
                     {canAddNew && (
                         <div
@@ -259,7 +269,7 @@ export default function Combobox(props: Props) {
             )}
 
             {multiple && (
-                <p className="text-xs text-text-tertiary mt-1">Multiple can be selected. Type to search or add new.</p>
+                <p className="text-xs text-text-tertiary mt-1">{helperText || (allowCreate ? 'Multiple can be selected. Type to search or add new.' : 'Multiple can be selected. Type to search.')}</p>
             )}
         </div>
     );

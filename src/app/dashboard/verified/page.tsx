@@ -2,19 +2,32 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
+import { useTools } from '@/hooks/useTools';
 import { useToast } from '@/components/ui/Toast';
 import { Search, ChevronLeft, ChevronRight, Save, BadgeCheck } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
 
 export default function VerifiedPage() {
-    const { tools, updateTool, isLoaded } = useAdmin();
+    const { updateTool, toolsMutated } = useAdmin();
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [verifiedSearch, setVerifiedSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [verifiedPage, setVerifiedPage] = useState(1);
     const [saving, setSaving] = useState(false);
+
+    // Fetch verified tools (small set) and available tools (paginated)
+    const { tools: verifiedToolsRaw, loading: verLoading } = useTools({
+        listing: 'verified', status: 'published', all: true, deps: toolsMutated,
+    });
+    const { tools: availableToolsRaw, loading: availLoading } = useTools({
+        status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
+        search, deps: toolsMutated,
+    });
+
+    const isLoaded = !verLoading && !availLoading;
+    const allTools = useMemo(() => [...verifiedToolsRaw, ...availableToolsRaw], [verifiedToolsRaw, availableToolsRaw]);
 
     // Local state for pending changes
     const [pendingVerifiedIds, setPendingVerifiedIds] = useState<string[]>([]);
@@ -25,18 +38,18 @@ export default function VerifiedPage() {
     useEffect(() => {
         if (verifiedInitializedRef.current) return;
         verifiedInitializedRef.current = true;
-        const currentVerified = tools.filter((t: AdminTool) => t.listingType === 'verified');
+        const currentVerified = verifiedToolsRaw.filter((t: AdminTool) => t.listingType === 'verified');
         const ids = currentVerified.map(t => t.id);
 
         if (ids.length > 0) setPendingVerifiedIds(ids);
-    }, [tools]);
+    }, [verifiedToolsRaw]);
 
     // Current verified tools based on pending changes
     const allVerifiedTools = useMemo(() => {
         return pendingVerifiedIds
-            .map(id => tools.find(t => t.id === id))
+            .map(id => allTools.find(t => t.id === id))
             .filter((t): t is AdminTool => t !== undefined);
-    }, [tools, pendingVerifiedIds]);
+    }, [allTools, pendingVerifiedIds]);
 
     // Helper to get existing listing type label for a tool
     const getExistingListingLabel = (tool: AdminTool): string | null => {
@@ -46,14 +59,13 @@ export default function VerifiedPage() {
         return null;
     };
 
-    // Regular (non-verified) tools - show all published except verified
+    // Regular (non-verified) tools from paginated API results
     const regularTools = useMemo(() => {
-        return tools.filter((t: AdminTool) =>
+        return availableToolsRaw.filter((t: AdminTool) =>
             !pendingVerifiedIds.includes(t.id) &&
-            t.status === 'published' &&
             t.listingType !== 'verified'
         );
-    }, [tools, pendingVerifiedIds]);
+    }, [availableToolsRaw, pendingVerifiedIds]);
 
     // Count of tools that can actually be added (no existing listing type)
     const availableCount = useMemo(() => {
@@ -101,14 +113,14 @@ export default function VerifiedPage() {
     };
 
     const handleAddToVerified = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = allTools.find((t: AdminTool) => t.id === toolId);
         setPendingVerifiedIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
     };
 
     const handleRemoveFromVerified = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = allTools.find((t: AdminTool) => t.id === toolId);
         setPendingVerifiedIds(prev => prev.filter(id => id !== toolId));
         setHasChanges(true);
         showToast(`Removed "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
@@ -118,8 +130,8 @@ export default function VerifiedPage() {
         showToast('Saving verified changes...', 'info');
         setSaving(true);
         try {
-            const currentVerified = tools.filter(t => t.listingType === 'verified');
-            const currentIds = new Set(currentVerified.map(t => t.id));
+            const currentVerified = verifiedToolsRaw.filter((t: AdminTool) => t.listingType === 'verified');
+            const currentIds = new Set(currentVerified.map((t: AdminTool) => t.id));
             const pendingSet = new Set(pendingVerifiedIds);
 
             const updates: Promise<void>[] = [];

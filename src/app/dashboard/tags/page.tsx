@@ -58,7 +58,7 @@ export default function TagsPage() {
         return `/api/tags?${params.toString()}`;
     }, [currentPage, debouncedSearch]);
 
-    const { data: response, isLoading, mutate } = useSWR<PaginatedResponse>(
+    const { data: response, error: swrError, isLoading, mutate } = useSWR<PaginatedResponse>(
         apiUrl,
         fetcher,
         {
@@ -111,8 +111,8 @@ export default function TagsPage() {
         setEditingId(tag.id); setEditName(tag.tagName);
     };
 
-    const saveEdit = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
+    const saveEdit = async (id: string, e?: React.SyntheticEvent) => {
+        e?.stopPropagation();
         if (!editName.trim()) return;
         const toastId = showToast('Saving changes...', 'loading');
         try {
@@ -121,12 +121,17 @@ export default function TagsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, tagName: editName.trim() }),
             });
-            if (!res.ok) throw new Error('Failed to update tag');
+            if (!res.ok) {
+                let message = 'Failed to update tag';
+                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                throw new Error(message);
+            }
             updateToast(toastId, 'Tag updated!', 'success');
             setEditingId(null);
             mutate();
         } catch (err) {
-            updateToast(toastId, 'Failed to update tag', 'error');
+            const message = err instanceof Error ? err.message : 'Failed to update tag';
+            updateToast(toastId, message, 'error');
         }
     };
 
@@ -143,13 +148,26 @@ export default function TagsPage() {
         const toastId = showToast('Deleting tag...', 'loading');
         try {
             const res = await fetch(`/api/tags?id=${encodeURIComponent(tag.id)}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete tag');
+            if (!res.ok) {
+                let message = 'Failed to delete tag';
+                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                throw new Error(message);
+            }
             updateToast(toastId, `Tag "#${tag.tagName}" deleted!`, 'success');
             mutate();
         } catch (err) {
-            updateToast(toastId, 'Failed to delete tag', 'error');
+            const message = err instanceof Error ? err.message : 'Failed to delete tag';
+            updateToast(toastId, message, 'error');
         }
     };
+
+    if (swrError && !response) {
+        return (
+            <div className="p-6 text-center py-16">
+                <p className="text-text-secondary">Failed to load tags. Please try again.</p>
+            </div>
+        );
+    }
 
     if (!response && isLoading) {
         return (
@@ -220,7 +238,7 @@ export default function TagsPage() {
                                             {editingId === tag.id ? (
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-accent-primary font-medium">#</span>
-                                                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(tag.id, e as unknown as React.MouseEvent); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm" />
+                                                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(tag.id); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm" />
                                                 </div>
                                             ) : (
                                                 <span className="inline-flex items-center px-2.5 py-1 bg-accent-primary/10 text-accent-primary rounded-lg text-sm font-medium">#{tag.tagName}</span>

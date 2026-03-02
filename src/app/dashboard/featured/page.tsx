@@ -2,13 +2,14 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
+import { useTools } from '@/hooks/useTools';
 import { useToast } from '@/components/ui/Toast';
 import { Search, ChevronLeft, ChevronRight, Save } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
 
 export default function FeaturedPage() {
-    const { tools, updateTool, isLoaded } = useAdmin();
+    const { updateTool, toolsMutated } = useAdmin();
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [featuredSearch, setFeaturedSearch] = useState('');
@@ -16,34 +17,47 @@ export default function FeaturedPage() {
     const [featuredPage, setFeaturedPage] = useState(1);
     const [saving, setSaving] = useState(false);
 
+    // Fetch featured tools (small set) and available tools (paginated)
+    const { tools: featuredTools, loading: featuredLoading, refetch: refetchFeatured } = useTools({
+        featured: true, status: 'published', all: true, deps: toolsMutated,
+    });
+    const { tools: availableToolsRaw, loading: availableLoading, totalCount: availableTotal,
+        page: availablePage, totalPages: apiTotalPages, setPage: setAvailablePage,
+    } = useTools({
+        status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
+        search, deps: toolsMutated,
+    });
+
+    const isLoaded = !featuredLoading && !availableLoading;
+
     // Local state for pending changes
     const [pendingFeaturedIds, setPendingFeaturedIds] = useState<string[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
 
     // Spotlight tools (always featured, can't be removed from featured directly)
-    const spotlightTools = useMemo(() => tools.filter((t: AdminTool) => t.spotlightEnabled), [tools]);
+    const spotlightTools = useMemo(() => featuredTools.filter((t: AdminTool) => t.spotlightEnabled), [featuredTools]);
 
-    // Initialize from current data - include both isFeatured and listingType='featured'
+    // Initialize from current data
     useEffect(() => {
-        const currentFeatured = tools.filter((t: AdminTool) => t.isFeatured || t.listingType === 'featured');
+        const currentFeatured = featuredTools.filter((t: AdminTool) => t.isFeatured || t.listingType === 'featured');
         const ids = currentFeatured.map(t => t.id);
 
         if (pendingFeaturedIds.length === 0 && ids.length > 0) {
             setPendingFeaturedIds(ids);
         }
-    }, [tools]);
+    }, [featuredTools]);
 
     // Current featured tools based on pending changes
     const allFeaturedTools = useMemo(() => {
         return pendingFeaturedIds
-            .map(id => tools.find(t => t.id === id))
+            .map(id => featuredTools.find(t => t.id === id) || availableToolsRaw.find(t => t.id === id))
             .filter((t): t is AdminTool => t !== undefined);
-    }, [tools, pendingFeaturedIds]);
+    }, [featuredTools, availableToolsRaw, pendingFeaturedIds]);
 
-    // Regular (non-featured) tools - only show published
+    // Regular (non-featured) tools from server-paginated results
     const regularTools = useMemo(() => {
-        return tools.filter((t: AdminTool) => !pendingFeaturedIds.includes(t.id) && !t.spotlightEnabled && t.status === 'published');
-    }, [tools, pendingFeaturedIds]);
+        return availableToolsRaw.filter((t: AdminTool) => !pendingFeaturedIds.includes(t.id) && !t.spotlightEnabled);
+    }, [availableToolsRaw, pendingFeaturedIds]);
 
     // Filter featured tools by search
     const filteredFeaturedTools = useMemo(() => {
@@ -86,14 +100,14 @@ export default function FeaturedPage() {
     };
 
     const handleAddToFeatured = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = availableToolsRaw.find(t => t.id === toolId);
         setPendingFeaturedIds(prev => [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
     };
 
     const handleRemoveFromFeatured = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = featuredTools.find(t => t.id === toolId) || availableToolsRaw.find(t => t.id === toolId);
         // Don't allow removing spotlight tools
         if (tool?.spotlightEnabled) {
             showToast('Cannot remove spotlight tools from featured. Remove from Spotlight first.', 'error');
@@ -108,8 +122,8 @@ export default function FeaturedPage() {
         showToast('Saving featured changes...', 'info');
         setSaving(true);
         try {
-            const currentFeatured = tools.filter(t => (t.isFeatured || t.listingType === 'featured') && !t.spotlightEnabled);
-            const currentIds = new Set(currentFeatured.map(t => t.id));
+            const currentFeatured = featuredTools.filter((t: AdminTool) => (t.isFeatured || t.listingType === 'featured') && !t.spotlightEnabled);
+            const currentIds = new Set(currentFeatured.map((t: AdminTool) => t.id));
             const pendingSet = new Set(pendingFeaturedIds);
 
             const updates: Promise<void>[] = [];
@@ -126,7 +140,7 @@ export default function FeaturedPage() {
 
             // Add tools that are now featured
             for (const toolId of pendingFeaturedIds) {
-                const tool = tools.find(t => t.id === toolId);
+                const tool = featuredTools.find((t: AdminTool) => t.id === toolId) || availableToolsRaw.find((t: AdminTool) => t.id === toolId);
                 if (tool && !currentIds.has(toolId) && !tool.spotlightEnabled) {
                     updates.push(updateTool(toolId, { isFeatured: true, listingType: 'featured' }));
                 }

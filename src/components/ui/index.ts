@@ -30,3 +30,4 @@ export { SearchableSelect } from './SearchableSelect';
 export { ToastProvider, useToast } from './Toast';
 export { ConfirmProvider, useConfirm } from './ConfirmModal';
 export { SafeHtml } from './SafeHtml';
+export { default as Pagination } from './Pagination';

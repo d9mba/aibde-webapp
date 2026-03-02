@@ -1,31 +1,51 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-// SECURITY: HMAC-sign the admin_access cookie value
-async function signCookieValue(secret: string): Promise<string> {
+// SECURITY: HMAC-sign the admin_access cookie value with a timestamp to prevent replay
+const COOKIE_MAX_AGE_MS = 3600 * 1000; // 1 hour
+
+async function hmacSign(payload: string, secret: string): Promise<string> {
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
         'raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
     );
-    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode('admin_access'));
+    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
     return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+async function signCookieValue(secret: string): Promise<string> {
+    const timestamp = Date.now().toString();
+    const payload = `admin_access:${timestamp}`;
+    const sig = await hmacSign(payload, secret);
+    return `${payload}|${sig}`;
+}
+
 async function verifyCookieValue(cookieValue: string, secret: string): Promise<boolean> {
-    const expected = await signCookieValue(secret);
-    if (cookieValue.length !== expected.length) return false;
-    // Constant-time comparison
+    const parts = cookieValue.split('|');
+    if (parts.length !== 2) return false;
+    const [payload, sig] = parts;
+
+    // Verify the HMAC signature
+    const expected = await hmacSign(payload, secret);
+    if (sig.length !== expected.length) return false;
     let mismatch = 0;
     for (let i = 0; i < expected.length; i++) {
-        mismatch |= cookieValue.charCodeAt(i) ^ expected.charCodeAt(i);
+        mismatch |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
     }
-    return mismatch === 0;
+    if (mismatch !== 0) return false;
+
+    // Verify the payload format and timestamp freshness
+    const colonIdx = payload.indexOf(':');
+    if (colonIdx === -1) return false;
+    const timestamp = parseInt(payload.slice(colonIdx + 1), 10);
+    if (Number.isNaN(timestamp)) return false;
+    return (Date.now() - timestamp) < COOKIE_MAX_AGE_MS;
 }
 
 // 1. Define Routes
 const isSecretEntry = createRouteMatcher(['/login/:secret']) // Matches /login/super-secret
 const isLoginPage = createRouteMatcher(['/login(.*)', '/sign-in(.*)']) // Matches /login, /login/factor-one
-const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/cron(.*)', '/api/vote', '/api/submit-tool', '/api/contact', '/api/search'])
+const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/cron(.*)', '/api/vote', '/api/submit-tool', '/api/contact', '/api/search', '/api/tools/by-category', '/api/tools/by-task'])
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api(.*)'])
 
 export const proxy = clerkMiddleware(async (auth, req) => {
@@ -124,28 +144,18 @@ export const proxy = clerkMiddleware(async (auth, req) => {
 
     // Allow Public APIs - but block direct browser access AND CLI access for non-admins
     if (isPublicApiRoute(req)) {
-        // SECURITY: Block direct browser navigation AND CLI/non-browser access
-        // Browsers always send Sec-Fetch-Mode header, CLI tools don't
-        const fetchDest = req.headers.get('sec-fetch-dest');
-        const fetchMode = req.headers.get('sec-fetch-mode');
-
         // If user is logged in (admin), allow all access
         if (userId) {
             return NextResponse.next();
         }
 
         // Block CLI/non-browser access (missing Sec-Fetch-Mode header)
+        const fetchMode = req.headers.get('sec-fetch-mode');
         if (!fetchMode) {
             return NextResponse.json({ error: 'access denied' }, { status: 403 });
         }
 
-        // Block direct browser navigation (document request)
-        // Allow: fetch calls (cors, same-origin with fetchDest=empty)
-        if (fetchDest === 'document' && fetchMode === 'navigate') {
-            // Redirect to search page with full original path as query (readable format)
-            return new NextResponse(null, { status: 403 });
-        }
-
+        // Direct browser navigation is already blocked by the /api check above
         return NextResponse.next();
     }
 

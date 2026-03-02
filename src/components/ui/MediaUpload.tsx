@@ -30,8 +30,8 @@ function getSourceBadge(isCloud: boolean, isExternal: boolean): { label: string;
 
 const isUploadedFile = (url: string): boolean => {
     if (!url) return false;
-    // Relative paths are always our uploaded files
-    if (url.startsWith('/')) return true;
+    // Relative paths are our uploaded files (exclude protocol-relative //cdn.example.com)
+    if (url.startsWith('/') && !url.startsWith('//')) return true;
     // Only match our specific CDN domain with origin boundary check
     if (CDN_URL) {
         try {

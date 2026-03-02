@@ -23,7 +23,8 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
 
     const newTools = useMemo(() => {
         const toTimestamp = (t: AdminTool) => {
-            const raw = t.launchedOn ?? t.createdAt;
+            // Reposted tools sort by updatedAt, others by createdAt
+            const raw = t.isReposted ? (t.updatedAt ?? t.createdAt) : t.createdAt;
             if (raw == null) return 0;
             const ts = new Date(raw).getTime();
             return Number.isNaN(ts) ? 0 : ts;

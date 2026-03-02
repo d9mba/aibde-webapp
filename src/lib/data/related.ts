@@ -73,7 +73,13 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .neq('app_username', tool.app_username)
                     .overlaps('category_name', categories)
                     .limit(limit * 2)
-                    .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'category' })))
+                    .then(r => {
+                        if (r.error) {
+                            console.error('Error fetching suggested tools by category:', r.error);
+                            return [];
+                        }
+                        return (r.data || []).map(t => ({ ...t, _matchType: 'category' }));
+                    })
             )
         );
     }
@@ -88,7 +94,13 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .neq('app_username', tool.app_username)
                     .overlaps('task_name', tasks)
                     .limit(limit * 2)
-                    .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'task' })))
+                    .then(r => {
+                        if (r.error) {
+                            console.error('Error fetching suggested tools by task:', r.error);
+                            return [];
+                        }
+                        return (r.data || []).map(t => ({ ...t, _matchType: 'task' }));
+                    })
             )
         );
     }
@@ -103,7 +115,13 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .neq('app_username', tool.app_username)
                     .overlaps('tags', tags)
                     .limit(limit * 2)
-                    .then(r => (r.data || []).map(t => ({ ...t, _matchType: 'tag' })))
+                    .then(r => {
+                        if (r.error) {
+                            console.error('Error fetching suggested tools by tag:', r.error);
+                            return [];
+                        }
+                        return (r.data || []).map(t => ({ ...t, _matchType: 'tag' }));
+                    })
             )
         );
     }

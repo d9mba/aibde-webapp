@@ -145,5 +145,7 @@ export function isRedisConfigured(): boolean {
 export function getClientIp(request: { headers: { get: (name: string) => string | null } }): string {
     const forwarded = request.headers.get('x-forwarded-for');
     const clientIp = forwarded?.split(',')[0]?.trim() || null;
-    return clientIp ?? request.headers.get('x-real-ip') ?? 'anonymous';
+    if (clientIp) return clientIp;
+    const realIp = request.headers.get('x-real-ip')?.trim() || null;
+    return realIp || 'anonymous';
 }

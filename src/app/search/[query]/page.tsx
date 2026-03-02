@@ -1,36 +1,37 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
-import { useAdminData } from '@/context/AdminContext';
+import { AdminTool } from '@/types';
 import { ToolGridSkeleton } from '@/components/ui/Skeleton';
 
 export default function SearchResultsPage() {
     const params = useParams();
-    const adminData = useAdminData();
     const initialQuery = decodeURIComponent(params.query as string);
     const [searchQuery, setSearchQuery] = useState(initialQuery);
+    const [results, setResults] = useState<AdminTool[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const isLoading = !adminData?.isLoaded;
+    // Fetch search results from API instead of loading all tools in memory
+    useEffect(() => {
+        setIsLoading(true);
+        fetch(`/api/tools?search=${encodeURIComponent(initialQuery)}&status=published&limit=100`)
+            .then(r => r.ok ? r.json() : { data: [] })
+            .then(json => setResults(json.data || []))
+            .catch(() => setResults([]))
+            .finally(() => setIsLoading(false));
+    }, [initialQuery]);
 
-    const searchInTools = (query: string) => {
-        if (!adminData || !query) return [];
-        const q = query.toLowerCase();
-        return adminData.getPublishedTools().filter(t =>
+    const suggestions = useMemo(() => {
+        if (searchQuery === initialQuery || searchQuery.length === 0) return [];
+        const q = searchQuery.toLowerCase();
+        return results.filter((t: AdminTool) =>
             (t.name || '').toLowerCase().includes(q) ||
-            (t.description || '').toLowerCase().includes(q) ||
-            (t.category || '').toLowerCase().includes(q) ||
-            (t.features || []).some(f => (f || '').toLowerCase().includes(q))
-        );
-    };
-
-    const results = useMemo(() => searchInTools(initialQuery), [adminData, initialQuery]);
-
-    const suggestions = searchQuery !== initialQuery && searchQuery.length > 0
-        ? searchInTools(searchQuery).slice(0, 6)
-        : [];
+            (t.description || '').toLowerCase().includes(q)
+        ).slice(0, 6);
+    }, [searchQuery, initialQuery, results]);
 
     const handleSearch = () => {
         if (searchQuery.trim() && searchQuery.trim() !== initialQuery) {
@@ -87,7 +88,7 @@ export default function SearchResultsPage() {
 
                     {suggestions.length > 0 && (
                         <div className="absolute top-full left-0 right-0 mt-2 bg-bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50">
-                            {suggestions.map((tool) => (
+                            {suggestions.map((tool: AdminTool) => (
                                 <div
                                     key={tool.id}
                                     className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-bg-tertiary"
@@ -117,7 +118,7 @@ export default function SearchResultsPage() {
 
             {results.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {results.map((tool) => (
+                    {results.map((tool: AdminTool) => (
                         <AIToolCard key={tool.id} tool={tool} />
                     ))}
                 </div>

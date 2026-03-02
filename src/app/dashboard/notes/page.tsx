@@ -1,13 +1,17 @@
 'use client';
 
-import { useAdmin, AdminTool, Note } from '@/context/AdminContext';
+import { useAdmin, Note } from '@/context/AdminContext';
+import { AdminTool } from '@/types';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
 
 export default function NotesPage() {
-    const { tools, notes, addNote, updateNote, deleteNote } = useAdmin();
+    const { notes, addNote, updateNote, deleteNote } = useAdmin();
+
+    // Lightweight tool search for linking notes
+    const [toolSearchResults, setToolSearchResults] = useState<AdminTool[]>([]);
     const { showToast, updateToast } = useToast();
     const { confirm } = useConfirm();
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -44,20 +48,29 @@ export default function NotesPage() {
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
+    // Fetch tools matching search for dropdowns (lightweight)
+    useEffect(() => {
+        const query = toolFilterSearch || linkSearch;
+        if (!query || query.length < 2) {
+            setToolSearchResults([]);
+            return;
+        }
+        const controller = new AbortController();
+        fetch(`/api/tools?search=${encodeURIComponent(query)}&limit=20&status=published`, { signal: controller.signal })
+            .then(r => r.ok ? r.json() : { data: [] })
+            .then(json => setToolSearchResults(json.data || []))
+            .catch(() => { });
+        return () => controller.abort();
+    }, [toolFilterSearch, linkSearch]);
+
     // Filtered tools for dropdowns
     const toolFilterOptions = useMemo(() => {
-        const filtered = toolFilterSearch
-            ? tools.filter((t: AdminTool) => (t.name || '').toLowerCase().includes(toolFilterSearch.toLowerCase()))
-            : tools;
-        return [{ id: '', name: 'All Tools', logoUrl: null }, ...filtered];
-    }, [tools, toolFilterSearch]);
+        return [{ id: '', name: 'All Tools', logoUrl: null }, ...toolSearchResults] as AdminTool[];
+    }, [toolSearchResults]);
 
     const linkOptions = useMemo(() => {
-        const filtered = linkSearch
-            ? tools.filter((t: AdminTool) => (t.name || '').toLowerCase().includes(linkSearch.toLowerCase()))
-            : tools;
-        return [{ id: '', name: 'No tool linked', logoUrl: null }, ...filtered];
-    }, [tools, linkSearch]);
+        return [{ id: '', name: 'No tool linked', logoUrl: null }, ...toolSearchResults] as AdminTool[];
+    }, [toolSearchResults]);
 
     useEffect(() => { setToolFilterIndex(0); }, [toolFilterSearch]);
     useEffect(() => { setLinkIndex(0); }, [linkSearch]);
@@ -96,9 +109,9 @@ export default function NotesPage() {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
-    const getToolName = (toolId: string) => tools.find((t: AdminTool) => t.id === toolId)?.name || 'Unknown';
-    const getToolLogo = (toolId: string) => tools.find((t: AdminTool) => t.id === toolId)?.logoUrl || null;
-    const selectedToolData = filterTool ? tools.find((t: AdminTool) => t.id === filterTool) : null;
+    const getToolName = (toolId: string) => toolSearchResults.find((t: AdminTool) => t.id === toolId)?.name || 'Unknown';
+    const getToolLogo = (toolId: string) => toolSearchResults.find((t: AdminTool) => t.id === toolId)?.logoUrl || null;
+    const selectedToolData = filterTool ? toolSearchResults.find((t: AdminTool) => t.id === filterTool) : null;
 
     const createNote = () => { setSelectedNote(null); setIsEditing(true); setTitle(''); setContent(''); setLinkedTool(filterTool || ''); };
     const editNote = (note: Note) => { setSelectedNote(note); setIsEditing(true); setTitle(note.title); setContent(note.content); setLinkedTool(note.toolId || ''); };

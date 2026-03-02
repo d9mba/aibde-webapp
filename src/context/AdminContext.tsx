@@ -28,7 +28,6 @@ const defaultSettings: AdminSettings = {
 };
 
 interface AdminState {
-    tools: AdminTool[];
     categories: Category[];
     tasks: Task[];
     tags: Tag[];
@@ -40,17 +39,14 @@ interface AdminContextType extends AdminState {
     isLoaded: boolean;
     isLoading: boolean;
 
+    // Mutation counter — increments on every tool add/update/delete
+    // Pages that display tools should watch this value and refetch
+    toolsMutated: number;
+
     // Tool operations
     addTool: (tool: Omit<AdminTool, 'id'>) => Promise<AdminTool | null>;
     updateTool: (id: string, updates: Partial<AdminTool>) => Promise<void>;
     deleteTool: (id: string) => Promise<void>;
-    getToolById: (id: string) => AdminTool | undefined;
-    getToolByAppUsername: (app_username: string) => AdminTool | undefined;
-
-    // Published tools for public pages
-    getPublishedTools: () => AdminTool[];
-    getSpotlightTools: () => AdminTool[];
-    getFeaturedTools: () => AdminTool[];
 
     // Category operations
     addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
@@ -76,7 +72,6 @@ interface AdminContextType extends AdminState {
     updateSettings: (updates: Partial<AdminSettings>) => Promise<void>;
 
     // Utility
-    getAutoAlternatives: (tool: AdminTool) => AdminTool[];
     refreshData: () => Promise<void>;
     exportData: () => string;
     importData: (json: string) => void;
@@ -97,7 +92,6 @@ interface AdminProviderProps {
 
 export function AdminProvider({ children, initialTools }: AdminProviderProps) {
     const [state, setState] = useState<AdminState>({
-        tools: initialTools || [],
         categories: [],
         tasks: [],
         tags: [],
@@ -106,15 +100,16 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
     });
     const [isLoaded, setIsLoaded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [toolsMutated, setToolsMutated] = useState(0);
 
     // Fetch data from API
     const fetchFromAPI = useCallback(async () => {
         if (!USE_API) return null;
 
         try {
-            // Use Promise.allSettled to handle individual failures gracefully
+            // Tools are NO LONGER fetched here — each page fetches its own tools
+            // Only fetch taxonomy data (categories/tasks/tags), notes, and settings
             const results = await Promise.allSettled([
-                fetch('/api/tools?all=true'),
                 fetch('/api/categories?all=true'),
                 fetch('/api/tasks?all=true'),
                 fetch('/api/tags?all=true'),
@@ -141,21 +136,15 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 return fallback;
             }
 
-            const [toolsResponse, categories, tasks, tags, notes, settings] = await Promise.all([
-                extractData(results[0], { data: [], pagination: {} }),
+            const [categories, tasks, tags, notes, settings] = await Promise.all([
+                extractData(results[0], []),
                 extractData(results[1], []),
                 extractData(results[2], []),
                 extractData(results[3], []),
-                extractData(results[4], []),
-                extractData(results[5], defaultSettings),
+                extractData(results[4], defaultSettings),
             ]);
 
-            // Handle paginated tools response - API returns { data: [...], pagination: {...} }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const tools = Array.isArray(toolsResponse) ? toolsResponse : ((toolsResponse as any)?.data || []);
-
             return {
-                tools: Array.isArray(tools) ? tools : [],
                 categories: Array.isArray(categories) ? categories : [],
                 tasks: Array.isArray(tasks) ? tasks : [],
                 tags: Array.isArray(tags) ? tags : [],
@@ -172,8 +161,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
     const pathname = usePathname();
 
     // OPTIMIZATION: Single flag to track if data has been fetched
-    // This prevents double-fetch between search loader and dashboard loader
-    const [dataFetched, setDataFetched] = useState(!!initialTools?.length);
+    const [dataFetched, setDataFetched] = useState(false);
 
     // Unified data loading effect - only fetches once per session
     // Uses deduplication to prevent multiple requests
@@ -189,9 +177,8 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             return;
         }
 
-        // OPTIMIZATION: Skip if already fetched (all data must be present)
-        // Note: This needs to check categories too since initialTools only has tools
-        const hasFullData = state.tools.length > 0 && state.categories.length > 0;
+        // OPTIMIZATION: Skip if already fetched
+        const hasFullData = state.categories.length > 0;
         if (dataFetched && hasFullData) {
             setIsLoaded(true);
             setIsLoading(false);
@@ -222,7 +209,6 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 } catch {
                     // Fallback to empty state
                     setState({
-                        tools: [],
                         categories: [],
                         tasks: [],
                         tags: [],
@@ -233,7 +219,6 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             } else {
                 // No cached data - start with empty state
                 setState({
-                    tools: [],
                     categories: [],
                     tasks: [],
                     tags: [],
@@ -279,7 +264,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const newTool = await res.json();
             if (!res.ok) throw new Error(newTool.error || 'Failed to add tool');
-            setState((prev) => ({ ...prev, tools: [newTool, ...prev.tools] }));
+            setToolsMutated(c => c + 1);
             return newTool;
         } else {
             const newTool: AdminTool = {
@@ -288,7 +273,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
-            setState((prev) => ({ ...prev, tools: [newTool, ...prev.tools] }));
+            setToolsMutated(c => c + 1);
             return newTool;
         }
     };
@@ -318,15 +303,10 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             }
             setState((prev) => ({
                 ...prev,
-                tools: prev.tools.map((t) => (t.id === id ? updatedTool : t)),
             }));
+            setToolsMutated(c => c + 1);
         } else {
-            setState((prev) => ({
-                ...prev,
-                tools: prev.tools.map((t) =>
-                    t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
-                ),
-            }));
+            setToolsMutated(c => c + 1);
         }
     };
 
@@ -337,29 +317,13 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 const error = await res.json();
                 throw new Error(error.error || 'Failed to delete tool');
             }
-            setState((prev) => ({ ...prev, tools: prev.tools.filter((t) => t.id !== id) }));
+            setToolsMutated(c => c + 1);
         } else {
-            setState((prev) => ({ ...prev, tools: prev.tools.filter((t) => t.id !== id) }));
+            setToolsMutated(c => c + 1);
         }
     };
 
-    const getToolById = (id: string) => state.tools.find((t) => t.id === id);
-    const getToolByAppUsername = (app_username: string) => state.tools.find((t) => t.app_username === app_username);
 
-    // Get published tools for public pages
-    // Note: Database uses 'approved' status, TypeScript type uses 'published'
-    const getPublishedTools = () => state.tools.filter((t) => (t.status as string) === 'published' || (t.status as string) === 'approved');
-
-    const getSpotlightTools = () => {
-        return state.tools
-            .filter((t) => t.status === 'published' && t.spotlightEnabled && t.spotlightPosition && t.spotlightPosition > 0)
-            .sort((a, b) => (a.spotlightPosition || 999) - (b.spotlightPosition || 999))
-            .slice(0, state.settings.spotlightCount);
-    };
-
-    const getFeaturedTools = () => {
-        return state.tools.filter((t) => t.status === 'published' && t.isFeatured);
-    };
 
     // Category operations
     const addCategory = async (category: Omit<Category, 'id'>) => {
@@ -588,16 +552,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
         }
     };
 
-    // Get auto alternatives based on category
-    const getAutoAlternatives = (tool: AdminTool): AdminTool[] => {
-        const toolCategories = tool.categoryName || [];
-        return state.tools
-            .filter((t) => {
-                const tCategories = t.categoryName || [];
-                return t.id !== tool.id && tCategories.some(cat => toolCategories.includes(cat)) && t.status === 'published';
-            })
-            .slice(0, 6);
-    };
+    // getAutoAlternatives removed — use server-side API instead
 
     // Export/Import
     const exportData = () => JSON.stringify(state, null, 2);
@@ -617,14 +572,10 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 ...state,
                 isLoaded,
                 isLoading,
+                toolsMutated,
                 addTool,
                 updateTool,
                 deleteTool,
-                getToolById,
-                getToolByAppUsername,
-                getPublishedTools,
-                getSpotlightTools,
-                getFeaturedTools,
                 addCategory,
                 updateCategory,
                 deleteCategory,
@@ -638,7 +589,6 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 updateNote,
                 deleteNote,
                 updateSettings,
-                getAutoAlternatives,
                 refreshData,
                 exportData,
                 importData,

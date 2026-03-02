@@ -138,6 +138,9 @@ export interface AdminTool extends AITool {
     createdAt?: string;
     updatedAt?: string;
 
+    // Repost flag — when true, tool appears at top of Just Released sorted by updatedAt
+    isReposted?: boolean;
+
     // AI Generated content flag
     isAiGenerated?: boolean;
 }

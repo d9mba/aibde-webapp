@@ -85,8 +85,8 @@ export default function TasksPage() {
     const handleSearchChange = useCallback((value: string) => {
         setSearch(value);
         setCurrentPage(1);
-        if (value !== search) setPageLoading(true);
-    }, [search]);
+        setPageLoading(true);
+    }, []);
 
     const handleAdd = async () => {
         if (!newName.trim()) return;
@@ -98,8 +98,9 @@ export default function TasksPage() {
                 body: JSON.stringify({ taskName: newName.trim(), count: 0, description: newDesc.trim() }),
             });
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to create task');
+                let message = 'Failed to create task';
+                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                throw new Error(message);
             }
             updateToast(toastId, `Task "${newName}" created!`, 'success');
             setNewName(''); setNewDesc('');
@@ -115,8 +116,8 @@ export default function TasksPage() {
         setEditingId(task.id); setEditName(task.taskName); setEditDesc(task.description || '');
     };
 
-    const saveEdit = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
+    const saveEdit = async (id: string, e?: React.SyntheticEvent) => {
+        e?.stopPropagation();
         if (!editName.trim()) return;
         const toastId = showToast('Saving changes...', 'loading');
         try {
@@ -125,12 +126,17 @@ export default function TasksPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, taskName: editName.trim(), description: editDesc.trim() }),
             });
-            if (!res.ok) throw new Error('Failed to update task');
+            if (!res.ok) {
+                let message = 'Failed to update task';
+                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                throw new Error(message);
+            }
             updateToast(toastId, 'Task updated!', 'success');
             setEditingId(null);
             mutate();
         } catch (err) {
-            updateToast(toastId, 'Failed to update task', 'error');
+            const message = err instanceof Error ? err.message : 'Failed to update task';
+            updateToast(toastId, message, 'error');
         }
     };
 
@@ -147,11 +153,16 @@ export default function TasksPage() {
         const toastId = showToast('Deleting task...', 'loading');
         try {
             const res = await fetch(`/api/tasks?id=${task.id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete task');
+            if (!res.ok) {
+                let message = 'Failed to delete task';
+                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                throw new Error(message);
+            }
             updateToast(toastId, `Task "${task.taskName}" deleted!`, 'success');
             mutate();
         } catch (err) {
-            updateToast(toastId, 'Failed to delete task', 'error');
+            const message = err instanceof Error ? err.message : 'Failed to delete task';
+            updateToast(toastId, message, 'error');
         }
     };
 
@@ -214,7 +225,7 @@ export default function TasksPage() {
                             <div
                                 key={task.id}
                                 className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary"
-                                onClick={() => router.push(`/dashboard/tasks/${slugify(task.taskName)}`)}
+                                onClick={() => router.push(`/dashboard/tasks/${task.id}`)}
                             >
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex-1 min-w-0">
@@ -267,10 +278,10 @@ export default function TasksPage() {
                                 <tr><td colSpan={4} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tasks match your search' : 'No tasks found'}</td></tr>
                             ) : (
                                 tasks.map((task: Task) => (
-                                    <tr key={task.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tasks/${slugify(task.taskName)}`)}>
+                                    <tr key={task.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tasks/${task.id}`)}>
                                         <td className="px-4 py-3">
                                             {editingId === task.id ? (
-                                                <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(task.id, e as unknown as React.MouseEvent); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
+                                                <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(task.id); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
                                             ) : (
                                                 <span className="font-medium text-text-primary">{task.taskName}</span>
                                             )}

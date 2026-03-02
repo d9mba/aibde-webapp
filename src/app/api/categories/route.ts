@@ -3,6 +3,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { categorySchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
+// Escape SQL LIKE wildcards so user input is matched literally
+function escapeLikePattern(input: string): string {
+    return input.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
 // GET /api/categories - List categories with pagination (ADMIN ONLY)
 export async function GET(request: NextRequest) {
     try {
@@ -30,7 +35,7 @@ export async function GET(request: NextRequest) {
                     .select('*')
                     .order('category_name', { ascending: true })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
-                if (allSearch) query = query.ilike('category_name', `%${allSearch}%`);
+                if (allSearch) query = query.ilike('category_name', `%${escapeLikePattern(allSearch)}%`);
                 const { data, error } = await query;
 
                 if (error) {
@@ -61,7 +66,7 @@ export async function GET(request: NextRequest) {
 
         // Build base query with optional search filter
         let countQuery = supabaseAdmin.from('categories').select('*', { count: 'exact', head: true });
-        if (search) countQuery = countQuery.ilike('category_name', `%${search}%`);
+        if (search) countQuery = countQuery.ilike('category_name', `%${escapeLikePattern(search)}%`);
 
         const { count: totalCount, error: countError } = await countQuery;
 
@@ -76,7 +81,7 @@ export async function GET(request: NextRequest) {
             .select('*')
             .order('category_name', { ascending: true })
             .range(offset, offset + limit - 1);
-        if (search) dataQuery = dataQuery.ilike('category_name', `%${search}%`);
+        if (search) dataQuery = dataQuery.ilike('category_name', `%${escapeLikePattern(search)}%`);
 
         const { data, error } = await dataQuery;
 

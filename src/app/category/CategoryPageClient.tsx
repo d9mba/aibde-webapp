@@ -3,19 +3,19 @@
 import Link from 'next/link';
 import { Category } from '@/types';
 import { slugify } from '@/lib/utils';
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import Pagination from '@/components/ui/Pagination';
 
 interface CategoryPageClientProps {
     categories: Category[];
     totalCount: number;
 }
 
-const ITEMS_PER_LOAD = 50;
+const ITEMS_PER_PAGE = 48;
 
 export default function CategoryPageClient({ categories, totalCount }: CategoryPageClientProps) {
-    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_LOAD);
+    const [currentPage, setCurrentPage] = useState(1);
     const [activeLetter, setActiveLetter] = useState<string>('');
-    const loadMoreRef = useRef<HTMLDivElement>(null);
 
     // Sort categories alphabetically, dedupe by id, and filter those with tools
     const sortedCategories = useMemo(() => {
@@ -28,41 +28,41 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
         return Array.from(byId.values()).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
     }, [categories]);
 
-    // Get visible categories
-    const visibleCategories = sortedCategories.slice(0, visibleCount);
-    const hasMore = visibleCount < sortedCategories.length;
+    const totalPages = Math.ceil(sortedCategories.length / ITEMS_PER_PAGE);
 
-    // Group visible categories by first letter
+    // Get paginated categories
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedCategories = sortedCategories.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    // Group paginated categories by first letter
     const groupedCategories = useMemo(() => {
         const groups: { [key: string]: Category[] } = {};
-
-        visibleCategories.forEach(category => {
-            const firstLetter = category.categoryName[0].toUpperCase();
+        paginatedCategories.forEach(category => {
+            const firstLetter = (category.categoryName?.charAt(0) || '?').toUpperCase();
             if (!groups[firstLetter]) {
                 groups[firstLetter] = [];
             }
             groups[firstLetter].push(category);
         });
-
         return groups;
-    }, [visibleCategories]);
+    }, [paginatedCategories]);
 
-    // All available letters (from all categories, not just visible)
+    // All available letters (from all categories, not just current page)
     const allLetters = useMemo(() => {
         const letters = new Set<string>();
         sortedCategories.forEach(cat => {
-            letters.add(cat.categoryName[0].toUpperCase());
+            letters.add((cat.categoryName?.charAt(0) || '?').toUpperCase());
         });
         return Array.from(letters).sort();
     }, [sortedCategories]);
 
     const sortedLetters = Object.keys(groupedCategories).sort();
 
-    // Track active letter based on scroll position (debounced to prevent jitter)
+    // Track active letter based on scroll position
     useEffect(() => {
         let ticking = false;
 
-        const handleScroll = () => {
+        function handleScroll() {
             if (!ticking) {
                 window.requestAnimationFrame(() => {
                     const sections = sortedLetters.map(letter => ({
@@ -70,7 +70,6 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                         element: document.getElementById(`section-${letter}`)
                     })).filter(s => s.element);
 
-                    // Find which section is currently in view
                     for (let i = sections.length - 1; i >= 0; i--) {
                         const { letter, element } = sections[i];
                         if (element) {
@@ -83,7 +82,6 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                         }
                     }
 
-                    // Default to first letter if none in view
                     if (sections.length > 0) {
                         setActiveLetter(sections[0].letter);
                     }
@@ -91,18 +89,25 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                 });
                 ticking = true;
             }
-        };
+        }
 
         window.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll(); // Initial check
+        handleScroll();
         return () => window.removeEventListener('scroll', handleScroll);
     }, [sortedLetters]);
 
-    // Scroll to letter section
-    const scrollToLetter = (letter: string) => {
-        // First, load all categories if clicking on a letter not yet visible
-        if (!groupedCategories[letter]) {
-            setVisibleCount(sortedCategories.length);
+    // Scroll to letter — find which page has that letter and navigate there
+    function scrollToLetter(letter: string) {
+        // Find the index of the first category starting with this letter
+        const idx = sortedCategories.findIndex(
+            cat => (cat.categoryName?.charAt(0) || '?').toUpperCase() === letter
+        );
+        if (idx === -1) return;
+
+        const targetPage = Math.floor(idx / ITEMS_PER_PAGE) + 1;
+
+        if (targetPage !== currentPage) {
+            setCurrentPage(targetPage);
             // Wait for render then scroll
             setTimeout(() => {
                 const element = document.getElementById(`section-${letter}`);
@@ -116,31 +121,7 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                 element.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
-    };
-
-    // Infinite scroll - load more when reaching bottom
-    const loadMore = useCallback(() => {
-        if (hasMore) {
-            setVisibleCount(prev => Math.min(prev + ITEMS_PER_LOAD, sortedCategories.length));
-        }
-    }, [hasMore, sortedCategories.length]);
-
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasMore) {
-                    loadMore();
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        if (loadMoreRef.current) {
-            observer.observe(loadMoreRef.current);
-        }
-
-        return () => observer.disconnect();
-    }, [hasMore, loadMore]);
+    }
 
     return (
         <div className="max-w-[1200px] mx-auto px-3 sm:px-6 py-4 sm:py-10">
@@ -177,17 +158,12 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                         </div>
                     ))}
 
-                    {/* Loading indicator / Load more trigger */}
-                    <div ref={loadMoreRef} className="py-8 text-center">
-                        {hasMore ? (
-                            <div className="flex items-center justify-center gap-2 text-text-tertiary">
-                                <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
-                                <span className="text-sm">Loading more categories...</span>
-                            </div>
-                        ) : sortedCategories.length > 0 ? (
-                            <p className="text-sm text-text-tertiary">Showing all {totalCount.toLocaleString()} categories</p>
-                        ) : null}
-                    </div>
+                    {/* Pagination */}
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                    />
                 </div>
 
                 {/* Alphabet bar - right on mobile (sticky), left on desktop */}

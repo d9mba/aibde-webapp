@@ -2,19 +2,32 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
+import { useTools } from '@/hooks/useTools';
 import { useToast } from '@/components/ui/Toast';
 import { Search, ChevronLeft, ChevronRight, Save, Rocket } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
 
 export default function FastListingsPage() {
-    const { tools, updateTool, isLoaded } = useAdmin();
+    const { updateTool, toolsMutated } = useAdmin();
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [fastSearch, setFastSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [fastPage, setFastPage] = useState(1);
     const [saving, setSaving] = useState(false);
+
+    // Fetch fast tools (small set) and available tools (paginated)
+    const { tools: fastToolsRaw, loading: fastLoading, refetch: refetchFast } = useTools({
+        listing: 'fast', status: 'published', all: true, deps: toolsMutated,
+    });
+    const { tools: availableToolsRaw, loading: availLoading } = useTools({
+        status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
+        search, deps: toolsMutated,
+    });
+
+    const isLoaded = !fastLoading && !availLoading;
+    const allTools = useMemo(() => [...fastToolsRaw, ...availableToolsRaw], [fastToolsRaw, availableToolsRaw]);
 
     // Local state for pending changes
     const [pendingFastIds, setPendingFastIds] = useState<string[]>([]);
@@ -25,18 +38,18 @@ export default function FastListingsPage() {
     useEffect(() => {
         if (fastInitializedRef.current) return;
         fastInitializedRef.current = true;
-        const currentFast = tools.filter((t: AdminTool) => t.listingType === 'fast');
+        const currentFast = fastToolsRaw.filter((t: AdminTool) => t.listingType === 'fast');
         const ids = currentFast.map(t => t.id);
 
         if (ids.length > 0) setPendingFastIds(ids);
-    }, [tools]);
+    }, [fastToolsRaw]);
 
     // Current fast tools based on pending changes
     const allFastTools = useMemo(() => {
         return pendingFastIds
-            .map(id => tools.find(t => t.id === id))
+            .map(id => allTools.find(t => t.id === id))
             .filter((t): t is AdminTool => t !== undefined);
-    }, [tools, pendingFastIds]);
+    }, [allTools, pendingFastIds]);
 
     // Helper to get existing listing type label for a tool
     const getExistingListingLabel = (tool: AdminTool): string | null => {
@@ -46,14 +59,13 @@ export default function FastListingsPage() {
         return null;
     };
 
-    // Regular (non-fast) tools - show all published except fast
+    // Regular (non-fast) tools from paginated API results
     const regularTools = useMemo(() => {
-        return tools.filter((t: AdminTool) =>
+        return availableToolsRaw.filter((t: AdminTool) =>
             !pendingFastIds.includes(t.id) &&
-            t.status === 'published' &&
             t.listingType !== 'fast'
         );
-    }, [tools, pendingFastIds]);
+    }, [availableToolsRaw, pendingFastIds]);
 
     // Count of tools that can actually be added (no existing listing type)
     const availableCount = useMemo(() => {
@@ -101,14 +113,14 @@ export default function FastListingsPage() {
     };
 
     const handleAddToFast = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = availableToolsRaw.find(t => t.id === toolId);
         setPendingFastIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
     };
 
     const handleRemoveFromFast = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = allTools.find(t => t.id === toolId);
         setPendingFastIds(prev => prev.filter(id => id !== toolId));
         setHasChanges(true);
         showToast(`Removed "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
@@ -118,7 +130,7 @@ export default function FastListingsPage() {
         showToast('Saving fast listing changes...', 'info');
         setSaving(true);
         try {
-            const currentFast = tools.filter(t => t.listingType === 'fast');
+            const currentFast = fastToolsRaw.filter(t => t.listingType === 'fast');
             const currentIds = new Set(currentFast.map(t => t.id));
             const pendingSet = new Set(pendingFastIds);
 

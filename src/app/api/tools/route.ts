@@ -101,7 +101,11 @@ function applyMissingDataFilter(query: any, filter: string) {
 }
 
 // Helper to apply all common filters
-function applyFilters(query: any, filters: { search?: string | null, category?: string | null, task?: string | null, tag?: string | null, missingData?: string | null, status?: string | null }) {
+function applyFilters(query: any, filters: {
+    search?: string | null, category?: string | null, task?: string | null,
+    tag?: string | null, missingData?: string | null, status?: string | null,
+    featured?: string | null, spotlight?: string | null, listing?: string | null, trending?: string | null,
+}) {
     if (filters.status) {
         query = query.eq('status', filters.status);
     }
@@ -119,6 +123,18 @@ function applyFilters(query: any, filters: { search?: string | null, category?: 
     }
     if (filters.missingData && filters.missingData !== 'all') {
         query = applyMissingDataFilter(query, filters.missingData);
+    }
+    if (filters.featured === 'true') {
+        query = query.eq('is_featured', true);
+    }
+    if (filters.spotlight === 'true') {
+        query = query.eq('spotlight_enabled', true);
+    }
+    if (filters.listing) {
+        query = query.eq('listing_type', filters.listing);
+    }
+    if (filters.trending === 'true') {
+        query = query.gt('trending_position', 0);
     }
     return query;
 }
@@ -151,6 +167,10 @@ export async function GET(request: NextRequest) {
         const task = searchParams.get('task');
         const tag = searchParams.get('tag');
         const missingData = searchParams.get('missing');
+        const featured = searchParams.get('featured');
+        const spotlight = searchParams.get('spotlight');
+        const listing = searchParams.get('listing');
+        const trending = searchParams.get('trending');
 
         // Get total count for pagination with ALL filters applied
         let countQuery = supabaseAdmin
@@ -158,7 +178,7 @@ export async function GET(request: NextRequest) {
             .select('*', { count: 'exact', head: true });
 
         // Apply all filters to count query (must match data query filters)
-        countQuery = applyFilters(countQuery, { search, category, task, tag, missingData, status });
+        countQuery = applyFilters(countQuery, { search, category, task, tag, missingData, status, featured, spotlight, listing, trending });
 
         const countResult = await countQuery;
         const totalCount = countResult.count || 0;
@@ -183,7 +203,7 @@ export async function GET(request: NextRequest) {
                     .order('created_at', { ascending: false })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
-                query = applyFilters(query, { search, category, task, tag, missingData, status });
+                query = applyFilters(query, { search, category, task, tag, missingData, status, featured, spotlight, listing, trending });
 
                 const { data: pageData, error: pageError } = await query;
 
@@ -211,7 +231,7 @@ export async function GET(request: NextRequest) {
                 .select(TABLE_FIELDS)
                 .order('created_at', { ascending: false });
 
-            query = applyFilters(query, { search, category, task, tag, missingData, status });
+            query = applyFilters(query, { search, category, task, tag, missingData, status, featured, spotlight, listing, trending });
 
             const result = await query.range(offset, offset + validLimit - 1);
             data = result.data;

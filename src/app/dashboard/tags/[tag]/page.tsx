@@ -179,7 +179,7 @@ export default function TagDetailPage() {
                                 </div>
                                 <p className="text-sm text-text-secondary line-clamp-2">{tool.summary || tool.description || 'No description'}</p>
                                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                                    <span className="text-xs text-text-tertiary">{tool.pricingLabel}</span>
+                                    {tool.pricingLabel && <span className="text-xs text-text-tertiary">{tool.pricingLabel}</span>}
                                     <span className="text-accent-primary text-sm flex items-center gap-1">Preview {renderIcon('arrow-right', 14)}</span>
                                 </div>
                             </div>

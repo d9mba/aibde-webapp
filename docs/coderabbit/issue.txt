@@ -1,0 +1,89 @@
+Fix the following issues. The issues can be from different files or can overlap on same lines in one file.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @package.json at line 44, package.json upgrades zod to v4 which introduces breaking changes; audit and update all schema definitions to v4 APIs: replace instance format validators like z.string().email() with top-level helpers (e.g., z.email()), change z.record(...) to supply both key and value schemas, replace usages of z.uuid() with z.guid() where v3-compatible behavior is required, and refactor deprecated patterns around .merge() and .superRefine() to their v4 equivalents (use z.intersection()/object spreads or z.union where appropriate and use refinement functions or z.preprocess/z.transform patterns). Search for occurrences of z.string().email(), z.record(, z.uuid(), .merge(, and .superRefine( across the codebase and update each schema accordingly, run tests/validate DTOs after changes.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/analytics/page.tsx around lines 307 - 324, filteredTools' current merge/filter logic mixes toolsSearch (immediate) with toolsSearchDebounced (merge guard), causing flicker; update the filter to consistently use toolsSearchDebounced for text matching and merging decisions: in the IIFE that builds filteredTools, replace usages of toolsSearch inside the .filter callback with a normalized (e.g. toLowerCase-safe) toolsSearchDebounced (or an empty string fallback) so both the merging of dbSearchResults and the includes check use the same debounced value, and keep existing duplicate suppression and sorting logic in place.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/categories/[slug]/page.tsx around lines 365 - 372, The button lacks distinct disabled styling; update the element that uses previewTool.appUsername and setPreviewTool (the Open Tool Page button) to apply explicit disabled classes when !previewTool.appUsername (for example add opacity-50, cursor-not-allowed and remove hover:bg-accent-primary/90) and ensure the same conditional is applied to className so the visual state matches the disabled prop while keeping the existing onClick behavior that checks previewTool.appUsername before calling router.push.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/categories/page.tsx around lines 169 - 170, When deleting a category, detect the "delete last item on a page" case and navigate to the previous page before/after refreshing so the user isn't left on an empty page: in the delete handler that calls updateToast(toastId, ...) and mutate(), check the current page state (e.g., page or currentPage) and the current list length (e.g., categories, items); if currentPage > 1 and list.length === 1, call the router/navigation method to go to currentPage - 1 (or update the page query param) before calling mutate() (or immediately after) so the UI will show the previous page instead of an empty one.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/fast-listings/page.tsx around lines 251 - 254, The "Available" calculation can double-count or over-subtract; update the logic that computes (initialTotal ?? availableTotal) - allFastTools.length - autoFastCount: first confirm whether availableTotal already excludes fast/spotlight/featured/verified tools, then compute the deduction using unique tool identifiers instead of raw counts (use a Set of IDs from the auto-fast list to derive uniqueAutoCount) and only subtract uniqueAutoCount when starting from an initialTotal that includes those tools; replace the current expression in page.tsx (where initialTotal, availableTotal, allFastTools, autoFastCount are used) with conditional logic that uses unique counts and respects whether the source total already excludes fast tools.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/featured/page.tsx around lines 105 - 109, The pagination math currently uses server-side totals (apiTotalPages / availableTotal) while the UI filters out featured items via filteredRegularTools, causing mismatch; update the pagination to compute totals from filteredRegularTools: set totalCount = filteredRegularTools.length, totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE), compute startIndex = (availablePage - 1) * ITEMS_PER_PAGE, and set paginatedTools = filteredRegularTools.slice(startIndex, startIndex + ITEMS_PER_PAGE) so displayed item ranges and pages reflect the actual visible items.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/featured/page.tsx around lines 56 - 66, The effect using featuredInitializedRef in the useEffect callback (which reads featuredTools, computes currentFeatured and ids, and calls setPendingFeaturedIds) should mark initialization regardless of whether ids is empty; change the logic in the useEffect (referencing featuredInitializedRef, featuredTools, currentFeatured, ids, setPendingFeaturedIds) so that after computing ids you always call setPendingFeaturedIds(ids) (allowing an empty array) and then set featuredInitializedRef.current = true, instead of only setting the flag when ids.length > 0, to prevent the effect from re-running and resetting state on every featuredTools update.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/notes/page.tsx around lines 91 - 112, The effect currently depends on knownTools and also calls setKnownTools, causing unnecessary re-runs; change it to track which IDs have already been fetched using a ref and remove knownTools from the dependency array: create a ref (e.g., fetchedToolIdsRef) holding a Set<string>, check that an id is not in knownTools and not in fetchedToolIdsRef before fetching, add the id to fetchedToolIdsRef when you start/complete the fetch, and keep the effect dependencies to [notes] only while still using setKnownTools to update the Map safely.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/notes/page.tsx around lines 74 - 76, The fetch handler in page.tsx currently silences non-ok responses by returning { data: [] }; modify the promise chain for the fetch(`/api/tools?...`, { signal: controller.signal }) call so that when r.ok is false you log or surface the error (include r.status and await r.text() or r.json() for details) instead of returning an empty list silently—either call console.error/processLogger.error with the response details and return { data: [] } afterwards, or throw a new Error with the status/message so the existing .catch can handle it; update the .then(r => r.ok ? r.json() : { data: [] }) branch to perform this logging or throwing.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/tasks/[slug]/page.tsx around lines 44 - 50, Current client-side lookup can miss the correct Task if the search endpoint returns more than 100 partial matches; update the useSWR call to also destructure and handle the fetch error (e.g., const { data: taskData, error: taskError } = useSWR(...)) and then include taskError in the early-return logic alongside the "Task not found" branch so you render an error state when the fetch fails; longer-term, replace the search+filter pattern (useSWR + taskData?.data?.find and slugify) by calling a dedicated endpoint that returns a single task by slug (or increase the API limit) so the lookup is deterministic (reference useSWR, taskData, taskError, fetcher, task, slugify).
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/tools/page.tsx around lines 134 - 144, The fetch for categories uses a hardcoded '?limit=500' which can silently truncate results; update the call used by useSWR (catResponse) to avoid the fixed limit — either remove the limit parameter so the API returns all by default, make the limit configurable (env/config value) or implement proper pagination and surface a warning if the API indicates more pages; while here, simplify the typing by using a single Category type/interface (e.g., { id: string; categoryName: string }) and remove the repeated inline type annotations in the categoryOptions construction and the Array.from new Set mapping to improve readability (update references to use catResponse, categoryOptions and the useSWR call).
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/verified/page.tsx around lines 249 - 252, The "Available" calculation is double-counting because initialTotal - allVerifiedTools.length - autoVerifiedCount assumes disjoint sets; update the logic to subtract the union of verified and auto-verified tools instead of naïvely subtracting both counts (use set union/dedup by unique tool id between allVerifiedTools and whichever collection contributes to autoVerifiedCount), or better yet call a server endpoint that returns a single computed available count; replace the current expression using initialTotal, availableTotal, allVerifiedTools, and autoVerifiedCount with a value derived from the deduplicated union count (or the server-provided available value) so overlapping spotlight/featured/verified items aren’t double-counted.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/new/NewPageClient.tsx around lines 27 - 34, The sort comparator in the useMemo for newTools assumes createdAt parses to a valid timestamp; change the date extraction in the comparator (used in newTools, inside the useMemo) to defensively parse createdAt (e.g., use Date.parse(createdAt) or new Date(createdAt).getTime()) and treat NaN as 0 so malformed date strings don't produce NaN and break sorting; ensure both dateA and dateB use this fallback before returning dateB - dateA.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/search/[query]/page.tsx around lines 12 - 14, The current decode step using decodeURIComponent when building initialQuery (variables rawQuery, queryStr, initialQuery) can throw on malformed percent-encodings; change to a safe decode approach by wrapping the decode in a try/catch or extracting a helper like safeDecodeURIComponent(str) that returns the original string on error, and use that helper (or the try/catch) when computing initialQuery so the page won’t crash on invalid URI sequences.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/task/[slug]/TaskSlugPageClient.tsx around lines 54 - 69, Unhandled network errors currently only log and leave stale UI state; mirror the HTTP-error branch inside the catch so network failures also clear tools and reset pagination. In the catch for the async fetch (the block handling errors around response.ok and response.json), call setTools([]) and setCurrentPage(1) in addition to logging the error, and ensure setIsLoading(false) still runs in finally; update the catch to provide the same UI state-reset behavior as the response.ok failure branch.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/components/features/admin/ToolForm.tsx around lines 386 - 401, The duplicate-name check inside the useEffect tied to watchName fires on every keystroke; debounce the API call to avoid excessive requests by delaying the fetch until the user stops typing (e.g., use a timeout or a useDebounce hook). Specifically, wrap the AbortController/fetch logic in a debounced callback (create a timeout when watchName changes, clear it on cleanup) and only perform fetch(`/api/tools?...`) after the debounce delay; keep calling setValue('app_username', slugify(watchName || '')) immediately but ensure setShowDuplicateWarning is only updated from the debounced fetch result. Reference: useEffect, watchName, setValue, setShowDuplicateWarning, AbortController, fetch.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/components/ui/Combobox.tsx around lines 173 - 180, The ArrowDown handler's wrap logic uses totalItems derived from visibleCount which prevents reaching items beyond displayLimit; change totalItems to be based on filteredOptions.length (e.g., totalItems = filteredOptions.length + (canAddNew ? 1 : 0)) or otherwise compute next modulo filteredOptions.length so keyboard can traverse all options, and keep the existing expansion condition that increases displayLimit when next >= visibleCount && next < filteredOptions.length && !(canAddNew && next === visibleCount); update references in the setFocusedIdx callback and any related logic (setFocusedIdx, totalItems, visibleCount, filteredOptions, canAddNew, displayLimit) accordingly.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/hooks/useTools.ts around lines 113 - 116, The effect that syncs search is overwriting user input because it always uses options.search || '' even when options.search is not provided; update the useEffect in useTools (the effect that reads options.search and compares to search) to only sync when options.search !== undefined (mirror the page sync guard), so call setSearch(optSearch) only if options.search !== undefined and optSearch !== search to avoid resetting user-typed values from handleSetSearch.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/lib/sync-counts.ts around lines 17 - 18, The function syncCategoryCounts currently accesses categoryNames.length without guarding for null/undefined; update the start of syncCategoryCounts to first check that categoryNames is defined (e.g., if (!categoryNames || categoryNames.length === 0) return) or otherwise coerce/validate the parameter before using .length so you don't throw a TypeError when categoryNames is null or undefined.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/lib/sync-counts.ts around lines 49 - 50, The null/undefined guard for syncTaskCounts is missing — update the early-return check in the export async function syncTaskCounts(taskNames: string[]) to handle null/undefined inputs the same way as syncCategoryCounts (e.g., ensure taskNames is checked for falsy or non-array before checking length) so the function safely returns when taskNames is null/undefined or empty.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/api/search/route.ts at line 25, The assignment to appUsername can yield undefined if both tool.app_username and tool.appUsername are missing; update the mapping that sets appUsername (where appUsername: (tool.app_username ?? tool.appUsername) as string) to provide a safe default (e.g., fallback to an empty string or other sensible default) so the value is never undefined at runtime; change the expression to use a default fallback after the nullish coalescing to guarantee a string value.
+
+- Verify each finding against the current code and only fix it if needed.
+
+In @src/app/dashboard/tools/components/BulkUpdateModal.tsx around lines 411 - 417, The UI is referencing a non-existent property appUsername on the UpdateTool objects, causing fallbacks and badge logic to fail; update all usages in BulkUpdateModal (e.g., the JSX that reads tool.appUsername, the conditional that renders the slug line, and the badge detection logic) to use the correct property name app_username consistent with the UpdateTool interface and the CSV parser output, and ensure any local destructuring or helper functions that create/display name/slug use tool.app_username (or normalize the object once after parsing to map app_username → appUsername consistently across the component).

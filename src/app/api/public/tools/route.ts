@@ -13,6 +13,28 @@ const PUBLIC_LIST_FIELDS = `
     status, created_at, updated_at
 `;
 
+// Strip response to only public-safe fields (dbToolToAdminTool maps ALL fields)
+function toPublicTool(tool: ReturnType<typeof dbToolToAdminTool>) {
+    return {
+        id: tool.id,
+        name: tool.name,
+        app_username: tool.app_username,
+        logoUrl: tool.logoUrl,
+        summary: tool.summary,
+        categoryName: tool.categoryName,
+        taskName: tool.taskName,
+        tags: tool.tags,
+        pricing: tool.pricing,
+        pricingLabel: tool.pricingLabel,
+        saveCount: tool.saveCount,
+        isFeatured: tool.isFeatured,
+        listingType: tool.listingType,
+        status: tool.status,
+        createdAt: tool.createdAt,
+        updatedAt: tool.updatedAt,
+    };
+}
+
 // GET /api/public/tools - Public tool listing (NO AUTH REQUIRED)
 // Returns only published tools with limited fields for public consumption
 // Supports pagination: ?page=1&limit=20 (default: 20 per page, max 50)
@@ -76,7 +98,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Failed to fetch tools' }, { status: 500 });
         }
 
-        const tools = (data || []).map((tool) => dbToolToAdminTool(tool));
+        const tools = (data || []).map((tool) => toPublicTool(dbToolToAdminTool(tool)));
 
         // PERFORMANCE: Cache public responses to reduce DB hits
         // 5 min cache, allow stale for 1 hour while revalidating

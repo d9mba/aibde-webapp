@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import Pagination from '@/components/ui/Pagination';
@@ -29,6 +29,7 @@ export default function CategorySlugPageClient({
     const [currentPage, setCurrentPage] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const pageFetchControllerRef = useRef<AbortController | null>(null);
 
     const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
@@ -40,18 +41,26 @@ export default function CategorySlugPageClient({
 
         // Page 1 uses SSR data
         if (page === 1) {
+            pageFetchControllerRef.current?.abort();
+            pageFetchControllerRef.current = null;
             setTools(initialTools);
             setCurrentPage(1);
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }
 
+        // Abort any previous in-flight request
+        pageFetchControllerRef.current?.abort();
+        const controller = new AbortController();
+        pageFetchControllerRef.current = controller;
+
         setIsLoading(true);
         setFetchError(null);
         try {
             const offset = (page - 1) * ITEMS_PER_PAGE;
             const response = await fetch(
-                `/api/tools/by-category?category=${encodeURIComponent(category.categoryName)}&offset=${offset}&limit=${ITEMS_PER_PAGE}`
+                `/api/tools/by-category?category=${encodeURIComponent(category.categoryName)}&offset=${offset}&limit=${ITEMS_PER_PAGE}`,
+                { signal: controller.signal }
             );
             if (!response.ok) {
                 const text = await response.text().catch(() => response.statusText);
@@ -65,7 +74,10 @@ export default function CategorySlugPageClient({
             setCurrentPage(page);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') return;
+            const msg = error instanceof Error ? error.message : 'Failed to load tools';
             console.error('Failed to load tools:', error);
+            setFetchError(msg);
         } finally {
             setIsLoading(false);
         }

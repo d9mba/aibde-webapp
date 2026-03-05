@@ -9,7 +9,9 @@ import { ToolGridSkeleton } from '@/components/ui/Skeleton';
 
 export default function SearchResultsPage() {
     const params = useParams();
-    const initialQuery = decodeURIComponent(params.query as string);
+    const rawQuery = params.query;
+    const queryStr = Array.isArray(rawQuery) ? rawQuery[0] || '' : (rawQuery ?? '');
+    const initialQuery = queryStr ? decodeURIComponent(queryStr) : '';
     const [searchQuery, setSearchQuery] = useState(initialQuery);
     const [results, setResults] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -17,11 +19,23 @@ export default function SearchResultsPage() {
     // Fetch search results from API instead of loading all tools in memory
     useEffect(() => {
         setIsLoading(true);
-        fetch(`/api/tools?search=${encodeURIComponent(initialQuery)}&status=published&limit=100`)
+        const controller = new AbortController();
+        fetch(`/api/tools?search=${encodeURIComponent(initialQuery)}&status=published&limit=100`, { signal: controller.signal })
             .then(r => r.ok ? r.json() : { data: [] })
             .then(json => setResults(json.data || []))
-            .catch(() => setResults([]))
+            .catch((err) => {
+                if (err.name !== 'AbortError') {
+                    console.error('[Search] Fetch failed:', err);
+                }
+                setResults([]);
+            })
             .finally(() => setIsLoading(false));
+        return () => controller.abort();
+    }, [initialQuery]);
+
+    // Keep searchQuery in sync when the route/initialQuery changes
+    useEffect(() => {
+        setSearchQuery(initialQuery);
     }, [initialQuery]);
 
     const suggestions = useMemo(() => {

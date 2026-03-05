@@ -24,7 +24,6 @@ export {
 
 // Tool fetching functions
 export {
-    getPublishedTools,
     getPublishedToolsRange,
     getSpotlightTools,
     getRecentlyReleasedTools,
@@ -35,6 +34,7 @@ export {
     getHomeSettings,
     getFeaturedTools,
     getRecentlyAddedTools,
+    getToolNamesBySlugs,
 } from './tools';
 
 // Related tools functions

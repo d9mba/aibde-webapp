@@ -11,6 +11,7 @@ interface PageProps {
  */
 export default async function CatchAllPage({ params }: PageProps) {
     const { slug } = await params;
+    if (!slug || slug.length === 0) redirect('/');
     const searchQuery = slug.join(' ');
     redirect(`/search?q=${encodeURIComponent(searchQuery)}`);
 }

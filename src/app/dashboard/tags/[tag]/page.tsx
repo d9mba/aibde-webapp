@@ -53,12 +53,12 @@ export default function TagDetailPage() {
     // Build API URL with server-side pagination
     const apiUrl = useMemo(() => {
         if (!tag) return null;
-        const params = new URLSearchParams();
-        params.set('page', currentPage.toString());
-        params.set('limit', ITEMS_PER_PAGE.toString());
-        params.set('tag', tag);
-        if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
-        return `/api/tools?${params.toString()}`;
+        const searchParams = new URLSearchParams();
+        searchParams.set('page', currentPage.toString());
+        searchParams.set('limit', ITEMS_PER_PAGE.toString());
+        searchParams.set('tag', tag);
+        if (debouncedSearch.trim()) searchParams.set('search', debouncedSearch.trim());
+        return `/api/tools?${searchParams.toString()}`;
     }, [tag, currentPage, debouncedSearch]);
 
     // Fetch tools with SWR (server-side pagination)

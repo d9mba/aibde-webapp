@@ -8,10 +8,10 @@ export default function PageProgress() {
     const searchParams = useSearchParams();
     const [progress, setProgress] = useState(0);
     const [active, setActive] = useState(false);
-    const tickRef = useRef<NodeJS.Timeout>();
-    const hideRef = useRef<NodeJS.Timeout>();
-    const completeTimerRef = useRef<NodeJS.Timeout>();
-    const safetyInnerRef = useRef<NodeJS.Timeout>();
+    const tickRef = useRef<NodeJS.Timeout>(undefined);
+    const hideRef = useRef<NodeJS.Timeout>(undefined);
+    const completeTimerRef = useRef<NodeJS.Timeout>(undefined);
+    const safetyInnerRef = useRef<NodeJS.Timeout>(undefined);
     const startTimeRef = useRef(0);
     const isNavigatingRef = useRef(false);
 
@@ -43,6 +43,7 @@ export default function PageProgress() {
     // Start progress bar with ticking animation
     const start = useCallback(() => {
         cleanup();
+        // Idempotent: always (re)initialize the progress UI
         isNavigatingRef.current = true;
         startTimeRef.current = Date.now();
         setActive(true);
@@ -93,6 +94,7 @@ export default function PageProgress() {
 
         history.pushState = function (...args) {
             if (!isNavigatingRef.current) {
+                isNavigatingRef.current = true;
                 setTimeout(start, 0);
             }
             return originalPushState(...args);
@@ -104,6 +106,7 @@ export default function PageProgress() {
                 const normalize = (u: string): string => u.replace(/\/$/, '') || '/';
                 if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
                     if (!isNavigatingRef.current) {
+                        isNavigatingRef.current = true;
                         setTimeout(start, 0);
                     }
                 }

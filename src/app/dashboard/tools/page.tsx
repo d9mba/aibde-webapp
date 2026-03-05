@@ -32,7 +32,7 @@ interface PaginatedToolsResponse {
 export default function ToolsListPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { deleteTool, categories, isLoaded } = useAdmin();
+    const { deleteTool } = useAdmin();
     const { confirm } = useConfirm();
     const [searchQuery, setSearchQuery] = useState('');
     // Read initial status from URL query param
@@ -131,10 +131,16 @@ export default function ToolsListPage() {
         { value: 'scheduled', label: 'Scheduled' },
     ];
 
+    // Fetch categories for filter dropdown
+    const { data: catResponse } = useSWR<{ data: { id: string; categoryName: string }[] }>(
+        '/api/categories?limit=500',
+        (url: string) => fetch(url).then(r => r.json()),
+        { revalidateOnFocus: false }
+    );
     const categoryOptions = [
         { value: 'all', label: 'All Categories' },
-        ...Array.from(new Set(categories.filter(cat => cat.categoryName).map(cat => cat.categoryName)))
-            .map(name => ({ value: name, label: name }))
+        ...Array.from(new Set((catResponse?.data || []).filter((cat: { categoryName: string }) => cat.categoryName).map((cat: { categoryName: string }) => cat.categoryName)))
+            .map(name => ({ value: name as string, label: name as string }))
     ];
 
     const missingDataOptions = [

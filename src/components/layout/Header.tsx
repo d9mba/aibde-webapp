@@ -72,7 +72,7 @@ export default function Header() {
     // API-based search suggestions (instead of sharedTools)
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>();
+    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = async (query: string) => {

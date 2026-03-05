@@ -22,6 +22,8 @@ const securityHeaders = [
         key: 'Content-Security-Policy',
         value: [
             "default-src 'self'",
+            // 'unsafe-inline': Required by Next.js for inline scripts during page hydration
+            // 'unsafe-eval': Required by Clerk auth SDK and Next.js dev mode HMR
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://us-assets.i.posthog.com",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",

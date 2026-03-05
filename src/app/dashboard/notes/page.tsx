@@ -3,15 +3,28 @@
 import { useAdmin, Note } from '@/context/AdminContext';
 import { AdminTool } from '@/types';
 import { useState, useMemo, useRef, useEffect } from 'react';
+import useSWR from 'swr';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
 
-export default function NotesPage() {
-    const { notes, addNote, updateNote, deleteNote } = useAdmin();
+const notesFetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch notes');
+    return res.json();
+};
 
-    // Lightweight tool search for linking notes
-    const [toolSearchResults, setToolSearchResults] = useState<AdminTool[]>([]);
+export default function NotesPage() {
+    const { addNote, updateNote, deleteNote } = useAdmin();
+    const { data: notes = [], mutate: mutateNotes } = useSWR<Note[]>('/api/notes', notesFetcher, {
+        revalidateOnFocus: false,
+    });
+
+    // Separate search results for each dropdown to avoid stale/shared results
+    const [filterResults, setFilterResults] = useState<AdminTool[]>([]);
+    const [linkResults, setLinkResults] = useState<AdminTool[]>([]);
+    // Persistent cache for tool lookups (survives search changes)
+    const [knownTools, setKnownTools] = useState<Map<string, AdminTool>>(new Map());
     const { showToast, updateToast } = useToast();
     const { confirm } = useConfirm();
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -48,29 +61,74 @@ export default function NotesPage() {
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
-    // Fetch tools matching search for dropdowns (lightweight)
-    useEffect(() => {
-        const query = toolFilterSearch || linkSearch;
+    // Shared helper for tool search fetches
+    function fetchToolSearch(
+        query: string,
+        setter: (tools: AdminTool[]) => void,
+    ): () => void {
         if (!query || query.length < 2) {
-            setToolSearchResults([]);
-            return;
+            setter([]);
+            return () => { };
         }
         const controller = new AbortController();
         fetch(`/api/tools?search=${encodeURIComponent(query)}&limit=20&status=published`, { signal: controller.signal })
             .then(r => r.ok ? r.json() : { data: [] })
-            .then(json => setToolSearchResults(json.data || []))
-            .catch(() => { });
+            .then(json => {
+                const tools = json.data || [];
+                setKnownTools(prev => {
+                    const next = new Map(prev);
+                    tools.forEach((t: AdminTool) => next.set(t.id, t));
+                    return next;
+                });
+                setter(tools);
+            })
+            .catch((err) => {
+                if (err.name !== 'AbortError') console.error('[Notes] Tool search failed:', err);
+            });
         return () => controller.abort();
-    }, [toolFilterSearch, linkSearch]);
+    }
+
+    // Eagerly populate knownToolsRef for toolIds linked in notes
+    useEffect(() => {
+        const unknownIds = notes
+            .map(n => n.toolId)
+            .filter((id): id is string => !!id && !knownTools.has(id));
+        if (unknownIds.length === 0) return;
+
+        const uniqueIds = [...new Set(unknownIds)];
+        // Fetch details for unknown tool IDs
+        uniqueIds.forEach(id => {
+            fetch(`/api/tools/${id}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(tool => {
+                    if (tool) setKnownTools(prev => {
+                        const next = new Map(prev);
+                        next.set(tool.id, tool);
+                        return next;
+                    });
+                })
+                .catch(() => { });
+        });
+    }, [notes]);
+
+    // Fetch tools for filter dropdown
+    useEffect(() => {
+        return fetchToolSearch(toolFilterSearch, setFilterResults);
+    }, [toolFilterSearch]);
+
+    // Fetch tools for link dropdown
+    useEffect(() => {
+        return fetchToolSearch(linkSearch, setLinkResults);
+    }, [linkSearch]);
 
     // Filtered tools for dropdowns
     const toolFilterOptions = useMemo(() => {
-        return [{ id: '', name: 'All Tools', logoUrl: null }, ...toolSearchResults] as AdminTool[];
-    }, [toolSearchResults]);
+        return [{ id: '', name: 'All Tools', logoUrl: null }, ...filterResults] as AdminTool[];
+    }, [filterResults]);
 
     const linkOptions = useMemo(() => {
-        return [{ id: '', name: 'No tool linked', logoUrl: null }, ...toolSearchResults] as AdminTool[];
-    }, [toolSearchResults]);
+        return [{ id: '', name: 'No tool linked', logoUrl: null }, ...linkResults] as AdminTool[];
+    }, [linkResults]);
 
     useEffect(() => { setToolFilterIndex(0); }, [toolFilterSearch]);
     useEffect(() => { setLinkIndex(0); }, [linkSearch]);
@@ -109,9 +167,9 @@ export default function NotesPage() {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
-    const getToolName = (toolId: string) => toolSearchResults.find((t: AdminTool) => t.id === toolId)?.name || 'Unknown';
-    const getToolLogo = (toolId: string) => toolSearchResults.find((t: AdminTool) => t.id === toolId)?.logoUrl || null;
-    const selectedToolData = filterTool ? toolSearchResults.find((t: AdminTool) => t.id === filterTool) : null;
+    const getToolName = (toolId: string) => knownTools.get(toolId)?.name || 'Unknown';
+    const getToolLogo = (toolId: string) => knownTools.get(toolId)?.logoUrl || null;
+    const selectedToolData = filterTool ? knownTools.get(filterTool) || null : null;
 
     const createNote = () => { setSelectedNote(null); setIsEditing(true); setTitle(''); setContent(''); setLinkedTool(filterTool || ''); };
     const editNote = (note: Note) => { setSelectedNote(note); setIsEditing(true); setTitle(note.title); setContent(note.content); setLinkedTool(note.toolId || ''); };
@@ -128,6 +186,7 @@ export default function NotesPage() {
                 if (newNote) setSelectedNote(newNote);
             }
             setIsEditing(false);
+            mutateNotes();
         } catch (err) {
             updateToast(toastId, 'Failed to save note', 'error');
         }
@@ -147,6 +206,7 @@ export default function NotesPage() {
             await deleteNote(id);
             updateToast(toastId, 'Note deleted!', 'success');
             if (selectedNote?.id === id) { setSelectedNote(null); setIsEditing(false); }
+            mutateNotes();
         } catch (err) {
             updateToast(toastId, 'Failed to delete note', 'error');
         }

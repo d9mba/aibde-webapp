@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Task is required' }, { status: 400 });
         }
 
-        const { data, error } = await supabase
+        const { data, error, count } = await supabase
             .from('tools')
-            .select(CARD_COLUMNS)
+            .select(CARD_COLUMNS, { count: 'exact' })
             .in('status', ['published', 'approved'])
             .contains('task_name', [task])
             .order('save_count', { ascending: false })
@@ -38,7 +38,10 @@ export async function GET(request: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const tools = (data || []).map((tool: any) => dbToolToCardTool(tool));
 
-        return NextResponse.json({ tools, count: tools.length });
+        if (count === null) {
+            console.warn('[by-task] Supabase returned null count — pagination may be inaccurate');
+        }
+        return NextResponse.json({ tools, count });
     } catch (err) {
         console.error('API error:', err);
         return NextResponse.json({ error: 'Failed to fetch tools' }, { status: 500 });

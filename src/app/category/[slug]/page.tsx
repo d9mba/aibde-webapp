@@ -60,7 +60,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 /**
  * Category Detail Page - Optimized with pagination
- * Initially loads 100 tools, more loaded on demand
+ * Initially loads 48 tools, more loaded on demand
  */
 export default async function CategoryPage({ params }: PageProps) {
     const { slug } = await params;

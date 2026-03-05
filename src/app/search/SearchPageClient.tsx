@@ -22,7 +22,7 @@ interface SearchPageClientProps {
 export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount }: SearchPageClientProps) {
     const searchParams = useSearchParams();
     const lastTrackedQuery = useRef<string>('');
-    const searchTimeout = useRef<NodeJS.Timeout>();
+    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
     const searchCommittedRef = useRef(false);
 
     const [query, setQuery] = useState('');

@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { useTools } from '@/hooks/useTools';
 import { useToast } from '@/components/ui/Toast';
-import { Search, ChevronLeft, ChevronRight, Save, Rocket } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Save, Rocket, Loader2 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
 
@@ -19,35 +19,70 @@ export default function FastListingsPage() {
 
     // Fetch fast tools (small set) and available tools (paginated)
     const { tools: fastToolsRaw, loading: fastLoading, refetch: refetchFast } = useTools({
-        listing: 'fast', status: 'published', all: true, deps: toolsMutated,
+        listing: 'fast', status: 'published', all: true, deps: toolsMutated, fields: 'card',
     });
-    const { tools: availableToolsRaw, loading: availLoading } = useTools({
+    const { tools: availableToolsRaw, loading: availLoading, totalCount: availableTotal } = useTools({
         status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
-        search, deps: toolsMutated,
+        search, deps: toolsMutated, fields: 'card',
     });
+    // Count auto-fast tools (spotlight + featured + verified are automatically fast-listed)
+    // Use limit:1 to fetch only the count, not all rows
+    const { totalCount: spotlightCount } = useTools({
+        spotlight: true, status: 'published', limit: 1, deps: toolsMutated, fields: 'card',
+    });
+    const { totalCount: featuredCount } = useTools({
+        featured: true, status: 'published', limit: 1, deps: toolsMutated, fields: 'card',
+    });
+    const { totalCount: verifiedCount } = useTools({
+        listing: 'verified', status: 'published', limit: 1, deps: toolsMutated, fields: 'card',
+    });
+    // NOTE: autoFastCount is approximate — tools matching multiple flags (e.g., both
+    // spotlight and featured) are counted twice. The overlap is typically small and
+    // acceptable for a dashboard stat display.
+    const autoFastCount = (spotlightCount || 0) + (featuredCount || 0) + (verifiedCount || 0);
 
-    const isLoaded = !fastLoading && !availLoading;
-    const allTools = useMemo(() => [...fastToolsRaw, ...availableToolsRaw], [fastToolsRaw, availableToolsRaw]);
+    // Only block the full page on initial fast tools load, not on available tools search
+    const isLoaded = !fastLoading;
+
+    // Capture initial total so "Available" stat stays constant during search
+    const [initialTotal, setInitialTotal] = useState<number | null>(null);
+    useEffect(() => {
+        if (availableTotal > 0 && initialTotal === null) {
+            setInitialTotal(availableTotal);
+        }
+    }, [availableTotal, initialTotal]);
+    // Reset initial total when tools are mutated so it refreshes
+    useEffect(() => {
+        setInitialTotal(null);
+    }, [toolsMutated]);
+    const allTools = useMemo(() => {
+        const fastIds = new Set(fastToolsRaw.map(t => t.id));
+        const uniqueAvailable = availableToolsRaw.filter(t => !fastIds.has(t.id));
+        return [...fastToolsRaw, ...uniqueAvailable];
+    }, [fastToolsRaw, availableToolsRaw]);
 
     // Local state for pending changes
     const [pendingFastIds, setPendingFastIds] = useState<string[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
+    // Cache full AdminTool objects so they persist when paginating away
+    const pendingToolsCacheRef = useRef<Map<string, AdminTool>>(new Map());
 
-    // Initialize from current data (one-time)
+    // Initialize from current data (one-time, wait for load)
     const fastInitializedRef = useRef(false);
     useEffect(() => {
-        if (fastInitializedRef.current) return;
+        if (fastInitializedRef.current || fastLoading) return;
         fastInitializedRef.current = true;
         const currentFast = fastToolsRaw.filter((t: AdminTool) => t.listingType === 'fast');
         const ids = currentFast.map(t => t.id);
+        currentFast.forEach(t => pendingToolsCacheRef.current.set(t.id, t));
 
         if (ids.length > 0) setPendingFastIds(ids);
-    }, [fastToolsRaw]);
+    }, [fastToolsRaw, fastLoading]);
 
     // Current fast tools based on pending changes
     const allFastTools = useMemo(() => {
         return pendingFastIds
-            .map(id => allTools.find(t => t.id === id))
+            .map(id => allTools.find(t => t.id === id) || pendingToolsCacheRef.current.get(id))
             .filter((t): t is AdminTool => t !== undefined);
     }, [allTools, pendingFastIds]);
 
@@ -113,7 +148,7 @@ export default function FastListingsPage() {
     };
 
     const handleAddToFast = (toolId: string) => {
-        const tool = availableToolsRaw.find(t => t.id === toolId);
+        const tool = availableToolsRaw.find(t => t.id === toolId) || allTools.find(t => t.id === toolId);
         setPendingFastIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
@@ -203,13 +238,17 @@ export default function FastListingsPage() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
                         <div className="text-xl sm:text-2xl font-bold text-accent-green">{allFastTools.length}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Fast Listings</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-text-tertiary">{availableCount}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-primary">{autoFastCount}</div>
+                        <div className="text-[10px] sm:text-xs text-text-tertiary">Auto (Higher Tiers)</div>
+                    </div>
+                    <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
+                        <div className="text-xl sm:text-2xl font-bold text-text-tertiary">{Math.max(0, (initialTotal ?? availableTotal) - allFastTools.length - autoFastCount)}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>
@@ -237,8 +276,13 @@ export default function FastListingsPage() {
                             </div>
                         </div>
 
-                        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
-                            {paginatedTools.length === 0 ? (
+                        <div className={`divide-y divide-border max-h-[400px] overflow-y-auto transition-opacity duration-200 ${availLoading ? 'opacity-50' : ''}`}>
+                            {availLoading && paginatedTools.length === 0 ? (
+                                <div className="p-6 sm:p-8 flex items-center justify-center gap-2 text-text-tertiary text-sm">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Loading tools...
+                                </div>
+                            ) : paginatedTools.length === 0 ? (
                                 <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
                                     {search ? 'No tools match your search' : 'All tools already have a listing type'}
                                 </div>

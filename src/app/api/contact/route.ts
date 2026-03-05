@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHmac } from 'crypto';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 
 const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || '';
+const FINGERPRINT_SECRET = process.env.CONTACT_FINGERPRINT_SECRET
+    || process.env.ADMIN_LOGIN_SECRET
+    || require('crypto').randomBytes(32).toString('hex');
 
 interface ContactFormData {
     firstName: string;
@@ -25,20 +29,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (ip !== 'anonymous') {
             identifier = ip;
         } else {
-            // Build a fingerprint from stable request headers to reduce bucket collisions
+            // Build a fingerprint from stable request headers + time-bucketed salt
+            // to reduce spoofing via client-controlled headers alone
             const ua = request.headers.get('user-agent') || '';
             const lang = request.headers.get('accept-language') || '';
             const accept = request.headers.get('accept') || '';
             const chUa = request.headers.get('sec-ch-ua') || '';
             const chPlatform = request.headers.get('sec-ch-ua-platform') || '';
             const chMobile = request.headers.get('sec-ch-ua-mobile') || '';
-            const raw = `${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}`;
-            // Simple hash for bucketing (not cryptographic)
-            let hash = 0;
-            for (let i = 0; i < raw.length; i++) {
-                hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
-            }
-            identifier = `anon:${hash.toString(36)}`;
+            // Hourly time bucket prevents replay across time windows
+            const hourBucket = Math.floor(Date.now() / 3_600_000);
+            const raw = `${ip}|${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}|${hourBucket}`;
+            const digest = createHmac('sha256', FINGERPRINT_SECRET).update(raw).digest('hex').slice(0, 16);
+            identifier = `anon:${digest}`;
         }
         const rateLimit = await checkRateLimit(`contact:${identifier}`, rateLimits.sensitive);
         if (!rateLimit.success) {

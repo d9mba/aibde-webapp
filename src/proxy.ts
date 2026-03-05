@@ -108,8 +108,21 @@ export const proxy = clerkMiddleware(async (auth, req) => {
             }
 
             // Invalid secret — redirect to home silently
+            // Mask the IP for logging: take first IP from x-forwarded-for, handle IPv4/IPv6
             const rawIp = req.headers.get('x-forwarded-for') || 'unknown';
-            const maskedIp = rawIp.length > 3 ? rawIp.slice(0, 3) + '***' : '***';
+            const firstIp = rawIp.split(',')[0]?.trim() || 'unknown';
+            let maskedIp = '***';
+            if (firstIp !== 'unknown') {
+                if (firstIp.includes('.')) {
+                    // IPv4: show first two octets, mask the rest
+                    const octets = firstIp.split('.');
+                    maskedIp = octets.length >= 2 ? `${octets[0]}.${octets[1]}.x.x` : '***';
+                } else if (firstIp.includes(':')) {
+                    // IPv6: show first two hextets, mask the rest
+                    const hextets = firstIp.split(':');
+                    maskedIp = hextets.length >= 2 ? `${hextets[0]}:${hextets[1]}::/masked` : '***';
+                }
+            }
             console.error(`[Security] Invalid login secret attempt from: ${maskedIp}`);
             return NextResponse.redirect(new URL('/', req.url));
         }

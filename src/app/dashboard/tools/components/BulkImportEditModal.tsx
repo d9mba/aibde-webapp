@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { useAdmin } from '@/context/AdminContext';
+import { useTaxonomySearch } from '@/hooks/useTaxonomySearch';
 import { Input, Section, ListEditor, Combobox, RichTextEditor, MediaUpload, SearchableSelect } from '@/components/ui';
 
 interface ImportedTool {
@@ -134,7 +135,12 @@ export default function BulkImportEditModal({
     onDelete,
     onClose,
 }: BulkImportEditModalProps) {
-    const { categories, tasks, tags, addCategory, addTask, addTag } = useAdmin();
+    const { addCategory, addTask, addTag } = useAdmin();
+
+    // Search-as-you-type taxonomy hooks
+    const catSearch = useTaxonomySearch('/api/categories', 'categoryName');
+    const taskSearch = useTaxonomySearch('/api/tasks', 'taskName');
+    const tagSearch = useTaxonomySearch('/api/tags', 'tagName');
 
     if (!isOpen) return null;
 
@@ -218,7 +224,9 @@ export default function BulkImportEditModal({
                                 multiple
                                 value={ensureArray(tool.categories)}
                                 onChange={(val) => handleUpdate({ categories: val })}
-                                options={Array.from(new Set(categories.filter(c => c.categoryName).map(c => c.categoryName))).map(name => ({ value: name, label: name }))}
+                                options={catSearch.options}
+                                loading={catSearch.loading}
+                                onSearchChange={catSearch.onSearchChange}
                                 allowCreate={true}
                                 onCreateNew={async (categoryName) => {
                                     await addCategory({ categoryName, count: 0, description: '' });
@@ -230,7 +238,9 @@ export default function BulkImportEditModal({
                                 multiple
                                 value={ensureArray(tool.tasks)}
                                 onChange={(val) => handleUpdate({ tasks: val })}
-                                options={Array.from(new Set(tasks.filter(t => t.taskName).map(t => t.taskName))).map(name => ({ value: name, label: name }))}
+                                options={taskSearch.options}
+                                loading={taskSearch.loading}
+                                onSearchChange={taskSearch.onSearchChange}
                                 allowCreate={true}
                                 onCreateNew={async (taskName) => {
                                     await addTask({ taskName, count: 0, description: '' });
@@ -243,7 +253,9 @@ export default function BulkImportEditModal({
                                 multiple
                                 value={ensureArray(tool.tags)}
                                 onChange={(val) => handleUpdate({ tags: val })}
-                                options={Array.from(new Set(tags.filter(t => t.tagName).map(t => t.tagName))).map(name => ({ value: name, label: name }))}
+                                options={tagSearch.options}
+                                loading={tagSearch.loading}
+                                onSearchChange={tagSearch.onSearchChange}
                                 placeholder="Search or add tags..."
                                 allowCreate={true}
                                 onCreateNew={async (tagName) => {

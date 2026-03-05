@@ -26,7 +26,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
     const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>();
+    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = useCallback(async (query: string) => {

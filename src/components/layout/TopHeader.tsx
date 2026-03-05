@@ -25,7 +25,7 @@ export default function TopHeader() {
     // API-based search suggestions
     const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>();
+    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = useCallback(async (query: string) => {

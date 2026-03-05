@@ -11,8 +11,8 @@ import { slugify } from '@/lib/utils';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aibde.tech';
 
-/** Max URLs per sitemap (Google limit 50k; 5k keeps files fast and crawl-friendly). */
-const SITEMAP_PAGE_SIZE = 5000;
+/** Max URLs per sitemap (smaller files = faster crawling by search engines). */
+const SITEMAP_PAGE_SIZE = 1000;
 
 function isSafeSlug(s: string): boolean {
     return s.length > 0 && !s.includes('..') && !/^\s*$/.test(s);

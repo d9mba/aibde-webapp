@@ -11,6 +11,41 @@ interface HogQLQueryResponse {
     types: string[];
 }
 
+// In-memory cache: 2-minute TTL, max 100 entries to prevent unbounded growth
+const cache = new Map<string, { data: unknown; timestamp: number }>();
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const CACHE_MAX_ENTRIES = 100;
+
+function getCacheKey(type: string, params: Record<string, unknown>): string {
+    return JSON.stringify({ type, ...params });
+}
+
+function getCached(key: string): unknown | null {
+    const entry = cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > CACHE_TTL) {
+        cache.delete(key);
+        return null;
+    }
+    return entry.data;
+}
+
+function setCache(key: string, data: unknown): void {
+    // Evict expired entries if at capacity
+    if (cache.size >= CACHE_MAX_ENTRIES) {
+        const now = Date.now();
+        for (const [k, v] of cache) {
+            if (now - v.timestamp > CACHE_TTL) cache.delete(k);
+        }
+        // If still at capacity, delete oldest entry
+        if (cache.size >= CACHE_MAX_ENTRIES) {
+            const oldest = cache.keys().next().value;
+            if (oldest) cache.delete(oldest);
+        }
+    }
+    cache.set(key, { data, timestamp: Date.now() });
+}
+
 /**
  * POST /api/analytics/posthog - Query PostHog analytics
  * 
@@ -289,9 +324,16 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Invalid query type' }, { status: 400 });
         }
 
+        // Check cache first
+        const cacheKey = getCacheKey(type, { toolSlug, days, startDate, endDate });
+        const cached = getCached(cacheKey);
+        if (cached) {
+            return NextResponse.json(cached);
+        }
+
         // Make request to PostHog API with timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
         let response: Response;
         try {
@@ -337,12 +379,19 @@ export async function POST(request: NextRequest) {
             return obj;
         });
 
-        return NextResponse.json({
+        const responseBody = {
             success: true,
             type,
             results,
             columns: data.columns,
-        });
+        };
+
+        // Cache the response (skip realtime queries)
+        if (type !== 'realtime') {
+            setCache(cacheKey, responseBody);
+        }
+
+        return NextResponse.json(responseBody);
 
     } catch (err) {
         console.error('[PostHog API] Error:', err);

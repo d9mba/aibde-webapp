@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAdmin, AdminTool } from '@/context/AdminContext';
+import { useAdmin, AdminTool, Category, Task, Tag } from '@/context/AdminContext';
+
+import { useTaxonomySearch } from '@/hooks/useTaxonomySearch';
 import { Input, Toggle, Section, ListEditor, Combobox, RichTextEditor, MediaUpload, useToast, SearchableSelect } from '@/components/ui';
 import { toolSchema, ToolFormData, defaultToolValues } from './ToolForm/schema';
 import FullPreview from './ToolForm/FullPreview';
@@ -268,7 +270,12 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
 
 export default function ToolForm({ toolId }: ToolFormProps) {
     const router = useRouter();
-    const { categories, tasks, tags, addTool, updateTool, addTag, addCategory, addTask, isLoaded } = useAdmin();
+    const { addTool, updateTool, addTag, addCategory, addTask, isLoaded } = useAdmin();
+
+    // Search-as-you-type taxonomy hooks
+    const catSearch = useTaxonomySearch('/api/categories', 'categoryName');
+    const taskSearch = useTaxonomySearch('/api/tasks', 'taskName');
+    const tagSearch = useTaxonomySearch('/api/tags', 'tagName');
     const { showToast, updateToast } = useToast();
     const isEdit = !!toolId;
 
@@ -276,11 +283,21 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     const [existingTool, setExistingTool] = useState<AdminTool | null>(null);
     useEffect(() => {
         if (!isEdit) return;
-        fetch(`/api/tools/${toolId}`)
-            .then(r => r.ok ? r.json() : null)
+        const controller = new AbortController();
+        fetch(`/api/tools/${toolId}`, { signal: controller.signal })
+            .then(r => {
+                if (!r.ok) throw new Error(`Failed to load tool (${r.status})`);
+                return r.json();
+            })
             .then(data => setExistingTool(data))
-            .catch(() => { });
-    }, [toolId, isEdit]);
+            .catch((err) => {
+                if (err.name !== 'AbortError') {
+                    console.error(err);
+                    showToast(err.message || 'Failed to load tool details', 'error');
+                }
+            });
+        return () => controller.abort();
+    }, [toolId, isEdit, showToast]);
 
     const [showFullPreview, setShowFullPreview] = useState(false);
     const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -293,7 +310,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     // Search-as-you-type for alternative tools combobox
     const [alternativeOptions, setAlternativeOptions] = useState<{ value: string; label: string; image?: string }[]>([]);
     const [altLoading, setAltLoading] = useState(false);
-    const altSearchRef = useRef<ReturnType<typeof setTimeout>>();
+    const altSearchRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const handleAltSearch = useCallback((query: string) => {
         clearTimeout(altSearchRef.current);
         if (!query || query.length < 3) { setAlternativeOptions([]); setAltLoading(false); return; }
@@ -307,6 +324,11 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                 .catch(() => { })
                 .finally(() => setAltLoading(false));
         }, 300);
+    }, []);
+
+    // Cleanup debounce timeout on unmount
+    useEffect(() => {
+        return () => clearTimeout(altSearchRef.current);
     }, []);
 
     const { register, control, handleSubmit, watch, setValue, reset, formState: { errors, isSubmitting } } = useForm<ToolFormData>({
@@ -448,8 +470,10 @@ export default function ToolForm({ toolId }: ToolFormProps) {
         const statusMsg = statusMessages[status] || (isEdit ? 'Updating' : 'Creating');
         const toastId = showToast(`${statusMsg}...`, 'loading');
         try {
+            // Compute success message first, before resetting flags
+            const wasRepost = isRepostUpdate.current;
             if (isEdit && toolId) {
-                const updateData = isRepostUpdate.current
+                const updateData = wasRepost
                     ? { ...data, isReposted: true }
                     : data;
                 await updateTool(toolId, updateData);
@@ -460,7 +484,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             sessionStorage.removeItem(UPLOAD_KEY);
 
             // Show appropriate success message
-            let successMsg = isRepostUpdate.current ? 'Tool updated & posted to Just Released!' : 'Tool updated successfully!';
+            let successMsg = wasRepost ? 'Tool updated & posted to Just Released!' : 'Tool updated successfully!';
             if (!isEdit) {
                 successMsg = data.status === 'pending'
                     ? 'Tool submitted for review!'
@@ -512,6 +536,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
     // Common form error handler - shows which fields are missing/invalid
     const onFormError = (errors: any) => {
+        isRepostUpdate.current = false;
         console.error('Form validation errors:', errors);
 
         // Get all field names with errors
@@ -816,15 +841,15 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                     <Section title="2. Categories & Classification">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {parsedJsonData.categoryName != null && (
-                                                <Combobox label="Categories" required multiple value={ensureArray(parsedJsonData.categoryName)} onChange={(val) => updateParsedField('categoryName', val)} options={categories.map(c => ({ value: c.categoryName, label: c.categoryName }))} allowCreate onCreateNew={async (n) => { await addCategory({ categoryName: n, count: 0, description: '' }); }} />
+                                                <Combobox label="Categories" required multiple value={ensureArray(parsedJsonData.categoryName)} onChange={(val) => updateParsedField('categoryName', val)} options={catSearch.options} loading={catSearch.loading} onSearchChange={catSearch.onSearchChange} allowCreate onCreateNew={async (n) => { await addCategory({ categoryName: n, count: 0, description: '' }); }} />
                                             )}
                                             {parsedJsonData.taskName != null && (
-                                                <Combobox label="Tasks" required multiple value={ensureArray(parsedJsonData.taskName)} onChange={(val) => updateParsedField('taskName', val)} options={tasks.map(t => ({ value: t.taskName, label: t.taskName }))} allowCreate onCreateNew={async (n) => { await addTask({ taskName: n, count: 0, description: '' }); }} />
+                                                <Combobox label="Tasks" required multiple value={ensureArray(parsedJsonData.taskName)} onChange={(val) => updateParsedField('taskName', val)} options={taskSearch.options} loading={taskSearch.loading} onSearchChange={taskSearch.onSearchChange} allowCreate onCreateNew={async (n) => { await addTask({ taskName: n, count: 0, description: '' }); }} />
                                             )}
                                         </div>
                                         {parsedJsonData.tags != null && (
                                             <div className="mt-4">
-                                                <Combobox label="Tags" multiple value={ensureArray(parsedJsonData.tags)} onChange={(val) => updateParsedField('tags', val)} options={tags.map(t => ({ value: t.tagName, label: t.tagName }))} allowCreate onCreateNew={async (n) => { await addTag({ tagName: n, count: 0 }); }} />
+                                                <Combobox label="Tags" multiple value={ensureArray(parsedJsonData.tags)} onChange={(val) => updateParsedField('tags', val)} options={tagSearch.options} loading={tagSearch.loading} onSearchChange={tagSearch.onSearchChange} allowCreate onCreateNew={async (n) => { await addTag({ tagName: n, count: 0 }); }} />
                                             </div>
                                         )}
                                     </Section>
@@ -933,7 +958,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                     multiple
                                     value={field.value || []}
                                     onChange={field.onChange}
-                                    options={categories.map(c => ({ value: c.categoryName, label: c.categoryName }))}
+                                    options={catSearch.options}
+                                    loading={catSearch.loading}
+                                    onSearchChange={catSearch.onSearchChange}
                                     allowCreate={true}
                                     onCreateNew={async (categoryName) => {
                                         await addCategory({ categoryName, count: 0, description: '' });
@@ -947,7 +974,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                     multiple
                                     value={field.value || []}
                                     onChange={field.onChange}
-                                    options={tasks.map(t => ({ value: t.taskName, label: t.taskName }))}
+                                    options={taskSearch.options}
+                                    loading={taskSearch.loading}
+                                    onSearchChange={taskSearch.onSearchChange}
                                     allowCreate={true}
                                     onCreateNew={async (taskName) => {
                                         await addTask({ taskName, count: 0, description: '' });
@@ -961,7 +990,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                 multiple
                                 value={field.value || []}
                                 onChange={field.onChange}
-                                options={tags.map(t => ({ value: t.tagName, label: t.tagName }))}
+                                options={tagSearch.options}
+                                loading={tagSearch.loading}
+                                onSearchChange={tagSearch.onSearchChange}
                                 placeholder="Search or add tags..."
                                 allowCreate={true}
                                 onCreateNew={async (tagName) => {
@@ -1175,7 +1206,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
                 {/* Preview */}
                 <div className="lg:col-span-1">
-                    <LivePreview control={control} categories={categories} onExpand={() => setShowFullPreview(true)} />
+                    <LivePreview control={control} categories={catSearch.options.map(o => ({ categoryName: o.value }))} onExpand={() => setShowFullPreview(true)} />
                 </div>
             </div>
 
@@ -1236,8 +1267,8 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                             Object.entries(watch('socialLinks') || {}).filter(([_, v]) => v != null)
                         ) as Record<string, string> : undefined,
                     }}
-                    categories={categories}
-                    tasks={tasks}
+                    categories={catSearch.options.map(o => ({ categoryName: o.value }))}
+                    tasks={taskSearch.options.map(o => ({ taskName: o.value }))}
                     onClose={() => setShowFullPreview(false)}
                 />
             )}

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { useTools } from '@/hooks/useTools';
 import { useToast } from '@/components/ui/Toast';
-import { Search, ChevronLeft, ChevronRight, Save } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Save, Loader2 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
 
@@ -19,30 +19,48 @@ export default function FeaturedPage() {
 
     // Fetch featured tools (small set) and available tools (paginated)
     const { tools: featuredTools, loading: featuredLoading, refetch: refetchFeatured } = useTools({
-        featured: true, status: 'published', all: true, deps: toolsMutated,
+        featured: true, status: 'published', all: true, deps: toolsMutated, fields: 'card',
     });
     const { tools: availableToolsRaw, loading: availableLoading, totalCount: availableTotal,
         page: availablePage, totalPages: apiTotalPages, setPage: setAvailablePage,
     } = useTools({
         status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
-        search, deps: toolsMutated,
+        search, deps: toolsMutated, fields: 'card',
     });
 
-    const isLoaded = !featuredLoading && !availableLoading;
+    // Only block the full page on initial featured tools load, not on available tools search
+    const isLoaded = !featuredLoading;
+
+    // Capture initial total so "Available" stat stays constant during search
+    const [initialTotal, setInitialTotal] = useState(0);
+    useEffect(() => {
+        if (availableTotal > 0 && initialTotal === 0) {
+            setInitialTotal(availableTotal);
+        }
+    }, [availableTotal, initialTotal]);
+    // Reset initial total when tools are mutated so it refreshes
+    useEffect(() => {
+        setInitialTotal(0);
+    }, [toolsMutated]);
 
     // Local state for pending changes
     const [pendingFeaturedIds, setPendingFeaturedIds] = useState<string[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
+    // Cache full AdminTool objects so they persist when paginating away
+    const pendingToolsCacheRef = useRef<Map<string, AdminTool>>(new Map());
 
     // Spotlight tools (always featured, can't be removed from featured directly)
     const spotlightTools = useMemo(() => featuredTools.filter((t: AdminTool) => t.spotlightEnabled), [featuredTools]);
 
-    // Initialize from current data
+    // Initialize from current data (once)
+    const featuredInitializedRef = useRef(false);
     useEffect(() => {
+        if (featuredInitializedRef.current) return;
         const currentFeatured = featuredTools.filter((t: AdminTool) => t.isFeatured || t.listingType === 'featured');
         const ids = currentFeatured.map(t => t.id);
 
-        if (pendingFeaturedIds.length === 0 && ids.length > 0) {
+        if (ids.length > 0) {
+            featuredInitializedRef.current = true;
             setPendingFeaturedIds(ids);
         }
     }, [featuredTools]);
@@ -50,7 +68,7 @@ export default function FeaturedPage() {
     // Current featured tools based on pending changes
     const allFeaturedTools = useMemo(() => {
         return pendingFeaturedIds
-            .map(id => featuredTools.find(t => t.id === id) || availableToolsRaw.find(t => t.id === id))
+            .map(id => featuredTools.find(t => t.id === id) || availableToolsRaw.find(t => t.id === id) || pendingToolsCacheRef.current.get(id))
             .filter((t): t is AdminTool => t !== undefined);
     }, [featuredTools, availableToolsRaw, pendingFeaturedIds]);
 
@@ -84,10 +102,10 @@ export default function FeaturedPage() {
     const featuredStartIndex = (featuredPage - 1) * ITEMS_PER_PAGE;
     const paginatedFeaturedTools = filteredFeaturedTools.slice(featuredStartIndex, featuredStartIndex + ITEMS_PER_PAGE);
 
-    // Pagination for regular tools
-    const totalPages = Math.ceil(filteredRegularTools.length / ITEMS_PER_PAGE);
+    // Pagination for regular tools — use server pagination
+    const totalPages = apiTotalPages;
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedTools = filteredRegularTools.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    const paginatedTools = filteredRegularTools;
 
     const handleSearch = (value: string) => {
         setSearch(value);
@@ -101,6 +119,7 @@ export default function FeaturedPage() {
 
     const handleAddToFeatured = (toolId: string) => {
         const tool = availableToolsRaw.find(t => t.id === toolId);
+        if (tool) pendingToolsCacheRef.current.set(toolId, tool);
         setPendingFeaturedIds(prev => [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
@@ -196,18 +215,14 @@ export default function FeaturedPage() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-4 sm:mb-6">
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-accent-primary">{spotlightTools.length}</div>
-                        <div className="text-[10px] sm:text-xs text-text-tertiary">Spotlight</div>
-                    </div>
-                    <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{allFeaturedTools.length}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-primary">{allFeaturedTools.length}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Featured</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-text-tertiary">{regularTools.length}</div>
-                        <div className="text-[10px] sm:text-xs text-text-tertiary">Regular</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{Math.max(0, (initialTotal || availableTotal) - allFeaturedTools.length)}</div>
+                        <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>
 
@@ -233,8 +248,13 @@ export default function FeaturedPage() {
                             </div>
                         </div>
 
-                        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
-                            {paginatedTools.length === 0 ? (
+                        <div className={`divide-y divide-border max-h-[400px] overflow-y-auto transition-opacity duration-200 ${availableLoading ? 'opacity-50' : ''}`}>
+                            {availableLoading && paginatedTools.length === 0 ? (
+                                <div className="p-6 sm:p-8 flex items-center justify-center gap-2 text-text-tertiary text-sm">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Loading tools...
+                                </div>
+                            ) : paginatedTools.length === 0 ? (
                                 <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
                                     {search ? 'No tools match your search' : 'All tools are already featured'}
                                 </div>
@@ -271,7 +291,7 @@ export default function FeaturedPage() {
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        onClick={() => setAvailablePage(Math.max(1, currentPage - 1))}
                                         disabled={currentPage === 1}
                                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                                     >
@@ -282,7 +302,7 @@ export default function FeaturedPage() {
                                         {currentPage}/{totalPages}
                                     </span>
                                     <button
-                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        onClick={() => setAvailablePage(Math.min(totalPages, currentPage + 1))}
                                         disabled={currentPage >= totalPages}
                                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                                     >

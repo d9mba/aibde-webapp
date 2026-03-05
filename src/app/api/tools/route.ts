@@ -26,7 +26,14 @@ const ALL_FIELDS = `
     back_links, trending_position
 `;
 
-// Fields for dashboard table view - includes all data for preview modal
+// Minimal fields for management card views (trending, spotlight, featured, etc.)
+// SECURITY: Excludes contact info, internal notes, and heavy content fields
+const CARD_FIELDS = `
+    id, name, app_username, logo_url, category_name, status,
+    is_featured, listing_type, spotlight_enabled, spotlight_position, trending_position
+`;
+
+// Fields for dashboard table view - includes data for preview modal
 const TABLE_FIELDS = `
     id, name, app_username, logo_url, summary, description,
     category_name, task_name, tags,
@@ -41,7 +48,6 @@ const TABLE_FIELDS = `
 `;
 
 // Complete fields for edit form (fetched via GET /api/tools/[id])
-// Includes all fields needed for ToolForm to work
 const LIST_FIELDS = `
     id, name, app_username, summary, description,
     category_name, task_name, tags,
@@ -171,6 +177,10 @@ export async function GET(request: NextRequest) {
         const spotlight = searchParams.get('spotlight');
         const listing = searchParams.get('listing');
         const trending = searchParams.get('trending');
+        const fieldsParam = searchParams.get('fields');
+
+        // Select fields based on the fields parameter
+        const selectFields = fieldsParam === 'card' ? CARD_FIELDS : TABLE_FIELDS;
 
         // Get total count for pagination with ALL filters applied
         let countQuery = supabaseAdmin
@@ -183,8 +193,8 @@ export async function GET(request: NextRequest) {
         const countResult = await countQuery;
         const totalCount = countResult.count || 0;
 
-        // Fetch data with proper typing
-        let data: DbTool[] | null = null;
+        // Fetch data — type as any[] since CARD_FIELDS returns a subset of columns
+        let data: any[] | null = null;
         let error: any = null;
 
 
@@ -199,7 +209,7 @@ export async function GET(request: NextRequest) {
             while (hasMore) {
                 let query = supabaseAdmin
                     .from('tools')
-                    .select(LIST_FIELDS) // Use LIST_FIELDS for complete data needed by edit form
+                    .select(fieldsParam === 'card' ? CARD_FIELDS : LIST_FIELDS) // Use CARD_FIELDS for management pages, LIST_FIELDS for full data
                     .order('created_at', { ascending: false })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
@@ -228,7 +238,7 @@ export async function GET(request: NextRequest) {
             // OPTIMIZATION: Use TABLE_FIELDS for list view (no heavy HTML content)
             let query = supabaseAdmin
                 .from('tools')
-                .select(TABLE_FIELDS)
+                .select(selectFields)
                 .order('created_at', { ascending: false });
 
             query = applyFilters(query, { search, category, task, tag, missingData, status, featured, spotlight, listing, trending });
@@ -244,7 +254,18 @@ export async function GET(request: NextRequest) {
 
         // Map to frontend-friendly format
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const tools = (data || []).map((tool: any) => dbToolToAdminTool(tool));
+        const mapped = (data || []).map((tool: any) => dbToolToAdminTool(tool));
+
+        // Strip to card fields when requested (avoids sending 40+ fields for management UIs)
+        const tools = fieldsParam === 'card'
+            ? mapped.map(t => ({
+                id: t.id, name: t.name, app_username: t.app_username,
+                logoUrl: t.logoUrl, categoryName: t.categoryName, status: t.status,
+                isFeatured: t.isFeatured, listingType: t.listingType,
+                spotlightEnabled: t.spotlightEnabled, spotlightPosition: t.spotlightPosition,
+                trendingPosition: t.trendingPosition,
+            }))
+            : mapped;
 
         // Return paginated response
         if (allData) {
@@ -315,8 +336,10 @@ export async function POST(request: NextRequest) {
         revalidatePath('/trending');
 
         // Sync category/task counts in the background
-        const categories = Array.isArray(body.categoryName) ? body.categoryName : [];
-        const tasks = Array.isArray(body.taskName) ? body.taskName : [];
+        const categories = Array.isArray(parseResult.data.categoryName) ? parseResult.data.categoryName
+            : typeof parseResult.data.categoryName === 'string' ? [parseResult.data.categoryName] : [];
+        const tasks = Array.isArray(parseResult.data.taskName) ? parseResult.data.taskName
+            : typeof parseResult.data.taskName === 'string' ? [parseResult.data.taskName] : [];
         void syncToolCounts(categories, tasks).catch(err => console.error('[Tools] syncToolCounts failed:', err));
 
         return NextResponse.json(dbToolToAdminTool(data), { status: 201 });

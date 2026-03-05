@@ -54,6 +54,7 @@ export default function TaskSlugPageClient({
             if (!response.ok) {
                 const text = await response.text().catch(() => response.statusText);
                 console.error(`Failed to load tools: ${response.status} ${text}`);
+                setTools([]);
                 return;
             }
             const data = await response.json();
@@ -118,7 +119,7 @@ export default function TaskSlugPageClient({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
                 {isLoading ? (
                     <div className="col-span-full flex items-center justify-center py-16">
-                        <span className="w-6 h-6 border-2 border-border border-t-accent-green rounded-full animate-spin" />
+                        <span className="w-6 h-6 border-2 border-border border-t-accent-green rounded-full animate-spin" role="status" aria-label="Loading" />
                     </div>
                 ) : tools.length > 0 ? (
                     tools.map((tool) => (

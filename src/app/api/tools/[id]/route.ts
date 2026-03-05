@@ -152,11 +152,11 @@ export async function PUT(
         revalidatePath('/new');
         revalidatePath('/trending');
 
-        // Sync category/task counts — merge old + new to handle reassignment
+        // Sync category/task counts — merge old + new (use DB response for accuracy)
         const oldCats = Array.isArray(oldTool?.category_name) ? oldTool.category_name : [];
-        const newCats = Array.isArray(body?.categoryName) ? body.categoryName : [];
+        const newCats = Array.isArray(data.category_name) ? data.category_name : [];
         const oldTasks = Array.isArray(oldTool?.task_name) ? oldTool.task_name : [];
-        const newTasks = Array.isArray(body?.taskName) ? body.taskName : [];
+        const newTasks = Array.isArray(data.task_name) ? data.task_name : [];
         void syncToolCounts([...oldCats, ...newCats], [...oldTasks, ...newTasks]).catch(err => console.error('[Tools] syncToolCounts failed:', err));
 
         return NextResponse.json(dbToolToAdminTool(data));

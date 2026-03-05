@@ -302,7 +302,7 @@ export default function CategoriesPage() {
                                         </td>
                                         <td className="px-4 py-3 text-text-secondary text-sm">
                                             {editingId === cat.id ? (
-                                                <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
+                                                <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(cat.id, e); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
                                             ) : (
                                                 cat.description || '-'
                                             )}

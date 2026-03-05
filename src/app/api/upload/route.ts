@@ -155,11 +155,11 @@ export async function POST(request: NextRequest) {
                     USE_PROFILES: { svg: true, svgFilters: true },
                     ADD_TAGS: ['svg'],
                     FORBID_TAGS: ['script', 'style', 'foreignObject', 'iframe', 'object', 'embed', 'use'],
-                    FORBID_ATTR: ['xlink:href', 'href', 'onclick', 'onerror', 'onload', 'onmouseover'],
+                    FORBID_ATTR: ['onclick', 'onerror', 'onload', 'onmouseover'],
                     ALLOW_DATA_ATTR: false,
                     // SECURITY: Restrict data: URIs to safe image MIME types only
                     // Generic data: allows embedding SVGs/HTML that bypass sanitization
-                    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|data:image\/(?:png|jpe?g|gif|webp);[^,]*,|#)/i,
+                    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|data:image\/(?:png|jpe?g|gif|webp);[^,]*,|#[a-zA-Z0-9_:.\-]*)/i,
                 });
                 safeBuffer = Buffer.from(new TextEncoder().encode(sanitized));
             } catch (err) {

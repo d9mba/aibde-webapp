@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { Category } from '@/types';
 import { slugify } from '@/lib/utils';
 import { useMemo, useState, useEffect } from 'react';
-import Pagination from '@/components/ui/Pagination';
 
 interface CategoryPageClientProps {
     categories: Category[];
@@ -14,8 +13,8 @@ interface CategoryPageClientProps {
 const ITEMS_PER_PAGE = 48;
 
 export default function CategoryPageClient({ categories, totalCount }: CategoryPageClientProps) {
-    const [currentPage, setCurrentPage] = useState(1);
     const [activeLetter, setActiveLetter] = useState<string>('');
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
     // Sort categories alphabetically, dedupe by id, and filter those with tools
     const sortedCategories = useMemo(() => {
@@ -25,19 +24,17 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                 byId.set(cat.id, cat);
             }
         });
-        return Array.from(byId.values()).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+        return Array.from(byId.values()).sort((a, b) => (a.categoryName ?? '').localeCompare(b.categoryName ?? ''));
     }, [categories]);
 
-    const totalPages = Math.ceil(sortedCategories.length / ITEMS_PER_PAGE);
-
-    // Get paginated categories
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedCategories = sortedCategories.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    // Get visible categories (progressively loaded)
+    const visibleCategories = sortedCategories.slice(0, visibleCount);
+    const hasMore = visibleCount < sortedCategories.length;
 
     // Group paginated categories by first letter
     const groupedCategories = useMemo(() => {
         const groups: { [key: string]: Category[] } = {};
-        paginatedCategories.forEach(category => {
+        visibleCategories.forEach(category => {
             const firstLetter = (category.categoryName?.charAt(0) || '?').toUpperCase();
             if (!groups[firstLetter]) {
                 groups[firstLetter] = [];
@@ -45,7 +42,7 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
             groups[firstLetter].push(category);
         });
         return groups;
-    }, [paginatedCategories]);
+    }, [visibleCategories]);
 
     // All available letters (from all categories, not just current page)
     const allLetters = useMemo(() => {
@@ -96,30 +93,46 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
         return () => window.removeEventListener('scroll', handleScroll);
     }, [sortedLetters]);
 
+    // Infinite scroll — load more when near bottom
+    useEffect(() => {
+        function handleScroll() {
+            if (!hasMore) return;
+            const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 400;
+            if (nearBottom) setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, sortedCategories.length));
+        }
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [hasMore, sortedCategories.length]);
+
     // Scroll to letter — find which page has that letter and navigate there
     function scrollToLetter(letter: string) {
-        // Find the index of the first category starting with this letter
         const idx = sortedCategories.findIndex(
             cat => (cat.categoryName?.charAt(0) || '?').toUpperCase() === letter
         );
         if (idx === -1) return;
 
-        const targetPage = Math.floor(idx / ITEMS_PER_PAGE) + 1;
-
-        if (targetPage !== currentPage) {
-            setCurrentPage(targetPage);
-            // Wait for render then scroll
-            setTimeout(() => {
+        const scrollToElement = () => {
+            let attempts = 0;
+            const maxAttempts = 20;
+            function tryScroll() {
                 const element = document.getElementById(`section-${letter}`);
                 if (element) {
                     element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else if (attempts < maxAttempts) {
+                    attempts++;
+                    requestAnimationFrame(tryScroll);
                 }
-            }, 100);
+            }
+            requestAnimationFrame(tryScroll);
+        };
+
+        // Ensure items up to this letter are visible
+        if (idx >= visibleCount) {
+            setVisibleCount(idx + ITEMS_PER_PAGE);
+            scrollToElement();
         } else {
             const element = document.getElementById(`section-${letter}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
 
@@ -158,12 +171,15 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
                         </div>
                     ))}
 
-                    {/* Pagination */}
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={setCurrentPage}
-                    />
+                    {/* Load more indicator */}
+                    {hasMore && (
+                        <div className="flex justify-center py-6">
+                            <div className="animate-spin w-6 h-6 border-[2px] border-accent-primary border-t-transparent rounded-full" />
+                        </div>
+                    )}
+                    {!hasMore && sortedCategories.length > 0 && (
+                        <p className="text-center text-text-tertiary text-xs py-4">All {sortedCategories.length} categories shown</p>
+                    )}
                 </div>
 
                 {/* Alphabet bar - right on mobile (sticky), left on desktop */}

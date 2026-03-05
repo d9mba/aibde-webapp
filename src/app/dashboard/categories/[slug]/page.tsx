@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
-import { useAdmin, AdminTool, Category } from '@/context/AdminContext';
+import { AdminTool, Category } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStatusClass } from '@/lib/formatters';
@@ -35,15 +35,20 @@ export default function CategoryDetailPage() {
     const params = useParams();
     const router = useRouter();
     const slug = params.slug as string;
-    const { categories, isLoaded } = useAdmin();
 
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
 
+    // Fetch category by slug via SWR
+    const { data: catData } = useSWR<{ data: Category[] }>(
+        `/api/categories?search=${encodeURIComponent(slug)}&limit=100`,
+        fetcher,
+        { revalidateOnFocus: false }
+    );
     // Find category by matching slug
-    const category = categories.find((c: Category) => slugify(c.categoryName) === slug);
+    const category = catData?.data?.find((c: Category) => slugify(c.categoryName) === slug);
 
     // Debounce search
     useEffect(() => {
@@ -59,12 +64,12 @@ export default function CategoryDetailPage() {
     // Build API URL with server-side pagination
     const apiUrl = useMemo(() => {
         if (!category) return null;
-        const params = new URLSearchParams();
-        params.set('page', currentPage.toString());
-        params.set('limit', ITEMS_PER_PAGE.toString());
-        params.set('category', category.categoryName);
-        if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
-        return `/api/tools?${params.toString()}`;
+        const queryParams = new URLSearchParams();
+        queryParams.set('page', currentPage.toString());
+        queryParams.set('limit', ITEMS_PER_PAGE.toString());
+        queryParams.set('category', category.categoryName);
+        if (debouncedSearch.trim()) queryParams.set('search', debouncedSearch.trim());
+        return `/api/tools?${queryParams.toString()}`;
     }, [category, currentPage, debouncedSearch]);
 
     // Fetch tools with SWR (server-side pagination)
@@ -82,14 +87,6 @@ export default function CategoryDetailPage() {
         setSearch(value);
     }
 
-    // Show loading state while data is being fetched
-    if (!isLoaded) {
-        return (
-            <div className="p-3 sm:p-6 flex items-center justify-center min-h-[200px]">
-                <div className="animate-spin w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full" />
-            </div>
-        );
-    }
 
     if (!category) {
         return (

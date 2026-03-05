@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
 import { useTools } from '@/hooks/useTools';
 import { useToast } from '@/components/ui/Toast';
-import { Search, ChevronLeft, ChevronRight, AlertTriangle, Save } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, AlertTriangle, Save, Loader2 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
 const MAX_SPOTLIGHT_TOOLS = 8; // Maximum spotlight tools allowed
@@ -24,14 +24,27 @@ export default function SpotlightPage() {
 
     // Fetch spotlight tools (small set) and available tools (paginated)
     const { tools: spotlightToolsRaw, loading: spotLoading } = useTools({
-        spotlight: true, status: 'published', all: true, deps: toolsMutated,
+        spotlight: true, status: 'published', all: true, deps: toolsMutated, fields: 'card',
     });
-    const { tools: availableToolsRaw, loading: availLoading } = useTools({
+    const { tools: availableToolsRaw, loading: availLoading, totalPages, totalCount: availableTotal } = useTools({
         status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
-        search, deps: toolsMutated,
+        search, deps: toolsMutated, fields: 'card',
     });
 
-    const isLoaded = !spotLoading && !availLoading;
+    // Only block the full page on initial spotlight tools load, not on available tools search
+    const isLoaded = !spotLoading;
+
+    // Capture initial total so "Available" stat stays constant during search
+    const initialTotalRef = useRef<number>(0);
+    useEffect(() => {
+        if (availableTotal > 0 && initialTotalRef.current === 0) {
+            initialTotalRef.current = availableTotal;
+        }
+    }, [availableTotal]);
+    // Reset initial total when tools are mutated so it refreshes
+    useEffect(() => {
+        initialTotalRef.current = 0;
+    }, [toolsMutated]);
 
     // Local state for pending changes
     const [pendingSpotlightIds, setPendingSpotlightIds] = useState<string[]>([]);
@@ -79,10 +92,8 @@ export default function SpotlightPage() {
         );
     }, [availableTools, search]);
 
-    // Pagination
-    const totalPages = Math.ceil(filteredAvailableTools.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedTools = filteredAvailableTools.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    // Server-side pagination is handled by useTools — no client-side slicing needed
+    const paginatedTools = filteredAvailableTools;
 
     const handleSearch = (value: string) => {
         setSearch(value);
@@ -242,7 +253,7 @@ export default function SpotlightPage() {
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Display</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{availableTools.length}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{Math.max(0, (initialTotalRef.current || availableTotal) - spotlightTools.length)}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>
@@ -279,8 +290,13 @@ export default function SpotlightPage() {
                             </div>
                         </div>
 
-                        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
-                            {paginatedTools.length === 0 ? (
+                        <div className={`divide-y divide-border max-h-[400px] overflow-y-auto transition-opacity duration-200 ${availLoading ? 'opacity-50' : ''}`}>
+                            {availLoading && paginatedTools.length === 0 ? (
+                                <div className="p-6 sm:p-8 flex items-center justify-center gap-2 text-text-tertiary text-sm">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Loading tools...
+                                </div>
+                            ) : paginatedTools.length === 0 ? (
                                 <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
                                     {search ? 'No tools match your search' : 'All published tools are in spotlight'}
                                 </div>
@@ -313,7 +329,7 @@ export default function SpotlightPage() {
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
                                 <span className="text-sm text-text-tertiary">
-                                    {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredAvailableTools.length)} of {filteredAvailableTools.length}
+                                    Page {currentPage} of {totalPages} ({availableTotal} tools)
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button

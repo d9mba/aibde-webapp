@@ -3,6 +3,33 @@ import { AdminTool } from '@/types';
 
 const MAX_SEARCH_LIMIT = 200;
 
+// Strip search results to card-level fields only
+function toSearchResult(tool: AdminTool): AdminTool {
+    return {
+        id: tool.id,
+        name: tool.name,
+        app_username: tool.app_username,
+        logoUrl: tool.logoUrl,
+        summary: tool.summary,
+        categoryName: tool.categoryName,
+        taskName: tool.taskName,
+        tags: tool.tags,
+        pricing: tool.pricing,
+        pricingLabel: tool.pricingLabel,
+        saveCount: tool.saveCount,
+        viewCount: tool.viewCount,
+        rating: tool.rating,
+        isFeatured: tool.isFeatured,
+        listingType: tool.listingType,
+        spotlightEnabled: tool.spotlightEnabled,
+        status: tool.status,
+        createdAt: tool.createdAt,
+        updatedAt: tool.updatedAt,
+        launchedOn: tool.launchedOn,
+        launchedAgo: tool.launchedAgo,
+    } as AdminTool;
+}
+
 const PRICING_KEYWORDS: Record<string, string> = {
     'free': 'Free',
     'freemium': 'Freemium',
@@ -77,7 +104,7 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const tools = (data || []).map((tool: any) => dbToolToAdminTool(tool));
+        const tools = (data || []).map((tool: any) => toSearchResult(dbToolToAdminTool(tool)));
 
         // Re-sort to prioritize exact and close name matches over fuzzy content matches.
         // PostgreSQL ts_rank_cd treats all text-match positions equally, so "ChatGPT Buddy"
@@ -109,6 +136,7 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
         return tools;
     }
 
+    // Unreachable: kept for TypeScript exhaustiveness
     return [];
 }
 
@@ -180,5 +208,6 @@ export async function searchToolsCount(params: Omit<SearchParams, 'limit'>): Pro
         return data || 0;
     }
 
+    // Unreachable: kept for TypeScript exhaustiveness
     return 0;
 }

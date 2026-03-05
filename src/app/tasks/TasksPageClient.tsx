@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { Task } from '@/types';
 import { slugify } from '@/lib/utils';
-import { useMemo, useState, useEffect } from 'react';
-import Pagination from '@/components/ui/Pagination';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 function HomeIcon({ className }: { className?: string }) {
     return (
@@ -32,6 +31,7 @@ const ITEMS_PER_PAGE = 48;
 export default function TasksPageClient({ tasks, totalCount }: TasksPageClientProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const [activeLetter, setActiveLetter] = useState<string>('');
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
     // Sort tasks alphabetically, dedupe by id, and filter those with tools
     const sortedTasks = useMemo(() => {
@@ -44,16 +44,14 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
         return Array.from(byId.values()).sort((a, b) => a.taskName.localeCompare(b.taskName));
     }, [tasks]);
 
-    const totalPages = Math.ceil(sortedTasks.length / ITEMS_PER_PAGE);
-
-    // Get paginated tasks
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedTasks = sortedTasks.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    // Get visible tasks (progressively loaded) — memoized so groupedTasks stays stable
+    const visibleTasks = useMemo(() => sortedTasks.slice(0, visibleCount), [sortedTasks, visibleCount]);
+    const hasMore = visibleCount < sortedTasks.length;
 
     // Group paginated tasks by first letter
     const groupedTasks = useMemo(() => {
         const groups: { [key: string]: Task[] } = {};
-        paginatedTasks.forEach(task => {
+        visibleTasks.forEach(task => {
             const firstLetter = (task.taskName?.charAt(0) || '?').toUpperCase();
             if (!groups[firstLetter]) {
                 groups[firstLetter] = [];
@@ -61,7 +59,7 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
             groups[firstLetter].push(task);
         });
         return groups;
-    }, [paginatedTasks]);
+    }, [visibleTasks]);
 
     // All available letters (from all tasks, not just current page)
     const allLetters = useMemo(() => {
@@ -112,6 +110,17 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
         return () => window.removeEventListener('scroll', handleScroll);
     }, [sortedLetters]);
 
+    // Infinite scroll — load more when near bottom
+    useEffect(() => {
+        function handleScroll() {
+            if (!hasMore) return;
+            const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 400;
+            if (nearBottom) setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, sortedTasks.length));
+        }
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [hasMore, sortedTasks.length]);
+
     // Scroll to letter — find which page has that letter and navigate there
     function scrollToLetter(letter: string) {
         const idx = sortedTasks.findIndex(
@@ -119,21 +128,28 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
         );
         if (idx === -1) return;
 
-        const targetPage = Math.floor(idx / ITEMS_PER_PAGE) + 1;
-
-        if (targetPage !== currentPage) {
-            setCurrentPage(targetPage);
-            setTimeout(() => {
+        const scrollToElement = () => {
+            let attempts = 0;
+            const maxAttempts = 20;
+            function tryScroll() {
                 const element = document.getElementById(`section-${letter}`);
                 if (element) {
                     element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else if (attempts < maxAttempts) {
+                    attempts++;
+                    requestAnimationFrame(tryScroll);
                 }
-            }, 100);
+            }
+            requestAnimationFrame(tryScroll);
+        };
+
+        // Ensure items up to this letter are visible
+        if (idx >= visibleCount) {
+            setVisibleCount(idx + ITEMS_PER_PAGE);
+            scrollToElement();
         } else {
             const element = document.getElementById(`section-${letter}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
 
@@ -172,12 +188,15 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
                         </div>
                     ))}
 
-                    {/* Pagination */}
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={setCurrentPage}
-                    />
+                    {/* Load more indicator */}
+                    {hasMore && (
+                        <div className="flex justify-center py-6">
+                            <div className="animate-spin w-6 h-6 border-[2px] border-accent-green border-t-transparent rounded-full" />
+                        </div>
+                    )}
+                    {!hasMore && sortedTasks.length > 0 && (
+                        <p className="text-center text-text-tertiary text-xs py-4">All {sortedTasks.length} tasks shown</p>
+                    )}
                 </div>
 
                 {/* Alphabet bar - right on mobile (sticky), left on desktop */}

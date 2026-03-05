@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAdmin } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import {
@@ -66,7 +66,7 @@ interface RealtimeEvent {
 
 export default function AnalysisPage() {
     const router = useRouter();
-    const { categories, tasks } = useAdmin();
+
     const [publishedCount, setPublishedCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -130,6 +130,8 @@ export default function AnalysisPage() {
     // Data states
     const [summary, setSummary] = useState<SummaryStats | null>(null);
     const [topTools, setTopTools] = useState<TopTool[]>([]);
+    const topToolsRef = useRef<TopTool[]>([]);
+    useEffect(() => { topToolsRef.current = topTools; }, [topTools]);
     const [dailyActivity, setDailyActivity] = useState<DailyData[]>([]);
     const [hourlyActivity, setHourlyActivity] = useState<HourlyData[]>([]);
     const [filterStats, setFilterStats] = useState<FilterStat[]>([]);
@@ -140,6 +142,9 @@ export default function AnalysisPage() {
 
     // Tools tab state
     const [toolsSearch, setToolsSearch] = useState('');
+    const [toolsSearchDebounced, setToolsSearchDebounced] = useState('');
+    const [dbSearchResults, setDbSearchResults] = useState<TopTool[]>([]);
+    const [dbSearchLoading, setDbSearchLoading] = useState(false);
     const [toolsSortBy, setToolsSortBy] = useState<'impressions' | 'clicks' | 'page_views' | 'ctr'>('impressions');
     const [toolsPage, setToolsPage] = useState(1);
     const TOOLS_PER_PAGE = 25;
@@ -162,37 +167,44 @@ export default function AnalysisPage() {
         return (await res.json()).results;
     }, [timeRange]);
 
-    // Load all data
+    // Load data based on active tab
     const loadData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const [summaryData, topToolsData, dailyData, hourlyData, filterData, searchData, referrerData, pageData] = await Promise.all([
-                fetchData('summary'),
-                fetchData('top_tools'),
-                fetchData('daily_activity'),
-                fetchData('hourly_activity'),
-                fetchData('filter_stats'),
-                fetchData('search_queries'),
-                fetchData('referrer_stats'),
-                fetchData('page_urls'),
-            ]);
-
-            if (summaryData?.[0]) setSummary(summaryData[0]);
-            if (topToolsData) setTopTools(topToolsData);
-            if (dailyData) setDailyActivity(dailyData);
-            if (hourlyData) setHourlyActivity(hourlyData);
-            if (filterData) setFilterStats(filterData);
-            if (searchData) setSearchQueries(searchData);
-            if (referrerData) setReferrerStats(referrerData);
-            if (pageData) setPageUrls(pageData);
+            if (selectedTab === 'overview') {
+                const [summaryData, topToolsData, dailyData, hourlyData, referrerData, pageData] = await Promise.all([
+                    fetchData('summary'),
+                    fetchData('top_tools'),
+                    fetchData('daily_activity'),
+                    fetchData('hourly_activity'),
+                    fetchData('referrer_stats'),
+                    fetchData('page_urls'),
+                ]);
+                if (summaryData?.[0]) setSummary(summaryData[0]);
+                if (topToolsData) setTopTools(topToolsData);
+                if (dailyData) setDailyActivity(dailyData);
+                if (hourlyData) setHourlyActivity(hourlyData);
+                if (referrerData) setReferrerStats(referrerData);
+                if (pageData) setPageUrls(pageData);
+            } else if (selectedTab === 'tools') {
+                const topToolsData = await fetchData('top_tools');
+                if (topToolsData) setTopTools(topToolsData);
+            } else if (selectedTab === 'categories') {
+                const [filterData, searchData] = await Promise.all([
+                    fetchData('filter_stats'),
+                    fetchData('search_queries'),
+                ]);
+                if (filterData) setFilterStats(filterData);
+                if (searchData) setSearchQueries(searchData);
+            }
             setLastRefresh(new Date());
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load');
         } finally {
             setLoading(false);
         }
-    }, [fetchData]);
+    }, [fetchData, selectedTab]);
 
     // Load realtime
     const loadRealtime = useCallback(async () => {
@@ -203,8 +215,8 @@ export default function AnalysisPage() {
     }, [fetchData]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData, timeRange]);
+        if (selectedTab !== 'realtime') loadData();
+    }, [loadData, timeRange, selectedTab]);
 
     // Auto-refresh
     useEffect(() => {
@@ -228,7 +240,10 @@ export default function AnalysisPage() {
     useEffect(() => {
         fetch('/api/dashboard/stats')
             .then(r => r.ok ? r.json() : null)
-            .then(data => { if (data?.counts) setPublishedCount(data.counts.published); })
+            .then(data => {
+                const published = data?.counts?.published;
+                if (typeof published === 'number') setPublishedCount(published);
+            })
             .catch(() => { });
     }, []);
 
@@ -239,23 +254,71 @@ export default function AnalysisPage() {
     const taskFilters = filterStats.filter(f => f.filter_type === 'task');
     const pricingFilters = filterStats.filter(f => f.filter_type === 'pricing');
 
-    // Filtered & sorted tools for Tools tab
-    const filteredTools = topTools
-        .filter(t => !toolsSearch || (t.tool_name || t.tool_slug).toLowerCase().includes(toolsSearch.toLowerCase()))
-        .sort((a, b) => {
-            if (toolsSortBy === 'ctr') {
-                const ctrA = a.impressions > 0 ? a.clicks / a.impressions : 0;
-                const ctrB = b.impressions > 0 ? b.clicks / b.impressions : 0;
-                return ctrB - ctrA;
-            }
-            return (b[toolsSortBy] || 0) - (a[toolsSortBy] || 0);
-        });
+    // Debounce tool search and fetch from DB when PostHog results are insufficient
+    useEffect(() => {
+        const trimmed = toolsSearch.trim();
+        if (trimmed === toolsSearchDebounced) return;
+        const timer = setTimeout(() => setToolsSearchDebounced(trimmed), 400);
+        return () => clearTimeout(timer);
+    }, [toolsSearch, toolsSearchDebounced]);
+
+    useEffect(() => {
+        if (!toolsSearchDebounced) {
+            setDbSearchResults([]);
+            return;
+        }
+        const controller = new AbortController();
+        // Always fetch from DB so all published tools are searchable
+        setDbSearchLoading(true);
+        fetch(`/api/tools?search=${encodeURIComponent(toolsSearchDebounced)}&fields=card&limit=25&status=published`, { signal: controller.signal })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data?.data) return;
+                // Deduplicate against current topTools via snapshot
+                const posthogSlugs = new Set(topToolsRef.current.map(t => t.tool_slug));
+                const newTools: TopTool[] = data.data
+                    .filter((t: any) => t.app_username && !posthogSlugs.has(t.app_username))
+                    .map((t: any) => ({
+                        tool_slug: t.app_username,
+                        tool_name: t.name,
+                        impressions: 0,
+                        clicks: 0,
+                        page_views: 0,
+                        website_visits: 0,
+                        avg_time_seconds: null,
+                    }));
+                setDbSearchResults(newTools);
+            })
+            .catch((err) => { if (err.name !== 'AbortError') console.error('[Analytics] DB search failed:', err); })
+            .finally(() => setDbSearchLoading(false));
+        return () => controller.abort();
+    }, [toolsSearchDebounced]);
+
+    // Filtered & sorted tools for Tools tab — merge PostHog + DB results, deduplicated
+    const filteredTools = (() => {
+        const merged = [...topTools, ...(toolsSearchDebounced ? dbSearchResults : [])];
+        const seen = new Set<string>();
+        return merged
+            .filter(t => {
+                if (seen.has(t.tool_slug)) return false;
+                seen.add(t.tool_slug);
+                return !toolsSearch || (t.tool_name || t.tool_slug).toLowerCase().includes(toolsSearch.toLowerCase());
+            })
+            .sort((a, b) => {
+                if (toolsSortBy === 'ctr') {
+                    const ctrA = a.impressions > 0 ? a.clicks / a.impressions : 0;
+                    const ctrB = b.impressions > 0 ? b.clicks / b.impressions : 0;
+                    return ctrB - ctrA;
+                }
+                return (b[toolsSortBy] || 0) - (a[toolsSortBy] || 0);
+            });
+    })();
     const totalToolPages = Math.ceil(filteredTools.length / TOOLS_PER_PAGE);
     const paginatedTools = filteredTools.slice((toolsPage - 1) * TOOLS_PER_PAGE, toolsPage * TOOLS_PER_PAGE);
 
-    // Selected tool for detail view
+    // Selected tool for detail view — check both PostHog and DB results
     const [selectedToolSlug, setSelectedToolSlug] = useState<string | null>(null);
-    const selectedToolData = topTools.find(t => t.tool_slug === selectedToolSlug);
+    const selectedToolData = [...topTools, ...dbSearchResults].find(t => t.tool_slug === selectedToolSlug);
 
     // Tool-specific date filtering
     const [toolStartDate, setToolStartDate] = useState<string>(() => {
@@ -790,11 +853,11 @@ export default function AnalysisPage() {
                                         </div>
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Categories</span>
-                                            <span className="font-bold text-accent-blue">{categories.length}</span>
+                                            <span className="font-bold text-accent-blue">—</span>
                                         </div>
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Tasks</span>
-                                            <span className="font-bold text-accent-orange">{tasks.length}</span>
+                                            <span className="font-bold text-accent-orange">—</span>
                                         </div>
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Avg Page Session</span>
@@ -962,9 +1025,12 @@ export default function AnalysisPage() {
                                                 type="text"
                                                 value={toolsSearch}
                                                 onChange={(e) => { setToolsSearch(e.target.value); setToolsPage(1); }}
-                                                placeholder="Search tools..."
-                                                className="w-full pl-10 pr-4 py-2.5 bg-bg-card border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none"
+                                                placeholder="Search all published tools..."
+                                                className="w-full pl-10 pr-10 py-2.5 bg-bg-card border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none"
                                             />
+                                            {dbSearchLoading && (
+                                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-accent-primary" />
+                                            )}
                                         </div>
                                         <SearchableSelect
                                             value={toolsSortBy}
@@ -981,7 +1047,12 @@ export default function AnalysisPage() {
                                     </div>
 
                                     {/* Responsive Table - fewer columns on mobile */}
-                                    <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
+                                    <div className="bg-bg-card border border-border rounded-xl overflow-hidden relative">
+                                        {dbSearchLoading && (
+                                            <div className="absolute inset-0 bg-bg-card/60 backdrop-blur-sm z-10 flex items-center justify-center">
+                                                <Loader2 className="w-6 h-6 animate-spin text-accent-primary" />
+                                            </div>
+                                        )}
                                         <div className="overflow-x-auto">
                                             <table className="w-full">
                                                 <thead>
@@ -997,7 +1068,7 @@ export default function AnalysisPage() {
                                                 <tbody>
                                                     {paginatedTools.map((tool, i) => (
                                                         <tr
-                                                            key={tool.tool_slug}
+                                                            key={`${tool.tool_slug || i}`}
                                                             onClick={() => router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
                                                             className="border-t border-border cursor-pointer transition-colors hover:bg-bg-secondary/50"
                                                         >

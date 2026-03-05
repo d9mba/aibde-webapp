@@ -3,7 +3,7 @@ import { supabaseAdmin, dbToolToAdminTool } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 // Lightweight fields for the "recently updated" and "recently published" lists
-const RECENT_FIELDS = `id, name, app_username, logo_url, summary, category_name, status, created_at, updated_at, launched_on`;
+const RECENT_FIELDS = `id, name, app_username, logo_url, summary, category_name, status, save_count, is_featured, created_at, updated_at, launched_on`;
 
 // GET /api/dashboard/stats — returns counts + recent tools in a single request
 export async function GET() {
@@ -44,19 +44,41 @@ export async function GET() {
             supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true }),
             supabaseAdmin.from('tags').select('*', { count: 'exact', head: true }),
 
-            // Recent tools (full select for dbToolToAdminTool — only 13 rows total)
+            // Recent tools (lightweight fields for dashboard lists)
             supabaseAdmin
                 .from('tools')
-                .select('*')
+                .select(RECENT_FIELDS)
                 .order('updated_at', { ascending: false })
                 .limit(8),
             supabaseAdmin
                 .from('tools')
-                .select('*')
+                .select(RECENT_FIELDS)
                 .eq('status', 'published')
                 .order('launched_on', { ascending: false })
                 .limit(5),
         ]);
+
+        // Log any Supabase query errors (counts fall back to 0 via ?? operator)
+        const queryResults = [
+            { name: 'total', result: totalResult },
+            { name: 'published', result: publishedResult },
+            { name: 'draft', result: draftResult },
+            { name: 'pending', result: pendingResult },
+            { name: 'unpublished', result: unpublishedResult },
+            { name: 'scheduled', result: scheduledResult },
+            { name: 'spotlight', result: spotlightResult },
+            { name: 'featured', result: featuredResult },
+            { name: 'categories', result: categoryResult },
+            { name: 'tasks', result: taskResult },
+            { name: 'tags', result: tagResult },
+            { name: 'recentUpdated', result: recentUpdatedResult },
+            { name: 'recentPublished', result: recentPublishedResult },
+        ];
+        for (const { name, result } of queryResults) {
+            if (result.error) {
+                console.error(`[Stats API] Query "${name}" failed:`, result.error.message);
+            }
+        }
 
         const recentUpdated = (recentUpdatedResult.data || []).map(dbToolToAdminTool);
         const recentPublished = (recentPublishedResult.data || []).map(dbToolToAdminTool);
@@ -81,7 +103,7 @@ export async function GET() {
     } catch (err) {
         console.error('[Stats API] Error:', err);
         return NextResponse.json(
-            { error: err instanceof Error ? err.message : 'Failed to fetch stats' },
+            { error: 'Failed to fetch dashboard stats' },
             { status: 500 }
         );
     }

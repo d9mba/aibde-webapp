@@ -62,7 +62,7 @@ export default function TasksPage() {
         return `/api/tasks?${params.toString()}`;
     }, [currentPage, debouncedSearch]);
 
-    const { data: response, isLoading, mutate } = useSWR<PaginatedResponse>(
+    const { data: response, error: swrError, isLoading, mutate } = useSWR<PaginatedResponse>(
         apiUrl,
         fetcher,
         {
@@ -98,8 +98,9 @@ export default function TasksPage() {
                 body: JSON.stringify({ taskName: newName.trim(), count: 0, description: newDesc.trim() }),
             });
             if (!res.ok) {
+                const bodyText = await res.text();
                 let message = 'Failed to create task';
-                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                try { const err = JSON.parse(bodyText); message = err.error || message; } catch { message = bodyText || message; }
                 throw new Error(message);
             }
             updateToast(toastId, `Task "${newName}" created!`, 'success');
@@ -127,8 +128,9 @@ export default function TasksPage() {
                 body: JSON.stringify({ id, taskName: editName.trim(), description: editDesc.trim() }),
             });
             if (!res.ok) {
+                const bodyText = await res.text();
                 let message = 'Failed to update task';
-                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                try { const err = JSON.parse(bodyText); message = err.error || message; } catch { message = bodyText || message; }
                 throw new Error(message);
             }
             updateToast(toastId, 'Task updated!', 'success');
@@ -154,8 +156,9 @@ export default function TasksPage() {
         try {
             const res = await fetch(`/api/tasks?id=${task.id}`, { method: 'DELETE' });
             if (!res.ok) {
+                const bodyText = await res.text();
                 let message = 'Failed to delete task';
-                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                try { const err = JSON.parse(bodyText); message = err.error || message; } catch { message = bodyText || message; }
                 throw new Error(message);
             }
             updateToast(toastId, `Task "${task.taskName}" deleted!`, 'success');
@@ -170,6 +173,17 @@ export default function TasksPage() {
         return (
             <div className="p-3 sm:p-6 flex items-center justify-center min-h-[300px]">
                 <div className="animate-spin w-8 h-8 border-[3px] border-accent-primary border-t-transparent rounded-full" />
+            </div>
+        );
+    }
+
+    if (swrError && !response) {
+        return (
+            <div className="p-3 sm:p-6 flex items-center justify-center min-h-[300px]">
+                <div className="text-center">
+                    <p className="text-red-400 mb-2">{swrError.message || 'Failed to load tasks'}</p>
+                    <button onClick={() => mutate()} className="text-accent-primary text-sm hover:underline">Retry</button>
+                </div>
             </div>
         );
     }

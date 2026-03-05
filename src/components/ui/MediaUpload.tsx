@@ -13,8 +13,7 @@ const getRelativePath = (url: string): string => {
             const parsed = new URL(url);
             const cdnOrigin = new URL(CDN_URL).origin;
             if (parsed.origin === cdnOrigin) {
-                const stripped = url.replace(CDN_URL, '');
-                return stripped.startsWith('/') ? stripped : '/' + stripped;
+                return parsed.pathname + parsed.search + parsed.hash;
             }
         } catch { /* invalid URL, return as-is */ }
     }

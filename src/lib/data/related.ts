@@ -6,6 +6,15 @@
 import { supabase, dbToolToAdminTool } from '../supabase';
 import { AdminTool } from '@/types';
 
+// Card fields for related/suggested tool lists
+const RELATED_TOOL_FIELDS = `
+    id, name, app_username, logo_url, summary,
+    category_name, task_name, tags,
+    pricing, pricing_label, save_count, view_count, rating,
+    is_featured, listing_type, status,
+    created_at, updated_at, launched_on
+`;
+
 /**
  * Fetch related/alternative tools for a specific tool
  * Based on shared categories and tasks
@@ -21,7 +30,7 @@ export async function getRelatedTools(tool: AdminTool, limit: number = 6): Promi
 
     let query = supabase
         .from('tools')
-        .select('*')
+        .select(RELATED_TOOL_FIELDS)
         .in('status', ['published', 'approved'])
         .neq('app_username', tool.app_username)
         .limit(limit * 3);
@@ -68,7 +77,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
             Promise.resolve(
                 supabase
                     .from('tools')
-                    .select('*')
+                    .select(RELATED_TOOL_FIELDS)
                     .in('status', ['published', 'approved'])
                     .neq('app_username', tool.app_username)
                     .overlaps('category_name', categories)
@@ -89,7 +98,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
             Promise.resolve(
                 supabase
                     .from('tools')
-                    .select('*')
+                    .select(RELATED_TOOL_FIELDS)
                     .in('status', ['published', 'approved'])
                     .neq('app_username', tool.app_username)
                     .overlaps('task_name', tasks)
@@ -110,7 +119,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
             Promise.resolve(
                 supabase
                     .from('tools')
-                    .select('*')
+                    .select(RELATED_TOOL_FIELDS)
                     .in('status', ['published', 'approved'])
                     .neq('app_username', tool.app_username)
                     .overlaps('tags', tags)

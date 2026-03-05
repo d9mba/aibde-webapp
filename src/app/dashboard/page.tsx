@@ -71,13 +71,16 @@ export default function DashboardHome() {
     const [error, setError] = useState<string | null>(null);
 
     const loadStats = useCallback(async () => {
+        setError(null);
         try {
             const res = await fetch('/api/dashboard/stats');
+            const body = await res.text();
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to fetch stats');
+                let message = 'Failed to fetch stats';
+                try { message = JSON.parse(body).error || message; } catch { message = body || message; }
+                throw new Error(message);
             }
-            const stats: DashboardStats = await res.json();
+            const stats: DashboardStats = JSON.parse(body);
             setData(stats);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load dashboard');

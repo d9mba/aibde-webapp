@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
-import { useAdmin, AdminTool, Task } from '@/context/AdminContext';
+import { AdminTool, Task } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStatusClass } from '@/lib/formatters';
@@ -35,15 +35,19 @@ export default function TaskDetailPage() {
     const params = useParams();
     const router = useRouter();
     const slug = params.slug as string;
-    const { tasks, isLoaded } = useAdmin();
-
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
 
+    // Fetch task by slug via SWR
+    const { data: taskData } = useSWR<{ data: Task[] }>(
+        `/api/tasks?search=${encodeURIComponent(slug)}&limit=100`,
+        fetcher,
+        { revalidateOnFocus: false }
+    );
     // Find task by matching slug
-    const task = tasks.find((t: Task) => slugify(t.taskName) === slug);
+    const task = taskData?.data?.find((t: Task) => slugify(t.taskName) === slug);
 
     // Debounce search
     useEffect(() => {
@@ -80,15 +84,6 @@ export default function TaskDetailPage() {
 
     function handleSearchChange(value: string): void {
         setSearch(value);
-    }
-
-    // Show loading state while data is being fetched
-    if (!isLoaded) {
-        return (
-            <div className="p-3 sm:p-6 flex items-center justify-center min-h-[200px]">
-                <div className="animate-spin w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full" />
-            </div>
-        );
     }
 
     if (!task) {

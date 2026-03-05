@@ -163,6 +163,8 @@ export default function TagDetailPage() {
                     <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 transition-opacity ${isValidating ? 'opacity-50' : ''}`}>
                         {tools.map((tool: AdminTool) => (
                             <div key={tool.id} onClick={() => setPreviewTool(tool)}
+                                role="button" tabIndex={0}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreviewTool(tool); } }}
                                 className="bg-bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-accent-primary/50 hover:shadow-lg transition-all">
                                 <div className="flex items-center gap-3 mb-3">
                                     {tool.logoUrl ? (
@@ -335,7 +337,7 @@ export default function TagDetailPage() {
 
                         {/* Actions */}
                         <div className="border-t border-border p-4 flex gap-3">
-                            <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.app_username}`); }}
+                            <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.appUsername}`); }}
                                 className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
                                 <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
                             </button>

@@ -18,7 +18,7 @@ function toPublicDetailTool(tool: ReturnType<typeof dbToolToAdminTool>) {
     return {
         id: tool.id,
         name: tool.name,
-        appUsername: tool.app_username,
+        appUsername: tool.appUsername,
         logoUrl: tool.logoUrl,
         summary: tool.summary,
         description: tool.description,

@@ -72,7 +72,10 @@ export default function CategoriesPage() {
             revalidateOnFocus: false,
             keepPreviousData: true,
             onSuccess: () => setPageLoading(false),
-            onError: () => setPageLoading(false),
+            onError: (err: Error) => {
+                setPageLoading(false);
+                if (response) showToast(`Background refresh failed: ${err.message}`, 'error');
+            },
         }
     );
 
@@ -164,6 +167,10 @@ export default function CategoriesPage() {
                 throw new Error(message);
             }
             updateToast(toastId, `Category "${cat.categoryName}" deleted!`, 'success');
+            // Navigate to previous page if this was the last item on this page
+            if (currentPage > 1 && categories.length === 1) {
+                setCurrentPage(prev => prev - 1);
+            }
             mutate();
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to delete category';

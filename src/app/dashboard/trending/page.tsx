@@ -41,6 +41,8 @@ export default function TrendingManagementPage() {
     const [pendingTrendingIds, setPendingTrendingIds] = useState<string[]>([]);
     const [pendingPositions, setPendingPositions] = useState<Record<string, number>>({});
     const [hasChanges, setHasChanges] = useState(false);
+    // Cache tool objects so they persist across pagination
+    const pendingToolsCacheRef = useRef<Map<string, AdminTool>>(new Map());
 
     // Initialize from current data
     useEffect(() => {
@@ -63,10 +65,15 @@ export default function TrendingManagementPage() {
     // Combined tools for lookups
     const allTools = useMemo(() => [...trendingToolsRaw, ...availableToolsRaw], [trendingToolsRaw, availableToolsRaw]);
 
+    // Populate cache in an effect to avoid side effects in useMemo
+    useEffect(() => {
+        allTools.forEach(t => pendingToolsCacheRef.current.set(t.id, t));
+    }, [allTools]);
+
     // Current trending tools based on pending changes
     const trendingTools = useMemo(() => {
         return pendingTrendingIds
-            .map(id => allTools.find(t => t.id === id))
+            .map(id => pendingToolsCacheRef.current.get(id) || allTools.find(t => t.id === id))
             .filter((t): t is AdminTool => t !== undefined)
             .sort((a, b) => (pendingPositions[a.id] ?? 999) - (pendingPositions[b.id] ?? 999));
     }, [allTools, pendingTrendingIds, pendingPositions]);
@@ -102,6 +109,7 @@ export default function TrendingManagementPage() {
             return;
         }
         const tool = allTools.find((t: AdminTool) => t.id === toolId);
+        if (tool) pendingToolsCacheRef.current.set(tool.id, tool);
         const maxPos = Math.max(...Object.values(pendingPositions), 0);
         setPendingTrendingIds(prev => [...prev, toolId]);
         setPendingPositions(prev => ({ ...prev, [toolId]: maxPos + 1 }));

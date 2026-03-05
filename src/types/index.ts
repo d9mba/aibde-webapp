@@ -8,7 +8,7 @@
 export interface AITool {
     id: string;
     name: string;
-    app_username: string;
+    appUsername: string;
     summary?: string;
     description: string;
     category: string;  // Comma-separated for backwards compatibility

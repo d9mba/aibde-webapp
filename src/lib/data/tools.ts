@@ -160,11 +160,11 @@ export async function getToolsByTask(taskName: string, limit: number = 100): Pro
 /**
  * Fetch a single published tool by app_username
  */
-export async function getToolByAppUsername(app_username: string): Promise<AdminTool | null> {
+export async function getToolByAppUsername(appUsername: string): Promise<AdminTool | null> {
     const { data, error } = await supabaseAdmin
         .from('tools')
         .select(TOOL_DETAIL_FIELDS)
-        .eq('app_username', app_username)
+        .eq('app_username', appUsername)
         .in('status', ['published', 'approved'])
         .single();
 
@@ -231,7 +231,7 @@ export async function getFeaturedTools(excludeSlug?: string, limit: number = 6):
     let tools = (data || []).map(tool => dbToolToAdminTool(tool)) as AdminTool[];
 
     if (excludeSlug) {
-        tools = tools.filter(t => t.app_username !== excludeSlug).slice(0, limit);
+        tools = tools.filter(t => t.appUsername !== excludeSlug).slice(0, limit);
     }
 
     return tools;
@@ -258,7 +258,7 @@ export async function getRecentlyAddedTools(excludeSlug?: string, limit: number 
     let tools = (data || []).map(tool => dbToolToAdminTool(tool)) as AdminTool[];
 
     if (excludeSlug) {
-        tools = tools.filter(t => t.app_username !== excludeSlug).slice(0, limit);
+        tools = tools.filter(t => t.appUsername !== excludeSlug).slice(0, limit);
     }
 
     return tools;

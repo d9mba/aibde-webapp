@@ -18,13 +18,15 @@ export async function generateMetadata({
     }
 
     try {
-        const { data: tool } = await supabaseAdmin
+        const { data: tool, error } = await supabaseAdmin
             .from('tools')
             .select('name')
             .eq('id', id)
             .single();
 
-        if (tool?.name) {
+        if (error) {
+            console.error('Failed to fetch tool name for metadata:', error, { id });
+        } else if (tool?.name) {
             return {
                 title: `${tool.name} - Edit Tool | AIBDE`,
             };

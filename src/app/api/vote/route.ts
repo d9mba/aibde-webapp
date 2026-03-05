@@ -7,6 +7,10 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const identifier = getClientIp(request);
+        if (!identifier) {
+            console.warn('[vote] Could not determine client IP — rejecting request');
+            return NextResponse.json({ error: 'Unable to identify client' }, { status: 400 });
+        }
         const rateLimit = await checkRateLimit(`vote:${identifier}`, rateLimits.sensitive);
         if (!rateLimit.success) {
             return NextResponse.json(

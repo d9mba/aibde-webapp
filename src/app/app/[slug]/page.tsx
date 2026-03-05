@@ -45,7 +45,7 @@ export async function generateMetadata({
     const taskMention = taskLabels.length > 0
         ? ` Best for ${taskLabels.join(', ')}.`
         : '';
-    const description = `${baseSummary}.${altMention}${taskMention} Updated ${year}.`.replace('..', '.').slice(0, 160);
+    const description = `${baseSummary}.${altMention}${taskMention} Updated ${year}.`.replace(/\.\.+/g, '.').slice(0, 160);
 
     return {
         title,
@@ -108,8 +108,8 @@ export default async function ToolDetailPage({
     const [relatedTools, suggestedTools, featuredTools, recentlyAdded, categories, tasks, settings] = await Promise.all([
         getRelatedTools(tool, 6),
         getSuggestedTools(tool, 6),
-        getFeaturedTools(tool.app_username, 6),
-        getRecentlyAddedTools(tool.app_username, 5),
+        getFeaturedTools(tool.appUsername, 6),
+        getRecentlyAddedTools(tool.appUsername, 5),
         getCategories(),
         getTasks(),
         getHomeSettings(),

@@ -44,7 +44,7 @@ export default function VerifiedPage() {
     // Capture initial total so "Available" stat stays constant during search
     const [initialTotal, setInitialTotal] = useState<number | null>(null);
     useEffect(() => {
-        if (availableTotal > 0 && initialTotal === null) {
+        if (availableTotal != null && initialTotal === null) {
             setInitialTotal(availableTotal);
         }
     }, [availableTotal, initialTotal]);

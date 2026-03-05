@@ -259,7 +259,7 @@ export async function GET(request: NextRequest) {
         // Strip to card fields when requested (avoids sending 40+ fields for management UIs)
         const tools = fieldsParam === 'card'
             ? mapped.map(t => ({
-                id: t.id, name: t.name, app_username: t.app_username,
+                id: t.id, name: t.name, appUsername: t.appUsername,
                 logoUrl: t.logoUrl, categoryName: t.categoryName, status: t.status,
                 isFeatured: t.isFeatured, listingType: t.listingType,
                 spotlightEnabled: t.spotlightEnabled, spotlightPosition: t.spotlightPosition,

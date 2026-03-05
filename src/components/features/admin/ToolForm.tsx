@@ -21,7 +21,7 @@ const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').r
 // Example JSON template for the Copy Example button (module-level to avoid hooks issues)
 const EXAMPLE_JSON = JSON.stringify({
     name: 'ChatGPT',
-    app_username: 'chatgpt',
+    appUsername: 'chatgpt',
     summary: 'AI-powered chatbot by OpenAI for conversations, writing, and coding',
     description: '<p>ChatGPT is an advanced AI assistant built on GPT-4...</p>',
     isAiGenerated: false,
@@ -311,24 +311,35 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     const [alternativeOptions, setAlternativeOptions] = useState<{ value: string; label: string; image?: string }[]>([]);
     const [altLoading, setAltLoading] = useState(false);
     const altSearchRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const altAbortRef = useRef<AbortController | null>(null);
     const handleAltSearch = useCallback((query: string) => {
         clearTimeout(altSearchRef.current);
+        altAbortRef.current?.abort();
         if (!query || query.length < 3) { setAlternativeOptions([]); setAltLoading(false); return; }
         setAltLoading(true);
         altSearchRef.current = setTimeout(() => {
-            fetch(`/api/tools?search=${encodeURIComponent(query)}&limit=20&status=published`)
+            const controller = new AbortController();
+            altAbortRef.current = controller;
+            fetch(`/api/tools?search=${encodeURIComponent(query)}&limit=20&status=published`, { signal: controller.signal })
                 .then(r => r.ok ? r.json() : { data: [] })
                 .then(json => setAlternativeOptions(
-                    (json.data || []).map((t: AdminTool) => ({ value: t.app_username, label: t.name, image: t.logoUrl }))
+                    (json.data || []).map((t: AdminTool) => ({ value: t.appUsername, label: t.name, image: t.logoUrl }))
                 ))
-                .catch(() => { })
-                .finally(() => setAltLoading(false));
+                .catch((err) => {
+                    if (err.name !== 'AbortError') console.error('[ToolForm] Alt search failed:', err);
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) setAltLoading(false);
+                });
         }, 300);
     }, []);
 
-    // Cleanup debounce timeout on unmount
+    // Cleanup debounce timeout and abort on unmount
     useEffect(() => {
-        return () => clearTimeout(altSearchRef.current);
+        return () => {
+            clearTimeout(altSearchRef.current);
+            altAbortRef.current?.abort();
+        };
     }, []);
 
     const { register, control, handleSubmit, watch, setValue, reset, formState: { errors, isSubmitting } } = useForm<ToolFormData>({
@@ -375,16 +386,18 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     useEffect(() => {
         if (!isEdit && watchName) {
             setValue('app_username', slugify(watchName || ''));
-            // Check duplicate via API instead of in-memory tools array
-            const controller = new AbortController();
-            fetch(`/api/tools?search=${encodeURIComponent(watchName)}&limit=1&status=published`, { signal: controller.signal })
-                .then(r => r.ok ? r.json() : { data: [] })
-                .then(json => {
-                    const match = (json.data || []).find((t: AdminTool) => (t.name || '').toLowerCase() === watchName.toLowerCase());
-                    setShowDuplicateWarning(!!match);
-                })
-                .catch(() => { });
-            return () => controller.abort();
+            // Debounce the duplicate check API call
+            const timer = setTimeout(() => {
+                const controller = new AbortController();
+                fetch(`/api/tools?search=${encodeURIComponent(watchName)}&limit=1&status=published`, { signal: controller.signal })
+                    .then(r => r.ok ? r.json() : { data: [] })
+                    .then(json => {
+                        const match = (json.data || []).find((t: AdminTool) => (t.name || '').toLowerCase() === watchName.toLowerCase());
+                        setShowDuplicateWarning(!!match);
+                    })
+                    .catch(() => { });
+            }, 300);
+            return () => clearTimeout(timer);
         }
         if (!isEdit) setValue('app_username', slugify(watchName || ''));
     }, [watchName, isEdit, setValue]);
@@ -477,7 +490,6 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                     ? { ...data, isReposted: true }
                     : data;
                 await updateTool(toolId, updateData);
-                isRepostUpdate.current = false;
             }
             else await addTool(data as any);
             // Clear pending uploads on success - they're now saved
@@ -496,6 +508,8 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Failed to save:', error);
             updateToast(toastId, errorMessage, 'error');
+        } finally {
+            isRepostUpdate.current = false;
         }
     };
 

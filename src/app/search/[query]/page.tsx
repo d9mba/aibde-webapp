@@ -11,7 +11,10 @@ export default function SearchResultsPage() {
     const params = useParams();
     const rawQuery = params.query;
     const queryStr = Array.isArray(rawQuery) ? rawQuery[0] || '' : (rawQuery ?? '');
-    const initialQuery = queryStr ? decodeURIComponent(queryStr) : '';
+    const initialQuery = (() => {
+        if (!queryStr) return '';
+        try { return decodeURIComponent(queryStr); } catch { return queryStr; }
+    })();
     const [searchQuery, setSearchQuery] = useState(initialQuery);
     const [results, setResults] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -26,8 +29,8 @@ export default function SearchResultsPage() {
             .catch((err) => {
                 if (err.name !== 'AbortError') {
                     console.error('[Search] Fetch failed:', err);
+                    setResults([]);
                 }
-                setResults([]);
             })
             .finally(() => setIsLoading(false));
         return () => controller.abort();
@@ -106,7 +109,7 @@ export default function SearchResultsPage() {
                                 <div
                                     key={tool.id}
                                     className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-bg-tertiary"
-                                    onClick={() => { window.location.href = `/app/${tool.app_username}`; }}
+                                    onClick={() => { window.location.href = `/app/${tool.appUsername}`; }}
                                 >
                                     <div
                                         className="w-9 h-9 rounded-md flex items-center justify-center text-white font-bold text-sm"

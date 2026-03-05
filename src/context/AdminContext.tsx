@@ -294,7 +294,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             if (!res.ok) throw new Error(newCategory.error || 'Failed to add category');
             // Let pages handle refetch via SWR
         } else {
-            // Fallback removed
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -309,7 +309,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             if (!res.ok) throw new Error(updatedCategory.error || 'Failed to update category');
             // Pages refetch via SWR
         } else {
-            // Fallback removed
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -322,7 +322,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             }
             // Pages refetch via SWR
         } else {
-            // Fallback removed
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -338,7 +338,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             if (!res.ok) throw new Error(newTask.error || 'Failed to add task');
             // Let pages handle refetch via SWR
         } else {
-            // Fallback removed
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -353,7 +353,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             if (!res.ok) throw new Error(updatedTask.error || 'Failed to update task');
             // Pages refetch via SWR
         } else {
-            // Fallback removed
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -366,7 +366,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             }
             // Pages refetch via SWR
         } else {
-            // Fallback removed
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -382,7 +382,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             if (!res.ok) throw new Error(newTag.error || 'Failed to add tag');
             // Pages refetch via SWR
         } else {
-            // Fallback removed
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -397,7 +397,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             if (!res.ok) throw new Error(updatedTag.error || 'Failed to update tag');
             // Pages refetch via SWR
         } else {
-            // Fallback removed
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -410,7 +410,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             }
             // Pages refetch via SWR
         } else {
-            // Fallback removed
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 

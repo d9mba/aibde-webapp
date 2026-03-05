@@ -45,6 +45,7 @@ export default function CategorySlugPageClient({
             pageFetchControllerRef.current = null;
             setTools(initialTools);
             setCurrentPage(1);
+            setFetchError(null);
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }

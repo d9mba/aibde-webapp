@@ -8,7 +8,7 @@ function toSearchResult(tool: AdminTool): AdminTool {
     return {
         id: tool.id,
         name: tool.name,
-        app_username: tool.app_username,
+        appUsername: tool.appUsername,
         logoUrl: tool.logoUrl,
         summary: tool.summary,
         categoryName: tool.categoryName,

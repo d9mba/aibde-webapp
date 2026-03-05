@@ -68,6 +68,8 @@ export default function AnalysisPage() {
     const router = useRouter();
 
     const [publishedCount, setPublishedCount] = useState(0);
+    const [categoryCount, setCategoryCount] = useState<number | null>(null);
+    const [taskCount, setTaskCount] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isConfigured, setIsConfigured] = useState(true);
@@ -243,6 +245,10 @@ export default function AnalysisPage() {
             .then(data => {
                 const published = data?.counts?.published;
                 if (typeof published === 'number') setPublishedCount(published);
+                const cats = data?.counts?.categories;
+                if (typeof cats === 'number') setCategoryCount(cats);
+                const tasks = data?.counts?.tasks;
+                if (typeof tasks === 'number') setTaskCount(tasks);
             })
             .catch(() => { });
     }, []);
@@ -255,6 +261,7 @@ export default function AnalysisPage() {
     const pricingFilters = filterStats.filter(f => f.filter_type === 'pricing');
 
     // Debounce tool search and fetch from DB when PostHog results are insufficient
+    const dbSearchReqIdRef = useRef(0);
     useEffect(() => {
         const trimmed = toolsSearch.trim();
         if (trimmed === toolsSearchDebounced) return;
@@ -267,19 +274,21 @@ export default function AnalysisPage() {
             setDbSearchResults([]);
             return;
         }
+        const reqId = ++dbSearchReqIdRef.current;
         const controller = new AbortController();
         // Always fetch from DB so all published tools are searchable
         setDbSearchLoading(true);
         fetch(`/api/tools?search=${encodeURIComponent(toolsSearchDebounced)}&fields=card&limit=25&status=published`, { signal: controller.signal })
             .then(r => r.ok ? r.json() : null)
             .then(data => {
+                if (reqId !== dbSearchReqIdRef.current) return;
                 if (!data?.data) return;
                 // Deduplicate against current topTools via snapshot
                 const posthogSlugs = new Set(topToolsRef.current.map(t => t.tool_slug));
                 const newTools: TopTool[] = data.data
-                    .filter((t: any) => t.app_username && !posthogSlugs.has(t.app_username))
+                    .filter((t: any) => t.appUsername && !posthogSlugs.has(t.appUsername))
                     .map((t: any) => ({
-                        tool_slug: t.app_username,
+                        tool_slug: t.appUsername,
                         tool_name: t.name,
                         impressions: 0,
                         clicks: 0,
@@ -289,8 +298,8 @@ export default function AnalysisPage() {
                     }));
                 setDbSearchResults(newTools);
             })
-            .catch((err) => { if (err.name !== 'AbortError') console.error('[Analytics] DB search failed:', err); })
-            .finally(() => setDbSearchLoading(false));
+            .catch((err) => { if (reqId === dbSearchReqIdRef.current && err.name !== 'AbortError') console.error('[Analytics] DB search failed:', err); })
+            .finally(() => { if (reqId === dbSearchReqIdRef.current) setDbSearchLoading(false); });
         return () => controller.abort();
     }, [toolsSearchDebounced]);
 
@@ -302,7 +311,7 @@ export default function AnalysisPage() {
             .filter(t => {
                 if (seen.has(t.tool_slug)) return false;
                 seen.add(t.tool_slug);
-                return !toolsSearch || (t.tool_name || t.tool_slug).toLowerCase().includes(toolsSearch.toLowerCase());
+                return !toolsSearchDebounced || (t.tool_name || t.tool_slug).toLowerCase().includes(toolsSearchDebounced.toLowerCase());
             })
             .sort((a, b) => {
                 if (toolsSortBy === 'ctr') {
@@ -853,11 +862,11 @@ export default function AnalysisPage() {
                                         </div>
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Categories</span>
-                                            <span className="font-bold text-accent-blue">—</span>
+                                            <span className="font-bold text-accent-blue">{categoryCount ?? '—'}</span>
                                         </div>
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Tasks</span>
-                                            <span className="font-bold text-accent-orange">—</span>
+                                            <span className="font-bold text-accent-orange">{taskCount ?? '—'}</span>
                                         </div>
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Avg Page Session</span>
@@ -1068,7 +1077,7 @@ export default function AnalysisPage() {
                                                 <tbody>
                                                     {paginatedTools.map((tool, i) => (
                                                         <tr
-                                                            key={`${tool.tool_slug || i}`}
+                                                            key={tool.tool_slug || `row-${i}`}
                                                             onClick={() => router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
                                                             className="border-t border-border cursor-pointer transition-colors hover:bg-bg-secondary/50"
                                                         >

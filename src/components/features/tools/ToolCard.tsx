@@ -59,23 +59,23 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
     const isFeatured = variant === 'featured';
 
     // Get live impressions from PostHog context
-    const liveImpressions = getImpressions(tool.app_username);
+    const liveImpressions = getImpressions(tool.appUsername);
 
     // Analytics: Track impressions when card is visible
     const impressionRef = useToolImpression(
-        { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+        { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
         isFeatured ? 'featured' : 'list'
     );
 
     const handleViewClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         // For backLinks-enabled tools, link directly to website for SEO value
-        const url = tool.backLinks && tool.websiteUrl ? tool.websiteUrl : `/go/${tool.app_username}`;
+        const url = tool.backLinks && tool.websiteUrl ? tool.websiteUrl : `/go/${tool.appUsername}`;
         // Track outbound click for backLinks (non-redirect) tools since they bypass /go/
         if (tool.backLinks && tool.websiteUrl) {
             import('@/hooks/useToolAnalytics').then(({ trackToolVisit }) => {
                 trackToolVisit(
-                    { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                    { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                     tool.websiteUrl || ''
                 );
             });
@@ -99,10 +99,10 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
     const handleCardClick = () => {
         // Analytics: Track tool click
         trackToolClick(
-            { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+            { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
             isFeatured ? 'featured' : 'card'
         );
-        window.location.href = `/app/${tool.app_username}`;
+        window.location.href = `/app/${tool.appUsername}`;
     };
 
     return (
@@ -290,7 +290,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
             <ShareModal
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
-                url={typeof window !== 'undefined' ? `${window.location.origin}/app/${tool.app_username}` : ''}
+                url={typeof window !== 'undefined' ? `${window.location.origin}/app/${tool.appUsername}` : ''}
                 title={tool.name}
                 description={tool.summary || tool.description}
             />

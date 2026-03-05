@@ -41,7 +41,7 @@ export default function TaskDetailPage() {
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
 
     // Fetch task by slug via SWR
-    const { data: taskData } = useSWR<{ data: Task[] }>(
+    const { data: taskData, error: taskError, isLoading: taskLoading } = useSWR<{ data: Task[] }>(
         `/api/tasks?search=${encodeURIComponent(slug)}&limit=100`,
         fetcher,
         { revalidateOnFocus: false }
@@ -84,6 +84,27 @@ export default function TaskDetailPage() {
 
     function handleSearchChange(value: string): void {
         setSearch(value);
+    }
+
+    if (taskLoading) {
+        return (
+            <div className="p-3 sm:p-6 flex items-center justify-center min-h-[300px]">
+                <div className="w-6 h-6 border-2 border-border border-t-accent-primary rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (taskError) {
+        return (
+            <div className="p-3 sm:p-6">
+                <button onClick={() => router.push('/dashboard/tasks')} className="flex items-center gap-1.5 text-text-secondary hover:text-accent-primary text-sm mb-4">
+                    <ArrowLeft className="w-4 h-4" /> Back to Tasks
+                </button>
+                <div className="text-center py-12">
+                    <p className="text-text-tertiary">Failed to load task. Please try again.</p>
+                </div>
+            </div>
+        );
     }
 
     if (!task) {
@@ -312,7 +333,7 @@ export default function TaskDetailPage() {
 
                         {/* Actions */}
                         <div className="border-t border-border p-4 flex gap-3">
-                            <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.app_username}`); }}
+                            <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.appUsername}`); }}
                                 className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
                                 <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
                             </button>

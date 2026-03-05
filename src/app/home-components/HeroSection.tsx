@@ -99,7 +99,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
             setSelectedIndex(prev => prev > 0 ? prev - 1 : maxIndex);
         } else if (e.key === 'Enter') {
             if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-                window.location.href = `/app/${suggestions[selectedIndex].app_username}`;
+                window.location.href = `/app/${suggestions[selectedIndex].appUsername}`;
             } else if (searchQuery.trim()) {
                 window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
             }

@@ -819,8 +819,8 @@ export default function ToolsListPage() {
 
                             {/* Actions */}
                             <div className="border-t border-border p-4 flex gap-3">
-                                {previewTool.app_username && (
-                                    <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.app_username}`); }}
+                                {previewTool.appUsername && (
+                                    <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.appUsername}`); }}
                                         className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
                                         <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
                                     </button>

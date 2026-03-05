@@ -174,7 +174,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-                window.location.href = `/app/${suggestions[selectedIndex].app_username}`;
+                window.location.href = `/app/${suggestions[selectedIndex].appUsername}`;
             } else {
                 if (searchTimeout.current) {
                     clearTimeout(searchTimeout.current);

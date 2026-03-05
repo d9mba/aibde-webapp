@@ -15,7 +15,7 @@ interface ImpressionsContextType {
 
 const ImpressionsContext = createContext<ImpressionsContextType>({
     impressions: {},
-    loading: false,
+    loading: true,
     getImpressions: () => 0,
 });
 

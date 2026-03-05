@@ -266,8 +266,8 @@ export default function TasksPage() {
                                         </>
                                     ) : (
                                         <>
-                                            <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-primary rounded-lg"><Pencil className="w-4 h-4" /></button>
-                                            <button onClick={(e) => handleDelete(task, e)} className="p-2 text-text-tertiary hover:text-accent-red rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                                            <button onClick={(e) => startEdit(task, e)} className="p-2 text-text-tertiary hover:text-accent-primary rounded-lg" title="Edit task" aria-label={`Edit ${task.taskName}`}><Pencil className="w-4 h-4" /></button>
+                                            <button onClick={(e) => handleDelete(task, e)} className="p-2 text-text-tertiary hover:text-accent-red rounded-lg" title="Delete task" aria-label={`Delete ${task.taskName}`}><Trash2 className="w-4 h-4" /></button>
                                         </>
                                     )}
                                 </div>

@@ -282,7 +282,7 @@ export default function DashboardHome() {
                                 recentPublished.map((tool) => (
                                     <Link
                                         key={tool.id}
-                                        href={`/app/${tool.app_username}`}
+                                        href={`/app/${tool.appUsername}`}
                                         target="_blank"
                                         className="flex items-center gap-3 px-5 py-3 hover:bg-bg-secondary transition-colors no-underline"
                                     >

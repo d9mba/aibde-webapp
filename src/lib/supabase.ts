@@ -256,7 +256,7 @@ export function dbToolToAdminTool(dbTool: DbTool) {
     return {
         id: dbTool.id,
         name: dbTool.name,
-        app_username: dbTool.app_username,
+        appUsername: dbTool.app_username,
         summary: dbTool.summary,
         description: dbTool.description || '',
         // Ensure these are arrays even if DB stores as string
@@ -359,7 +359,7 @@ export function dbToolToCardTool(dbTool: DbTool) {
     return {
         id: dbTool.id,
         name: dbTool.name,
-        app_username: dbTool.app_username,
+        appUsername: dbTool.app_username,
         summary: dbTool.summary || '',
         categoryName: toArray(dbTool.category_name),
         taskName: toArray(dbTool.task_name),

@@ -188,7 +188,7 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                             <h3 className="text-sm font-medium text-text-tertiary mb-2">Screenshots</h3>
                             <div className="grid grid-cols-3 gap-2">
                                 {data.images.map((img, i) => (
-                                    <img key={i} src={img} alt={`Screenshot ${i + 1}`} className="w-full h-24 object-cover rounded-lg border border-border" />
+                                    <img key={i} src={getFullUrl(img)} alt={`Screenshot ${i + 1}`} className="w-full h-24 object-cover rounded-lg border border-border" />
                                 ))}
                             </div>
                         </div>

@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
 
                 const toolData = {
                     name: tool.name,
-                    app_username: slug,
+                    appUsername: slug,
                     summary: tool.summary || '',
                     description: tool.description || '',
                     websiteUrl: tool.websiteUrl || tool.website_url || tool.website || tool.url || '',

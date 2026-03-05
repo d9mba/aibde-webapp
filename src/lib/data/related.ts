@@ -32,7 +32,7 @@ export async function getRelatedTools(tool: AdminTool, limit: number = 6): Promi
         .from('tools')
         .select(RELATED_TOOL_FIELDS)
         .in('status', ['published', 'approved'])
-        .neq('app_username', tool.app_username)
+        .neq('app_username', tool.appUsername)
         .limit(limit * 3);
 
     if (categories.length > 0 || tasks.length > 0) {
@@ -53,9 +53,9 @@ export async function getRelatedTools(tool: AdminTool, limit: number = 6): Promi
     }
 
     const tools = (data || []).map(t => dbToolToAdminTool(t)) as AdminTool[];
-    const manual = tools.filter(t => manualSlugs.includes(t.app_username));
+    const manual = tools.filter(t => manualSlugs.includes(t.appUsername));
     const auto = tools
-        .filter(t => !manualSlugs.includes(t.app_username))
+        .filter(t => !manualSlugs.includes(t.appUsername))
         .slice(0, limit - manual.length);
 
     return [...manual, ...auto].slice(0, limit);
@@ -79,7 +79,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .from('tools')
                     .select(RELATED_TOOL_FIELDS)
                     .in('status', ['published', 'approved'])
-                    .neq('app_username', tool.app_username)
+                    .neq('app_username', tool.appUsername)
                     .overlaps('category_name', categories)
                     .limit(limit * 2)
                     .then(r => {
@@ -100,7 +100,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .from('tools')
                     .select(RELATED_TOOL_FIELDS)
                     .in('status', ['published', 'approved'])
-                    .neq('app_username', tool.app_username)
+                    .neq('app_username', tool.appUsername)
                     .overlaps('task_name', tasks)
                     .limit(limit * 2)
                     .then(r => {
@@ -121,7 +121,7 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
                     .from('tools')
                     .select(RELATED_TOOL_FIELDS)
                     .in('status', ['published', 'approved'])
-                    .neq('app_username', tool.app_username)
+                    .neq('app_username', tool.appUsername)
                     .overlaps('tags', tags)
                     .limit(limit * 2)
                     .then(r => {
@@ -140,9 +140,12 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
     }
 
     const results = await Promise.all(queries);
-    const allMatches = results.flat();
+    const allMatches = results.flat().map(t => ({
+        ...dbToolToAdminTool(t),
+        _matchType: t._matchType as string,
+    }));
 
-    const toolMap = new Map<string, { tool: any, score: number }>();
+    const toolMap = new Map<string, { tool: AdminTool, score: number }>();
 
     function getMatchScore(matchType: string): number {
         switch (matchType) {
@@ -154,23 +157,23 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
     }
 
     allMatches.forEach(t => {
-        const existing = toolMap.get(t.app_username);
+        const existing = toolMap.get(t.appUsername);
         const matchScore = getMatchScore(t._matchType);
 
         if (existing) {
             existing.score += matchScore;
         } else {
-            toolMap.set(t.app_username, { tool: t, score: matchScore });
+            toolMap.set(t.appUsername, { tool: t, score: matchScore });
         }
     });
 
     const scored = Array.from(toolMap.values())
-        .filter(s => !alternativeSlugs.includes(s.tool.app_username))
+        .filter(s => !alternativeSlugs.includes(s.tool.appUsername))
         .map(s => ({ ...s, random: Math.random() }))
         .sort((a, b) => {
             if (b.score !== a.score) return b.score - a.score;
             return a.random - b.random;
         });
 
-    return scored.slice(0, limit).map(s => dbToolToAdminTool(s.tool));
+    return scored.slice(0, limit).map(s => s.tool);
 }

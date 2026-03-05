@@ -55,7 +55,7 @@ export default function ToolDetailClient({
     useToolPageView({
         id: tool.id,
         name: tool.name,
-        app_username: tool.app_username,
+        appUsername: tool.appUsername,
         category: (tool.categoryName || [])[0],
         pricing: tool.pricing,
     });
@@ -173,11 +173,11 @@ export default function ToolDetailClient({
 
                     {/* Visit button */}
                     <a
-                        href={`/go/${tool.app_username}`}
+                        href={`/go/${tool.appUsername}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => trackToolVisit(
-                            { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                            { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                             tool.affiliateEnabled && tool.affiliateUrl ? tool.affiliateUrl : tool.websiteUrl || ''
                         )}
                         className="flex items-center justify-center px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium hover:bg-accent-primary/90 transition-colors"
@@ -231,7 +231,7 @@ export default function ToolDetailClient({
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)
                 }
-                url={typeof window !== 'undefined' ? window.location.href : `https://www.aibde.tech/app/${tool.app_username}`}
+                url={typeof window !== 'undefined' ? window.location.href : `https://www.aibde.tech/app/${tool.appUsername}`}
                 title={tool.name}
                 description={tool.summary}
             />

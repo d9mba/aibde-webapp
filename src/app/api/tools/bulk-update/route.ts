@@ -169,7 +169,7 @@ export async function PUT(request: NextRequest) {
         for (const tool of tools) {
             try {
                 const toolId = tool.id;
-                const appUsername = tool.app_username || tool.slug;
+                const appUsername = tool.appUsername || tool.app_username || tool.slug;
 
                 // Try to find existing tool
                 let existingTool = null;
@@ -305,7 +305,7 @@ export async function PUT(request: NextRequest) {
 
                     const toolData = {
                         name: tool.name,
-                        app_username: slug,
+                        appUsername: slug,
                         summary: tool.summary || '',
                         description: tool.description || '',
                         websiteUrl: tool.websiteUrl || tool.website_url || tool.website || '',

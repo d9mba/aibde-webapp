@@ -97,7 +97,7 @@ export function useTools(options: UseToolsOptions = {}): UseToolsResult {
             setError(err instanceof Error ? err.message : 'Failed to fetch tools');
             setTools([]);
         } finally {
-            setLoading(false);
+            if (!controller.signal.aborted) setLoading(false);
         }
     }, [page, search, status, featured, spotlight, listing, trending, limit, all, deps, fields]);
 
@@ -108,12 +108,14 @@ export function useTools(options: UseToolsOptions = {}): UseToolsResult {
 
     useEffect(() => {
         if (options.page !== undefined && options.page !== page) setPage(options.page);
-    }, [options.page]);
+    }, [options.page, page]);
 
     useEffect(() => {
-        const optSearch = options.search || '';
-        if (optSearch !== search) setSearch(optSearch);
-    }, [options.search]);
+        if (options.search !== undefined) {
+            const optSearch = options.search || '';
+            if (optSearch !== search) setSearch(optSearch);
+        }
+    }, [options.search, search]);
 
     const totalPages = all ? 1 : Math.max(1, Math.ceil(totalCount / Math.max(1, limit)));
 

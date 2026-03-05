@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Category } from '@/types';
 import { slugify } from '@/lib/utils';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 
 interface CategoryPageClientProps {
     categories: Category[];
@@ -15,6 +15,12 @@ const ITEMS_PER_PAGE = 48;
 export default function CategoryPageClient({ categories, totalCount }: CategoryPageClientProps) {
     const [activeLetter, setActiveLetter] = useState<string>('');
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+    const rafCleanupRef = useRef<(() => void) | null>(null);
+
+    // Clean up any pending RAF on unmount
+    useEffect(() => {
+        return () => rafCleanupRef.current?.();
+    }, []);
 
     // Sort categories alphabetically, dedupe by id, and filter those with tools
     const sortedCategories = useMemo(() => {
@@ -114,22 +120,26 @@ export default function CategoryPageClient({ categories, totalCount }: CategoryP
         const scrollToElement = () => {
             let attempts = 0;
             const maxAttempts = 20;
+            let rafId: number;
             function tryScroll() {
                 const element = document.getElementById(`section-${letter}`);
                 if (element) {
                     element.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 } else if (attempts < maxAttempts) {
                     attempts++;
-                    requestAnimationFrame(tryScroll);
+                    rafId = requestAnimationFrame(tryScroll);
                 }
             }
-            requestAnimationFrame(tryScroll);
+            rafId = requestAnimationFrame(tryScroll);
+            // Return cleanup to cancel pending RAF
+            return () => cancelAnimationFrame(rafId);
         };
 
         // Ensure items up to this letter are visible
         if (idx >= visibleCount) {
-            setVisibleCount(idx + ITEMS_PER_PAGE);
-            scrollToElement();
+            setVisibleCount(Math.min(sortedCategories.length, idx + ITEMS_PER_PAGE));
+            rafCleanupRef.current?.();
+            rafCleanupRef.current = scrollToElement();
         } else {
             const element = document.getElementById(`section-${letter}`);
             if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });

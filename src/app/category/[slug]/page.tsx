@@ -80,7 +80,7 @@ export default async function CategoryPage({ params }: PageProps) {
     const itemListLd = category && tools.length ? getItemListJsonLd(
         `${category.categoryName} AI Tools`,
         categoryUrl,
-        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.app_username}` })),
+        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.appUsername}` })),
         category.description || undefined
     ) : null;
 

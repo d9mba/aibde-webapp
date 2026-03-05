@@ -72,7 +72,13 @@ export default function NotesPage() {
         }
         const controller = new AbortController();
         fetch(`/api/tools?search=${encodeURIComponent(query)}&limit=20&status=published`, { signal: controller.signal })
-            .then(r => r.ok ? r.json() : { data: [] })
+            .then(async r => {
+                if (!r.ok) {
+                    console.error(`[Notes] Tool search failed: ${r.status} ${await r.text().catch(() => r.statusText)}`);
+                    return { data: [] };
+                }
+                return r.json();
+            })
             .then(json => {
                 const tools = json.data || [];
                 setKnownTools(prev => {
@@ -88,14 +94,19 @@ export default function NotesPage() {
         return () => controller.abort();
     }
 
+    // Track which tool IDs have been fetched to avoid re-fetching
+    const fetchedToolIdsRef = useRef<Set<string>>(new Set());
+
     // Eagerly populate knownToolsRef for toolIds linked in notes
     useEffect(() => {
         const unknownIds = notes
             .map(n => n.toolId)
-            .filter((id): id is string => !!id && !knownTools.has(id));
+            .filter((id): id is string => !!id && !knownTools.has(id) && !fetchedToolIdsRef.current.has(id));
         if (unknownIds.length === 0) return;
 
         const uniqueIds = [...new Set(unknownIds)];
+        // Mark as fetching to prevent re-requests
+        uniqueIds.forEach(id => fetchedToolIdsRef.current.add(id));
         // Fetch details for unknown tool IDs
         uniqueIds.forEach(id => {
             fetch(`/api/tools/${id}`)

@@ -40,7 +40,7 @@ export function useTaxonomySearch(
         ? `${endpoint}?search=${encodeURIComponent(debouncedSearch)}&limit=50`
         : `${endpoint}?limit=50`;
 
-    const { data, isLoading, isValidating } = useSWR(apiUrl, fetcher, {
+    const { data, error, isLoading, isValidating } = useSWR(apiUrl, fetcher, {
         revalidateOnFocus: false,
         keepPreviousData: true,
     });
@@ -56,6 +56,7 @@ export function useTaxonomySearch(
     return {
         options: items,
         loading: isLoading || isValidating,
+        error,
         onSearchChange: setSearch,
     };
 }

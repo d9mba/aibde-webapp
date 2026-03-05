@@ -25,7 +25,7 @@ export default function AlternativesSection({ toolName, alternatives }: Alternat
                         return (
                             <Link
                                 prefetch={false} key={t.id}
-                                href={`/app/${t.app_username}`}
+                                href={`/app/${t.appUsername}`}
                                 className="flex flex-col justify-between p-3 bg-bg-tertiary border border-border rounded-2xl hover:bg-bg-secondary no-underline transition-colors group h-full min-h-[120px]"
                             >
                                 <div className="flex items-center gap-3">

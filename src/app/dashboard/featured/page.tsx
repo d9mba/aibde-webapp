@@ -13,7 +13,7 @@ export default function FeaturedPage() {
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [featuredSearch, setFeaturedSearch] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+    // Page state owned by useTools via availablePage/setAvailablePage
     const [featuredPage, setFeaturedPage] = useState(1);
     const [saving, setSaving] = useState(false);
 
@@ -24,7 +24,7 @@ export default function FeaturedPage() {
     const { tools: availableToolsRaw, loading: availableLoading, totalCount: availableTotal,
         page: availablePage, totalPages: apiTotalPages, setPage: setAvailablePage,
     } = useTools({
-        status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
+        status: 'published', limit: ITEMS_PER_PAGE,
         search, deps: toolsMutated, fields: 'card',
     });
 
@@ -59,10 +59,8 @@ export default function FeaturedPage() {
         const currentFeatured = featuredTools.filter((t: AdminTool) => t.isFeatured || t.listingType === 'featured');
         const ids = currentFeatured.map(t => t.id);
 
-        if (ids.length > 0) {
-            featuredInitializedRef.current = true;
-            setPendingFeaturedIds(ids);
-        }
+        setPendingFeaturedIds(ids);
+        featuredInitializedRef.current = true;
     }, [featuredTools]);
 
     // Current featured tools based on pending changes
@@ -104,12 +102,13 @@ export default function FeaturedPage() {
 
     // Pagination for regular tools — use server pagination
     const totalPages = apiTotalPages;
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const totalCount = availableTotal ?? filteredRegularTools.length;
+    const startIndex = (availablePage - 1) * ITEMS_PER_PAGE;
     const paginatedTools = filteredRegularTools;
 
     const handleSearch = (value: string) => {
         setSearch(value);
-        setCurrentPage(1);
+        setAvailablePage(1);
     };
 
     const handleFeaturedSearch = (value: string) => {
@@ -287,23 +286,23 @@ export default function FeaturedPage() {
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
                                 <span className="text-sm text-text-tertiary">
-                                    {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredRegularTools.length)} of {filteredRegularTools.length}
+                                    {startIndex + 1}-{Math.min(startIndex + paginatedTools.length, totalCount)} of {totalCount}
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => setAvailablePage(Math.max(1, currentPage - 1))}
-                                        disabled={currentPage === 1}
+                                        onClick={() => setAvailablePage(Math.max(1, availablePage - 1))}
+                                        disabled={availablePage === 1}
                                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                                     >
                                         <ChevronLeft className="w-4 h-4" />
                                         Previous
                                     </button>
                                     <span className="text-sm text-text-tertiary">
-                                        {currentPage}/{totalPages}
+                                        {availablePage}/{totalPages}
                                     </span>
                                     <button
-                                        onClick={() => setAvailablePage(Math.min(totalPages, currentPage + 1))}
-                                        disabled={currentPage >= totalPages}
+                                        onClick={() => setAvailablePage(Math.min(totalPages, availablePage + 1))}
+                                        disabled={availablePage >= totalPages}
                                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:bg-bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                                     >
                                         Next

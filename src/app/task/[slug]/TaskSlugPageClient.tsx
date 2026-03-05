@@ -55,6 +55,7 @@ export default function TaskSlugPageClient({
                 const text = await response.text().catch(() => response.statusText);
                 console.error(`Failed to load tools: ${response.status} ${text}`);
                 setTools([]);
+                setCurrentPage(1);
                 return;
             }
             const data = await response.json();
@@ -63,6 +64,8 @@ export default function TaskSlugPageClient({
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (error) {
             console.error('Failed to load tools:', error);
+            setTools([]);
+            setCurrentPage(1);
         } finally {
             setIsLoading(false);
         }

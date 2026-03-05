@@ -91,7 +91,7 @@ export default function TagsPage() {
             const res = await fetch('/api/tags', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tagName: newName.trim(), count: 0 }),
+                body: JSON.stringify({ tagName: newName.trim() }),
             });
             if (!res.ok) {
                 const err = await res.json();
@@ -233,7 +233,11 @@ export default function TagsPage() {
                                 <tr><td colSpan={3} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tags match your search' : 'No tags found'}</td></tr>
                             ) : (
                                 tags.map((tag: Tag) => (
-                                    <tr key={tag.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`)}>
+                                    <tr key={tag.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer"
+                                        role="button" tabIndex={0} aria-disabled={pageLoading}
+                                        onClick={() => { if (!pageLoading) router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); }}
+                                        onKeyDown={(e) => { if (!pageLoading && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); } }}
+                                    >
                                         <td className="px-4 py-3">
                                             {editingId === tag.id ? (
                                                 <div className="flex items-center gap-1">

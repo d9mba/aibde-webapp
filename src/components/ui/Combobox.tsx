@@ -68,6 +68,7 @@ export default function Combobox(props: Props) {
     const canAddNew = allowCreate && search.trim().length > 0 &&
         !allOptions.some(o => (o.label || '').toLowerCase() === search.trim().toLowerCase());
 
+    const visibleCount = Math.min(filteredOptions.length, displayLimit);
     const totalItems = filteredOptions.length + (canAddNew ? 1 : 0);
 
     // Selected items for multi-select
@@ -169,7 +170,14 @@ export default function Combobox(props: Props) {
         switch (e.key) {
             case 'ArrowDown':
                 e.preventDefault();
-                setFocusedIdx(prev => (prev + 1) % totalItems);
+                setFocusedIdx(prev => {
+                    const next = (prev + 1) % totalItems;
+                    // Auto-expand displayLimit if arrowing past visible items (but not for Create item)
+                    if (next >= visibleCount && next < filteredOptions.length && !(canAddNew && next === visibleCount)) {
+                        setDisplayLimit(dl => dl + 20);
+                    }
+                    return next;
+                });
                 break;
             case 'ArrowUp':
                 e.preventDefault();
@@ -177,7 +185,7 @@ export default function Combobox(props: Props) {
                 break;
             case 'Enter':
                 e.preventDefault();
-                if (focusedIdx >= 0 && focusedIdx < filteredOptions.length) {
+                if (focusedIdx >= 0 && focusedIdx < visibleCount) {
                     selectOption(filteredOptions[focusedIdx].value);
                 } else if (canAddNew) {
                     createAndSelect();

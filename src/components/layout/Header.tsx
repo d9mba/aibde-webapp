@@ -146,8 +146,8 @@ export default function Header() {
 
     // Handle tool click
     const handleToolClick = (tool: any) => {
-        trackToolClick({ id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-        router.push(`/app/${tool.app_username}`);
+        trackToolClick({ id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+        router.push(`/app/${tool.appUsername}`);
         setSearchOpen(false);
         setSearchQuery('');
         setSuggestions([]);

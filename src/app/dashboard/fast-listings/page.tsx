@@ -47,7 +47,7 @@ export default function FastListingsPage() {
     // Capture initial total so "Available" stat stays constant during search
     const [initialTotal, setInitialTotal] = useState<number | null>(null);
     useEffect(() => {
-        if (availableTotal > 0 && initialTotal === null) {
+        if (availableTotal != null && initialTotal === null) {
             setInitialTotal(availableTotal);
         }
     }, [availableTotal, initialTotal]);
@@ -149,6 +149,7 @@ export default function FastListingsPage() {
 
     const handleAddToFast = (toolId: string) => {
         const tool = availableToolsRaw.find(t => t.id === toolId) || allTools.find(t => t.id === toolId);
+        if (tool) pendingToolsCacheRef.current.set(toolId, tool);
         setPendingFastIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');

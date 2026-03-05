@@ -15,7 +15,7 @@ const PUBLISHED_STATUSES = ['published', 'approved'];
  * Counts how many published tools reference each category.
  */
 export async function syncCategoryCounts(categoryNames: string[]): Promise<void> {
-    if (!categoryNames.length) return;
+    if (!categoryNames?.length) return;
 
     const unique = [...new Set(categoryNames)];
 
@@ -47,7 +47,7 @@ export async function syncCategoryCounts(categoryNames: string[]): Promise<void>
  * Counts how many published tools reference each task.
  */
 export async function syncTaskCounts(taskNames: string[]): Promise<void> {
-    if (!taskNames.length) return;
+    if (!taskNames?.length) return;
 
     const unique = [...new Set(taskNames)];
 

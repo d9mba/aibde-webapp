@@ -4,9 +4,15 @@ import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 
 const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || '';
-const FINGERPRINT_SECRET = process.env.CONTACT_FINGERPRINT_SECRET
-    || process.env.ADMIN_LOGIN_SECRET
-    || require('crypto').randomBytes(32).toString('hex');
+const effectiveFingerprintSecret = (() => {
+    if (process.env.CONTACT_FINGERPRINT_SECRET) return process.env.CONTACT_FINGERPRINT_SECRET;
+    if (process.env.ADMIN_LOGIN_SECRET) return process.env.ADMIN_LOGIN_SECRET;
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('CONTACT_FINGERPRINT_SECRET or ADMIN_LOGIN_SECRET must be set in production');
+    }
+    console.warn('[contact] No fingerprint secret configured — using deterministic dev-only fallback');
+    return 'dev-only-fingerprint-secret-not-for-production';
+})();
 
 interface ContactFormData {
     firstName: string;
@@ -40,7 +46,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             // Hourly time bucket prevents replay across time windows
             const hourBucket = Math.floor(Date.now() / 3_600_000);
             const raw = `${ip}|${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}|${hourBucket}`;
-            const digest = createHmac('sha256', FINGERPRINT_SECRET).update(raw).digest('hex').slice(0, 16);
+            const digest = createHmac('sha256', effectiveFingerprintSecret).update(raw).digest('hex').slice(0, 16);
             identifier = `anon:${digest}`;
         }
         const rateLimit = await checkRateLimit(`contact:${identifier}`, rateLimits.sensitive);

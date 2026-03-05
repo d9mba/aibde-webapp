@@ -21,12 +21,13 @@ export default function NewPageClient({ tools }: NewPageClientProps) {
         if (tools.length > 0) {
             setSharedTools(tools);
         }
+        setVisibleCount(INITIAL_LOAD);
     }, [tools, setSharedTools]);
 
     const newTools = useMemo(() =>
         [...tools].sort((a, b) => {
-            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() || 0 : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() || 0 : 0;
             return dateB - dateA;
         }),
         [tools]

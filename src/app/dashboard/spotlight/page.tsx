@@ -37,7 +37,7 @@ export default function SpotlightPage() {
     // Capture initial total so "Available" stat stays constant during search
     const initialTotalRef = useRef<number>(0);
     useEffect(() => {
-        if (availableTotal > 0 && initialTotalRef.current === 0) {
+        if (availableTotal != null && initialTotalRef.current === 0) {
             initialTotalRef.current = availableTotal;
         }
     }, [availableTotal]);
@@ -50,6 +50,8 @@ export default function SpotlightPage() {
     const [pendingSpotlightIds, setPendingSpotlightIds] = useState<string[]>([]);
     const [pendingPositions, setPendingPositions] = useState<Record<string, number>>({});
     const [hasChanges, setHasChanges] = useState(false);
+    // Cache tool objects so they persist across pagination
+    const pendingToolsCacheRef = useRef<Map<string, AdminTool>>(new Map());
 
     // Initialize from current data
     useEffect(() => {
@@ -70,10 +72,17 @@ export default function SpotlightPage() {
     }, [spotlightToolsRaw]);
 
     // Current spotlight tools based on pending changes
-    const allTools = useMemo(() => [...spotlightToolsRaw, ...availableToolsRaw], [spotlightToolsRaw, availableToolsRaw]);
+    const allTools = useMemo(() => {
+        return [...spotlightToolsRaw, ...availableToolsRaw];
+    }, [spotlightToolsRaw, availableToolsRaw]);
+
+    // Populate cache in an effect to avoid side effects in useMemo
+    useEffect(() => {
+        allTools.forEach(t => pendingToolsCacheRef.current.set(t.id, t));
+    }, [allTools]);
     const spotlightTools = useMemo(() => {
         return pendingSpotlightIds
-            .map(id => allTools.find(t => t.id === id))
+            .map(id => pendingToolsCacheRef.current.get(id) || allTools.find(t => t.id === id))
             .filter((t): t is AdminTool => t !== undefined)
             .sort((a, b) => (pendingPositions[a.id] ?? 999) - (pendingPositions[b.id] ?? 999));
     }, [allTools, pendingSpotlightIds, pendingPositions]);
@@ -118,6 +127,7 @@ export default function SpotlightPage() {
             return;
         }
         const tool = allTools.find((t: AdminTool) => t.id === toolId);
+        if (tool) pendingToolsCacheRef.current.set(toolId, tool);
         const maxPos = Math.max(...Object.values(pendingPositions), 0);
         setPendingSpotlightIds(prev => [...prev, toolId]);
         setPendingPositions(prev => ({ ...prev, [toolId]: maxPos + 1 }));
@@ -181,7 +191,7 @@ export default function SpotlightPage() {
             // Add/update tools in spotlight
             for (const toolId of pendingSpotlightIds) {
                 const position = pendingPositions[toolId];
-                const tool = allTools.find((t: AdminTool) => t.id === toolId);
+                const tool = pendingToolsCacheRef.current.get(toolId) || allTools.find((t: AdminTool) => t.id === toolId);
                 if (tool) {
                     if (!currentIds.has(toolId)) {
                         // New spotlight

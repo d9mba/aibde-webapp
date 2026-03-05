@@ -12,6 +12,7 @@ export default function PageProgress() {
     const hideRef = useRef<NodeJS.Timeout>(undefined);
     const completeTimerRef = useRef<NodeJS.Timeout>(undefined);
     const safetyInnerRef = useRef<NodeJS.Timeout>(undefined);
+    const deferredStartRef = useRef<NodeJS.Timeout>(undefined);
     const startTimeRef = useRef(0);
     const isNavigatingRef = useRef(false);
 
@@ -20,6 +21,7 @@ export default function PageProgress() {
         if (hideRef.current) clearTimeout(hideRef.current);
         if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
         if (safetyInnerRef.current) clearTimeout(safetyInnerRef.current);
+        if (deferredStartRef.current) clearTimeout(deferredStartRef.current);
     }, []);
 
     // Complete and hide progress bar with minimum visible duration
@@ -95,7 +97,7 @@ export default function PageProgress() {
         history.pushState = function (...args) {
             if (!isNavigatingRef.current) {
                 isNavigatingRef.current = true;
-                setTimeout(start, 0);
+                deferredStartRef.current = setTimeout(start, 0);
             }
             return originalPushState(...args);
         };
@@ -107,7 +109,7 @@ export default function PageProgress() {
                 if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
                     if (!isNavigatingRef.current) {
                         isNavigatingRef.current = true;
-                        setTimeout(start, 0);
+                        deferredStartRef.current = setTimeout(start, 0);
                     }
                 }
             }

@@ -18,7 +18,7 @@ function toPublicTool(tool: ReturnType<typeof dbToolToAdminTool>) {
     return {
         id: tool.id,
         name: tool.name,
-        app_username: tool.app_username,
+        appUsername: tool.appUsername,
         logoUrl: tool.logoUrl,
         summary: tool.summary,
         categoryName: tool.categoryName,
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
         const tools = (data || []).map((tool) => toPublicTool(dbToolToAdminTool(tool)));
 
         // PERFORMANCE: Cache public responses to reduce DB hits
-        // 5 min cache, allow stale for 1 hour while revalidating
+        // 1 hour cache, allow stale for 24 hours while revalidating
         const response = allData
             ? NextResponse.json(tools)
             : NextResponse.json({

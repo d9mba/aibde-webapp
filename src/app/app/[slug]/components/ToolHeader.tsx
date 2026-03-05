@@ -44,7 +44,7 @@ function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
             {isOpen && (
                 <div className="absolute left-0 top-full mt-1 py-1 bg-bg-card border border-border rounded-lg shadow-lg z-50 min-w-[130px]">
                     <a
-                        href={`mailto:support@aibde.tech?subject=Report%20Issue%20with%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.app_username}%0A%0AIssue:%20`}
+                        href={`mailto:support@aibde.tech?subject=Report%20Issue%20with%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.appUsername}%0A%0AIssue:%20`}
                         className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-red transition-colors no-underline"
                         onClick={() => setIsOpen(false)}
                     >
@@ -54,7 +54,7 @@ function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
                         Report
                     </a>
                     <a
-                        href={`mailto:support@aibde.tech?subject=Claim%20Ownership%20of%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.app_username}%0A%0AI%20am%20the%20owner/developer%20of%20this%20tool%20and%20would%20like%20to%20claim%20it.%0A%0AMy%20role:%20%0AProof%20of%20ownership:%20`}
+                        href={`mailto:support@aibde.tech?subject=Claim%20Ownership%20of%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.appUsername}%0A%0AI%20am%20the%20owner/developer%20of%20this%20tool%20and%20would%20like%20to%20claim%20it.%0A%0AMy%20role:%20%0AProof%20of%20ownership:%20`}
                         className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-primary transition-colors no-underline"
                         onClick={() => setIsOpen(false)}
                     >
@@ -64,7 +64,7 @@ function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
                         Claim
                     </a>
                     <a
-                        href={`mailto:support@aibde.tech?subject=Advertise%20on%20${encodeURIComponent(tool.name)}%20Page&body=Tool%20URL:%20https://aibde.com/app/${tool.app_username}%0A%0AI%20am%20interested%20in%20advertising%20on%20this%20tool%20page.%0A%0ACompany:%20%0ABudget:%20%0ADetails:%20`}
+                        href={`mailto:support@aibde.tech?subject=Advertise%20on%20${encodeURIComponent(tool.name)}%20Page&body=Tool%20URL:%20https://aibde.com/app/${tool.appUsername}%0A%0AI%20am%20interested%20in%20advertising%20on%20this%20tool%20page.%0A%0ACompany:%20%0ABudget:%20%0ADetails:%20`}
                         className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-primary transition-colors no-underline"
                         onClick={() => setIsOpen(false)}
                     >
@@ -96,7 +96,7 @@ export default function ToolHeader({
 }: ToolHeaderProps) {
     const logoColor = getLogoColor(tool.name);
     const { getImpressions } = useImpressions();
-    const impressionCount = getImpressions(tool.app_username);
+    const impressionCount = getImpressions(tool.appUsername);
 
     return (
         <div className="pb-4 sm:pb-6 border-b border-border">
@@ -137,11 +137,11 @@ export default function ToolHeader({
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                             {tool.websiteUrl && (
                                 <a
-                                    href={tool.backLinks ? tool.websiteUrl : `/go/${tool.app_username}`}
+                                    href={tool.backLinks ? tool.websiteUrl : `/go/${tool.appUsername}`}
                                     target="_blank"
                                     rel={tool.backLinks ? "noopener" : "noopener noreferrer nofollow"}
                                     onClick={() => trackToolVisit(
-                                        { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                                        { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                                         tool.websiteUrl || ''
                                     )}
                                     className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"

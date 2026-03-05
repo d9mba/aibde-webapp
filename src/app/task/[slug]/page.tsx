@@ -80,7 +80,7 @@ export default async function TaskPage({ params }: PageProps) {
     const itemListLd = task && tools.length ? getItemListJsonLd(
         `${task.taskName} AI Tools`,
         taskUrl,
-        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.app_username}` })),
+        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.appUsername}` })),
         task.description || undefined
     ) : null;
 

@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const tools = (data || []).map((tool: any) => dbToolToCardTool(tool));
 
-        return NextResponse.json({ tools, count: count ?? tools.length });
+        // Supabase with count: 'exact' should always supply a count; null signals missing total
+        return NextResponse.json({ tools, count: count ?? null });
     } catch (err) {
         console.error('API error:', err);
         return NextResponse.json({ error: 'Failed to fetch tools' }, { status: 500 });

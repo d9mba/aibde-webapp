@@ -42,7 +42,7 @@ export default function CategoryDetailPage() {
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
 
     // Fetch category by slug via SWR
-    const { data: catData } = useSWR<{ data: Category[] }>(
+    const { data: catData, error: catError, isLoading: catLoading } = useSWR<{ data: Category[] }>(
         `/api/categories?search=${encodeURIComponent(slug)}&limit=100`,
         fetcher,
         { revalidateOnFocus: false }
@@ -87,6 +87,27 @@ export default function CategoryDetailPage() {
         setSearch(value);
     }
 
+
+    if (catLoading) {
+        return (
+            <div className="p-3 sm:p-6 flex items-center justify-center min-h-[300px]">
+                <div className="w-6 h-6 border-2 border-border border-t-accent-primary rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (catError) {
+        return (
+            <div className="p-3 sm:p-6">
+                <button onClick={() => router.push('/dashboard/categories')} className="flex items-center gap-1.5 text-text-secondary hover:text-accent-primary text-sm mb-4">
+                    <ArrowLeft className="w-4 h-4" /> Back to Categories
+                </button>
+                <div className="text-center py-12">
+                    <p className="text-text-tertiary">Failed to load category. Please try again.</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!category) {
         return (
@@ -341,8 +362,12 @@ export default function CategoryDetailPage() {
 
                         {/* Actions */}
                         <div className="border-t border-border p-4 flex gap-3">
-                            <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.app_username}`); }}
-                                className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
+                            <button onClick={() => {
+                                setPreviewTool(null);
+                                if (previewTool.appUsername) router.push(`/app/${previewTool.appUsername}`);
+                            }}
+                                disabled={!previewTool.appUsername}
+                                className={`flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 ${previewTool.appUsername ? 'hover:bg-accent-primary/90' : 'opacity-50 cursor-not-allowed'}`}>
                                 <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
                             </button>
                             <button onClick={() => { setPreviewTool(null); router.push(`/dashboard/tools/${previewTool.id}`); }}

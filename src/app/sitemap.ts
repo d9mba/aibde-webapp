@@ -11,8 +11,8 @@ import { slugify } from '@/lib/utils';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aibde.tech';
 
-/** Max URLs per sitemap (Google limit 50k; 5k keeps files fast and crawl-friendly). */
-const SITEMAP_PAGE_SIZE = 5000;
+/** Max URLs per sitemap (smaller files = faster crawling by search engines). */
+const SITEMAP_PAGE_SIZE = 1000;
 
 function isSafeSlug(s: string): boolean {
     return s.length > 0 && !s.includes('..') && !/^\s*$/.test(s);
@@ -72,9 +72,9 @@ export default async function sitemap(props: { id: Promise<string> }): Promise<M
         const offset = page * SITEMAP_PAGE_SIZE;
         const tools = await getPublishedToolsRange(offset, SITEMAP_PAGE_SIZE);
         return tools
-            .filter((tool) => isSafeSlug(tool.app_username))
+            .filter((tool) => isSafeSlug(tool.appUsername))
             .map((tool) => ({
-                url: `${BASE_URL}/app/${encodeURIComponent(tool.app_username)}`,
+                url: `${BASE_URL}/app/${encodeURIComponent(tool.appUsername)}`,
                 lastModified: tool.updatedAt ? new Date(tool.updatedAt) : new Date(),
                 changeFrequency: 'weekly' as const,
                 priority: 0.8,

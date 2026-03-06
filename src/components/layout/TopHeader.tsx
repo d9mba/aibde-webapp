@@ -25,7 +25,7 @@ export default function TopHeader() {
     // API-based search suggestions
     const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>();
+    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = useCallback(async (query: string) => {
@@ -156,8 +156,8 @@ export default function TopHeader() {
             if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
                 // Selected a tool - track the click
                 const tool = suggestions[selectedIndex];
-                trackToolClick({ id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-                router.push(`/app/${suggestions[selectedIndex].app_username}`);
+                trackToolClick({ id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+                router.push(`/app/${suggestions[selectedIndex].appUsername}`);
                 setShowRecommendations(false);
                 setSearchQuery('');
             } else {
@@ -171,9 +171,9 @@ export default function TopHeader() {
     };
 
     // Handle tool click
-    const handleToolClick = (app_username: string, tool: AdminTool) => {
-        trackToolClick({ id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-        router.push(`/app/${app_username}`);
+    const handleToolClick = (appUsername: string, tool: AdminTool) => {
+        trackToolClick({ id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+        router.push(`/app/${appUsername}`);
         setShowRecommendations(false);
         setSearchQuery('');
     };
@@ -208,7 +208,11 @@ export default function TopHeader() {
                         )}>
                             <form onSubmit={handleSearch} className="w-full">
                                 <div className="flex items-center gap-3 px-4 py-2.5">
-                                    <Search size={18} strokeWidth={1.5} className={cn("flex-shrink-0 transition-colors", isFocused ? "text-accent-primary" : "text-text-tertiary")} />
+                                    {isLoading ? (
+                                        <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" role="status" aria-label="Loading"><span className="sr-only">Loading…</span></span>
+                                    ) : (
+                                        <Search size={18} strokeWidth={1.5} className={cn("flex-shrink-0 transition-colors", isFocused ? "text-accent-primary" : "text-text-tertiary")} />
+                                    )}
                                     <input
                                         ref={inputRef}
                                         type="text"
@@ -236,16 +240,13 @@ export default function TopHeader() {
                                         className="flex-1 border-none outline-none bg-transparent text-sm text-text-primary placeholder:text-text-tertiary/50"
                                         suppressHydrationWarning
                                     />
-                                    {isLoading && (
-                                        <span className="w-4 h-4 border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0"></span>
-                                    )}
-                                    {!searchQuery && !isLoading && (
+                                    {!searchQuery && (
                                         <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
                                             <kbd className="px-1 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
                                             <kbd className="px-1 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
                                         </span>
                                     )}
-                                    {searchQuery && !isLoading && (
+                                    {searchQuery && (
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -270,7 +271,7 @@ export default function TopHeader() {
                                 {suggestions.map((tool, index) => (
                                     <button
                                         key={tool.id}
-                                        onClick={() => handleToolClick(tool.app_username, tool)}
+                                        onClick={() => handleToolClick(tool.appUsername, tool)}
                                         className={cn(
                                             "flex items-center gap-3 w-full px-4 py-2.5 text-left transition-colors",
                                             index === selectedIndex

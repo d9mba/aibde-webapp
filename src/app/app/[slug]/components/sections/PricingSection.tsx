@@ -19,11 +19,16 @@ export default function PricingSection({ plans }: PricingSectionProps) {
                 {plans.map((plan, idx) => (
                     <div
                         key={idx}
-                        className={`p-5 rounded-xl border transition-colors ${plan.highlighted
+                        className={`relative p-5 rounded-xl border transition-colors ${plan.highlighted
                             ? 'border-accent-primary bg-accent-primary/5'
                             : 'border-border bg-bg-card hover:border-accent-primary'
                             }`}
                     >
+                        {plan.highlighted && (
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 text-xs font-semibold bg-accent-primary text-white rounded-full">
+                                Popular
+                            </span>
+                        )}
                         <div className="text-sm font-medium text-text-secondary">{plan.name}</div>
                         <div className="text-2xl font-bold text-text-primary mt-1">{plan.price}</div>
                         <ul className="mt-4 space-y-2">

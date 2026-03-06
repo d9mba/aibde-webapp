@@ -4,6 +4,7 @@ import { supabaseAdmin, dbToolToAdminTool, adminToolToDbTool, DbTool } from '@/l
 import { toolSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { escapeLike } from '@/lib/utils';
+import { syncToolCounts } from '@/lib/sync-counts';
 
 // All fields for tools - needed for edit form to work correctly
 // WARNING: Contains sensitive fields - use only for single-tool detail view
@@ -25,7 +26,14 @@ const ALL_FIELDS = `
     back_links, trending_position
 `;
 
-// Fields for dashboard table view - includes all data for preview modal
+// Minimal fields for management card views (trending, spotlight, featured, etc.)
+// SECURITY: Excludes contact info, internal notes, and heavy content fields
+const CARD_FIELDS = `
+    id, name, app_username, logo_url, category_name, status,
+    is_featured, listing_type, spotlight_enabled, spotlight_position, trending_position
+`;
+
+// Fields for dashboard table view - includes data for preview modal
 const TABLE_FIELDS = `
     id, name, app_username, logo_url, summary, description,
     category_name, task_name, tags,
@@ -40,7 +48,6 @@ const TABLE_FIELDS = `
 `;
 
 // Complete fields for edit form (fetched via GET /api/tools/[id])
-// Includes all fields needed for ToolForm to work
 const LIST_FIELDS = `
     id, name, app_username, summary, description,
     category_name, task_name, tags,
@@ -100,7 +107,11 @@ function applyMissingDataFilter(query: any, filter: string) {
 }
 
 // Helper to apply all common filters
-function applyFilters(query: any, filters: { search?: string | null, category?: string | null, missingData?: string | null, status?: string | null }) {
+function applyFilters(query: any, filters: {
+    search?: string | null, category?: string | null, task?: string | null,
+    tag?: string | null, missingData?: string | null, status?: string | null,
+    featured?: string | null, spotlight?: string | null, listing?: string | null, trending?: string | null,
+}) {
     if (filters.status) {
         query = query.eq('status', filters.status);
     }
@@ -110,8 +121,26 @@ function applyFilters(query: any, filters: { search?: string | null, category?: 
     if (filters.category && filters.category !== 'all') {
         query = query.contains('category_name', [filters.category]);
     }
+    if (filters.task && filters.task !== 'all') {
+        query = query.contains('task_name', [filters.task]);
+    }
+    if (filters.tag && filters.tag !== 'all') {
+        query = query.contains('tags', [filters.tag]);
+    }
     if (filters.missingData && filters.missingData !== 'all') {
         query = applyMissingDataFilter(query, filters.missingData);
+    }
+    if (filters.featured === 'true') {
+        query = query.eq('is_featured', true);
+    }
+    if (filters.spotlight === 'true') {
+        query = query.eq('spotlight_enabled', true);
+    }
+    if (filters.listing) {
+        query = query.eq('listing_type', filters.listing);
+    }
+    if (filters.trending === 'true') {
+        query = query.gt('trending_position', 0);
     }
     return query;
 }
@@ -141,7 +170,17 @@ export async function GET(request: NextRequest) {
 
         const search = searchParams.get('search')?.trim();
         const category = searchParams.get('category');
+        const task = searchParams.get('task');
+        const tag = searchParams.get('tag');
         const missingData = searchParams.get('missing');
+        const featured = searchParams.get('featured');
+        const spotlight = searchParams.get('spotlight');
+        const listing = searchParams.get('listing');
+        const trending = searchParams.get('trending');
+        const fieldsParam = searchParams.get('fields');
+
+        // Select fields based on the fields parameter
+        const selectFields = fieldsParam === 'card' ? CARD_FIELDS : TABLE_FIELDS;
 
         // Get total count for pagination with ALL filters applied
         let countQuery = supabaseAdmin
@@ -149,13 +188,13 @@ export async function GET(request: NextRequest) {
             .select('*', { count: 'exact', head: true });
 
         // Apply all filters to count query (must match data query filters)
-        countQuery = applyFilters(countQuery, { search, category, missingData, status });
+        countQuery = applyFilters(countQuery, { search, category, task, tag, missingData, status, featured, spotlight, listing, trending });
 
         const countResult = await countQuery;
         const totalCount = countResult.count || 0;
 
-        // Fetch data with proper typing
-        let data: DbTool[] | null = null;
+        // Fetch data — type as any[] since CARD_FIELDS returns a subset of columns
+        let data: any[] | null = null;
         let error: any = null;
 
 
@@ -170,11 +209,11 @@ export async function GET(request: NextRequest) {
             while (hasMore) {
                 let query = supabaseAdmin
                     .from('tools')
-                    .select(LIST_FIELDS) // Use LIST_FIELDS for complete data needed by edit form
+                    .select(fieldsParam === 'card' ? CARD_FIELDS : LIST_FIELDS) // Use CARD_FIELDS for management pages, LIST_FIELDS for full data
                     .order('created_at', { ascending: false })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
-                query = applyFilters(query, { search, category, missingData, status });
+                query = applyFilters(query, { search, category, task, tag, missingData, status, featured, spotlight, listing, trending });
 
                 const { data: pageData, error: pageError } = await query;
 
@@ -199,10 +238,10 @@ export async function GET(request: NextRequest) {
             // OPTIMIZATION: Use TABLE_FIELDS for list view (no heavy HTML content)
             let query = supabaseAdmin
                 .from('tools')
-                .select(TABLE_FIELDS)
+                .select(selectFields)
                 .order('created_at', { ascending: false });
 
-            query = applyFilters(query, { search, category, missingData, status });
+            query = applyFilters(query, { search, category, task, tag, missingData, status, featured, spotlight, listing, trending });
 
             const result = await query.range(offset, offset + validLimit - 1);
             data = result.data;
@@ -215,7 +254,18 @@ export async function GET(request: NextRequest) {
 
         // Map to frontend-friendly format
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const tools = (data || []).map((tool: any) => dbToolToAdminTool(tool));
+        const mapped = (data || []).map((tool: any) => dbToolToAdminTool(tool));
+
+        // Strip to card fields when requested (avoids sending 40+ fields for management UIs)
+        const tools = fieldsParam === 'card'
+            ? mapped.map(t => ({
+                id: t.id, name: t.name, appUsername: t.appUsername,
+                logoUrl: t.logoUrl, categoryName: t.categoryName, status: t.status,
+                isFeatured: t.isFeatured, listingType: t.listingType,
+                spotlightEnabled: t.spotlightEnabled, spotlightPosition: t.spotlightPosition,
+                trendingPosition: t.trendingPosition,
+            }))
+            : mapped;
 
         // Return paginated response
         if (allData) {
@@ -284,6 +334,13 @@ export async function POST(request: NextRequest) {
         revalidatePath('/');
         revalidatePath('/new');
         revalidatePath('/trending');
+
+        // Sync category/task counts in the background
+        const categories = Array.isArray(parseResult.data.categoryName) ? parseResult.data.categoryName
+            : typeof parseResult.data.categoryName === 'string' ? [parseResult.data.categoryName] : [];
+        const tasks = Array.isArray(parseResult.data.taskName) ? parseResult.data.taskName
+            : typeof parseResult.data.taskName === 'string' ? [parseResult.data.taskName] : [];
+        void syncToolCounts(categories, tasks).catch(err => console.error('[Tools] syncToolCounts failed:', err));
 
         return NextResponse.json(dbToolToAdminTool(data), { status: 201 });
     } catch (err) {

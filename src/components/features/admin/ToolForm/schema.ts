@@ -23,7 +23,7 @@ export const toolSchema = z.object({
     tags: z.array(z.string()).default([]),
 
     // Pricing
-    pricing: z.enum(['free', 'freemium', 'paid']).default('free'),
+    pricing: z.enum(['free', 'freemium', 'paid', 'open_source']).default('free'),
     pricingLabel: z.string().default(''),
     billingFrequency: z.string().default('monthly'),
     discount: z.string().default(''),
@@ -102,7 +102,7 @@ export const toolSchema = z.object({
     saveCount: z.number().default(0),
 
     // Rating (0-5 scale, e.g., 4.5)
-    rating: z.number().min(0).max(5).optional().nullable(),
+    rating: z.number().min(0).max(5).optional().nullable().default(null),
 }).refine(
     (data) => !data.spotlightEnabled || data.listingType === 'spotlight',
     { message: 'Spotlight must be enabled only when listing type is "spotlight"', path: ['spotlightEnabled'] },
@@ -161,5 +161,5 @@ export const defaultToolValues: ToolFormData = {
     listingType: 'free',
     backLinks: false,
     saveCount: 0,
-    rating: undefined,
+    rating: null,
 };

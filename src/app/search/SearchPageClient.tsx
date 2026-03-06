@@ -9,7 +9,7 @@ import { Category, Task } from '@/types';
 import { trackSearch, trackFilterUsed } from '@/hooks/useToolAnalytics';
 import { searchWithCountAction, getSearchSuggestionsAction } from '@/lib/actions';
 
-const ITEMS_PER_PAGE = 20;
+const PAGE_SIZE = 48;
 
 interface SearchPageClientProps {
     categories: Category[];
@@ -22,23 +22,24 @@ interface SearchPageClientProps {
 export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount }: SearchPageClientProps) {
     const searchParams = useSearchParams();
     const lastTrackedQuery = useRef<string>('');
-    const searchTimeout = useRef<NodeJS.Timeout>();
+    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
     const searchCommittedRef = useRef(false);
 
     const [query, setQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [selectedTask, setSelectedTask] = useState<string | null>(null);
     const [selectedPricing, setSelectedPricing] = useState<string | null>(null);
-    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
     // Search state
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [totalCount, setTotalCount] = useState(0); // Total matching results
+    const [totalCount, setTotalCount] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
     const [isSearching, setIsSearching] = useState(false);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
-    const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+    const resultsRef = useRef<HTMLDivElement>(null);
 
     // Ctrl+K keyboard shortcut to focus search
     useEffect(() => {
@@ -81,17 +82,19 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             setSuggestions([]);
             return;
         }
+        setIsLoadingSuggestions(true);
         try {
             const tools = await getSearchSuggestionsAction(q, 6);
             setSuggestions(tools);
         } catch (error) {
             console.error('Suggestions failed:', error);
+        } finally {
+            setIsLoadingSuggestions(false);
         }
     }, []);
 
-    // Search function using Server Action (hidden from Network tab)
-    const performSearch = useCallback(async (searchQuery: string, category: string | null, task: string | null, pricing: string | null) => {
-        // Only search if there's a committed query (min 3 chars) or filter
+    // Fetch a specific page of results
+    const performSearch = useCallback(async (searchQuery: string, category: string | null, task: string | null, pricing: string | null, page: number = 1) => {
         if ((!searchQuery || searchQuery.length < 3) && !category && !task && !pricing) {
             setSearchResults([]);
             setTotalCount(0);
@@ -107,10 +110,12 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                 category: category || undefined,
                 task: task || undefined,
                 pricing: pricing || undefined,
-                limit: 500, // Fetch more, display fewer with Load More
+                limit: PAGE_SIZE,
+                offset: (page - 1) * PAGE_SIZE,
             });
             setSearchResults(tools);
             setTotalCount(totalCount);
+            setCurrentPage(page);
             setHasSearched(true);
         } catch (error) {
             console.error('Search failed:', error);
@@ -118,6 +123,13 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             setIsSearching(false);
         }
     }, []);
+
+    // Navigate to a specific page
+    async function goToPage(page: number): Promise<void> {
+        await performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing, page);
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+    }
 
     // Debounced suggestions on query change (NOT full search)
     useEffect(() => {
@@ -144,9 +156,9 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         };
     }, [query, fetchSuggestions]);
 
-    // Trigger full search when committed query or filters change
+    // Trigger fresh search (page 1) when committed query or filters change
     useEffect(() => {
-        performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing);
+        performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing, 1);
     }, [committedQuery, selectedCategory, selectedTask, selectedPricing, performSearch]);
 
     // Handle keyboard navigation (arrows, Enter, Escape)
@@ -162,7 +174,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-                window.location.href = `/app/${suggestions[selectedIndex].app_username}`;
+                window.location.href = `/app/${suggestions[selectedIndex].appUsername}`;
             } else {
                 if (searchTimeout.current) {
                     clearTimeout(searchTimeout.current);
@@ -182,11 +194,6 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     useEffect(() => {
         setSelectedIndex(-1);
     }, [suggestions]);
-
-    // Reset visible count when results change
-    useEffect(() => {
-        setVisibleCount(ITEMS_PER_PAGE);
-    }, [searchResults]);
 
     // Track search queries
     useEffect(() => {
@@ -209,25 +216,22 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         if (selectedPricing) trackFilterUsed('pricing', selectedPricing);
     }, [selectedPricing]);
 
-    const visibleTools = searchResults.slice(0, visibleCount);
-    const hasMore = visibleCount < searchResults.length;
+    // Pagination helpers
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-    useEffect(() => {
-        if (!hasMore) return;
-        const sentinel = loadMoreSentinelRef.current;
-        if (!sentinel) return;
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    setVisibleCount((prev) => prev + ITEMS_PER_PAGE);
-                }
-            },
-            { rootMargin: '200px', threshold: 0 }
-        );
-        observer.observe(sentinel);
-        return () => observer.disconnect();
-    }, [hasMore]);
+    function getPageNumbers(): (number | 'ellipsis')[] {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+        const pages: (number | 'ellipsis')[] = [1];
+        if (currentPage > 3) pages.push('ellipsis');
+        const start = Math.max(2, currentPage - 1);
+        const end = Math.min(totalPages - 1, currentPage + 1);
+        for (let i = start; i <= end; i++) pages.push(i);
+        if (currentPage < totalPages - 2) pages.push('ellipsis');
+        if (totalPages > 1 && pages[pages.length - 1] !== totalPages) pages.push(totalPages);
+        return pages;
+    }
 
     const clearFilters = () => {
         setQuery('');
@@ -256,10 +260,14 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                 <div className="relative w-full max-w-[500px] mt-1 py-1">
                     <div className="bg-bg-card border border-border rounded-full shadow-lg hover:shadow-xl hover:border-text-tertiary focus-within:border-accent-primary/50 focus-within:shadow-[0_0_0_3px_rgba(52,178,123,0.25)] transition-all duration-200">
                         <div className="flex items-center gap-3 w-full px-5 py-3.5">
-                            <svg className="text-text-tertiary flex-shrink-0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="M21 21l-4.35-4.35" />
-                            </svg>
+                            {(isSearching || isLoadingSuggestions) ? (
+                                <span className="w-[22px] h-[22px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
+                            ) : (
+                                <svg className="text-text-tertiary flex-shrink-0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="11" cy="11" r="8" />
+                                    <path d="M21 21l-4.35-4.35" />
+                                </svg>
+                            )}
                             <input
                                 ref={inputRef}
                                 type="text"
@@ -280,16 +288,13 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 }}
                                 onBlur={() => setTimeout(() => setShowSuggestions(false), 300)}
                             />
-                            {isSearching && (
-                                <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
-                            )}
-                            {!query && !isSearching && (
+                            {!query && (
                                 <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">
                                     <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">Ctrl</kbd>
                                     <kbd className="px-1.5 py-0.5 bg-bg-tertiary border border-border rounded text-[10px] font-mono">K</kbd>
                                 </span>
                             )}
-                            {query && !isSearching && (
+                            {query && (
                                 <button
                                     className="flex items-center justify-center p-1 bg-transparent border-none cursor-pointer text-text-tertiary transition-colors hover:text-text-primary"
                                     onClick={() => { searchCommittedRef.current = false; setQuery(''); }}
@@ -353,6 +358,15 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                         >
                             Freemium
                         </button>
+                        <button
+                            onClick={() => setSelectedPricing('open_source')}
+                            className={`px-4 py-2 text-sm rounded-full border transition-all duration-200 ${selectedPricing === 'open_source'
+                                ? 'bg-sky-500/20 border-sky-500 text-sky-500'
+                                : 'bg-bg-card border-border text-text-secondary hover:border-text-tertiary hover:text-text-primary'
+                                }`}
+                        >
+                            Open Source
+                        </button>
                         <a
                             href="/tasks"
                             className="px-4 py-2 text-sm rounded-full border border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary transition-all duration-200"
@@ -369,60 +383,69 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                 </div>
             )}
 
-            <div className="flex flex-wrap gap-3 mb-6 justify-center">
-                <SearchableSelect
-                    options={[
-                        { value: '', label: 'All Categories' },
-                        ...categories.map(cat => ({ value: cat.categoryName, label: cat.categoryName }))
-                    ]}
-                    value={selectedCategory || ''}
-                    onChange={(value) => setSelectedCategory(value || null)}
-                    placeholder="All Categories"
-                    className="min-w-[160px]"
-                />
+            {(hasSearched || hasActiveFilters) && (
+                <div className="flex flex-wrap gap-3 mb-6 justify-center">
+                    <SearchableSelect
+                        options={[
+                            { value: '', label: 'All Categories' },
+                            ...categories
+                                .map(cat => ({ value: cat.categoryName, label: cat.categoryName }))
+                                .sort((a, b) => a.label.localeCompare(b.label))
+                        ]}
+                        value={selectedCategory || ''}
+                        onChange={(value) => setSelectedCategory(value || null)}
+                        placeholder="All Categories"
+                        className="min-w-[160px]"
+                    />
 
-                <SearchableSelect
-                    options={[
-                        { value: '', label: 'All Tasks' },
-                        ...tasks.map(task => ({ value: task.taskName, label: task.taskName }))
-                    ]}
-                    value={selectedTask || ''}
-                    onChange={(value) => setSelectedTask(value || null)}
-                    placeholder="All Tasks"
-                    className="min-w-[160px]"
-                />
+                    <SearchableSelect
+                        options={[
+                            { value: '', label: 'All Tasks' },
+                            ...tasks
+                                .map(task => ({ value: task.taskName, label: task.taskName }))
+                                .sort((a, b) => a.label.localeCompare(b.label))
+                        ]}
+                        value={selectedTask || ''}
+                        onChange={(value) => setSelectedTask(value || null)}
+                        placeholder="All Tasks"
+                        className="min-w-[160px]"
+                    />
 
-                <SearchableSelect
-                    options={[
-                        { value: '', label: 'All Pricing' },
-                        { value: 'free', label: 'Free' },
-                        { value: 'freemium', label: 'Freemium' },
-                        { value: 'paid', label: 'Paid' },
-                    ]}
-                    value={selectedPricing || ''}
-                    onChange={(value) => setSelectedPricing(value || null)}
-                    placeholder="All Pricing"
-                    showSearch={false}
-                    className="min-w-[140px]"
-                />
+                    <SearchableSelect
+                        options={[
+                            { value: '', label: 'All Pricing' },
+                            { value: 'free', label: 'Free' },
+                            { value: 'freemium', label: 'Freemium' },
+                            { value: 'paid', label: 'Paid' },
+                            { value: 'open_source', label: 'Open Source' },
+                        ]}
+                        value={selectedPricing || ''}
+                        onChange={(value) => setSelectedPricing(value || null)}
+                        placeholder="All Pricing"
+                        showSearch={false}
+                        className="min-w-[140px]"
+                    />
 
-                {hasActiveFilters && (
-                    <button
-                        onClick={clearFilters}
-                        className="px-4 py-2 text-sm text-text-tertiary hover:text-accent-primary transition-colors"
-                    >
-                        Clear all
-                    </button>
-                )}
-            </div>
+                    {hasActiveFilters && (
+                        <button
+                            onClick={clearFilters}
+                            className="px-4 py-2 text-sm text-text-tertiary hover:text-accent-primary transition-colors"
+                        >
+                            Clear all
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Search Results */}
             {hasSearched && (
-                <div className="mb-12">
+                <div className="mb-12" ref={resultsRef}>
                     {!isSearching && (
                         <p className="text-sm text-text-tertiary mb-4">
-                            Showing {Math.min(visibleCount, searchResults.length)} of {totalCount.toLocaleString()} tool{totalCount !== 1 ? 's' : ''}
-                            {committedQuery && ` for "${committedQuery}"`}
+                            {totalCount > 0
+                                ? <>Showing {((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(currentPage * PAGE_SIZE, totalCount).toLocaleString()} of {totalCount.toLocaleString()} tool{totalCount !== 1 ? 's' : ''}{committedQuery && ` for "${committedQuery}"`}</>
+                                : <>No tools found{committedQuery && ` for "${committedQuery}"`}</>
+                            }
                         </p>
                     )}
 
@@ -446,24 +469,54 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                     ) : (
                         <>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {visibleTools.map((tool) => (
+                                {searchResults.map((tool) => (
                                     <AIToolCard key={tool.id} tool={tool} />
                                 ))}
                             </div>
 
-                            {hasMore && (
-                                <div
-                                    ref={loadMoreSentinelRef}
-                                    className="h-1 mt-8"
-                                    aria-hidden
-                                />
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <nav className="flex items-center justify-center gap-1 mt-8" aria-label="Search results pagination">
+                                    <button
+                                        onClick={() => goToPage(currentPage - 1)}
+                                        disabled={currentPage === 1 || isSearching}
+                                        className="px-3 py-2 text-sm rounded-lg border border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        ← Prev
+                                    </button>
+
+                                    {getPageNumbers().map((page, i) =>
+                                        page === 'ellipsis' ? (
+                                            <span key={`ellipsis-${i}`} className="px-2 text-text-tertiary" aria-hidden="true">…</span>
+                                        ) : (
+                                            <button
+                                                key={page}
+                                                onClick={() => goToPage(page)}
+                                                disabled={isSearching}
+                                                aria-current={page === currentPage ? 'page' : undefined}
+                                                className={`w-10 h-10 text-sm rounded-lg border transition-all ${page === currentPage
+                                                    ? 'bg-accent-primary border-accent-primary text-white font-semibold'
+                                                    : 'border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary'
+                                                    } disabled:cursor-not-allowed`}
+                                            >
+                                                {page}
+                                            </button>
+                                        )
+                                    )}
+
+                                    <button
+                                        onClick={() => goToPage(currentPage + 1)}
+                                        disabled={currentPage === totalPages || isSearching}
+                                        className="px-3 py-2 text-sm rounded-lg border border-border bg-bg-card text-text-secondary hover:border-text-tertiary hover:text-text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        Next →
+                                    </button>
+                                </nav>
                             )}
                         </>
                     )}
                 </div>
             )}
-
-            {/* Tools only shown after search */}
         </div>
     );
 }

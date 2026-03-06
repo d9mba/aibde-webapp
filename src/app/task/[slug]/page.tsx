@@ -60,7 +60,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 /**
  * Task Detail Page - Optimized with pagination
- * Initially loads 100 tools, more loaded on demand
+ * Initially loads 48 tools, more loaded on demand
  */
 export default async function TaskPage({ params }: PageProps) {
     const { slug } = await params;
@@ -69,9 +69,9 @@ export default async function TaskPage({ params }: PageProps) {
     // Find task by matching against slugified version of task name
     const task = tasks.find(t => slugify(t.taskName) === slug) || null;
 
-    // Fetch initial tools and total count
+    // Fetch initial tools (1 page) and total count
     const [tools, totalCount] = await Promise.all([
-        task ? getToolsByTask(task.taskName, 100) : Promise.resolve([]),
+        task ? getToolsByTask(task.taskName, 48) : Promise.resolve([]),
         task ? getToolsCountByTask(task.taskName) : Promise.resolve(0)
     ]);
 
@@ -80,7 +80,7 @@ export default async function TaskPage({ params }: PageProps) {
     const itemListLd = task && tools.length ? getItemListJsonLd(
         `${task.taskName} AI Tools`,
         taskUrl,
-        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.app_username}` })),
+        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.appUsername}` })),
         task.description || undefined
     ) : null;
 

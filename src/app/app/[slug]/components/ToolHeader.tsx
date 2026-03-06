@@ -8,9 +8,10 @@ import { addUtmParams } from '@/lib/url-utils';
 import { slugify } from '@/lib/utils';
 import { Share2 } from 'lucide-react';
 import { trackToolVisit } from '@/hooks/useToolAnalytics';
-import { useImpressions } from '@/contexts/ImpressionsContext';
+import { useImpressions } from '@/context/ImpressionsContext';
 import VoteButtons from '@/components/ui/VoteButtons';
 import { ToolBadge } from '@/components/icons';
+import { getPricingLabel } from '@/lib/formatters';
 
 // Click-to-open More Options Menu
 function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
@@ -43,7 +44,7 @@ function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
             {isOpen && (
                 <div className="absolute left-0 top-full mt-1 py-1 bg-bg-card border border-border rounded-lg shadow-lg z-50 min-w-[130px]">
                     <a
-                        href={`mailto:support@aibde.tech?subject=Report%20Issue%20with%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.app_username}%0A%0AIssue:%20`}
+                        href={`mailto:support@aibde.tech?subject=Report%20Issue%20with%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.appUsername}%0A%0AIssue:%20`}
                         className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-red transition-colors no-underline"
                         onClick={() => setIsOpen(false)}
                     >
@@ -53,7 +54,7 @@ function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
                         Report
                     </a>
                     <a
-                        href={`mailto:support@aibde.tech?subject=Claim%20Ownership%20of%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.app_username}%0A%0AI%20am%20the%20owner/developer%20of%20this%20tool%20and%20would%20like%20to%20claim%20it.%0A%0AMy%20role:%20%0AProof%20of%20ownership:%20`}
+                        href={`mailto:support@aibde.tech?subject=Claim%20Ownership%20of%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.appUsername}%0A%0AI%20am%20the%20owner/developer%20of%20this%20tool%20and%20would%20like%20to%20claim%20it.%0A%0AMy%20role:%20%0AProof%20of%20ownership:%20`}
                         className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-primary transition-colors no-underline"
                         onClick={() => setIsOpen(false)}
                     >
@@ -63,7 +64,7 @@ function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
                         Claim
                     </a>
                     <a
-                        href={`mailto:support@aibde.tech?subject=Advertise%20on%20${encodeURIComponent(tool.name)}%20Page&body=Tool%20URL:%20https://aibde.com/app/${tool.app_username}%0A%0AI%20am%20interested%20in%20advertising%20on%20this%20tool%20page.%0A%0ACompany:%20%0ABudget:%20%0ADetails:%20`}
+                        href={`mailto:support@aibde.tech?subject=Advertise%20on%20${encodeURIComponent(tool.name)}%20Page&body=Tool%20URL:%20https://aibde.com/app/${tool.appUsername}%0A%0AI%20am%20interested%20in%20advertising%20on%20this%20tool%20page.%0A%0ACompany:%20%0ABudget:%20%0ADetails:%20`}
                         className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-primary transition-colors no-underline"
                         onClick={() => setIsOpen(false)}
                     >
@@ -95,7 +96,7 @@ export default function ToolHeader({
 }: ToolHeaderProps) {
     const logoColor = getLogoColor(tool.name);
     const { getImpressions } = useImpressions();
-    const impressionCount = getImpressions(tool.app_username);
+    const impressionCount = getImpressions(tool.appUsername);
 
     return (
         <div className="pb-4 sm:pb-6 border-b border-border">
@@ -136,11 +137,11 @@ export default function ToolHeader({
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                             {tool.websiteUrl && (
                                 <a
-                                    href={tool.backLinks ? tool.websiteUrl : `/go/${tool.app_username}`}
+                                    href={tool.backLinks ? tool.websiteUrl : `/go/${tool.appUsername}`}
                                     target="_blank"
                                     rel={tool.backLinks ? "noopener" : "noopener noreferrer nofollow"}
                                     onClick={() => trackToolVisit(
-                                        { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                                        { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                                         tool.websiteUrl || ''
                                     )}
                                     className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
@@ -196,14 +197,15 @@ export default function ToolHeader({
                     className={`flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full transition-colors no-underline ${tool.pricing === 'free' ? 'bg-green-50 border border-green-100 text-green-700 hover:bg-green-100' :
                         tool.pricing === 'freemium' ? 'bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100' :
                             tool.pricing === 'paid' ? 'bg-rose-50 border border-rose-100 text-rose-700 hover:bg-rose-100' :
-                                'bg-amber-50 border border-amber-100 text-amber-700 hover:bg-amber-100'
+                                tool.pricing === 'open_source' ? 'bg-sky-50 border border-sky-100 text-sky-700 hover:bg-sky-100' :
+                                    'bg-amber-50 border border-amber-100 text-amber-700 hover:bg-amber-100'
                         }`}
                 >
                     <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
                         <line x1="7" y1="7" x2="7.01" y2="7" />
                     </svg>
-                    {tool.pricing?.charAt(0).toUpperCase() + tool.pricing?.slice(1)}
+                    {getPricingLabel(tool.pricing)}
                 </Link>
                 {tool.discount && (
                     <span

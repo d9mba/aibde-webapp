@@ -72,7 +72,7 @@ export default function Header() {
     // API-based search suggestions (instead of sharedTools)
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>();
+    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = async (query: string) => {
@@ -146,8 +146,8 @@ export default function Header() {
 
     // Handle tool click
     const handleToolClick = (tool: any) => {
-        trackToolClick({ id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-        router.push(`/app/${tool.app_username}`);
+        trackToolClick({ id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
+        router.push(`/app/${tool.appUsername}`);
         setSearchOpen(false);
         setSearchQuery('');
         setSuggestions([]);
@@ -213,6 +213,7 @@ export default function Header() {
                         "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         pathname === '/' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
+                    onClick={() => setSidebarOpen(false)}
                 >
                     <Home strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Home</span>
@@ -237,6 +238,7 @@ export default function Header() {
                         "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         pathname === '/trending' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
+                    onClick={() => setSidebarOpen(false)}
                 >
                     <TrendingUp strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">Trending</span>
@@ -249,6 +251,7 @@ export default function Header() {
                         "flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-full transition-colors focus:outline-none min-w-0 flex-shrink-0 flex-1",
                         pathname === '/new' ? "text-accent-primary" : "text-text-secondary hover:text-text-primary"
                     )}
+                    onClick={() => setSidebarOpen(false)}
                 >
                     <Sparkles strokeWidth={1.5} className="w-5 h-5 sm:w-5 sm:h-5 flex-shrink-0" />
                     <span className="text-[8px] sm:text-[9px] font-medium truncate w-full text-center">New</span>
@@ -273,7 +276,11 @@ export default function Header() {
                     {/* Search header */}
                     <div className="flex items-center gap-3 p-4 border-b border-border">
                         <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-3 bg-bg-secondary rounded-full px-4 py-2.5 border border-border focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
-                            <Search size={18} className="text-text-tertiary flex-shrink-0" />
+                            {isLoading ? (
+                                <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
+                            ) : (
+                                <Search size={18} className="text-text-tertiary flex-shrink-0" />
+                            )}
                             <input
                                 ref={searchInputRef}
                                 type="text"

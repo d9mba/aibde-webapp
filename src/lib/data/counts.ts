@@ -3,7 +3,7 @@
  * Get totals without loading all data
  */
 
-import { supabase } from '../supabase';
+import { supabaseAdmin as supabase } from '../supabase';
 
 export async function getToolsCount(statusFilter?: ('published' | 'approved')[]): Promise<number> {
     let query = supabase
@@ -25,49 +25,31 @@ export async function getToolsCount(statusFilter?: ('published' | 'approved')[])
 }
 
 export async function getCategoriesCount(): Promise<number> {
-    // Count only categories that have at least one published tool
-    const { data, error } = await supabase
-        .from('tools')
-        .select('category_name')
-        .in('status', ['published', 'approved']);
+    const { count, error } = await supabase
+        .from('categories')
+        .select('*', { count: 'exact', head: true })
+        .gt('count', 0);
 
     if (error) {
         console.error('Error counting categories:', error);
         return 0;
     }
 
-    // Extract unique categories from published tools
-    const uniqueCategories = new Set<string>();
-    data?.forEach(tool => {
-        if (tool.category_name && Array.isArray(tool.category_name)) {
-            tool.category_name.forEach((cat: string) => uniqueCategories.add(cat));
-        }
-    });
-
-    return uniqueCategories.size;
+    return count || 0;
 }
 
 export async function getTasksCount(): Promise<number> {
-    // Count only tasks that have at least one published tool
-    const { data, error } = await supabase
-        .from('tools')
-        .select('task_name')
-        .in('status', ['published', 'approved']);
+    const { count, error } = await supabase
+        .from('tasks')
+        .select('*', { count: 'exact', head: true })
+        .gt('count', 0);
 
     if (error) {
         console.error('Error counting tasks:', error);
         return 0;
     }
 
-    // Extract unique tasks from published tools
-    const uniqueTasks = new Set<string>();
-    data?.forEach(tool => {
-        if (tool.task_name && Array.isArray(tool.task_name)) {
-            tool.task_name.forEach((task: string) => uniqueTasks.add(task));
-        }
-    });
-
-    return uniqueTasks.size;
+    return count || 0;
 }
 
 export async function getTagsCount(): Promise<number> {

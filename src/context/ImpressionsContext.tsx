@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { getImpressionsAction } from '@/lib/actions';
 
 interface ToolImpressions {
     [slug: string]: number;
@@ -14,7 +15,7 @@ interface ImpressionsContextType {
 
 const ImpressionsContext = createContext<ImpressionsContextType>({
     impressions: {},
-    loading: false,
+    loading: true,
     getImpressions: () => 0,
 });
 
@@ -24,7 +25,7 @@ export function useImpressions() {
 
 export function ImpressionsProvider({ children }: { children: ReactNode }) {
     const [impressions, setImpressions] = useState<ToolImpressions>({});
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -35,16 +36,9 @@ export function ImpressionsProvider({ children }: { children: ReactNode }) {
         if (!mounted) return;
 
         const fetchImpressions = async () => {
-            setLoading(true);
             try {
-                const res = await fetch('/api/public/impressions');
-
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.impressions) {
-                        setImpressions(data.impressions);
-                    }
-                }
+                const data = await getImpressionsAction();
+                setImpressions(data);
             } catch {
                 // Silently fail - impressions will default to 0
             } finally {
@@ -63,4 +57,3 @@ export function ImpressionsProvider({ children }: { children: ReactNode }) {
         </ImpressionsContext.Provider>
     );
 }
-

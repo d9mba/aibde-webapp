@@ -2,19 +2,61 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
+import { useTools } from '@/hooks/useTools';
 import { useToast } from '@/components/ui/Toast';
-import { Search, ChevronLeft, ChevronRight, Save, BadgeCheck } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Save, BadgeCheck, Loader2 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
 
 export default function VerifiedPage() {
-    const { tools, updateTool, isLoaded } = useAdmin();
+    const { updateTool, toolsMutated } = useAdmin();
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [verifiedSearch, setVerifiedSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [verifiedPage, setVerifiedPage] = useState(1);
     const [saving, setSaving] = useState(false);
+
+    // Fetch verified tools (small set) and available tools (paginated)
+    const { tools: verifiedToolsRaw, loading: verLoading, refetch: refetchVerified } = useTools({
+        listing: 'verified', status: 'published', all: true, deps: toolsMutated, fields: 'card',
+    });
+    const { tools: availableToolsRaw, loading: availLoading, totalCount: availableTotal } = useTools({
+        status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
+        search, deps: toolsMutated, fields: 'card',
+    });
+    // Count auto-verified tools (spotlight + featured are automatically verified)
+    // Use limit:1 to fetch only the count, not all rows
+    const { totalCount: spotlightCount } = useTools({
+        spotlight: true, status: 'published', limit: 1, deps: toolsMutated, fields: 'card',
+    });
+    const { totalCount: featuredCount } = useTools({
+        featured: true, status: 'published', limit: 1, deps: toolsMutated, fields: 'card',
+    });
+    // NOTE: autoVerifiedCount is approximate — tools that are both spotlight and
+    // featured are counted twice. The overlap is typically small and acceptable
+    // for a dashboard stat display.
+    const autoVerifiedCount = (spotlightCount || 0) + (featuredCount || 0);
+
+    // Only block the full page on initial verified tools load, not on available tools search
+    const isLoaded = !verLoading;
+
+    // Capture initial total so "Available" stat stays constant during search
+    const [initialTotal, setInitialTotal] = useState<number | null>(null);
+    useEffect(() => {
+        if (availableTotal != null && initialTotal === null) {
+            setInitialTotal(availableTotal);
+        }
+    }, [availableTotal, initialTotal]);
+    // Reset initial total when tools are mutated so it refreshes
+    useEffect(() => {
+        setInitialTotal(null);
+    }, [toolsMutated]);
+    const allTools = useMemo(() => {
+        const verifiedIds = new Set(verifiedToolsRaw.map(t => t.id));
+        const uniqueAvailable = availableToolsRaw.filter(t => !verifiedIds.has(t.id));
+        return [...verifiedToolsRaw, ...uniqueAvailable];
+    }, [verifiedToolsRaw, availableToolsRaw]);
 
     // Local state for pending changes
     const [pendingVerifiedIds, setPendingVerifiedIds] = useState<string[]>([]);
@@ -25,18 +67,18 @@ export default function VerifiedPage() {
     useEffect(() => {
         if (verifiedInitializedRef.current) return;
         verifiedInitializedRef.current = true;
-        const currentVerified = tools.filter((t: AdminTool) => t.listingType === 'verified');
+        const currentVerified = verifiedToolsRaw.filter((t: AdminTool) => t.listingType === 'verified');
         const ids = currentVerified.map(t => t.id);
 
         if (ids.length > 0) setPendingVerifiedIds(ids);
-    }, [tools]);
+    }, [verifiedToolsRaw]);
 
     // Current verified tools based on pending changes
     const allVerifiedTools = useMemo(() => {
         return pendingVerifiedIds
-            .map(id => tools.find(t => t.id === id))
+            .map(id => allTools.find(t => t.id === id))
             .filter((t): t is AdminTool => t !== undefined);
-    }, [tools, pendingVerifiedIds]);
+    }, [allTools, pendingVerifiedIds]);
 
     // Helper to get existing listing type label for a tool
     const getExistingListingLabel = (tool: AdminTool): string | null => {
@@ -46,14 +88,13 @@ export default function VerifiedPage() {
         return null;
     };
 
-    // Regular (non-verified) tools - show all published except verified
+    // Regular (non-verified) tools from paginated API results
     const regularTools = useMemo(() => {
-        return tools.filter((t: AdminTool) =>
+        return availableToolsRaw.filter((t: AdminTool) =>
             !pendingVerifiedIds.includes(t.id) &&
-            t.status === 'published' &&
             t.listingType !== 'verified'
         );
-    }, [tools, pendingVerifiedIds]);
+    }, [availableToolsRaw, pendingVerifiedIds]);
 
     // Count of tools that can actually be added (no existing listing type)
     const availableCount = useMemo(() => {
@@ -101,14 +142,14 @@ export default function VerifiedPage() {
     };
 
     const handleAddToVerified = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = allTools.find((t: AdminTool) => t.id === toolId);
         setPendingVerifiedIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
     };
 
     const handleRemoveFromVerified = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = allTools.find((t: AdminTool) => t.id === toolId);
         setPendingVerifiedIds(prev => prev.filter(id => id !== toolId));
         setHasChanges(true);
         showToast(`Removed "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
@@ -118,8 +159,8 @@ export default function VerifiedPage() {
         showToast('Saving verified changes...', 'info');
         setSaving(true);
         try {
-            const currentVerified = tools.filter(t => t.listingType === 'verified');
-            const currentIds = new Set(currentVerified.map(t => t.id));
+            const currentVerified = verifiedToolsRaw.filter((t: AdminTool) => t.listingType === 'verified');
+            const currentIds = new Set(currentVerified.map((t: AdminTool) => t.id));
             const pendingSet = new Set(pendingVerifiedIds);
 
             const updates: Promise<void>[] = [];
@@ -196,13 +237,17 @@ export default function VerifiedPage() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
                         <div className="text-xl sm:text-2xl font-bold text-accent-green">{allVerifiedTools.length}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Verified</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-text-tertiary">{availableCount}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-primary">{autoVerifiedCount}</div>
+                        <div className="text-[10px] sm:text-xs text-text-tertiary">Auto (Spotlight + Featured)</div>
+                    </div>
+                    <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
+                        <div className="text-xl sm:text-2xl font-bold text-text-tertiary">{Math.max(0, (initialTotal ?? availableTotal) - allVerifiedTools.length - autoVerifiedCount)}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>
@@ -229,8 +274,13 @@ export default function VerifiedPage() {
                             </div>
                         </div>
 
-                        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
-                            {paginatedTools.length === 0 ? (
+                        <div className={`divide-y divide-border max-h-[400px] overflow-y-auto transition-opacity duration-200 ${availLoading ? 'opacity-50' : ''}`}>
+                            {availLoading && paginatedTools.length === 0 ? (
+                                <div className="p-6 sm:p-8 flex items-center justify-center gap-2 text-text-tertiary text-sm">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Loading tools...
+                                </div>
+                            ) : paginatedTools.length === 0 ? (
                                 <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
                                     {search ? 'No tools match your search' : 'All tools are already verified'}
                                 </div>

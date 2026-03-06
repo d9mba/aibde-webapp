@@ -6,16 +6,12 @@ interface PageProps {
 
 /**
  * Catch-All Route
- * 
- * Any unknown route like /anything will redirect to /search?q=anything
- * This provides a better UX than showing a 404 error
+ *
+ * Any unknown page route like /gemini redirects to /search?q=gemini
  */
 export default async function CatchAllPage({ params }: PageProps) {
     const { slug } = await params;
-
-    // Join the slug parts into a search query
+    if (!slug || slug.length === 0) redirect('/');
     const searchQuery = slug.join(' ');
-
-    // Redirect to search with the query
     redirect(`/search?q=${encodeURIComponent(searchQuery)}`);
 }

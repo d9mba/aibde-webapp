@@ -34,6 +34,8 @@ export async function generateMetadata(): Promise<Metadata> {
     const title = `AiBDE - Browse, Discover, and Explore. Top AI Tools For Your Everyday Tasks`;
     const description = `Discover ${toolCount.toLocaleString()}+ AI tools across ${categoryCount} categories for ${taskCount}+ tasks. Find the best AI solutions for writing, design, coding, marketing, and more. Updated daily.`;
 
+    const year = new Date().getFullYear();
+
     return {
         title,
         description,
@@ -41,7 +43,7 @@ export async function generateMetadata(): Promise<Metadata> {
             'AI tools',
             'AI tools directory',
             'best AI tools',
-            'AI tools 2025',
+            `AI tools ${year}`,
             'free AI tools',
             'AI software',
             'artificial intelligence tools',
@@ -87,9 +89,9 @@ export default async function HomePage() {
         getToolsCount(['published', 'approved']),
         getCategoriesCount(),
         getTasksCount(),
-        getRecentlyReleasedTools(90), // Fetch 90 tools to support Load More up to max
+        getRecentlyReleasedTools(90),
         getSpotlightTools(),
-        getTrendingTools(50), // Fetch top 50 trending tools
+        getTrendingTools(50),
         getCategories(),
         getTasks(),
         getHomeSettings(),

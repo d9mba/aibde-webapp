@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkRateLimit, rateLimits } from '@/lib/rate-limit';
+import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
+import { verifyTurnstile } from '@/lib/turnstile';
 
 const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_TOOL_SUBMISSIONS_URL || '';
-const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
 
 const MAX_LEN = { name: 100, email: 254, toolName: 200, url: 500, shortDesc: 1000, longDesc: 5000, tags: 500, features: 2000 };
 
@@ -44,35 +44,11 @@ interface ToolSubmissionData {
     description?: string;
 }
 
-async function verifyTurnstile(token: string): Promise<boolean> {
-    if (!TURNSTILE_SECRET_KEY) {
-        console.warn('[Submit Tool API] Turnstile secret key not configured, skipping verification');
-        return true;
-    }
 
-    try {
-        const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                secret: TURNSTILE_SECRET_KEY,
-                response: token,
-            }),
-        });
-
-        const data = await response.json();
-        return data.success === true;
-    } catch (err) {
-        console.error('[Submit Tool API] Turnstile verification error:', err);
-        return false;
-    }
-}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        const forwarded = request.headers.get('x-forwarded-for');
-        const clientIp = forwarded?.split(',')[0]?.trim() || null;
-        const identifier = clientIp ?? request.headers.get('x-real-ip') ?? 'anonymous';
+        const identifier = getClientIp(request);
         const rateLimit = await checkRateLimit(`submit:${identifier}`, rateLimits.sensitive);
         if (!rateLimit.success) {
             return NextResponse.json(
@@ -95,6 +71,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
         if (body.submitterEmail.length > MAX_LEN.email) {
             return NextResponse.json({ error: 'Email too long' }, { status: 400 });
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.submitterEmail)) {
+            return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
         }
         const lengthErrors: string[] = [];
         if (body.toolName.length > MAX_LEN.toolName) lengthErrors.push('Tool name too long');

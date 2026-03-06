@@ -3,6 +3,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { categorySchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
+// Escape SQL LIKE wildcards so user input is matched literally
+function escapeLikePattern(input: string): string {
+    return input.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
 // GET /api/categories - List categories with pagination (ADMIN ONLY)
 export async function GET(request: NextRequest) {
     try {
@@ -15,6 +20,7 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '25');
         const all = searchParams.get('all') === 'true';
+        const allSearch = searchParams.get('search') || '';
 
         // If all=true, fetch all records (for dashboard stats, etc.)
         if (all) {
@@ -24,11 +30,13 @@ export async function GET(request: NextRequest) {
             let hasMore = true;
 
             while (hasMore) {
-                const { data, error } = await supabaseAdmin
+                let query = supabaseAdmin
                     .from('categories')
                     .select('*')
                     .order('category_name', { ascending: true })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+                if (allSearch) query = query.ilike('category_name', `%${escapeLikePattern(allSearch)}%`);
+                const { data, error } = await query;
 
                 if (error) {
                     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -54,10 +62,13 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(mappedData);
         }
 
-        // Get total count
-        const { count: totalCount, error: countError } = await supabaseAdmin
-            .from('categories')
-            .select('*', { count: 'exact', head: true });
+        const search = searchParams.get('search') || '';
+
+        // Build base query with optional search filter
+        let countQuery = supabaseAdmin.from('categories').select('*', { count: 'exact', head: true });
+        if (search) countQuery = countQuery.ilike('category_name', `%${escapeLikePattern(search)}%`);
+
+        const { count: totalCount, error: countError } = await countQuery;
 
         if (countError) {
             return NextResponse.json({ error: countError.message }, { status: 500 });
@@ -65,11 +76,14 @@ export async function GET(request: NextRequest) {
 
         // Get paginated data
         const offset = (page - 1) * limit;
-        const { data, error } = await supabaseAdmin
+        let dataQuery = supabaseAdmin
             .from('categories')
             .select('*')
             .order('category_name', { ascending: true })
             .range(offset, offset + limit - 1);
+        if (search) dataQuery = dataQuery.ilike('category_name', `%${escapeLikePattern(search)}%`);
+
+        const { data, error } = await dataQuery;
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });

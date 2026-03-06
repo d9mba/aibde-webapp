@@ -11,16 +11,29 @@ const securityHeaders = [
         value: 'nosniff',
     },
     {
-        key: 'X-XSS-Protection',
-        value: '1; mode=block',
-    },
-    {
         key: 'Referrer-Policy',
         value: 'strict-origin-when-cross-origin',
     },
     {
         key: 'Permissions-Policy',
         value: 'camera=(), microphone=(), geolocation=()',
+    },
+    {
+        key: 'Content-Security-Policy',
+        value: [
+            "default-src 'self'",
+            // 'unsafe-inline': Required by Next.js for inline scripts during page hydration
+            // 'unsafe-eval': Required by Clerk auth SDK and Next.js dev mode HMR
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://us-assets.i.posthog.com",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data: blob: https:",
+            "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://*.upstash.io https://us.i.posthog.com https://us.posthog.com",
+            "frame-src https://challenges.cloudflare.com https://*.clerk.accounts.dev",
+            "worker-src 'self' blob:",
+            "object-src 'none'",
+            "base-uri 'self'",
+        ].join('; '),
     },
 ];
 
@@ -76,24 +89,12 @@ const nextConfig = {
     images: {
         domains: [],
         remotePatterns: [
-            // TODO: Replace with your actual R2 bucket hostname
-            {
-                protocol: 'https',
-                hostname: 'pub-*.r2.dev', // Cloudflare R2 buckets
-            },
-            // Trusted image providers
-            {
-                protocol: 'https',
-                hostname: 'lh3.googleusercontent.com', // Google user avatars
-            },
-            {
-                protocol: 'https',
-                hostname: 'avatars.githubusercontent.com', // GitHub avatars
-            },
-            {
-                protocol: 'https',
-                hostname: 'asset.brandfetch.io', // Brand logos
-            },
+            { protocol: 'https', hostname: 'cdn.aibde.tech' },
+            { protocol: 'https', hostname: 'pub-1585beb392424c639abc85d5b9baf9be.r2.dev' },
+            { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+            { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+            { protocol: 'https', hostname: 'asset.brandfetch.io' },
+            { protocol: 'https', hostname: 'img.clerk.com' },
         ],
     },
     // Improve development stability

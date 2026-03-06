@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
+import Pagination from '@/components/ui/Pagination';
 import { AdminTool, Task } from '@/types';
 import { slugify } from '@/lib/utils';
 import { Target, ArrowLeft, ChevronRight } from 'lucide-react';
@@ -15,71 +16,60 @@ interface TaskSlugPageClientProps {
     totalCount: number;
 }
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 48;
 
 export default function TaskSlugPageClient({
     task,
-    tools,
+    tools: initialTools,
     allTasks,
     slug,
     totalCount
 }: TaskSlugPageClientProps) {
-    const [allTools, setAllTools] = useState<AdminTool[]>(tools);
-    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+    const [tools, setTools] = useState<AdminTool[]>(initialTools);
+    const [currentPage, setCurrentPage] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
-    const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    // Get visible tools
-    const visibleTools = allTools.slice(0, visibleCount);
-    const hasMore = visibleCount < allTools.length || allTools.length < totalCount;
+    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+    const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, totalCount);
 
-    // Load more tools from API
-    const loadMoreTools = useCallback(async () => {
-        if (isLoading || !task) return;
+    // Fetch a specific page of tools
+    const goToPage = useCallback(async (page: number) => {
+        if (!task) return;
 
-        // If we have more tools in state, just show them
-        if (visibleCount < allTools.length) {
-            setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, allTools.length));
+        // Page 1 uses SSR data
+        if (page === 1) {
+            setTools(initialTools);
+            setCurrentPage(1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }
 
-        // If we've shown all loaded tools but more exist, fetch from API
-        if (allTools.length < totalCount) {
-            setIsLoading(true);
-            try {
-                const response = await fetch(`/api/tools/by-task?task=${encodeURIComponent(task.taskName)}&offset=${allTools.length}&limit=50`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.tools && data.tools.length > 0) {
-                        setAllTools(prev => [...prev, ...data.tools]);
-                        setVisibleCount(prev => prev + ITEMS_PER_PAGE);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to load more tools:', error);
-            } finally {
-                setIsLoading(false);
+        setIsLoading(true);
+        try {
+            const offset = (page - 1) * ITEMS_PER_PAGE;
+            const response = await fetch(
+                `/api/tools/by-task?task=${encodeURIComponent(task.taskName)}&offset=${offset}&limit=${ITEMS_PER_PAGE}`
+            );
+            if (!response.ok) {
+                const text = await response.text().catch(() => response.statusText);
+                console.error(`Failed to load tools: ${response.status} ${text}`);
+                setTools([]);
+                setCurrentPage(1);
+                return;
             }
+            const data = await response.json();
+            setTools(data.tools || []);
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (error) {
+            console.error('Failed to load tools:', error);
+            setTools([]);
+            setCurrentPage(1);
+        } finally {
+            setIsLoading(false);
         }
-    }, [allTools.length, task, isLoading, totalCount, visibleCount]);
-
-    // Infinite scroll observer
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasMore && !isLoading) {
-                    loadMoreTools();
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        if (loadMoreRef.current) {
-            observer.observe(loadMoreRef.current);
-        }
-
-        return () => observer.disconnect();
-    }, [hasMore, isLoading, loadMoreTools]);
+    }, [task, initialTools]);
 
     if (!task) {
         return (
@@ -105,7 +95,7 @@ export default function TaskSlugPageClient({
                 <ArrowLeft className="w-4 h-4" /> Back to Tasks
             </Link>
 
-            {/* Header - Compact */}
+            {/* Header */}
             <div className="mb-6">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 rounded-xl bg-accent-green/10 text-accent-green flex items-center justify-center flex-shrink-0">
@@ -121,10 +111,21 @@ export default function TaskSlugPageClient({
                 )}
             </div>
 
+            {/* Showing count */}
+            {totalCount > 0 && totalPages > 1 && !isLoading && (
+                <p className="text-sm text-text-tertiary mb-4">
+                    Showing {startIndex}–{endIndex} of {totalCount.toLocaleString()} tools
+                </p>
+            )}
+
             {/* Tools Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
-                {visibleTools.length > 0 ? (
-                    visibleTools.map((tool) => (
+                {isLoading ? (
+                    <div className="col-span-full flex items-center justify-center py-16">
+                        <span className="w-6 h-6 border-2 border-border border-t-accent-green rounded-full animate-spin" role="status" aria-label="Loading" />
+                    </div>
+                ) : tools.length > 0 ? (
+                    tools.map((tool) => (
                         <AIToolCard key={tool.id} tool={tool} />
                     ))
                 ) : (
@@ -136,24 +137,12 @@ export default function TaskSlugPageClient({
                 )}
             </div>
 
-            {/* Loading indicator */}
-            <div ref={loadMoreRef} className="py-6 text-center">
-                {isLoading ? (
-                    <div className="flex items-center justify-center gap-2 text-text-tertiary">
-                        <span className="w-5 h-5 border-2 border-border border-t-accent-green rounded-full animate-spin"></span>
-                        <span className="text-sm">Loading more tools...</span>
-                    </div>
-                ) : hasMore ? (
-                    <button
-                        onClick={loadMoreTools}
-                        className="px-6 py-2.5 bg-bg-card border border-border rounded-full text-sm font-medium text-text-primary transition-all hover:border-accent-green"
-                    >
-                        Load more tools
-                    </button>
-                ) : visibleTools.length > ITEMS_PER_PAGE ? (
-                    <p className="text-sm text-text-tertiary">Showing all {totalCount} tools</p>
-                ) : null}
-            </div>
+            {/* Pagination */}
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={goToPage}
+            />
 
             {/* Other Tasks Section */}
             <section className="border-t border-border pt-6 sm:pt-8">

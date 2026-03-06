@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool } from '@/types';
 
-const INITIAL_LOAD = 30;           // Initial load: 30 tools
-const LOAD_MORE = 6;               // Load 6 more each time
-const MAX_LATEST = 90;             // Maximum 90 for "Just Released"
-const MAX_TRENDING = 50;           // Maximum 50 for "Trending"
+const INITIAL_LOAD = 30;
+const LOAD_MORE = 12;
+const MAX_LATEST = 90;
+const MAX_TRENDING = 50;
 
 interface ToolsGridSectionProps {
     tools: AdminTool[];
@@ -19,10 +19,12 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
     const [activeTab, setActiveTab] = useState<'latest' | 'trending'>('latest');
     const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD);
     const loadMoreRef = useRef<HTMLDivElement>(null);
+    const sectionRef = useRef<HTMLElement>(null);
 
     const newTools = useMemo(() => {
         const toTimestamp = (t: AdminTool) => {
-            const raw = t.launchedOn ?? t.createdAt;
+            // Reposted tools sort by updatedAt, others by createdAt
+            const raw = t.isReposted ? (t.updatedAt ?? t.createdAt) : t.createdAt;
             if (raw == null) return 0;
             const ts = new Date(raw).getTime();
             return Number.isNaN(ts) ? 0 : ts;
@@ -30,50 +32,41 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
         return [...tools].sort((a, b) => toTimestamp(b) - toTimestamp(a));
     }, [tools]);
 
-    // Use trendingTools directly from server - already filtered and sorted
     const displayTools = activeTab === 'latest' ? newTools : trendingTools;
     const maxItems = activeTab === 'latest' ? MAX_LATEST : MAX_TRENDING;
     const hasMore = visibleCount < Math.min(displayTools.length, maxItems);
     const reachedMax = visibleCount >= maxItems;
-    const showLoadMore = activeTab === 'latest'; // Only show load more for latest
 
-    // Reset visible count when tab changes
     useEffect(() => {
         setVisibleCount(INITIAL_LOAD);
     }, [activeTab]);
 
-    const hasMoreRef = useRef(hasMore);
+    // Scroll-based lazy loading via IntersectionObserver
     useEffect(() => {
-        hasMoreRef.current = hasMore;
-    }, [hasMore]);
+        if (!hasMore) return;
 
-    const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
-        const [entry] = entries;
-        if (entry.isIntersecting && hasMoreRef.current) {
-            setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));
-        }
-    }, [maxItems]);
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));
+                }
+            },
+            { root: null, rootMargin: '200px', threshold: 0.1 }
+        );
 
-    useEffect(() => {
-        const observer = new IntersectionObserver(handleObserver, {
-            root: null,
-            rootMargin: '100px',
-            threshold: 0.1,
-        });
-
-        if (loadMoreRef.current && showLoadMore) {
+        if (loadMoreRef.current) {
             observer.observe(loadMoreRef.current);
         }
 
         return () => observer.disconnect();
-    }, [handleObserver, showLoadMore]);
+    }, [hasMore, maxItems]);
 
-    const handleLoadMore = () => {
+    function handleLoadMore(): void {
         setVisibleCount(prev => Math.min(prev + LOAD_MORE, maxItems));
-    };
+    }
 
     return (
-        <section className="flex flex-col gap-4">
+        <section ref={sectionRef} className="flex flex-col gap-4 scroll-mt-14 sm:scroll-mt-16">
             <div className="flex justify-center mb-2 sticky top-14 sm:top-16 z-10 py-4 -mx-4 sm:-mx-6 px-4 sm:px-6">
                 <div className="inline-flex gap-1 p-1 bg-bg-tertiary rounded-full">
                     <button
@@ -81,7 +74,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                             ? 'bg-bg-card text-text-primary shadow-sm'
                             : 'bg-transparent text-text-tertiary hover:text-text-secondary'
                             }`}
-                        onClick={() => setActiveTab('latest')}
+                        onClick={() => { setActiveTab('latest'); sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -93,7 +86,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                             ? 'bg-bg-card text-text-primary shadow-sm'
                             : 'bg-transparent text-text-tertiary hover:text-text-secondary'
                             }`}
-                        onClick={() => setActiveTab('trending')}
+                        onClick={() => { setActiveTab('trending'); sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M22 2L11 13" />
@@ -114,16 +107,16 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                 ))}
             </div>
 
-            {/* Auto-loading indicator (only for Just Released) */}
-            {hasMore && showLoadMore && (
+            {/* Auto-loading sentinel */}
+            {hasMore && (
                 <div ref={loadMoreRef} className="flex items-center justify-center gap-2.5 py-6 text-text-tertiary text-sm">
                     <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
                     <span>Loading more tools...</span>
                 </div>
             )}
 
-            {/* Manual Load More button (only for Just Released before max) */}
-            {hasMore && showLoadMore && !reachedMax && (
+            {/* Manual fallback button */}
+            {hasMore && !reachedMax && (
                 <div className="flex justify-center">
                     <button
                         onClick={handleLoadMore}
@@ -137,8 +130,8 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                 </div>
             )}
 
-            {/* Reached max - show Browse All (only for Just Released) */}
-            {reachedMax && showLoadMore && displayTools.length > maxItems && (
+            {/* Reached max — show Browse All */}
+            {reachedMax && displayTools.length > maxItems && (
                 <div className="flex flex-col items-center gap-2 py-4 text-center">
                     <p className="text-sm text-text-secondary">
                         Showing {maxItems} of {displayTools.length} tools
@@ -156,7 +149,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
                 </div>
             )}
 
-            {/* View all link at bottom (always show) */}
+            {/* View all link */}
             <div className="flex justify-center mt-4">
                 <Link
                     href={activeTab === 'latest' ? '/search' : '/trending'}

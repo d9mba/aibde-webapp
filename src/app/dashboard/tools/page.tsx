@@ -13,6 +13,7 @@ import { useConfirm } from '@/components/ui/ConfirmModal';
 import BulkImportModal from './components/BulkImportModal';
 import BulkUpdateModal from './components/BulkUpdateModal';
 import ExportToolsModal from './components/ExportToolsModal';
+import { SafeHtml } from '@/components/ui/SafeHtml';
 
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -31,7 +32,7 @@ interface PaginatedToolsResponse {
 export default function ToolsListPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { deleteTool, categories, isLoaded } = useAdmin();
+    const { deleteTool } = useAdmin();
     const { confirm } = useConfirm();
     const [searchQuery, setSearchQuery] = useState('');
     // Read initial status from URL query param
@@ -110,7 +111,7 @@ export default function ToolsListPage() {
     }, [currentPage, statusFilter, categoryFilter, missingDataFilter, debouncedSearch]);
 
     // Fetch tools with SWR
-    const { data: toolsData, error: toolsError, isLoading: toolsLoading, mutate } = useSWR<PaginatedToolsResponse>(
+    const { data: toolsData, error: toolsError, isLoading: toolsLoading, isValidating, mutate } = useSWR<PaginatedToolsResponse>(
         apiUrl,
         fetcher,
         { revalidateOnFocus: false, keepPreviousData: true }
@@ -130,10 +131,16 @@ export default function ToolsListPage() {
         { value: 'scheduled', label: 'Scheduled' },
     ];
 
+    // Fetch categories for filter dropdown
+    const { data: catResponse } = useSWR<{ data: { id: string; categoryName: string }[] }>(
+        '/api/categories?limit=500',
+        (url: string) => fetch(url).then(r => r.json()),
+        { revalidateOnFocus: false }
+    );
     const categoryOptions = [
         { value: 'all', label: 'All Categories' },
-        ...Array.from(new Set(categories.filter(cat => cat.categoryName).map(cat => cat.categoryName)))
-            .map(name => ({ value: name, label: name }))
+        ...Array.from(new Set((catResponse?.data || []).filter((cat: { categoryName: string }) => cat.categoryName).map((cat: { categoryName: string }) => cat.categoryName)))
+            .map(name => ({ value: name as string, label: name as string }))
     ];
 
     const missingDataOptions = [
@@ -215,7 +222,13 @@ export default function ToolsListPage() {
 
     return (
         <div className="min-h-screen p-3 sm:p-6 bg-bg-primary">
-            <div className="max-w-[1400px] mx-auto">
+            <div className="max-w-[1400px] mx-auto relative">
+                {/* Page-level loading overlay */}
+                {isValidating && toolsData && (
+                    <div className="absolute inset-0 bg-bg-primary/60 z-10 flex items-center justify-center rounded-xl">
+                        <div className="animate-spin w-8 h-8 border-[3px] border-accent-primary border-t-transparent rounded-full" />
+                    </div>
+                )}
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                     <div>
@@ -315,7 +328,7 @@ export default function ToolsListPage() {
 
 
                 {/* Mobile Card View */}
-                <div className="sm:hidden space-y-3">
+                <div className={`sm:hidden space-y-3 transition-opacity ${isValidating ? 'opacity-50' : ''}`}>
                     {tools.length === 0 ? (
                         <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary">
                             No tools found. <Link href="/dashboard/tools/new" prefetch={false} className="text-accent-primary hover:underline">Add your first tool</Link>
@@ -387,7 +400,7 @@ export default function ToolsListPage() {
                 </div>
 
                 {/* Desktop Table */}
-                <div className="hidden sm:block bg-bg-card border border-border rounded-xl overflow-hidden">
+                <div className={`hidden sm:block bg-bg-card border border-border rounded-xl overflow-hidden transition-opacity ${isValidating ? 'opacity-50' : ''}`}>
                     <table className="w-full">
                         <thead className="bg-bg-secondary border-b border-border">
                             <tr>
@@ -516,7 +529,10 @@ export default function ToolsListPage() {
                                 <ChevronLeft className="w-4 h-4" />
                                 Previous
                             </button>
-                            <span className="px-3 py-2 text-sm font-medium text-text-primary bg-accent-primary/10 rounded-lg">
+                            <span className="px-3 py-2 text-sm font-medium text-text-primary bg-accent-primary/10 rounded-lg flex items-center gap-2">
+                                {isValidating && (
+                                    <span className="animate-spin w-3.5 h-3.5 border-2 border-accent-primary border-t-transparent rounded-full" />
+                                )}
                                 {currentPage} / {pagination.totalPages}
                             </span>
                             <button
@@ -573,9 +589,9 @@ export default function ToolsListPage() {
                                 {previewTool.description && (
                                     <div>
                                         <h3 className="text-sm font-medium text-text-tertiary mb-1">Description</h3>
-                                        <div
+                                        <SafeHtml
+                                            html={previewTool.description}
                                             className="text-text-primary text-sm leading-relaxed rich-text"
-                                            dangerouslySetInnerHTML={{ __html: previewTool.description }}
                                         />
                                     </div>
                                 )}
@@ -803,8 +819,8 @@ export default function ToolsListPage() {
 
                             {/* Actions */}
                             <div className="border-t border-border p-4 flex gap-3">
-                                {previewTool.app_username && (
-                                    <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.app_username}`); }}
+                                {previewTool.appUsername && (
+                                    <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.appUsername}`); }}
                                         className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
                                         <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
                                     </button>

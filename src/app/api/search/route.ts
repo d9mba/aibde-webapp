@@ -7,7 +7,7 @@ const MAX_QUERY_LENGTH = 200;
 interface PublicTool {
     id: string;
     name: string;
-    app_username: string;
+    appUsername: string;
     logoUrl: string | null;
     summary: string;
     categoryName: string[];
@@ -22,7 +22,7 @@ function toPublicTool(tool: Record<string, unknown>): PublicTool {
     return {
         id: tool.id as string,
         name: tool.name as string,
-        app_username: tool.app_username as string,
+        appUsername: (tool.app_username ?? tool.appUsername ?? '') as string,
         logoUrl: tool.logo_url as string | null,
         summary: tool.summary as string,
         categoryName: tool.category_name as string[],

@@ -20,7 +20,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 interface ToolData {
     id: string;
     name: string;
-    app_username: string;
+    appUsername: string;
     category?: string;
     pricing?: string;
 }
@@ -34,7 +34,7 @@ export function trackToolClick(tool: ToolData, source: 'card' | 'search' | 'feat
         posthog.capture('tool_clicked', {
             tool_id: tool.id,
             tool_name: tool.name,
-            tool_slug: tool.app_username,
+            tool_slug: tool.appUsername,
             tool_category: tool.category,
             tool_pricing: tool.pricing,
             click_source: source,
@@ -51,7 +51,7 @@ export function trackToolVisit(tool: ToolData, url: string) {
         posthog.capture('tool_website_visited', {
             tool_id: tool.id,
             tool_name: tool.name,
-            tool_slug: tool.app_username,
+            tool_slug: tool.appUsername,
             tool_category: tool.category,
             tool_pricing: tool.pricing,
             destination_url: url,
@@ -68,7 +68,7 @@ export function trackToolSave(tool: ToolData, saved: boolean) {
         posthog.capture(saved ? 'tool_saved' : 'tool_unsaved', {
             tool_id: tool.id,
             tool_name: tool.name,
-            tool_slug: tool.app_username,
+            tool_slug: tool.appUsername,
         });
     }
 }
@@ -93,7 +93,7 @@ export function useToolImpression(tool: ToolData | null, source: 'list' | 'searc
                             posthog.capture('tool_impression', {
                                 tool_id: tool.id,
                                 tool_name: tool.name,
-                                tool_slug: tool.app_username,
+                                tool_slug: tool.appUsername,
                                 tool_category: tool.category,
                                 impression_source: source,
                             });
@@ -130,7 +130,7 @@ export function useToolPageView(tool: ToolData | null) {
             posthog.capture('tool_page_viewed', {
                 tool_id: tool.id,
                 tool_name: tool.name,
-                tool_slug: tool.app_username,
+                tool_slug: tool.appUsername,
                 tool_category: tool.category,
                 tool_pricing: tool.pricing,
             });
@@ -143,7 +143,7 @@ export function useToolPageView(tool: ToolData | null) {
                 posthog.capture('tool_page_left', {
                     tool_id: tool.id,
                     tool_name: tool.name,
-                    tool_slug: tool.app_username,
+                    tool_slug: tool.appUsername,
                     time_spent_seconds: timeSpent,
                 });
             }

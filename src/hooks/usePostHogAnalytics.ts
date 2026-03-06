@@ -56,16 +56,28 @@ export function usePostHogAnalytics(): UsePostHogAnalyticsReturn {
         setError(null);
 
         try {
-            // Fetch top tools
-            const topToolsRes = await fetch('/api/analytics/posthog', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'top_tools', days: 7 }),
-            });
+            // Fetch all three in parallel to reduce total wait time
+            const [topToolsRes, dailyRes, hourlyRes] = await Promise.all([
+                fetch('/api/analytics/posthog', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'top_tools', days: 7 }),
+                }),
+                fetch('/api/analytics/posthog', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'daily_activity', days: 7 }),
+                }),
+                fetch('/api/analytics/posthog', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'hourly_activity' }),
+                }),
+            ]);
 
+            // Process top tools
             if (!topToolsRes.ok) {
                 const data = await topToolsRes.json();
-                // Check if PostHog is not configured
                 if (data.error?.includes('not configured') || data.details?.includes('not configured')) {
                     setIsConfigured(false);
                     setLoading(false);
@@ -78,23 +90,13 @@ export function usePostHogAnalytics(): UsePostHogAnalyticsReturn {
             const topToolsData = await topToolsRes.json();
             setTopTools(topToolsData.results || []);
 
-            // Fetch daily activity
-            const dailyRes = await fetch('/api/analytics/posthog', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'daily_activity', days: 7 }),
-            });
+            // Process daily activity
             if (dailyRes.ok) {
                 const dailyData = await dailyRes.json();
                 setDailyActivity(dailyData.results || []);
             }
 
-            // Fetch hourly activity
-            const hourlyRes = await fetch('/api/analytics/posthog', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'hourly_activity' }),
-            });
+            // Process hourly activity
             if (hourlyRes.ok) {
                 const hourlyData = await hourlyRes.json();
                 setHourlyActivity(hourlyData.results || []);

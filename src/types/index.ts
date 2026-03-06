@@ -8,14 +8,14 @@
 export interface AITool {
     id: string;
     name: string;
-    app_username: string;
+    appUsername: string;
     summary?: string;
     description: string;
     category: string;  // Comma-separated for backwards compatibility
     categoryName: string[]; // Array of category names
     task: string;  // Comma-separated for backwards compatibility
     taskName: string[];  // Array of task names
-    pricing: 'free' | 'freemium' | 'paid';
+    pricing: 'free' | 'freemium' | 'paid' | 'open_source';
     pricingLabel: string;
     websiteUrl: string;
     logoUrl?: string;
@@ -44,6 +44,7 @@ export interface AITool {
     contactAddress?: string;
     // Back Links - enables dofollow SEO backlinks
     backLinks?: boolean;
+    isReposted?: boolean;
 }
 
 /**
@@ -231,7 +232,7 @@ export interface ToolFilters {
     query?: string;
     category?: string;
     task?: string;
-    pricing?: 'free' | 'freemium' | 'paid';
+    pricing?: 'free' | 'freemium' | 'paid' | 'open_source';
     status?: 'draft' | 'published' | 'scheduled';
     isFeatured?: boolean;
 }

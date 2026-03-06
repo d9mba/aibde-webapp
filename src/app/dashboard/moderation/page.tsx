@@ -10,7 +10,7 @@ import { useConfirm } from '@/components/ui/ConfirmModal';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { SafeHtml } from '@/components/ui/SafeHtml';
 import FullPreview from '@/components/features/admin/ToolForm/FullPreview';
-import { Eye, Pencil, ChevronLeft, ChevronRight, Search, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { Eye, Pencil, ChevronLeft, ChevronRight, Search, Trash2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 type TabType = 'pending' | 'draft' | 'published' | 'unpublished';
 
@@ -47,14 +47,18 @@ const formatTimeAgo = (dateStr: string | undefined): string => {
 
 export default function ModerationPage() {
     const router = useRouter();
-    const { categories, tasks, updateTool } = useAdmin();
+    const { updateTool } = useAdmin();
     const { showToast, updateToast } = useToast();
     const { confirm } = useConfirm();
     const { mutate: globalMutate } = useSWRConfig();
+
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [selectAllMode, setSelectAllMode] = useState<'none' | 'page' | 'all'>('none'); // Gmail-style selection
     const [activeTab, setActiveTab] = useState<TabType>('pending');
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [previewCategories, setPreviewCategories] = useState<{ categoryName: string }[]>([]);
+    const [previewTasks, setPreviewTasks] = useState<{ taskName: string }[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -76,8 +80,8 @@ export default function ModerationPage() {
 
     // Build API URL with pagination, status filter, and search
     const apiUrl = debouncedSearch
-        ? `/api/tools?page=${currentPage}&limit=${ITEMS_PER_PAGE}&status=${activeTab}&search=${encodeURIComponent(debouncedSearch)}`
-        : `/api/tools?page=${currentPage}&limit=${ITEMS_PER_PAGE}&status=${activeTab}`;
+        ? `/api/tools?page=${currentPage}&limit=${ITEMS_PER_PAGE}&status=${activeTab}&search=${encodeURIComponent(debouncedSearch)}&fields=card`
+        : `/api/tools?page=${currentPage}&limit=${ITEMS_PER_PAGE}&status=${activeTab}&fields=card`;
 
     // Helper to revalidate all tool-related SWR caches
     const revalidateAllTools = () => {
@@ -86,10 +90,10 @@ export default function ModerationPage() {
     };
 
     // Fetch tools with SWR for active tab
-    const { data: toolsData, isLoading: toolsLoading, mutate } = useSWR<PaginatedToolsResponse>(
+    const { data: toolsData, isLoading: toolsLoading, isValidating, mutate } = useSWR<PaginatedToolsResponse>(
         apiUrl,
         fetcher,
-        { revalidateOnFocus: false, revalidateOnMount: true, dedupingInterval: 0 }
+        { revalidateOnFocus: false, revalidateOnMount: true, dedupingInterval: 0, keepPreviousData: true }
     );
 
     // Fetch counts for all tabs (just first page with limit 1 to get total)
@@ -473,6 +477,33 @@ export default function ModerationPage() {
         }
     };
 
+    // Fetch full tool data + categories/tasks on-demand for preview
+    const handlePreview = async (toolId: string) => {
+        setPreviewLoading(true);
+        try {
+            const [toolRes, catRes, taskRes] = await Promise.all([
+                fetch(`/api/tools/${toolId}`),
+                previewCategories.length === 0 ? fetch('/api/categories?limit=50') : null,
+                previewTasks.length === 0 ? fetch('/api/tasks?limit=50') : null,
+            ]);
+            if (!toolRes.ok) throw new Error('Failed to fetch');
+            const fullTool = await toolRes.json();
+            setPreviewTool(fullTool);
+            if (catRes?.ok) {
+                const catData = await catRes.json();
+                setPreviewCategories((catData.data || catData).map((c: any) => ({ categoryName: c.categoryName || c.name })));
+            }
+            if (taskRes?.ok) {
+                const taskData = await taskRes.json();
+                setPreviewTasks((taskData.data || taskData).map((t: any) => ({ taskName: t.taskName || t.name })));
+            }
+        } catch {
+            showToast('Failed to load preview', 'error');
+        } finally {
+            setPreviewLoading(false);
+        }
+    };
+
     // Only show full loading screen on initial load (when no cached data)
     if (toolsLoading && !toolsData) {
         return (
@@ -600,7 +631,7 @@ export default function ModerationPage() {
                 </div>
 
                 {/* Content Card */}
-                <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
+                <div className="bg-bg-card border border-border rounded-xl overflow-hidden relative">
                     <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                         <h2 className="text-base font-semibold text-text-primary">
                             {activeTab === 'pending' && 'Review Queue'}
@@ -639,7 +670,13 @@ export default function ModerationPage() {
                             </div>
                         )}
                     </div>
-                    <div className="divide-y divide-border">
+                    <div className={`divide-y divide-border transition-opacity duration-200 ${isValidating && !tabLoading ? 'opacity-50' : ''}`}>
+                        {/* Loading overlay for pagination/search */}
+                        {isValidating && !tabLoading && filteredTools.length > 0 && (
+                            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                                <Loader2 className="w-6 h-6 animate-spin text-accent-primary" />
+                            </div>
+                        )}
                         {/* Show loading only during explicit tab switch, not during background revalidation */}
                         {(tabLoading || (toolsLoading && !toolsData)) ? (
                             <div className="p-12 text-center text-text-tertiary">
@@ -757,8 +794,9 @@ export default function ModerationPage() {
                                         </div>
                                         <div className="flex flex-wrap items-center gap-1 flex-shrink-0">
                                             <button
-                                                onClick={() => setPreviewTool(tool)}
-                                                className="p-1.5 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
+                                                onClick={() => handlePreview(tool.id)}
+                                                disabled={previewLoading}
+                                                className="p-1.5 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors disabled:opacity-50"
                                                 title="Quick Preview"
                                             >
                                                 <Eye className="w-4 h-4" />
@@ -862,8 +900,8 @@ export default function ModerationPage() {
                                 Object.entries(previewTool.socialLinks).filter(([_, v]) => v != null)
                             ) as Record<string, string> : undefined,
                         }}
-                        categories={categories}
-                        tasks={tasks}
+                        categories={previewCategories}
+                        tasks={previewTasks}
                         onClose={() => setPreviewTool(null)}
                     />
                 )

@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getToolByAppUsername, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings } from '@/lib/data';
+import { getToolByAppUsername, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings, getToolNamesBySlugs } from '@/lib/data';
 import { getToolJsonLd, safeJsonLdStringify, SEO } from '@/lib/seo';
 import ToolDetailClient from './ToolDetailClient';
 
@@ -22,10 +22,30 @@ export async function generateMetadata({
         };
     }
 
-    const description = tool.summary || tool.description?.slice(0, 155) || `Discover ${tool.name} - an AI tool for ${tool.categoryName?.join(', ') || 'various tasks'}`;
+    // Get competitor names: manual alternatives first, then auto-detected related tools
+    let alternativeNames = await getToolNamesBySlugs(tool.alternativeTools || []);
+    if (alternativeNames.length === 0) {
+        const related = await getRelatedTools(tool, 4);
+        alternativeNames = related.map(t => t.name).filter(Boolean);
+    }
+
     const categoryLabel = tool.categoryName?.[0] || 'AI Tool';
-    const taskLabels = tool.taskName?.slice(0, 3).join(', ') || '';
-    const title = `${tool.name} | ${categoryLabel}`;
+    const taskLabels = tool.taskName?.slice(0, 3) || [];
+    const year = new Date().getFullYear();
+    const shortSummary = tool.summary?.slice(0, 60) || categoryLabel;
+
+    // Title format: "ToolName: Summary (Reviews, Prices & Alternatives) | Year | AiBDE"
+    const title = `${tool.name}: ${shortSummary} (Reviews, Pricing & Alternatives) | ${year} | AiBDE`;
+
+    // Description: mentions competitors and use cases for SERP visibility
+    const baseSummary = tool.summary || tool.description?.slice(0, 100) || `Discover ${tool.name}`;
+    const altMention = alternativeNames.length > 0
+        ? ` Best alternative to ${alternativeNames.slice(0, 3).join(', ')}.`
+        : '';
+    const taskMention = taskLabels.length > 0
+        ? ` Best for ${taskLabels.join(', ')}.`
+        : '';
+    const description = `${baseSummary}.${altMention}${taskMention} Updated ${year}.`.replace(/\.\.+/g, '.').slice(0, 160);
 
     return {
         title,
@@ -35,6 +55,10 @@ export async function generateMetadata({
             `${tool.name} AI`,
             `${tool.name} review`,
             `${tool.name} alternative`,
+            `${tool.name} pricing`,
+            `best ${categoryLabel} tools ${year}`,
+            ...alternativeNames.map(n => `${n} alternative`),
+            ...alternativeNames,
             ...(tool.categoryName || []),
             ...(tool.taskName || []),
             ...(tool.tags || []),
@@ -84,8 +108,8 @@ export default async function ToolDetailPage({
     const [relatedTools, suggestedTools, featuredTools, recentlyAdded, categories, tasks, settings] = await Promise.all([
         getRelatedTools(tool, 6),
         getSuggestedTools(tool, 6),
-        getFeaturedTools(tool.app_username, 6),
-        getRecentlyAddedTools(tool.app_username, 5),
+        getFeaturedTools(tool.appUsername, 6),
+        getRecentlyAddedTools(tool.appUsername, 5),
         getCategories(),
         getTasks(),
         getHomeSettings(),

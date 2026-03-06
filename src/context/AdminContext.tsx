@@ -28,11 +28,6 @@ const defaultSettings: AdminSettings = {
 };
 
 interface AdminState {
-    tools: AdminTool[];
-    categories: Category[];
-    tasks: Task[];
-    tags: Tag[];
-    notes: Note[];
     settings: AdminSettings;
 }
 
@@ -40,17 +35,14 @@ interface AdminContextType extends AdminState {
     isLoaded: boolean;
     isLoading: boolean;
 
+    // Mutation counter — increments on every tool add/update/delete
+    // Pages that display tools should watch this value and refetch
+    toolsMutated: number;
+
     // Tool operations
     addTool: (tool: Omit<AdminTool, 'id'>) => Promise<AdminTool | null>;
     updateTool: (id: string, updates: Partial<AdminTool>) => Promise<void>;
     deleteTool: (id: string) => Promise<void>;
-    getToolById: (id: string) => AdminTool | undefined;
-    getToolByAppUsername: (app_username: string) => AdminTool | undefined;
-
-    // Published tools for public pages
-    getPublishedTools: () => AdminTool[];
-    getSpotlightTools: () => AdminTool[];
-    getFeaturedTools: () => AdminTool[];
 
     // Category operations
     addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
@@ -76,7 +68,6 @@ interface AdminContextType extends AdminState {
     updateSettings: (updates: Partial<AdminSettings>) => Promise<void>;
 
     // Utility
-    getAutoAlternatives: (tool: AdminTool) => AdminTool[];
     refreshData: () => Promise<void>;
     exportData: () => string;
     importData: (json: string) => void;
@@ -96,29 +87,19 @@ interface AdminProviderProps {
 }
 
 export function AdminProvider({ children, initialTools }: AdminProviderProps) {
-    const [state, setState] = useState<AdminState>({
-        tools: initialTools || [],
-        categories: [],
-        tasks: [],
-        tags: [],
-        notes: [],
-        settings: defaultSettings,
-    });
+    const [settings, setSettings] = useState<AdminSettings>(defaultSettings);
     const [isLoaded, setIsLoaded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [toolsMutated, setToolsMutated] = useState(0);
 
     // Fetch data from API
     const fetchFromAPI = useCallback(async () => {
         if (!USE_API) return null;
 
         try {
-            // Use Promise.allSettled to handle individual failures gracefully
+            // ONLY fetch settings on initial load.
+            // Categories, Tasks, Tags, and Notes are fetched directly by the pages that need them.
             const results = await Promise.allSettled([
-                fetch('/api/tools?all=true'),
-                fetch('/api/categories?all=true'),
-                fetch('/api/tasks?all=true'),
-                fetch('/api/tags?all=true'),
-                fetch('/api/notes'),
                 fetch('/api/settings'),
             ]);
 
@@ -141,26 +122,12 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 return fallback;
             }
 
-            const [toolsResponse, categories, tasks, tags, notes, settings] = await Promise.all([
-                extractData(results[0], { data: [], pagination: {} }),
-                extractData(results[1], []),
-                extractData(results[2], []),
-                extractData(results[3], []),
-                extractData(results[4], []),
-                extractData(results[5], defaultSettings),
+            const [apiSettings] = await Promise.all([
+                extractData(results[0], defaultSettings),
             ]);
 
-            // Handle paginated tools response - API returns { data: [...], pagination: {...} }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const tools = Array.isArray(toolsResponse) ? toolsResponse : ((toolsResponse as any)?.data || []);
-
             return {
-                tools: Array.isArray(tools) ? tools : [],
-                categories: Array.isArray(categories) ? categories : [],
-                tasks: Array.isArray(tasks) ? tasks : [],
-                tags: Array.isArray(tags) ? tags : [],
-                notes: Array.isArray(notes) ? notes : [],
-                settings: settings && !(settings as { error?: boolean }).error ? settings : defaultSettings,
+                settings: apiSettings && !(apiSettings as { error?: boolean }).error ? apiSettings : defaultSettings,
             };
         } catch (error) {
             console.error('Failed to fetch from API:', error);
@@ -172,8 +139,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
     const pathname = usePathname();
 
     // OPTIMIZATION: Single flag to track if data has been fetched
-    // This prevents double-fetch between search loader and dashboard loader
-    const [dataFetched, setDataFetched] = useState(!!initialTools?.length);
+    const [dataFetched, setDataFetched] = useState(false);
 
     // Unified data loading effect - only fetches once per session
     // Uses deduplication to prevent multiple requests
@@ -189,10 +155,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             return;
         }
 
-        // OPTIMIZATION: Skip if already fetched (all data must be present)
-        // Note: This needs to check categories too since initialTools only has tools
-        const hasFullData = state.tools.length > 0 && state.categories.length > 0;
-        if (dataFetched && hasFullData) {
+        // OPTIMIZATION: Skip if already fetched
+        // The check for categories.length > 0 is removed as categories are no longer in central state
+        if (dataFetched) {
             setIsLoaded(true);
             setIsLoading(false);
             return;
@@ -205,7 +170,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             if (USE_API) {
                 const apiData = await fetchFromAPI();
                 if (apiData) {
-                    setState(apiData);
+                    setSettings(apiData.settings);
                     setDataFetched(true); // Mark as fetched
                     setIsLoaded(true);
                     setIsLoading(false);
@@ -218,28 +183,14 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
-                    setState({ ...parsed, settings: parsed.settings || defaultSettings });
+                    setSettings(parsed.settings || defaultSettings);
                 } catch {
                     // Fallback to empty state
-                    setState({
-                        tools: [],
-                        categories: [],
-                        tasks: [],
-                        tags: [],
-                        notes: [],
-                        settings: defaultSettings,
-                    });
+                    setSettings(defaultSettings);
                 }
             } else {
                 // No cached data - start with empty state
-                setState({
-                    tools: [],
-                    categories: [],
-                    tasks: [],
-                    tags: [],
-                    notes: [],
-                    settings: defaultSettings,
-                });
+                setSettings(defaultSettings);
             }
 
             setDataFetched(true); // Mark as fetched
@@ -250,21 +201,13 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
         loadData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fetchFromAPI, pathname, dataFetched]);
-
-    // Save to localStorage as backup (only when not using API)
-    useEffect(() => {
-        if (isLoaded && !USE_API) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        }
-    }, [state, isLoaded]);
-
     // Refresh data from API
     const refreshData = async () => {
         if (!USE_API) return;
         setIsLoading(true);
         const apiData = await fetchFromAPI();
         if (apiData) {
-            setState(apiData);
+            setSettings(apiData.settings);
         }
         setIsLoading(false);
     };
@@ -279,7 +222,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const newTool = await res.json();
             if (!res.ok) throw new Error(newTool.error || 'Failed to add tool');
-            setState((prev) => ({ ...prev, tools: [...prev.tools, newTool] }));
+            setToolsMutated(c => c + 1);
             return newTool;
         } else {
             const newTool: AdminTool = {
@@ -288,7 +231,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
-            setState((prev) => ({ ...prev, tools: [...prev.tools, newTool] }));
+            setToolsMutated(c => c + 1);
             return newTool;
         }
     };
@@ -316,17 +259,10 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 }
                 throw new Error(errorMessage);
             }
-            setState((prev) => ({
-                ...prev,
-                tools: prev.tools.map((t) => (t.id === id ? updatedTool : t)),
-            }));
+            setToolsMutated(c => c + 1);
         } else {
-            setState((prev) => ({
-                ...prev,
-                tools: prev.tools.map((t) =>
-                    t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
-                ),
-            }));
+            console.warn('[AdminContext] updateTool is a no-op in non-API mode');
+            setToolsMutated(c => c + 1);
         }
     };
 
@@ -337,29 +273,14 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 const error = await res.json();
                 throw new Error(error.error || 'Failed to delete tool');
             }
-            setState((prev) => ({ ...prev, tools: prev.tools.filter((t) => t.id !== id) }));
+            setToolsMutated(c => c + 1);
         } else {
-            setState((prev) => ({ ...prev, tools: prev.tools.filter((t) => t.id !== id) }));
+            console.warn('[AdminContext] deleteTool is a no-op in non-API mode');
+            setToolsMutated(c => c + 1);
         }
     };
 
-    const getToolById = (id: string) => state.tools.find((t) => t.id === id);
-    const getToolByAppUsername = (app_username: string) => state.tools.find((t) => t.app_username === app_username);
 
-    // Get published tools for public pages
-    // Note: Database uses 'approved' status, TypeScript type uses 'published'
-    const getPublishedTools = () => state.tools.filter((t) => (t.status as string) === 'published' || (t.status as string) === 'approved');
-
-    const getSpotlightTools = () => {
-        return state.tools
-            .filter((t) => t.status === 'published' && t.spotlightEnabled && t.spotlightPosition && t.spotlightPosition > 0)
-            .sort((a, b) => (a.spotlightPosition || 999) - (b.spotlightPosition || 999))
-            .slice(0, state.settings.spotlightCount);
-    };
-
-    const getFeaturedTools = () => {
-        return state.tools.filter((t) => t.status === 'published' && t.isFeatured);
-    };
 
     // Category operations
     const addCategory = async (category: Omit<Category, 'id'>) => {
@@ -371,10 +292,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const newCategory = await res.json();
             if (!res.ok) throw new Error(newCategory.error || 'Failed to add category');
-            setState((prev) => ({ ...prev, categories: [...prev.categories, newCategory] }));
+            // Let pages handle refetch via SWR
         } else {
-            const newCategory: Category = { ...category, id: Date.now().toString(36) + Math.random().toString(36).substring(2) };
-            setState((prev) => ({ ...prev, categories: [...prev.categories, newCategory] }));
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -387,15 +307,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const updatedCategory = await res.json();
             if (!res.ok) throw new Error(updatedCategory.error || 'Failed to update category');
-            setState((prev) => ({
-                ...prev,
-                categories: prev.categories.map((c) => (c.id === id ? updatedCategory : c)),
-            }));
+            // Pages refetch via SWR
         } else {
-            setState((prev) => ({
-                ...prev,
-                categories: prev.categories.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-            }));
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -406,9 +320,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 const error = await res.json();
                 throw new Error(error.error || 'Failed to delete category');
             }
-            setState((prev) => ({ ...prev, categories: prev.categories.filter((c) => c.id !== id) }));
+            // Pages refetch via SWR
         } else {
-            setState((prev) => ({ ...prev, categories: prev.categories.filter((c) => c.id !== id) }));
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -422,10 +336,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const newTask = await res.json();
             if (!res.ok) throw new Error(newTask.error || 'Failed to add task');
-            setState((prev) => ({ ...prev, tasks: [...prev.tasks, newTask] }));
+            // Let pages handle refetch via SWR
         } else {
-            const newTask: Task = { ...task, id: Date.now().toString(36) + Math.random().toString(36).substring(2) };
-            setState((prev) => ({ ...prev, tasks: [...prev.tasks, newTask] }));
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -438,15 +351,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const updatedTask = await res.json();
             if (!res.ok) throw new Error(updatedTask.error || 'Failed to update task');
-            setState((prev) => ({
-                ...prev,
-                tasks: prev.tasks.map((t) => (t.id === id ? updatedTask : t)),
-            }));
+            // Pages refetch via SWR
         } else {
-            setState((prev) => ({
-                ...prev,
-                tasks: prev.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-            }));
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -457,9 +364,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 const error = await res.json();
                 throw new Error(error.error || 'Failed to delete task');
             }
-            setState((prev) => ({ ...prev, tasks: prev.tasks.filter((t) => t.id !== id) }));
+            // Pages refetch via SWR
         } else {
-            setState((prev) => ({ ...prev, tasks: prev.tasks.filter((t) => t.id !== id) }));
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -473,10 +380,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const newTag = await res.json();
             if (!res.ok) throw new Error(newTag.error || 'Failed to add tag');
-            setState((prev) => ({ ...prev, tags: [...prev.tags, newTag] }));
+            // Pages refetch via SWR
         } else {
-            const newTag: Tag = { ...tag, id: Date.now().toString(36) + Math.random().toString(36).substring(2) };
-            setState((prev) => ({ ...prev, tags: [...prev.tags, newTag] }));
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -489,15 +395,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const updatedTag = await res.json();
             if (!res.ok) throw new Error(updatedTag.error || 'Failed to update tag');
-            setState((prev) => ({
-                ...prev,
-                tags: prev.tags.map((t) => (t.id === id ? updatedTag : t)),
-            }));
+            // Pages refetch via SWR
         } else {
-            setState((prev) => ({
-                ...prev,
-                tags: prev.tags.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-            }));
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
@@ -508,14 +408,14 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 const error = await res.json();
                 throw new Error(error.error || 'Failed to delete tag');
             }
-            setState((prev) => ({ ...prev, tags: prev.tags.filter((t) => t.id !== id) }));
+            // Pages refetch via SWR
         } else {
-            setState((prev) => ({ ...prev, tags: prev.tags.filter((t) => t.id !== id) }));
+            console.warn('[AdminContext] Non-API mode is not supported for this operation');
         }
     };
 
     // Note operations
-    const addNote = async (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note | null> => {
+    const addNote = async (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
         if (USE_API) {
             const res = await fetch('/api/notes', {
                 method: 'POST',
@@ -524,7 +424,6 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const newNote = await res.json();
             if (!res.ok) throw new Error(newNote.error || 'Failed to add note');
-            setState((prev) => ({ ...prev, notes: [newNote, ...prev.notes] }));
             return newNote;
         } else {
             const newNote: Note = {
@@ -533,7 +432,6 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
-            setState((prev) => ({ ...prev, notes: [newNote, ...prev.notes] }));
             return newNote;
         }
     };
@@ -547,15 +445,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             });
             const updatedNote = await res.json();
             if (!res.ok) throw new Error(updatedNote.error || 'Failed to update note');
-            setState((prev) => ({
-                ...prev,
-                notes: prev.notes.map((n) => (n.id === id ? updatedNote : n)),
-            }));
+            // Pages fetch notes via SWR
         } else {
-            setState((prev) => ({
-                ...prev,
-                notes: prev.notes.map((n) => (n.id === id ? { ...n, ...updates, updatedAt: new Date().toISOString() } : n)),
-            }));
+            // Fallback
         }
     };
 
@@ -566,9 +458,9 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 const error = await res.json();
                 throw new Error(error.error || 'Failed to delete note');
             }
-            setState((prev) => ({ ...prev, notes: prev.notes.filter((n) => n.id !== id) }));
+            // Let pages handle refresh via SWR
         } else {
-            setState((prev) => ({ ...prev, notes: prev.notes.filter((n) => n.id !== id) }));
+            // Fallback
         }
     };
 
@@ -582,30 +474,21 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || 'Failed to update settings');
             // Merge response with existing settings to ensure all fields are present
-            setState((prev) => ({ ...prev, settings: { ...prev.settings, ...result } }));
+            setSettings((prev) => ({ ...prev, ...result }));
         } else {
-            setState((prev) => ({ ...prev, settings: { ...prev.settings, ...updates } }));
+            setSettings((prev) => ({ ...prev, ...updates }));
         }
     };
 
-    // Get auto alternatives based on category
-    const getAutoAlternatives = (tool: AdminTool): AdminTool[] => {
-        const toolCategories = tool.categoryName || [];
-        return state.tools
-            .filter((t) => {
-                const tCategories = t.categoryName || [];
-                return t.id !== tool.id && tCategories.some(cat => toolCategories.includes(cat)) && t.status === 'published';
-            })
-            .slice(0, 6);
-    };
+    // getAutoAlternatives removed — use server-side API instead
 
     // Export/Import
-    const exportData = () => JSON.stringify(state, null, 2);
+    const exportData = () => JSON.stringify({ settings }, null, 2);
 
     const importData = (json: string) => {
         try {
             const parsed = JSON.parse(json);
-            setState(parsed);
+            if (parsed.settings) setSettings(parsed.settings);
         } catch (e) {
             console.error('Failed to import data:', e);
         }
@@ -614,17 +497,13 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
     return (
         <AdminContext.Provider
             value={{
-                ...state,
+                settings: settings,
                 isLoaded,
                 isLoading,
+                toolsMutated,
                 addTool,
                 updateTool,
                 deleteTool,
-                getToolById,
-                getToolByAppUsername,
-                getPublishedTools,
-                getSpotlightTools,
-                getFeaturedTools,
                 addCategory,
                 updateCategory,
                 deleteCategory,
@@ -638,7 +517,6 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
                 updateNote,
                 deleteNote,
                 updateSettings,
-                getAutoAlternatives,
                 refreshData,
                 exportData,
                 importData,

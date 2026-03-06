@@ -16,6 +16,7 @@ export function getPricingLabel(pricing: PricingType): string {
         case 'free': return 'Free';
         case 'freemium': return 'Freemium';
         case 'paid': return 'Paid';
+        case 'open_source': return 'Open Source';
         default: return '';
     }
 }
@@ -30,6 +31,7 @@ export function getPricingClass(pricing: PricingType): string {
         case 'free': return 'bg-accent-green/10 text-accent-green';
         case 'freemium': return 'bg-accent-purple/10 text-accent-purple';
         case 'paid': return 'bg-accent-yellow/10 text-accent-yellow';
+        case 'open_source': return 'bg-sky-500/10 text-sky-500';
         default: return 'bg-bg-tertiary text-text-tertiary';
     }
 }

@@ -53,7 +53,7 @@ export function getWebSiteJsonLd() {
 /** SoftwareApplication for a single AI tool page */
 export function getToolJsonLd(tool: {
     name: string;
-    app_username: string;
+    appUsername: string;
     summary?: string | null;
     description?: string | null;
     websiteUrl?: string | null;
@@ -66,7 +66,7 @@ export function getToolJsonLd(tool: {
         '@context': 'https://schema.org',
         '@type': 'SoftwareApplication',
         name: tool.name,
-        url: `${SITE_URL}/app/${tool.app_username}`,
+        url: `${SITE_URL}/app/${tool.appUsername}`,
         description: (tool.summary || tool.description || '').slice(0, 500),
         applicationCategory: 'UtilitiesApplication',
         operatingSystem: 'Any',

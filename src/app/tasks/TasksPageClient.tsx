@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Task } from '@/types';
 import { slugify } from '@/lib/utils';
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 function HomeIcon({ className }: { className?: string }) {
     return (
@@ -26,12 +26,12 @@ interface TasksPageClientProps {
     totalCount: number;
 }
 
-const ITEMS_PER_LOAD = 50;
+const ITEMS_PER_PAGE = 48;
 
 export default function TasksPageClient({ tasks, totalCount }: TasksPageClientProps) {
-    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_LOAD);
+    const [currentPage, setCurrentPage] = useState(1);
     const [activeLetter, setActiveLetter] = useState<string>('');
-    const loadMoreRef = useRef<HTMLDivElement>(null);
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
     // Sort tasks alphabetically, dedupe by id, and filter those with tools
     const sortedTasks = useMemo(() => {
@@ -44,41 +44,39 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
         return Array.from(byId.values()).sort((a, b) => a.taskName.localeCompare(b.taskName));
     }, [tasks]);
 
-    // Get visible tasks
-    const visibleTasks = sortedTasks.slice(0, visibleCount);
+    // Get visible tasks (progressively loaded) — memoized so groupedTasks stays stable
+    const visibleTasks = useMemo(() => sortedTasks.slice(0, visibleCount), [sortedTasks, visibleCount]);
     const hasMore = visibleCount < sortedTasks.length;
 
-    // Group visible tasks by first letter
+    // Group paginated tasks by first letter
     const groupedTasks = useMemo(() => {
         const groups: { [key: string]: Task[] } = {};
-
         visibleTasks.forEach(task => {
-            const firstLetter = task.taskName[0].toUpperCase();
+            const firstLetter = (task.taskName?.charAt(0) || '?').toUpperCase();
             if (!groups[firstLetter]) {
                 groups[firstLetter] = [];
             }
             groups[firstLetter].push(task);
         });
-
         return groups;
     }, [visibleTasks]);
 
-    // All available letters (from all tasks, not just visible)
+    // All available letters (from all tasks, not just current page)
     const allLetters = useMemo(() => {
         const letters = new Set<string>();
         sortedTasks.forEach(task => {
-            letters.add(task.taskName[0].toUpperCase());
+            letters.add((task.taskName?.charAt(0) || '?').toUpperCase());
         });
         return Array.from(letters).sort();
     }, [sortedTasks]);
 
     const sortedLetters = Object.keys(groupedTasks).sort();
 
-    // Track active letter based on scroll position (debounced to prevent jitter)
+    // Track active letter based on scroll position
     useEffect(() => {
         let ticking = false;
 
-        const handleScroll = () => {
+        function handleScroll() {
             if (!ticking) {
                 window.requestAnimationFrame(() => {
                     const sections = sortedLetters.map(letter => ({
@@ -86,7 +84,6 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
                         element: document.getElementById(`section-${letter}`)
                     })).filter(s => s.element);
 
-                    // Find which section is currently in view
                     for (let i = sections.length - 1; i >= 0; i--) {
                         const { letter, element } = sections[i];
                         if (element) {
@@ -99,7 +96,6 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
                         }
                     }
 
-                    // Default to first letter if none in view
                     if (sections.length > 0) {
                         setActiveLetter(sections[0].letter);
                     }
@@ -107,56 +103,55 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
                 });
                 ticking = true;
             }
-        };
+        }
 
         window.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll(); // Initial check
+        handleScroll();
         return () => window.removeEventListener('scroll', handleScroll);
     }, [sortedLetters]);
 
-    // Scroll to letter section
-    const scrollToLetter = (letter: string) => {
-        // First, load all tasks if clicking on a letter not yet visible
-        if (!groupedTasks[letter]) {
-            setVisibleCount(sortedTasks.length);
-            // Wait for render then scroll
-            setTimeout(() => {
+    // Infinite scroll — load more when near bottom
+    useEffect(() => {
+        function handleScroll() {
+            if (!hasMore) return;
+            const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 400;
+            if (nearBottom) setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, sortedTasks.length));
+        }
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [hasMore, sortedTasks.length]);
+
+    // Scroll to letter — find which page has that letter and navigate there
+    function scrollToLetter(letter: string) {
+        const idx = sortedTasks.findIndex(
+            task => (task.taskName?.charAt(0) || '?').toUpperCase() === letter
+        );
+        if (idx === -1) return;
+
+        const scrollToElement = () => {
+            let attempts = 0;
+            const maxAttempts = 20;
+            function tryScroll() {
                 const element = document.getElementById(`section-${letter}`);
                 if (element) {
                     element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else if (attempts < maxAttempts) {
+                    attempts++;
+                    requestAnimationFrame(tryScroll);
                 }
-            }, 100);
+            }
+            requestAnimationFrame(tryScroll);
+        };
+
+        // Ensure items up to this letter are visible
+        if (idx >= visibleCount) {
+            setVisibleCount(idx + ITEMS_PER_PAGE);
+            scrollToElement();
         } else {
             const element = document.getElementById(`section-${letter}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    };
-
-    // Infinite scroll - load more when reaching bottom
-    const loadMore = useCallback(() => {
-        if (hasMore) {
-            setVisibleCount(prev => Math.min(prev + ITEMS_PER_LOAD, sortedTasks.length));
-        }
-    }, [hasMore, sortedTasks.length]);
-
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasMore) {
-                    loadMore();
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        if (loadMoreRef.current) {
-            observer.observe(loadMoreRef.current);
-        }
-
-        return () => observer.disconnect();
-    }, [hasMore, loadMore]);
+    }
 
     return (
         <div className="max-w-[1200px] mx-auto px-3 sm:px-6 py-4 sm:py-10">
@@ -193,17 +188,15 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
                         </div>
                     ))}
 
-                    {/* Loading indicator / Load more trigger */}
-                    <div ref={loadMoreRef} className="py-8 text-center">
-                        {hasMore ? (
-                            <div className="flex items-center justify-center gap-2 text-text-tertiary">
-                                <span className="w-5 h-5 border-2 border-border border-t-accent-green rounded-full animate-spin"></span>
-                                <span className="text-sm">Loading more tasks...</span>
-                            </div>
-                        ) : sortedTasks.length > 0 ? (
-                            <p className="text-sm text-text-tertiary">Showing all {totalCount.toLocaleString()} tasks</p>
-                        ) : null}
-                    </div>
+                    {/* Load more indicator */}
+                    {hasMore && (
+                        <div className="flex justify-center py-6">
+                            <div className="animate-spin w-6 h-6 border-[2px] border-accent-green border-t-transparent rounded-full" />
+                        </div>
+                    )}
+                    {!hasMore && sortedTasks.length > 0 && (
+                        <p className="text-center text-text-tertiary text-xs py-4">All {sortedTasks.length} tasks shown</p>
+                    )}
                 </div>
 
                 {/* Alphabet bar - right on mobile (sticky), left on desktop */}

@@ -8,10 +8,11 @@ export default function PageProgress() {
     const searchParams = useSearchParams();
     const [progress, setProgress] = useState(0);
     const [active, setActive] = useState(false);
-    const tickRef = useRef<NodeJS.Timeout>();
-    const hideRef = useRef<NodeJS.Timeout>();
-    const completeTimerRef = useRef<NodeJS.Timeout>();
-    const safetyInnerRef = useRef<NodeJS.Timeout>();
+    const tickRef = useRef<NodeJS.Timeout>(undefined);
+    const hideRef = useRef<NodeJS.Timeout>(undefined);
+    const completeTimerRef = useRef<NodeJS.Timeout>(undefined);
+    const safetyInnerRef = useRef<NodeJS.Timeout>(undefined);
+    const deferredStartRef = useRef<NodeJS.Timeout>(undefined);
     const startTimeRef = useRef(0);
     const isNavigatingRef = useRef(false);
 
@@ -20,6 +21,7 @@ export default function PageProgress() {
         if (hideRef.current) clearTimeout(hideRef.current);
         if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
         if (safetyInnerRef.current) clearTimeout(safetyInnerRef.current);
+        if (deferredStartRef.current) clearTimeout(deferredStartRef.current);
     }, []);
 
     // Complete and hide progress bar with minimum visible duration
@@ -43,6 +45,7 @@ export default function PageProgress() {
     // Start progress bar with ticking animation
     const start = useCallback(() => {
         cleanup();
+        // Idempotent: always (re)initialize the progress UI
         isNavigatingRef.current = true;
         startTimeRef.current = Date.now();
         setActive(true);
@@ -85,25 +88,28 @@ export default function PageProgress() {
     }, [start]);
 
     // Also intercept programmatic navigation (router.push)
+    // Note: start() is deferred with setTimeout because Next.js 16 calls
+    // pushState/replaceState from useInsertionEffect, which forbids state updates.
     useEffect(() => {
         const originalPushState = history.pushState.bind(history);
         const originalReplaceState = history.replaceState.bind(history);
 
         history.pushState = function (...args) {
             if (!isNavigatingRef.current) {
-                start();
+                isNavigatingRef.current = true;
+                deferredStartRef.current = setTimeout(start, 0);
             }
             return originalPushState(...args);
         };
 
         history.replaceState = function (...args) {
-            // Only start for actual page navigations, not same-page state changes
             const url = args[2];
             if (url && typeof url === 'string') {
                 const normalize = (u: string): string => u.replace(/\/$/, '') || '/';
                 if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
                     if (!isNavigatingRef.current) {
-                        start();
+                        isNavigatingRef.current = true;
+                        deferredStartRef.current = setTimeout(start, 0);
                     }
                 }
             }

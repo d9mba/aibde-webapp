@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 // Helper to determine input value based on state
 function getInputValue(isOpen: boolean, multiple: boolean, search: string, selectedLabel: string): string {
@@ -21,7 +21,11 @@ interface ComboboxProps {
     options: ComboboxOption[];
     placeholder?: string;
     allowCreate?: boolean;
+    emptyMessage?: string;
+    helperText?: string;
+    loading?: boolean;
     onCreateNew?: (name: string) => Promise<void> | void;
+    onSearchChange?: (search: string) => void;
 }
 
 interface SingleComboboxProps extends ComboboxProps {
@@ -39,11 +43,12 @@ interface MultiComboboxProps extends ComboboxProps {
 type Props = SingleComboboxProps | MultiComboboxProps;
 
 export default function Combobox(props: Props) {
-    const { label, required, options, placeholder, allowCreate = true, multiple, onCreateNew } = props;
+    const { label, required, options, placeholder, allowCreate = true, emptyMessage, helperText, loading, multiple, onCreateNew, onSearchChange } = props;
 
     const [search, setSearch] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [focusedIdx, setFocusedIdx] = useState(-1);
+    const [displayLimit, setDisplayLimit] = useState(20);
     const [localOptions, setLocalOptions] = useState<ComboboxOption[]>([]);
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -63,6 +68,7 @@ export default function Combobox(props: Props) {
     const canAddNew = allowCreate && search.trim().length > 0 &&
         !allOptions.some(o => (o.label || '').toLowerCase() === search.trim().toLowerCase());
 
+    const visibleCount = Math.min(filteredOptions.length, displayLimit);
     const totalItems = filteredOptions.length + (canAddNew ? 1 : 0);
 
     // Selected items for multi-select
@@ -87,8 +93,19 @@ export default function Combobox(props: Props) {
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
-    // Reset focus on search change
-    useEffect(() => { setFocusedIdx(-1); }, [search]);
+    // Reset focus and display limit on search change
+    useEffect(() => {
+        setFocusedIdx(-1);
+        setDisplayLimit(search ? 100 : 20);
+    }, [search]);
+
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.target as HTMLDivElement;
+        const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 50;
+        if (nearBottom && filteredOptions.length > displayLimit) {
+            setDisplayLimit(prev => prev + 20);
+        }
+    }, [filteredOptions.length, displayLimit]);
 
     // Scroll focused item into view
     useEffect(() => {
@@ -153,7 +170,14 @@ export default function Combobox(props: Props) {
         switch (e.key) {
             case 'ArrowDown':
                 e.preventDefault();
-                setFocusedIdx(prev => (prev + 1) % totalItems);
+                setFocusedIdx(prev => {
+                    const next = (prev + 1) % totalItems;
+                    // Auto-expand displayLimit if arrowing past visible items (but not for Create item)
+                    if (next >= visibleCount && next < filteredOptions.length && !(canAddNew && next === visibleCount)) {
+                        setDisplayLimit(dl => dl + 20);
+                    }
+                    return next;
+                });
                 break;
             case 'ArrowUp':
                 e.preventDefault();
@@ -161,7 +185,7 @@ export default function Combobox(props: Props) {
                 break;
             case 'Enter':
                 e.preventDefault();
-                if (focusedIdx >= 0 && focusedIdx < filteredOptions.length) {
+                if (focusedIdx >= 0 && focusedIdx < visibleCount) {
                     selectOption(filteredOptions[focusedIdx].value);
                 } else if (canAddNew) {
                     createAndSelect();
@@ -185,7 +209,7 @@ export default function Combobox(props: Props) {
                 ref={inputRef}
                 type="text"
                 value={getInputValue(isOpen, multiple ?? false, search, selectedLabel)}
-                onChange={e => { setSearch(e.target.value); setIsOpen(true); }}
+                onChange={e => { setSearch(e.target.value); setIsOpen(true); onSearchChange?.(e.target.value); }}
                 onFocus={() => setIsOpen(true)}
                 onKeyDown={handleKeyDown}
                 placeholder={multiple && selectedItems.length > 0 ? 'Add more...' : (placeholder || `Select ${label.toLowerCase()}...`)}
@@ -194,8 +218,8 @@ export default function Combobox(props: Props) {
 
             {/* Dropdown */}
             {isOpen && (
-                <div ref={listRef} className="absolute z-50 w-full mt-1 bg-bg-card border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                    {filteredOptions.map((option, idx) => {
+                <div ref={listRef} className="absolute z-50 w-full mt-1 bg-bg-card border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto" onScroll={handleScroll}>
+                    {filteredOptions.slice(0, displayLimit).map((option, idx) => {
                         // Only one item should be highlighted at a time
                         const isHighlighted = idx === focusedIdx;
 
@@ -214,8 +238,19 @@ export default function Combobox(props: Props) {
                             </div>
                         );
                     })}
-                    {filteredOptions.length === 0 && !canAddNew && (
-                        <div className="px-3 py-2 text-sm text-text-tertiary">No options found</div>
+                    {filteredOptions.length > displayLimit && (
+                        <div className="px-3 py-2 text-xs text-text-tertiary text-center">
+                            {search ? 'Scroll for more...' : `Scroll to see ${filteredOptions.length - displayLimit} more`}
+                        </div>
+                    )}
+                    {loading && (
+                        <div className="px-3 py-2.5 text-sm text-text-tertiary flex items-center gap-2">
+                            <span className="w-4 h-4 border-2 border-border border-t-accent-primary rounded-full animate-spin" />
+                            Searching...
+                        </div>
+                    )}
+                    {!loading && filteredOptions.length === 0 && !canAddNew && (
+                        <div className="px-3 py-2 text-sm text-text-tertiary">{emptyMessage || 'No options found'}</div>
                     )}
                     {canAddNew && (
                         <div
@@ -242,7 +277,7 @@ export default function Combobox(props: Props) {
             )}
 
             {multiple && (
-                <p className="text-xs text-text-tertiary mt-1">Multiple can be selected. Type to search or add new.</p>
+                <p className="text-xs text-text-tertiary mt-1">{helperText || (allowCreate ? 'Multiple can be selected. Type to search or add new.' : 'Multiple can be selected. Type to search.')}</p>
             )}
         </div>
     );

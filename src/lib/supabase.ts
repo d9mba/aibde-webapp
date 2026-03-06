@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { CDN_URL, toFullUrl, toArray, toRelativePath } from './url';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -17,7 +18,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Server-side Supabase Admin client (uses service role key, bypasses RLS)
 // Used by API routes for admin operations
-// Fallback to anon client if no service role key (will respect RLS)
+if (!supabaseServiceRoleKey && process.env.NODE_ENV === 'production') {
+    console.error('[CRITICAL] SUPABASE_SERVICE_ROLE_KEY not set — admin operations will fail due to RLS');
+}
 export const supabaseAdmin = supabaseServiceRoleKey
     ? createClient(supabaseUrl, supabaseServiceRoleKey, {
         auth: { autoRefreshToken: false, persistSession: false }
@@ -34,7 +37,7 @@ export interface DbTool {
     category_name?: string[];
     task_name?: string[];
     tags?: string[];
-    pricing?: 'free' | 'freemium' | 'paid';
+    pricing?: 'free' | 'freemium' | 'paid' | 'open_source';
     pricing_label?: string;
     website_url?: string;
     affiliate_url?: string;
@@ -137,6 +140,9 @@ export interface DbTool {
     created_at: string;
     updated_at: string;
 
+    // Repost flag
+    is_reposted?: boolean;
+
     // AI Generated flag
     is_ai_generated?: boolean;
 }
@@ -169,29 +175,7 @@ export interface DbSettings {
     updated_at: string;
 }
 
-// CDN URL for production, fallback to R2 for dev (server-side)
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL || '';
 
-// Helper to reconstruct full URL from relative path (server-side only)
-function toFullUrl(path: string | undefined | null): string | undefined {
-    if (!path) return undefined;
-    // Already a full URL, return as-is
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    // Relative path - prepend CDN URL
-    if (!CDN_URL) return path;
-    return `${CDN_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-}
-
-// Helper to ensure a value is always an array (handles string, array, or undefined)
-function toArray(value: string | string[] | undefined | null): string[] {
-    if (!value) return [];
-    if (Array.isArray(value)) return value;
-    // If it's a string, it might be comma-separated or a single value
-    if (typeof value === 'string') {
-        return value.split(',').map(s => s.trim()).filter(Boolean);
-    }
-    return [];
-}
 
 // Helper to parse JSON fields that may come as strings from the database
 function parseJsonField<T>(value: T | string | undefined | null, defaultValue: T): T {
@@ -272,7 +256,7 @@ export function dbToolToAdminTool(dbTool: DbTool) {
     return {
         id: dbTool.id,
         name: dbTool.name,
-        app_username: dbTool.app_username,
+        appUsername: dbTool.app_username,
         summary: dbTool.summary,
         description: dbTool.description || '',
         // Ensure these are arrays even if DB stores as string
@@ -362,8 +346,35 @@ export function dbToolToAdminTool(dbTool: DbTool) {
         createdAt: dbTool.created_at,
         updatedAt: dbTool.updated_at,
 
+        // Repost flag
+        isReposted: dbTool.is_reposted ?? false,
+
         // AI Generated flag
         isAiGenerated: dbTool.is_ai_generated,
+    };
+}
+
+// Lean mapper for ToolCard display — only returns fields used by the card component
+export function dbToolToCardTool(dbTool: DbTool) {
+    return {
+        id: dbTool.id,
+        name: dbTool.name,
+        appUsername: dbTool.app_username,
+        summary: dbTool.summary || '',
+        categoryName: toArray(dbTool.category_name),
+        taskName: toArray(dbTool.task_name),
+        pricing: dbTool.pricing || 'freemium',
+        pricingLabel: dbTool.pricing_label || '',
+        logoUrl: toFullUrl(dbTool.logo_url),
+        websiteUrl: dbTool.website_url || '',
+        backLinks: dbTool.back_links,
+        viewCount: dbTool.view_count || 0,
+        upvotes: dbTool.upvotes || 0,
+        rating: dbTool.rating,
+        launchedAgo: formatRelativeTime(dbTool.launched_on || dbTool.created_at, dbTool.updated_at),
+        isFeatured: dbTool.is_featured,
+        listingType: dbTool.listing_type,
+        spotlightEnabled: dbTool.spotlight_enabled,
     };
 }
 
@@ -438,6 +449,9 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         // Back Links
         backLinks: 'back_links',
 
+        // Repost Flag
+        isReposted: 'is_reposted',
+
         // Trending
         trendingPosition: 'trending_position',
 
@@ -460,23 +474,7 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
     // Fields that should be null instead of empty string for PostgreSQL timestamps
     const timestampFields = ['scheduled_at', 'spotlight_start_date', 'spotlight_end_date', 'launched_on'];
 
-    // Helper to extract relative path from full URL (converts CDN URLs to relative paths for storage)
-    const extractRelativePath = (url: string | undefined | null): string | null => {
-        if (!url) return null;
-        // Already a relative path starting with /, return as is
-        if (url.startsWith('/') && !url.startsWith('//')) return url;
-        // Strip CDN URL if present
-        if (CDN_URL && url.startsWith(CDN_URL)) {
-            return url.substring(CDN_URL.length);
-        }
-        // Try to extract pathname from full URL
-        try {
-            const urlObj = new URL(url);
-            return urlObj.pathname;
-        } catch {
-            return url;
-        }
-    };
+
 
     for (const [key, value] of Object.entries(tool)) {
         if (key === 'launchedAgo') continue; // Skip computed field
@@ -515,13 +513,13 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
         // Extract relative path for logo_url
         if (dbKey === 'logo_url' && typeof value === 'string') {
-            result[dbKey] = extractRelativePath(value);
+            result[dbKey] = toRelativePath(value);
             continue;
         }
 
         // Extract relative paths for images array
         if (dbKey === 'images' && Array.isArray(value)) {
-            result[dbKey] = value.map(img => extractRelativePath(img)).filter(Boolean);
+            result[dbKey] = value.map(img => toRelativePath(img)).filter(Boolean);
             continue;
         }
 

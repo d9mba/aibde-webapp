@@ -10,8 +10,47 @@ const PUBLIC_DETAIL_FIELDS = `
     website_url, play_store_url, app_store_url, social_links,
     images, videos, core_features, use_cases, pros, cons, faq,
     pricing_tiers, has_free_trial, free_trial_days, discount, billing_frequency,
-    released_at, status, created_at, updated_at
+    launched_on, status, created_at, updated_at
 `;
+
+// Strip response to only public-safe detail fields
+function toPublicDetailTool(tool: ReturnType<typeof dbToolToAdminTool>) {
+    return {
+        id: tool.id,
+        name: tool.name,
+        appUsername: tool.appUsername,
+        logoUrl: tool.logoUrl,
+        summary: tool.summary,
+        description: tool.description,
+        categoryName: tool.categoryName,
+        taskName: tool.taskName,
+        tags: tool.tags,
+        pricing: tool.pricing,
+        pricingLabel: tool.pricingLabel,
+        saveCount: tool.saveCount,
+        isFeatured: tool.isFeatured,
+        websiteUrl: tool.websiteUrl,
+        playStoreUrl: tool.playStoreUrl,
+        appStoreUrl: tool.appStoreUrl,
+        socialLinks: tool.socialLinks,
+        images: tool.images,
+        videos: tool.videos,
+        coreFeatures: tool.coreFeatures,
+        useCases: tool.useCases,
+        pros: tool.pros,
+        cons: tool.cons,
+        faq: tool.faq,
+        pricingTiers: tool.pricingTiers,
+        hasFreeTrial: tool.hasFreeTrial,
+        freeTrialDays: tool.freeTrialDays,
+        discount: tool.discount,
+        billingFrequency: tool.billingFrequency,
+        launchedOn: tool.launchedOn,
+        status: tool.status,
+        createdAt: tool.createdAt,
+        updatedAt: tool.updatedAt,
+    };
+}
 
 // GET /api/public/tools/[id] - Get single published tool (NO AUTH REQUIRED)
 export async function GET(
@@ -37,7 +76,7 @@ export async function GET(
         }
 
         // PERFORMANCE: Cache public responses
-        const response = NextResponse.json(dbToolToAdminTool(data));
+        const response = NextResponse.json(toPublicDetailTool(dbToolToAdminTool(data)));
         response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
         return response;
     } catch (err) {

@@ -7,7 +7,7 @@ import { trackToolClick, useToolImpression, trackFilterUsed } from '@/hooks/useT
 import { getPricingColor, getPricingLabel } from '@/lib/formatters';
 import { getFullUrl } from '@/lib/url';
 import { slugify } from '@/lib/utils';
-import { useImpressions } from '@/contexts/ImpressionsContext';
+import { useImpressions } from '@/context/ImpressionsContext';
 import { ToolBadge, StarIcon } from '@/components/icons';
 import GridIcon from '@/assets/svg/ui/grid.svg';
 import TaskIcon from '@/assets/svg/actions/task.svg';
@@ -59,23 +59,23 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
     const isFeatured = variant === 'featured';
 
     // Get live impressions from PostHog context
-    const liveImpressions = getImpressions(tool.app_username);
+    const liveImpressions = getImpressions(tool.appUsername);
 
     // Analytics: Track impressions when card is visible
     const impressionRef = useToolImpression(
-        { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+        { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
         isFeatured ? 'featured' : 'list'
     );
 
     const handleViewClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         // For backLinks-enabled tools, link directly to website for SEO value
-        const url = tool.backLinks && tool.websiteUrl ? tool.websiteUrl : `/go/${tool.app_username}`;
+        const url = tool.backLinks && tool.websiteUrl ? tool.websiteUrl : `/go/${tool.appUsername}`;
         // Track outbound click for backLinks (non-redirect) tools since they bypass /go/
         if (tool.backLinks && tool.websiteUrl) {
             import('@/hooks/useToolAnalytics').then(({ trackToolVisit }) => {
                 trackToolVisit(
-                    { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                    { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                     tool.websiteUrl || ''
                 );
             });
@@ -99,10 +99,10 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
     const handleCardClick = () => {
         // Analytics: Track tool click
         trackToolClick(
-            { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+            { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
             isFeatured ? 'featured' : 'card'
         );
-        window.location.href = `/app/${tool.app_username}`;
+        window.location.href = `/app/${tool.appUsername}`;
     };
 
     return (
@@ -167,6 +167,16 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
 
                     {/* Tags - 1 Category and 1 Task with different colors */}
                     <div className="flex flex-wrap gap-1 mt-1">
+                        {/* Recently Updated tag - Light blue color */}
+                        {tool.isReposted && (
+                            <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full pointer-events-none"
+                                style={{ color: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)' }}
+                            >
+                                <svg className="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                Recently Updated
+                            </span>
+                        )}
                         {/* Category tag - Light green color */}
                         {(tool.categoryName || [])[0] && (
                             <span
@@ -280,7 +290,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
             <ShareModal
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
-                url={typeof window !== 'undefined' ? `${window.location.origin}/app/${tool.app_username}` : ''}
+                url={typeof window !== 'undefined' ? `${window.location.origin}/app/${tool.appUsername}` : ''}
                 title={tool.name}
                 description={tool.summary || tool.description}
             />

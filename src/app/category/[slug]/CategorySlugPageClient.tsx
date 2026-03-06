@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
+import Pagination from '@/components/ui/Pagination';
 import { AdminTool, Category } from '@/types';
 import { slugify } from '@/lib/utils';
 import { Folder, ArrowLeft, ChevronRight } from 'lucide-react';
@@ -15,71 +16,73 @@ interface CategorySlugPageClientProps {
     totalCount: number;
 }
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 48;
 
 export default function CategorySlugPageClient({
     category,
-    tools,
+    tools: initialTools,
     allCategories,
     slug,
     totalCount
 }: CategorySlugPageClientProps) {
-    const [allTools, setAllTools] = useState<AdminTool[]>(tools);
-    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+    const [tools, setTools] = useState<AdminTool[]>(initialTools);
+    const [currentPage, setCurrentPage] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
-    const loadMoreRef = useRef<HTMLDivElement>(null);
+    const [fetchError, setFetchError] = useState<string | null>(null);
+    const pageFetchControllerRef = useRef<AbortController | null>(null);
 
-    // Get visible tools
-    const visibleTools = allTools.slice(0, visibleCount);
-    const hasMore = visibleCount < allTools.length || allTools.length < totalCount;
+    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+    const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, totalCount);
 
-    // Load more tools from API
-    const loadMoreTools = useCallback(async () => {
-        if (isLoading || !category) return;
+    // Fetch a specific page of tools
+    const goToPage = useCallback(async (page: number) => {
+        if (!category) return;
 
-        // If we have more tools in state, just show them
-        if (visibleCount < allTools.length) {
-            setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, allTools.length));
+        // Page 1 uses SSR data
+        if (page === 1) {
+            pageFetchControllerRef.current?.abort();
+            pageFetchControllerRef.current = null;
+            setTools(initialTools);
+            setCurrentPage(1);
+            setFetchError(null);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }
 
-        // If we've shown all loaded tools but more exist, fetch from API
-        if (allTools.length < totalCount) {
-            setIsLoading(true);
-            try {
-                const response = await fetch(`/api/tools/by-category?category=${encodeURIComponent(category.categoryName)}&offset=${allTools.length}&limit=50`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.tools && data.tools.length > 0) {
-                        setAllTools(prev => [...prev, ...data.tools]);
-                        setVisibleCount(prev => prev + ITEMS_PER_PAGE);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to load more tools:', error);
-            } finally {
-                setIsLoading(false);
+        // Abort any previous in-flight request
+        pageFetchControllerRef.current?.abort();
+        const controller = new AbortController();
+        pageFetchControllerRef.current = controller;
+
+        setIsLoading(true);
+        setFetchError(null);
+        try {
+            const offset = (page - 1) * ITEMS_PER_PAGE;
+            const response = await fetch(
+                `/api/tools/by-category?category=${encodeURIComponent(category.categoryName)}&offset=${offset}&limit=${ITEMS_PER_PAGE}`,
+                { signal: controller.signal }
+            );
+            if (!response.ok) {
+                const text = await response.text().catch(() => response.statusText);
+                const msg = `Failed to load tools (${response.status}): ${text}`;
+                console.error(msg);
+                setFetchError(msg);
+                return;
             }
+            const data = await response.json();
+            setTools(data.tools || []);
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') return;
+            const msg = error instanceof Error ? error.message : 'Failed to load tools';
+            console.error('Failed to load tools:', error);
+            setFetchError(msg);
+        } finally {
+            setIsLoading(false);
         }
-    }, [allTools.length, category, isLoading, totalCount, visibleCount]);
-
-    // Infinite scroll observer
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasMore && !isLoading) {
-                    loadMoreTools();
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        if (loadMoreRef.current) {
-            observer.observe(loadMoreRef.current);
-        }
-
-        return () => observer.disconnect();
-    }, [hasMore, isLoading, loadMoreTools]);
+    }, [category, initialTools]);
 
     if (!category) {
         return (
@@ -105,7 +108,7 @@ export default function CategorySlugPageClient({
                 <ArrowLeft className="w-4 h-4" /> Back to Categories
             </Link>
 
-            {/* Header - Compact */}
+            {/* Header */}
             <div className="mb-6">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 rounded-xl bg-accent-primary/10 text-accent-primary flex items-center justify-center flex-shrink-0">
@@ -121,10 +124,28 @@ export default function CategorySlugPageClient({
                 )}
             </div>
 
+            {/* Showing count */}
+            {totalCount > 0 && totalPages > 1 && !isLoading && (
+                <p className="text-sm text-text-tertiary mb-4">
+                    Showing {startIndex}–{endIndex} of {totalCount.toLocaleString()} tools
+                </p>
+            )}
+
+            {/* Fetch error banner */}
+            {fetchError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    {fetchError}
+                </div>
+            )}
+
             {/* Tools Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
-                {visibleTools.length > 0 ? (
-                    visibleTools.map((tool) => (
+                {isLoading ? (
+                    <div className="col-span-full flex items-center justify-center py-16">
+                        <span className="w-6 h-6 border-2 border-border border-t-accent-primary rounded-full animate-spin" />
+                    </div>
+                ) : tools.length > 0 ? (
+                    tools.map((tool) => (
                         <AIToolCard key={tool.id} tool={tool} />
                     ))
                 ) : (
@@ -136,24 +157,12 @@ export default function CategorySlugPageClient({
                 )}
             </div>
 
-            {/* Loading indicator */}
-            <div ref={loadMoreRef} className="py-6 text-center">
-                {isLoading ? (
-                    <div className="flex items-center justify-center gap-2 text-text-tertiary">
-                        <span className="w-5 h-5 border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
-                        <span className="text-sm">Loading more tools...</span>
-                    </div>
-                ) : hasMore ? (
-                    <button
-                        onClick={loadMoreTools}
-                        className="px-6 py-2.5 bg-bg-card border border-border rounded-full text-sm font-medium text-text-primary transition-all hover:border-accent-primary"
-                    >
-                        Load more tools
-                    </button>
-                ) : visibleTools.length > ITEMS_PER_PAGE ? (
-                    <p className="text-sm text-text-tertiary">Showing all {totalCount} tools</p>
-                ) : null}
-            </div>
+            {/* Pagination */}
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={goToPage}
+            />
 
             {/* Other Categories Section */}
             <section className="border-t border-border pt-6 sm:pt-8">

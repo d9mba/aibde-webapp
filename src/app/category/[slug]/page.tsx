@@ -60,7 +60,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 /**
  * Category Detail Page - Optimized with pagination
- * Initially loads 100 tools, more loaded on demand
+ * Initially loads 48 tools, more loaded on demand
  */
 export default async function CategoryPage({ params }: PageProps) {
     const { slug } = await params;
@@ -69,9 +69,9 @@ export default async function CategoryPage({ params }: PageProps) {
     // Find category by matching against slugified version of category name
     const category = categories.find(c => slugify(c.categoryName) === slug) || null;
 
-    // Fetch initial tools and total count
+    // Fetch initial tools (1 page) and total count
     const [tools, totalCount] = await Promise.all([
-        category ? getToolsByCategory(category.categoryName, 100) : Promise.resolve([]),
+        category ? getToolsByCategory(category.categoryName, 48) : Promise.resolve([]),
         category ? getToolsCountByCategory(category.categoryName) : Promise.resolve(0)
     ]);
 
@@ -80,7 +80,7 @@ export default async function CategoryPage({ params }: PageProps) {
     const itemListLd = category && tools.length ? getItemListJsonLd(
         `${category.categoryName} AI Tools`,
         categoryUrl,
-        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.app_username}` })),
+        tools.slice(0, 10).map(t => ({ name: t.name, url: `${SEO.siteUrl}/app/${t.appUsername}` })),
         category.description || undefined
     ) : null;
 

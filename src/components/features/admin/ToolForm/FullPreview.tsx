@@ -3,6 +3,7 @@
 import { X, ExternalLink, Play } from 'lucide-react';
 import { SafeHtml } from '@/components/ui/SafeHtml';
 import { getStatusClass, getPricingLabel } from '@/lib/formatters';
+import { getFullUrl } from '@/lib/url';
 
 interface FullPreviewProps {
     data: {
@@ -45,7 +46,7 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                 <div className="p-6 border-b border-border">
                     <div className="flex items-start gap-4">
                         {data.logoUrl ? (
-                            <img src={data.logoUrl} alt="" className="w-20 h-20 rounded-xl object-contain" />
+                            <img src={getFullUrl(data.logoUrl)} alt="" className="w-20 h-20 rounded-xl object-contain" />
                         ) : (
                             <div className="w-20 h-20 bg-accent-primary/20 rounded-xl flex items-center justify-center text-3xl font-bold text-accent-primary">
                                 {data.name?.[0] || '?'}
@@ -187,7 +188,7 @@ export default function FullPreview({ data, categories, tasks, onClose }: FullPr
                             <h3 className="text-sm font-medium text-text-tertiary mb-2">Screenshots</h3>
                             <div className="grid grid-cols-3 gap-2">
                                 {data.images.map((img, i) => (
-                                    <img key={i} src={img} alt={`Screenshot ${i + 1}`} className="w-full h-24 object-cover rounded-lg border border-border" />
+                                    <img key={i} src={getFullUrl(img)} alt={`Screenshot ${i + 1}`} className="w-full h-24 object-cover rounded-lg border border-border" />
                                 ))}
                             </div>
                         </div>

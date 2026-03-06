@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAdmin, AdminTool } from '@/context/AdminContext';
+import { useTools } from '@/hooks/useTools';
 import { useToast } from '@/components/ui/Toast';
-import { Search, ChevronLeft, ChevronRight, AlertTriangle, Save } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, AlertTriangle, Save, Loader2 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 25;
 const MAX_SPOTLIGHT_TOOLS = 8; // Maximum spotlight tools allowed
@@ -15,20 +16,46 @@ interface SpotlightChange {
 }
 
 export default function SpotlightPage() {
-    const { tools, updateTool, settings, isLoaded } = useAdmin();
+    const { updateTool, settings, toolsMutated } = useAdmin();
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [saving, setSaving] = useState(false);
 
+    // Fetch spotlight tools (small set) and available tools (paginated)
+    const { tools: spotlightToolsRaw, loading: spotLoading } = useTools({
+        spotlight: true, status: 'published', all: true, deps: toolsMutated, fields: 'card',
+    });
+    const { tools: availableToolsRaw, loading: availLoading, totalPages, totalCount: availableTotal } = useTools({
+        status: 'published', limit: ITEMS_PER_PAGE, page: currentPage,
+        search, deps: toolsMutated, fields: 'card',
+    });
+
+    // Only block the full page on initial spotlight tools load, not on available tools search
+    const isLoaded = !spotLoading;
+
+    // Capture initial total so "Available" stat stays constant during search
+    const initialTotalRef = useRef<number>(0);
+    useEffect(() => {
+        if (availableTotal != null && initialTotalRef.current === 0) {
+            initialTotalRef.current = availableTotal;
+        }
+    }, [availableTotal]);
+    // Reset initial total when tools are mutated so it refreshes
+    useEffect(() => {
+        initialTotalRef.current = 0;
+    }, [toolsMutated]);
+
     // Local state for pending changes
     const [pendingSpotlightIds, setPendingSpotlightIds] = useState<string[]>([]);
     const [pendingPositions, setPendingPositions] = useState<Record<string, number>>({});
     const [hasChanges, setHasChanges] = useState(false);
+    // Cache tool objects so they persist across pagination
+    const pendingToolsCacheRef = useRef<Map<string, AdminTool>>(new Map());
 
     // Initialize from current data
     useEffect(() => {
-        const currentSpotlights = tools
+        const currentSpotlights = spotlightToolsRaw
             .filter(t => t.spotlightEnabled && t.spotlightPosition && t.status === 'published')
             .sort((a, b) => (a.spotlightPosition ?? 999) - (b.spotlightPosition ?? 999));
 
@@ -42,19 +69,27 @@ export default function SpotlightPage() {
             setPendingSpotlightIds(ids);
             setPendingPositions(positions);
         }
-    }, [tools]);
+    }, [spotlightToolsRaw]);
 
     // Current spotlight tools based on pending changes
+    const allTools = useMemo(() => {
+        return [...spotlightToolsRaw, ...availableToolsRaw];
+    }, [spotlightToolsRaw, availableToolsRaw]);
+
+    // Populate cache in an effect to avoid side effects in useMemo
+    useEffect(() => {
+        allTools.forEach(t => pendingToolsCacheRef.current.set(t.id, t));
+    }, [allTools]);
     const spotlightTools = useMemo(() => {
         return pendingSpotlightIds
-            .map(id => tools.find(t => t.id === id))
+            .map(id => pendingToolsCacheRef.current.get(id) || allTools.find(t => t.id === id))
             .filter((t): t is AdminTool => t !== undefined)
             .sort((a, b) => (pendingPositions[a.id] ?? 999) - (pendingPositions[b.id] ?? 999));
-    }, [tools, pendingSpotlightIds, pendingPositions]);
+    }, [allTools, pendingSpotlightIds, pendingPositions]);
 
     const availableTools = useMemo(() => {
-        return tools.filter(t => !pendingSpotlightIds.includes(t.id) && t.status === 'published');
-    }, [tools, pendingSpotlightIds]);
+        return availableToolsRaw.filter(t => !pendingSpotlightIds.includes(t.id));
+    }, [availableToolsRaw, pendingSpotlightIds]);
 
     // Filter available tools by search
     const filteredAvailableTools = useMemo(() => {
@@ -66,10 +101,8 @@ export default function SpotlightPage() {
         );
     }, [availableTools, search]);
 
-    // Pagination
-    const totalPages = Math.ceil(filteredAvailableTools.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedTools = filteredAvailableTools.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    // Server-side pagination is handled by useTools — no client-side slicing needed
+    const paginatedTools = filteredAvailableTools;
 
     const handleSearch = (value: string) => {
         setSearch(value);
@@ -77,7 +110,7 @@ export default function SpotlightPage() {
     };
 
     const handleRemoveFromSpotlight = (toolId: string) => {
-        const tool = tools.find(t => t.id === toolId);
+        const tool = allTools.find(t => t.id === toolId);
         setPendingSpotlightIds(prev => prev.filter(id => id !== toolId));
         setPendingPositions(prev => {
             const updated = { ...prev };
@@ -93,7 +126,8 @@ export default function SpotlightPage() {
             showToast(`Maximum ${MAX_SPOTLIGHT_TOOLS} spotlight tools allowed! Remove one before adding.`, 'error');
             return;
         }
-        const tool = tools.find(t => t.id === toolId);
+        const tool = allTools.find((t: AdminTool) => t.id === toolId);
+        if (tool) pendingToolsCacheRef.current.set(toolId, tool);
         const maxPos = Math.max(...Object.values(pendingPositions), 0);
         setPendingSpotlightIds(prev => [...prev, toolId]);
         setPendingPositions(prev => ({ ...prev, [toolId]: maxPos + 1 }));
@@ -140,8 +174,8 @@ export default function SpotlightPage() {
         setSaving(true);
         try {
             // Get current DB state
-            const currentSpotlights = tools.filter(t => t.spotlightEnabled);
-            const currentIds = new Set(currentSpotlights.map(t => t.id));
+            const currentSpotlights = spotlightToolsRaw.filter((t: AdminTool) => t.spotlightEnabled);
+            const currentIds = new Set(currentSpotlights.map((t: AdminTool) => t.id));
             const pendingSet = new Set(pendingSpotlightIds);
 
             const updates: Promise<void>[] = [];
@@ -157,7 +191,7 @@ export default function SpotlightPage() {
             // Add/update tools in spotlight
             for (const toolId of pendingSpotlightIds) {
                 const position = pendingPositions[toolId];
-                const tool = tools.find(t => t.id === toolId);
+                const tool = pendingToolsCacheRef.current.get(toolId) || allTools.find((t: AdminTool) => t.id === toolId);
                 if (tool) {
                     if (!currentIds.has(toolId)) {
                         // New spotlight
@@ -229,7 +263,7 @@ export default function SpotlightPage() {
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Display</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{availableTools.length}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{Math.max(0, (initialTotalRef.current || availableTotal) - spotlightTools.length)}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>
@@ -266,8 +300,13 @@ export default function SpotlightPage() {
                             </div>
                         </div>
 
-                        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
-                            {paginatedTools.length === 0 ? (
+                        <div className={`divide-y divide-border max-h-[400px] overflow-y-auto transition-opacity duration-200 ${availLoading ? 'opacity-50' : ''}`}>
+                            {availLoading && paginatedTools.length === 0 ? (
+                                <div className="p-6 sm:p-8 flex items-center justify-center gap-2 text-text-tertiary text-sm">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Loading tools...
+                                </div>
+                            ) : paginatedTools.length === 0 ? (
                                 <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
                                     {search ? 'No tools match your search' : 'All published tools are in spotlight'}
                                 </div>
@@ -300,7 +339,7 @@ export default function SpotlightPage() {
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
                                 <span className="text-sm text-text-tertiary">
-                                    {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredAvailableTools.length)} of {filteredAvailableTools.length}
+                                    Page {currentPage} of {totalPages} ({availableTotal} tools)
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button

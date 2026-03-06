@@ -4,11 +4,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAdmin, AdminTool } from '@/context/AdminContext';
+import { useAdmin, AdminTool, Category, Task, Tag } from '@/context/AdminContext';
+
+import { useTaxonomySearch } from '@/hooks/useTaxonomySearch';
 import { Input, Toggle, Section, ListEditor, Combobox, RichTextEditor, MediaUpload, useToast, SearchableSelect } from '@/components/ui';
 import { toolSchema, ToolFormData, defaultToolValues } from './ToolForm/schema';
 import FullPreview from './ToolForm/FullPreview';
 import { getPricingClass, getPricingLabel } from '@/lib/formatters';
+import { getFullUrl } from '@/lib/url';
 
 interface ToolFormProps { toolId?: string; }
 
@@ -17,19 +20,72 @@ const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').r
 
 // Example JSON template for the Copy Example button (module-level to avoid hooks issues)
 const EXAMPLE_JSON = JSON.stringify({
-    name: 'Tool Name',
-    summary: 'Short description of the tool',
-    description: '<p>Full HTML description</p>',
-    websiteUrl: 'https://example.com',
+    name: 'ChatGPT',
+    appUsername: 'chatgpt',
+    summary: 'AI-powered chatbot by OpenAI for conversations, writing, and coding',
+    description: '<p>ChatGPT is an advanced AI assistant built on GPT-4...</p>',
+    isAiGenerated: false,
     logoUrl: 'https://example.com/logo.png',
-    categoryName: ['AI Writing', 'Productivity'],
-    taskName: ['Content Creation'],
-    tags: ['ai', 'writing'],
+    websiteUrl: 'https://chat.openai.com',
+    affiliateUrl: '',
+    affiliateEnabled: false,
+    playStoreUrl: 'https://play.google.com/store/apps/details?id=com.openai.chatgpt',
+    appStoreUrl: 'https://apps.apple.com/app/chatgpt/id6448311069',
+    categoryName: ['AI Chatbot', 'AI Writing'],
+    taskName: ['Content Creation', 'Code Generation'],
+    tags: ['ai', 'chatbot', 'gpt', 'writing'],
     pricing: 'freemium',
-    coreFeatures: ['Feature 1', 'Feature 2'],
-    useCases: ['Use case 1'],
-    pros: ['Pro 1'],
-    cons: ['Con 1'],
+    pricingLabel: 'From $20/mo',
+    billingFrequency: 'monthly',
+    discount: '',
+    hasFreeTrial: false,
+    freeTrialDays: 0,
+    pricingTiers: [
+        {
+            name: 'Free',
+            price: '$0',
+            billingFrequency: 'monthly',
+            features: ['GPT-3.5 access', 'Limited messages'],
+            highlighted: false
+        },
+        {
+            name: 'Plus',
+            price: '$20',
+            billingFrequency: 'monthly',
+            features: ['GPT-4 access', 'Unlimited messages', 'Priority support'],
+            highlighted: true
+        }
+    ],
+    coreFeatures: ['Natural language understanding', 'Code generation', 'Creative writing'],
+    useCases: ['Writing assistance', 'Programming help', 'Research'],
+    pros: ['Easy to use', 'Versatile', 'Constantly improving'],
+    cons: ['Can hallucinate', 'Paid tier required for GPT-4'],
+    faq: [
+        {
+            question: 'Is ChatGPT free?',
+            answer: 'Yes, a free tier is available with GPT-3.5. GPT-4 requires ChatGPT Plus at $20/mo.'
+        }
+    ],
+    images: ['https://example.com/screenshot1.png'],
+    videos: ['https://youtube.com/watch?v=example'],
+    contactName: 'OpenAI',
+    contactEmail: 'support@openai.com',
+    contactCompany: 'OpenAI',
+    contactAddress: '',
+    contactMobile: '',
+    socialLinks: {
+        twitter: 'https://twitter.com/openai',
+        linkedin: 'https://linkedin.com/company/openai',
+        discord: '',
+        youtube: 'https://youtube.com/@openai'
+    },
+    versionHistory: [
+        {
+            version: '4.0',
+            releaseNotes: 'GPT-4 model launch',
+            launchedOn: '2024-03-14'
+        }
+    ],
 }, null, 2);
 
 // FAQ Editor Component
@@ -191,7 +247,7 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
             </div>
             <div className="flex gap-4 items-start">
                 <div className="w-16 h-16 rounded-xl bg-bg-tertiary flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {values.logoUrl ? <img src={values.logoUrl} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-2xl text-text-tertiary">🔧</span>}
+                    {values.logoUrl ? <img src={getFullUrl(values.logoUrl)} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-2xl text-text-tertiary">🔧</span>}
                 </div>
                 <div className="flex-1 min-w-0">
                     <h2 className="text-lg font-bold text-text-primary truncate">{values.name || 'Tool Name'}</h2>
@@ -214,10 +270,34 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
 
 export default function ToolForm({ toolId }: ToolFormProps) {
     const router = useRouter();
-    const { tools, categories, tasks, tags, addTool, updateTool, addTag, addCategory, addTask, isLoaded } = useAdmin();
+    const { addTool, updateTool, addTag, addCategory, addTask, isLoaded } = useAdmin();
+
+    // Search-as-you-type taxonomy hooks
+    const catSearch = useTaxonomySearch('/api/categories', 'categoryName');
+    const taskSearch = useTaxonomySearch('/api/tasks', 'taskName');
+    const tagSearch = useTaxonomySearch('/api/tags', 'tagName');
     const { showToast, updateToast } = useToast();
     const isEdit = !!toolId;
-    const existingTool = isEdit ? tools.find(t => t.id === toolId) : null;
+
+    // Fetch existing tool from API instead of context
+    const [existingTool, setExistingTool] = useState<AdminTool | null>(null);
+    useEffect(() => {
+        if (!isEdit) return;
+        const controller = new AbortController();
+        fetch(`/api/tools/${toolId}`, { signal: controller.signal })
+            .then(r => {
+                if (!r.ok) throw new Error(`Failed to load tool (${r.status})`);
+                return r.json();
+            })
+            .then(data => setExistingTool(data))
+            .catch((err) => {
+                if (err.name !== 'AbortError') {
+                    console.error(err);
+                    showToast(err.message || 'Failed to load tool details', 'error');
+                }
+            });
+        return () => controller.abort();
+    }, [toolId, isEdit, showToast]);
 
     const [showFullPreview, setShowFullPreview] = useState(false);
     const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -225,6 +305,42 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     const [jsonInput, setJsonInput] = useState('');
     const [jsonError, setJsonError] = useState('');
     const [parsedJsonData, setParsedJsonData] = useState<Record<string, any> | null>(null);
+    const isRepostUpdate = useRef(false);
+
+    // Search-as-you-type for alternative tools combobox
+    const [alternativeOptions, setAlternativeOptions] = useState<{ value: string; label: string; image?: string }[]>([]);
+    const [altLoading, setAltLoading] = useState(false);
+    const altSearchRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const altAbortRef = useRef<AbortController | null>(null);
+    const handleAltSearch = useCallback((query: string) => {
+        clearTimeout(altSearchRef.current);
+        altAbortRef.current?.abort();
+        if (!query || query.length < 3) { setAlternativeOptions([]); setAltLoading(false); return; }
+        setAltLoading(true);
+        altSearchRef.current = setTimeout(() => {
+            const controller = new AbortController();
+            altAbortRef.current = controller;
+            fetch(`/api/tools?search=${encodeURIComponent(query)}&limit=20&status=published`, { signal: controller.signal })
+                .then(r => r.ok ? r.json() : { data: [] })
+                .then(json => setAlternativeOptions(
+                    (json.data || []).map((t: AdminTool) => ({ value: t.appUsername, label: t.name, image: t.logoUrl }))
+                ))
+                .catch((err) => {
+                    if (err.name !== 'AbortError') console.error('[ToolForm] Alt search failed:', err);
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) setAltLoading(false);
+                });
+        }, 300);
+    }, []);
+
+    // Cleanup debounce timeout and abort on unmount
+    useEffect(() => {
+        return () => {
+            clearTimeout(altSearchRef.current);
+            altAbortRef.current?.abort();
+        };
+    }, []);
 
     const { register, control, handleSubmit, watch, setValue, reset, formState: { errors, isSubmitting } } = useForm<ToolFormData>({
         resolver: zodResolver(toolSchema),
@@ -268,11 +384,23 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
     const watchName = watch('name');
     useEffect(() => {
-        if (!isEdit) {
+        if (!isEdit && watchName) {
             setValue('app_username', slugify(watchName || ''));
-            setShowDuplicateWarning(watchName ? !!tools.find(t => (t.name || '').toLowerCase() === watchName.toLowerCase()) : false);
+            // Debounce the duplicate check API call
+            const timer = setTimeout(() => {
+                const controller = new AbortController();
+                fetch(`/api/tools?search=${encodeURIComponent(watchName)}&limit=1&status=published`, { signal: controller.signal })
+                    .then(r => r.ok ? r.json() : { data: [] })
+                    .then(json => {
+                        const match = (json.data || []).find((t: AdminTool) => (t.name || '').toLowerCase() === watchName.toLowerCase());
+                        setShowDuplicateWarning(!!match);
+                    })
+                    .catch(() => { });
+            }, 300);
+            return () => clearTimeout(timer);
         }
-    }, [watchName, isEdit, tools, setValue]);
+        if (!isEdit) setValue('app_username', slugify(watchName || ''));
+    }, [watchName, isEdit, setValue]);
 
     // Track and cleanup unsaved uploads
     const UPLOAD_KEY = 'pending_uploads';
@@ -355,13 +483,20 @@ export default function ToolForm({ toolId }: ToolFormProps) {
         const statusMsg = statusMessages[status] || (isEdit ? 'Updating' : 'Creating');
         const toastId = showToast(`${statusMsg}...`, 'loading');
         try {
-            if (isEdit && toolId) await updateTool(toolId, data);
+            // Compute success message first, before resetting flags
+            const wasRepost = isRepostUpdate.current;
+            if (isEdit && toolId) {
+                const updateData = wasRepost
+                    ? { ...data, isReposted: true }
+                    : data;
+                await updateTool(toolId, updateData);
+            }
             else await addTool(data as any);
             // Clear pending uploads on success - they're now saved
             sessionStorage.removeItem(UPLOAD_KEY);
 
             // Show appropriate success message
-            let successMsg = 'Tool updated successfully!';
+            let successMsg = wasRepost ? 'Tool updated & posted to Just Released!' : 'Tool updated successfully!';
             if (!isEdit) {
                 successMsg = data.status === 'pending'
                     ? 'Tool submitted for review!'
@@ -373,6 +508,8 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Failed to save:', error);
             updateToast(toastId, errorMessage, 'error');
+        } finally {
+            isRepostUpdate.current = false;
         }
     };
 
@@ -404,8 +541,16 @@ export default function ToolForm({ toolId }: ToolFormProps) {
         await handleSubmit(onSubmit, onError)();
     };
 
+    const handleUpdateAndPost = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isRepostUpdate.current = true;
+        await handleSubmit(onSubmit, onFormError)();
+    };
+
     // Common form error handler - shows which fields are missing/invalid
     const onFormError = (errors: any) => {
+        isRepostUpdate.current = false;
         console.error('Form validation errors:', errors);
 
         // Get all field names with errors
@@ -548,6 +693,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                     <button type="button" onClick={handleSaveAsDraft} disabled={isSubmitting} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save as Draft'}</button>
                     {!isEdit && <button type="button" onClick={handleReadyForReview} disabled={isSubmitting} className="px-3 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Ready for Review'}</button>}
                     {isEdit && <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Update'}</button>}
+                    {isEdit && <button type="button" onClick={handleUpdateAndPost} disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Posting...' : 'Update & Post'}</button>}
                 </div>
             </div>
 
@@ -576,7 +722,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                         <pre className="whitespace-pre-wrap">{`{
   // BASIC SETTINGS (Required: name, summary, description)
   "name": "string",           // Tool name *required
-  "app_username": "string",   // App username/handle
+  "app_username": "string",   // URL slug/handle
   "summary": "string",        // Short description *required
   "description": "string",    // Full description (HTML) *required
   "isAiGenerated": false,     // AI-generated content flag
@@ -585,13 +731,17 @@ export default function ToolForm({ toolId }: ToolFormProps) {
   "affiliateUrl": "string",   // Affiliate link
   "affiliateEnabled": false,  // Enable affiliate redirect
 
+  // APP STORE LINKS
+  "playStoreUrl": "string",
+  "appStoreUrl": "string",
+
   // CATEGORIES & CLASSIFICATION
   "categoryName": ["string"], // Categories array
   "taskName": ["string"],     // Tasks array  
   "tags": ["string"],         // Tags array
 
   // PRICING
-  "pricing": "free|freemium|paid",
+  "pricing": "free|freemium|paid|open_source",
   "pricingLabel": "string",   // e.g., "From $20/mo"
   "billingFrequency": "monthly|yearly|one-time|custom",
   "discount": "string",       // e.g., "20% off"
@@ -638,41 +788,12 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     "other": "string"
   },
 
-  // APP STORE LINKS
-  "playStoreUrl": "string",
-  "appStoreUrl": "string",
-
-  // INTERNAL NOTES
-  "internalNotes": [{         // Admin notes
-    "note": "string",
-    "createdAt": "datetime"
-  }],
-
   // VERSION HISTORY
   "versionHistory": [{        // Release versions
     "version": "string",
     "releaseNotes": "string",
     "launchedOn": "YYYY-MM-DD"
-  }],
-
-  // PUBLISHING
-  "status": "draft|pending|published|unpublished|scheduled",
-  "launchedOn": "YYYY-MM-DD", // Founded date
-  "scheduledAt": "datetime",  // Scheduled publish date
-  "listingType": "free|fast|verified|featured|spotlight",
-
-  // SPOTLIGHT
-  "spotlightEnabled": false,
-  "spotlightPosition": 1,
-  "spotlightStartDate": "YYYY-MM-DD",
-  "spotlightEndDate": "YYYY-MM-DD",
-
-  // OTHER
-  "backLinks": false,          // Enable dofollow backlinks
-  "saveCount": 0,             // Bookmark count
-  "rating": 4.5,              // Rating (0-5)
-  "alternativeTools": ["slug"], // Alt tool slugs
-  "references": ["url"]       // Reference URLs
+  }]
 }`}</pre>
                                     </div>
                                 </details>
@@ -734,15 +855,15 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                     <Section title="2. Categories & Classification">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {parsedJsonData.categoryName != null && (
-                                                <Combobox label="Categories" required multiple value={ensureArray(parsedJsonData.categoryName)} onChange={(val) => updateParsedField('categoryName', val)} options={categories.map(c => ({ value: c.categoryName, label: c.categoryName }))} allowCreate onCreateNew={async (n) => { await addCategory({ categoryName: n, count: 0, description: '' }); }} />
+                                                <Combobox label="Categories" required multiple value={ensureArray(parsedJsonData.categoryName)} onChange={(val) => updateParsedField('categoryName', val)} options={catSearch.options} loading={catSearch.loading} onSearchChange={catSearch.onSearchChange} allowCreate onCreateNew={async (n) => { await addCategory({ categoryName: n, count: 0, description: '' }); }} />
                                             )}
                                             {parsedJsonData.taskName != null && (
-                                                <Combobox label="Tasks" required multiple value={ensureArray(parsedJsonData.taskName)} onChange={(val) => updateParsedField('taskName', val)} options={tasks.map(t => ({ value: t.taskName, label: t.taskName }))} allowCreate onCreateNew={async (n) => { await addTask({ taskName: n, count: 0, description: '' }); }} />
+                                                <Combobox label="Tasks" required multiple value={ensureArray(parsedJsonData.taskName)} onChange={(val) => updateParsedField('taskName', val)} options={taskSearch.options} loading={taskSearch.loading} onSearchChange={taskSearch.onSearchChange} allowCreate onCreateNew={async (n) => { await addTask({ taskName: n, count: 0, description: '' }); }} />
                                             )}
                                         </div>
                                         {parsedJsonData.tags != null && (
                                             <div className="mt-4">
-                                                <Combobox label="Tags" multiple value={ensureArray(parsedJsonData.tags)} onChange={(val) => updateParsedField('tags', val)} options={tags.map(t => ({ value: t.tagName, label: t.tagName }))} allowCreate onCreateNew={async (n) => { await addTag({ tagName: n, count: 0 }); }} />
+                                                <Combobox label="Tags" multiple value={ensureArray(parsedJsonData.tags)} onChange={(val) => updateParsedField('tags', val)} options={tagSearch.options} loading={tagSearch.loading} onSearchChange={tagSearch.onSearchChange} allowCreate onCreateNew={async (n) => { await addTag({ tagName: n, count: 0 }); }} />
                                             </div>
                                         )}
                                     </Section>
@@ -755,7 +876,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                             {parsedJsonData.pricing != null && (
                                                 <div>
                                                     <label className="block text-sm font-medium text-text-secondary mb-1.5">Pricing Model</label>
-                                                    <SearchableSelect value={parsedJsonData.pricing} onChange={(val) => updateParsedField('pricing', val)} options={[{ value: 'free', label: 'Free' }, { value: 'freemium', label: 'Freemium' }, { value: 'paid', label: 'Paid' }]} showSearch={false} />
+                                                    <SearchableSelect value={parsedJsonData.pricing} onChange={(val) => updateParsedField('pricing', val)} options={[{ value: 'free', label: 'Free' }, { value: 'freemium', label: 'Freemium' }, { value: 'paid', label: 'Paid' }, { value: 'open_source', label: 'Open Source' }]} showSearch={false} />
                                                 </div>
                                             )}
                                             {parsedJsonData.pricingLabel != null && <Input label="Pricing Label" value={parsedJsonData.pricingLabel} onChange={(e) => updateParsedField('pricingLabel', e.target.value)} placeholder="From $20/mo" />}
@@ -851,7 +972,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                     multiple
                                     value={field.value || []}
                                     onChange={field.onChange}
-                                    options={categories.map(c => ({ value: c.categoryName, label: c.categoryName }))}
+                                    options={catSearch.options}
+                                    loading={catSearch.loading}
+                                    onSearchChange={catSearch.onSearchChange}
                                     allowCreate={true}
                                     onCreateNew={async (categoryName) => {
                                         await addCategory({ categoryName, count: 0, description: '' });
@@ -865,7 +988,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                     multiple
                                     value={field.value || []}
                                     onChange={field.onChange}
-                                    options={tasks.map(t => ({ value: t.taskName, label: t.taskName }))}
+                                    options={taskSearch.options}
+                                    loading={taskSearch.loading}
+                                    onSearchChange={taskSearch.onSearchChange}
                                     allowCreate={true}
                                     onCreateNew={async (taskName) => {
                                         await addTask({ taskName, count: 0, description: '' });
@@ -879,7 +1004,9 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                 multiple
                                 value={field.value || []}
                                 onChange={field.onChange}
-                                options={tags.map(t => ({ value: t.tagName, label: t.tagName }))}
+                                options={tagSearch.options}
+                                loading={tagSearch.loading}
+                                onSearchChange={tagSearch.onSearchChange}
                                 placeholder="Search or add tags..."
                                 allowCreate={true}
                                 onCreateNew={async (tagName) => {
@@ -902,6 +1029,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                             { value: 'free', label: 'Free' },
                                             { value: 'freemium', label: 'Freemium' },
                                             { value: 'paid', label: 'Paid' },
+                                            { value: 'open_source', label: 'Open Source' },
                                         ]}
                                         showSearch={false}
                                     />
@@ -1010,8 +1138,12 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                 multiple
                                 value={field.value || []}
                                 onChange={field.onChange}
-                                options={tools.map(t => ({ value: t.app_username, label: t.name, image: t.logoUrl }))}
+                                options={alternativeOptions}
                                 allowCreate={false}
+                                loading={altLoading}
+                                emptyMessage="Type at least 3 characters to search"
+                                helperText="Type to search existing tools."
+                                onSearchChange={handleAltSearch}
                                 placeholder="Search existing tools..."
                             />
                         )} />
@@ -1052,22 +1184,24 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                             )}
                         </div>
                         <div className="pt-4 border-t border-border mt-4">
-                            <label className="block text-sm font-medium text-text-secondary mb-1.5">Listing Type</label>
-                            <Controller name="listingType" control={control} render={({ field }) => (
-                                <SearchableSelect
-                                    value={field.value || 'free'}
-                                    onChange={field.onChange}
-                                    options={[
-                                        { value: 'free', label: 'Free Listing', icon: <span className="w-4 h-4 rounded-full bg-gray-400" /> },
-                                        { value: 'fast', label: 'Fast Listing', icon: <svg className="w-4 h-4 text-orange-500" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg> },
-                                        { value: 'verified', label: 'Verified', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#1d9bf0"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" /></svg> },
-                                        { value: 'featured', label: 'Featured', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" /></svg> },
-                                        { value: 'spotlight', label: 'Spotlight', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" /></svg> },
-                                    ]}
-                                    showSearch={false}
-                                />
-                            )} />
-                            <p className="text-xs text-text-tertiary mt-1">Determines listing badge: Blue for Verified, Gold for Featured</p>
+                            <div className="max-w-sm">
+                                <label className="block text-sm font-medium text-text-secondary mb-1.5">Listing Type</label>
+                                <Controller name="listingType" control={control} render={({ field }) => (
+                                    <SearchableSelect
+                                        value={field.value || 'free'}
+                                        onChange={field.onChange}
+                                        options={[
+                                            { value: 'free', label: 'Free Listing', icon: <span className="w-4 h-4 rounded-full bg-gray-400" /> },
+                                            { value: 'fast', label: 'Fast Listing', icon: <svg className="w-4 h-4 text-orange-500" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg> },
+                                            { value: 'verified', label: 'Verified', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#1d9bf0"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" /></svg> },
+                                            { value: 'featured', label: 'Featured', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" /></svg> },
+                                            { value: 'spotlight', label: 'Spotlight', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" /></svg> },
+                                        ]}
+                                        showSearch={false}
+                                    />
+                                )} />
+                                <p className="text-xs text-text-tertiary mt-1">Determines listing badge: Blue for Verified, Gold for Featured</p>
+                            </div>
                         </div>
                         <div className="pt-4 border-t border-border mt-4">
                             <Controller name="backLinks" control={control} render={({ field }) => <Toggle label="Back Links" checked={field.value || false} onChange={field.onChange} />} />
@@ -1086,7 +1220,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
                 {/* Preview */}
                 <div className="lg:col-span-1">
-                    <LivePreview control={control} categories={categories} onExpand={() => setShowFullPreview(true)} />
+                    <LivePreview control={control} categories={catSearch.options.map(o => ({ categoryName: o.value }))} onExpand={() => setShowFullPreview(true)} />
                 </div>
             </div>
 
@@ -1115,6 +1249,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                 <button type="button" onClick={handleSaveAsDraft} disabled={isSubmitting} className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-bg-secondary disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save as Draft'}</button>
                 {!isEdit && <button type="button" onClick={handleReadyForReview} disabled={isSubmitting} className="px-3 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Ready for Review'}</button>}
                 {isEdit && <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Update'}</button>}
+                {isEdit && <button type="button" onClick={handleUpdateAndPost} disabled={isSubmitting} className="px-4 py-1.5 text-sm bg-accent-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">{isSubmitting ? 'Posting...' : 'Update & Post'}</button>}
             </div>
 
             {/* Full Preview Modal */}
@@ -1146,8 +1281,8 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                             Object.entries(watch('socialLinks') || {}).filter(([_, v]) => v != null)
                         ) as Record<string, string> : undefined,
                     }}
-                    categories={categories}
-                    tasks={tasks}
+                    categories={catSearch.options.map(o => ({ categoryName: o.value }))}
+                    tasks={taskSearch.options.map(o => ({ taskName: o.value }))}
                     onClose={() => setShowFullPreview(false)}
                 />
             )}

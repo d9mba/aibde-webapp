@@ -11,13 +11,13 @@ const ensureUrl = (url: string): string => {
     return url.startsWith('http') ? url : `https://${url}`;
 };
 
-// Format founded date - show "Founded in 2025" for year-only dates (stored as YYYY-01-01)
+// Format launched date - show "Launched in 2025" for year-only dates (stored as YYYY-01-01)
 // Uses UTC parsing to avoid timezone issues
-const formatFoundedDate = (dateStr: string): string => {
+const formatLaunchedDate = (dateStr: string): string => {
     // Parse date string manually to avoid timezone issues
     const parts = dateStr.split('T')[0].split('-');
     if (parts.length !== 3) {
-        return `Founded ${dateStr}`;
+        return `Released On ${dateStr}`;
     }
 
     const year = parseInt(parts[0], 10);
@@ -26,12 +26,12 @@ const formatFoundedDate = (dateStr: string): string => {
 
     // If date is January 1st, it was likely a year-only entry
     if (month === 1 && day === 1) {
-        return `Founded in ${year}`;
+        return `Released in ${year}`;
     }
 
     // Otherwise show full date using UTC to avoid timezone shifts
     const date = new Date(Date.UTC(year, month - 1, day));
-    return `Founded ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`;
+    return `Released On ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`;
 };
 
 interface ToolSidebarProps {
@@ -54,15 +54,15 @@ export default function ToolSidebar({
             <div className="space-y-6">
                 {/* Company Info Section */}
                 <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-text-primary">Company Info</h3>
+                    <h3 className="text-sm font-semibold text-text-primary">App Info</h3>
                     <div className="space-y-3">
                         {tool.websiteUrl && (
                             <a
-                                href={tool.backLinks ? tool.websiteUrl : `/go/${tool.app_username}`}
+                                href={tool.backLinks ? tool.websiteUrl : `/go/${tool.appUsername}`}
                                 target="_blank"
                                 rel={tool.backLinks ? "noopener" : "noopener noreferrer nofollow"}
                                 onClick={() => trackToolVisit(
-                                    { id: tool.id, name: tool.name, app_username: tool.app_username, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                                    { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                                     tool.websiteUrl || ''
                                 )}
                                 className="flex items-center gap-2.5 text-sm text-text-secondary hover:text-accent-primary transition-colors no-underline group"
@@ -76,17 +76,15 @@ export default function ToolSidebar({
                             </a>
                         )}
 
-                        {/* Date - Founded if launchedOn exists, otherwise Listed on createdAt */}
-                        <div className="flex items-center gap-2.5 text-sm text-text-secondary">
-                            <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
-                            </svg>
-                            {tool.launchedOn ? (
-                                <span>{formatFoundedDate(tool.launchedOn)}</span>
-                            ) : tool.createdAt ? (
-                                <span>Listed on {new Date(tool.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                            ) : null}
-                        </div>
+                        {/* Date - only show if launchedOn exists in DB */}
+                        {tool.launchedOn && (
+                            <div className="flex items-center gap-2.5 text-sm text-text-secondary">
+                                <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
+                                </svg>
+                                <span>{formatLaunchedDate(tool.launchedOn)}</span>
+                            </div>
+                        )}
 
 
                         {/* Social Links */}
@@ -179,7 +177,7 @@ export default function ToolSidebar({
                                 return (
                                     <Link
                                         prefetch={false} key={ft.id}
-                                        href={`/app/${ft.app_username}`}
+                                        href={`/app/${ft.appUsername}`}
                                         className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                     >
                                         {ft.logoUrl ? (
@@ -308,7 +306,7 @@ export default function ToolSidebar({
                                     return (
                                         <Link
                                             prefetch={false} key={alt.id}
-                                            href={`/app/${alt.app_username}`}
+                                            href={`/app/${alt.appUsername}`}
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >
                                             {alt.logoUrl ? (
@@ -358,7 +356,7 @@ export default function ToolSidebar({
                                     return (
                                         <Link
                                             prefetch={false} key={rt.id}
-                                            href={`/app/${rt.app_username}`}
+                                            href={`/app/${rt.appUsername}`}
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >
                                             {rt.logoUrl ? (

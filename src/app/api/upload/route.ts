@@ -129,6 +129,49 @@ export async function POST(request: NextRequest) {
         }
         // Note: Some file types (like some videos) may not be detected - allow them through
 
+        // SECURITY: Sanitize SVG content to prevent XSS using DOMPurify
+        let safeBuffer: Buffer = originalBuffer;
+        if (file.type === 'image/svg+xml') {
+            let dom: InstanceType<typeof import('jsdom').JSDOM> | null = null;
+            try {
+                const { JSDOM } = await import('jsdom');
+                const { default: DOMPurify } = await import('dompurify');
+                dom = new JSDOM('');
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const purify = DOMPurify(dom.window as any);
+
+                // Strip any attribute starting with "on" (event handlers) or with javascript: URIs
+                purify.addHook('uponSanitizeAttribute', (_node, data) => {
+                    if (data.attrName.toLowerCase().startsWith('on')) {
+                        data.keepAttr = false;
+                    }
+                    if (/^\s*javascript\s*:/i.test(data.attrValue)) {
+                        data.keepAttr = false;
+                    }
+                });
+
+                const svgContent = new TextDecoder().decode(originalBuffer);
+                const sanitized = purify.sanitize(svgContent, {
+                    USE_PROFILES: { svg: true, svgFilters: true },
+                    ADD_TAGS: ['svg'],
+                    FORBID_TAGS: ['script', 'style', 'foreignObject', 'iframe', 'object', 'embed', 'use'],
+                    FORBID_ATTR: ['onclick', 'onerror', 'onload', 'onmouseover'],
+                    ALLOW_DATA_ATTR: false,
+                    // SECURITY: Restrict data: URIs to safe image MIME types only
+                    // Generic data: allows embedding SVGs/HTML that bypass sanitization
+                    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|data:image\/(?:png|jpe?g|gif|webp);[^,]*,|#[a-zA-Z0-9_:.\-]*)/i,
+                });
+                safeBuffer = Buffer.from(new TextEncoder().encode(sanitized));
+            } catch (err) {
+                console.error('[Upload] SVG sanitization failed, rejecting file:', err);
+                return NextResponse.json({ error: 'Failed to sanitize SVG file' }, { status: 400 });
+            } finally {
+                // Clean up JSDOM to prevent memory leaks — always runs even on error
+                dom?.window.close();
+            }
+        }
+
+
         // Determine folder based on upload type and file type
         let folder = 'uploads';
         if (uploadType === 'logo') {
@@ -172,13 +215,13 @@ export async function POST(request: NextRequest) {
 
         let finalMimeType = file.type;
 
-        // originalBuffer was already created earlier for magic byte validation
-        const originalSize = originalBuffer.length;
+        // safeBuffer is the sanitized version (SVGs have XSS content stripped)
+        const originalSize = safeBuffer.length;
 
         // Compress images
-        let finalBuffer: Uint8Array = new Uint8Array(originalBuffer);
+        let finalBuffer: Uint8Array = new Uint8Array(safeBuffer);
         if (isImage) {
-            const result = await compressImage(originalBuffer, file.type);
+            const result = await compressImage(safeBuffer, file.type);
             finalBuffer = new Uint8Array(result.buffer);
 
             // If format changed (e.g., PNG -> WebP), update filename and mime

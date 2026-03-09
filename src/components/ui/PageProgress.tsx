@@ -8,11 +8,11 @@ export default function PageProgress() {
     const searchParams = useSearchParams();
     const [progress, setProgress] = useState(0);
     const [active, setActive] = useState(false);
-    const tickRef = useRef<NodeJS.Timeout>(undefined);
-    const hideRef = useRef<NodeJS.Timeout>(undefined);
-    const completeTimerRef = useRef<NodeJS.Timeout>(undefined);
-    const safetyInnerRef = useRef<NodeJS.Timeout>(undefined);
-    const deferredStartRef = useRef<NodeJS.Timeout>(undefined);
+    const tickRef = useRef<ReturnType<typeof setInterval>>(undefined);
+    const hideRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const completeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const safetyInnerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const deferredStartRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const startTimeRef = useRef(0);
     const isNavigatingRef = useRef(false);
 
@@ -44,9 +44,9 @@ export default function PageProgress() {
 
     // Start progress bar with ticking animation
     const start = useCallback(() => {
+        // Guard: don't re-show if complete() already ran
+        if (!isNavigatingRef.current) return;
         cleanup();
-        // Idempotent: always (re)initialize the progress UI
-        isNavigatingRef.current = true;
         startTimeRef.current = Date.now();
         setActive(true);
         setProgress(15);

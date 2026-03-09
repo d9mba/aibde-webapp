@@ -63,23 +63,23 @@ export async function getSearchSuggestionsAction(query: string, limit: number = 
     const overFetch = Math.max(limit, 30);
     const results = await searchTools({ query, limit: overFetch });
     const q = query.toLowerCase();
-    results.sort((a, b) => {
-        const aName = (a.name || '').toLowerCase();
-        const bName = (b.name || '').toLowerCase();
-        // Score: exact=100, startsWith=80, includes=60, prefix-of-query=50
-        const score = (n: string) => {
-            if (n === q) return 100;
-            if (n.startsWith(q)) return 80;
-            if (n.includes(q)) return 60;
-            if (q.startsWith(n)) return 50;
-            return 0;
-        };
-        return score(bName) - score(aName);
-    });
+    // Precompute scores to avoid recreating the score function per comparison
+    const score = (n: string): number => {
+        if (n === q) return 100;
+        if (n.startsWith(q)) return 80;
+        if (n.includes(q)) return 60;
+        if (q.startsWith(n)) return 50;
+        return 0;
+    };
+    const scoreMap = new Map<string, number>();
+    for (const r of results) {
+        scoreMap.set(r.id, score((r.name || '').toLowerCase()));
+    }
+    results.sort((a, b) => (scoreMap.get(b.id) ?? 0) - (scoreMap.get(a.id) ?? 0));
     return results.slice(0, limit);
 }
 
-const POSTHOG_API_HOST = 'https://app.posthog.com';
+const POSTHOG_API_HOST = process.env.POSTHOG_API_HOST || 'https://app.posthog.com';
 
 /**
  * Server Action: Get tool impression counts from PostHog
@@ -107,7 +107,7 @@ export async function getImpressionsAction(): Promise<Record<string, number>> {
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
             const response = await fetch(`${POSTHOG_API_HOST}/api/projects/${projectId}/query/`, {
@@ -122,10 +122,16 @@ export async function getImpressionsAction(): Promise<Record<string, number>> {
                 signal: controller.signal,
             });
 
-            if (!response.ok) return {};
+            if (!response.ok) {
+                console.error(`[getImpressionsAction] PostHog API error: HTTP ${response.status} ${response.url}`);
+                return {};
+            }
 
             const data = await response.json();
-            if (data.error) return {};
+            if (data.error) {
+                console.error('[getImpressionsAction] PostHog query error:', data.error);
+                return {};
+            }
 
             const impressions: Record<string, number> = {};
             for (const row of data.results || []) {
@@ -136,7 +142,8 @@ export async function getImpressionsAction(): Promise<Record<string, number>> {
         } finally {
             clearTimeout(timeoutId);
         }
-    } catch {
+    } catch (err) {
+        console.error('[getImpressionsAction] PostHog fetch failed:', err instanceof Error ? err.message : err);
         return {};
     }
 }

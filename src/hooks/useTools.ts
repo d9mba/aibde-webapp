@@ -108,14 +108,21 @@ export function useTools(options: UseToolsOptions = {}): UseToolsResult {
 
     useEffect(() => {
         if (options.page !== undefined && options.page !== page) setPage(options.page);
-    }, [options.page, page]);
+        // Sync external page prop to internal state. Only depends on options.page
+    // intentionally — setPage is stable and page would create a render loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [options.page]);
 
     useEffect(() => {
-        if (options.search !== undefined) {
-            const optSearch = options.search || '';
-            if (optSearch !== search) setSearch(optSearch);
+        const optSearch = options.search ?? '';
+        if (optSearch !== search) {
+            setSearch(optSearch);
+            setPage(1);
         }
-    }, [options.search, search]);
+        // Sync external search prop to internal state. Only depends on options.search
+    // intentionally — setSearch/setPage are stable and search would create a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [options.search]);
 
     const totalPages = all ? 1 : Math.max(1, Math.ceil(totalCount / Math.max(1, limit)));
 
@@ -125,6 +132,14 @@ export function useTools(options: UseToolsOptions = {}): UseToolsResult {
         setPage(1);
     }, []);
 
+    // Memoize setPage for stable reference
+    const handleSetPage = useCallback((p: number) => {
+        setPage(prev => {
+            const clamped = Math.min(Math.max(1, p), totalPages);
+            return clamped !== prev ? clamped : prev;
+        });
+    }, [totalPages]);
+
     return {
         tools,
         loading,
@@ -132,7 +147,7 @@ export function useTools(options: UseToolsOptions = {}): UseToolsResult {
         totalCount,
         page,
         totalPages,
-        setPage,
+        setPage: handleSetPage,
         setSearch: handleSetSearch,
         search,
         refetch: fetchTools,

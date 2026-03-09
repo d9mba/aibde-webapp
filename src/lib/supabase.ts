@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { CDN_URL, toFullUrl, toArray, toRelativePath } from './url';
+import { toFullUrl, toArray, toRelativePath } from './url';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -399,8 +399,8 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         viewCount: 'view_count',
         upvotes: 'upvotes',
         downvotes: 'downvotes',
-
-
+        rating: 'rating',
+        discount: 'discount',
         launchedOn: 'launched_on',
         isFeatured: 'is_featured',
         listingType: 'listing_type',
@@ -478,7 +478,6 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
     for (const [key, value] of Object.entries(tool)) {
         if (key === 'launchedAgo') continue; // Skip computed field
-        if (key === 'references') continue; // Skip - doesn't exist in DB
 
         const dbKey = mapping[key] || key;
 

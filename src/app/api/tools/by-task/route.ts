@@ -41,7 +41,11 @@ export async function GET(request: NextRequest) {
         if (count === null) {
             console.warn('[by-task] Supabase returned null count — pagination may be inaccurate');
         }
-        return NextResponse.json({ tools, count });
+        return NextResponse.json({
+            tools,
+            count: count ?? tools.length,
+            countExact: count !== null,
+        });
     } catch (err) {
         console.error('API error:', err);
         return NextResponse.json({ error: 'Failed to fetch tools' }, { status: 500 });

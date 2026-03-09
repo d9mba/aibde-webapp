@@ -18,11 +18,16 @@ interface PublicTool {
     isFeatured: boolean;
 }
 
-function toPublicTool(tool: Record<string, unknown>): PublicTool {
+function toPublicTool(tool: Record<string, unknown>): PublicTool & { app_username: string } {
+    const username = (tool.app_username ?? tool.appUsername ?? '') as string;
+    if (username === '') {
+        console.warn(`[toPublicTool] Missing username for tool id=${tool.id} name=${tool.name}`);
+    }
     return {
         id: tool.id as string,
         name: tool.name as string,
-        appUsername: (tool.app_username ?? tool.appUsername ?? '') as string,
+        appUsername: username,
+        app_username: username, // backward compat
         logoUrl: tool.logo_url as string | null,
         summary: tool.summary as string,
         categoryName: tool.category_name as string[],

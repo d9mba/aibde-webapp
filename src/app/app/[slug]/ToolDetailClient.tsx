@@ -172,18 +172,20 @@ export default function ToolDetailClient({
                     </div>
 
                     {/* Visit button */}
-                    <a
-                        href={`/go/${tool.appUsername}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => trackToolVisit(
-                            { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
-                            tool.affiliateEnabled && tool.affiliateUrl ? tool.affiliateUrl : tool.websiteUrl || ''
-                        )}
-                        className="flex items-center justify-center px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium hover:bg-accent-primary/90 transition-colors"
-                    >
-                        Visit
-                    </a>
+                    {tool.appUsername && (
+                        <a
+                            href={`/go/${tool.appUsername}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => trackToolVisit(
+                                { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                                tool.affiliateEnabled && tool.affiliateUrl ? tool.affiliateUrl : tool.websiteUrl || ''
+                            )}
+                            className="flex items-center justify-center px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium hover:bg-accent-primary/90 transition-colors"
+                        >
+                            Visit
+                        </a>
+                    )}
 
                     {/* Kebab menu */}
                     <button
@@ -231,7 +233,7 @@ export default function ToolDetailClient({
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)
                 }
-                url={typeof window !== 'undefined' ? window.location.href : `https://www.aibde.tech/app/${tool.appUsername}`}
+                url={typeof window !== 'undefined' ? window.location.href : `https://www.aibde.tech/app/${tool.appUsername || ''}`}
                 title={tool.name}
                 description={tool.summary}
             />

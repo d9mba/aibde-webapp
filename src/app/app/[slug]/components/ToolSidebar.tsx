@@ -52,11 +52,11 @@ export default function ToolSidebar({
     return (
         <aside className="w-full lg:w-72 flex-shrink-0 lg:pt-8">
             <div className="space-y-6">
-                {/* Company Info Section */}
+                {/* App Info Section */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-text-primary">App Info</h3>
                     <div className="space-y-3">
-                        {tool.websiteUrl && (
+                        {tool.websiteUrl && (tool.backLinks || tool.appUsername) && (
                             <a
                                 href={tool.backLinks ? tool.websiteUrl : `/go/${tool.appUsername}`}
                                 target="_blank"
@@ -172,12 +172,12 @@ export default function ToolSidebar({
                             </span>
                         </div>
                         <div className="p-3 bg-bg-secondary border border-border rounded-3xl space-y-2">
-                            {featuredTools.map((ft) => {
+                            {featuredTools.filter(ft => ft.appUsername).map((ft) => {
                                 const ftColor = logoColors[ft.name.charCodeAt(0) % logoColors.length];
                                 return (
                                     <Link
                                         prefetch={false} key={ft.id}
-                                        href={`/app/${ft.appUsername}`}
+                                        href={ft.appUsername ? `/app/${ft.appUsername}` : '#'}
                                         className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                     >
                                         {ft.logoUrl ? (
@@ -306,7 +306,7 @@ export default function ToolSidebar({
                                     return (
                                         <Link
                                             prefetch={false} key={alt.id}
-                                            href={`/app/${alt.appUsername}`}
+                                            href={alt.appUsername ? `/app/${alt.appUsername}` : '#'}
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >
                                             {alt.logoUrl ? (
@@ -356,7 +356,7 @@ export default function ToolSidebar({
                                     return (
                                         <Link
                                             prefetch={false} key={rt.id}
-                                            href={`/app/${rt.appUsername}`}
+                                            href={rt.appUsername ? `/app/${rt.appUsername}` : '#'}
                                             className="flex items-center gap-3 px-3 py-2 bg-bg-tertiary border border-border rounded-full hover:bg-bg-secondary no-underline transition-colors"
                                         >
                                             {rt.logoUrl ? (

@@ -2,6 +2,10 @@
 // Core Types - Shared between frontend and backend
 // =============================================================================
 
+/** Supported pricing models for tools */
+export type PricingType = 'free' | 'freemium' | 'paid' | 'open_source';
+
+export type ListingType = 'free' | 'fast' | 'verified' | 'featured' | 'spotlight';
 /**
  * AI Tool - represents a single AI tool in the directory
  */
@@ -15,7 +19,7 @@ export interface AITool {
     categoryName: string[]; // Array of category names
     task: string;  // Comma-separated for backwards compatibility
     taskName: string[];  // Array of task names
-    pricing: 'free' | 'freemium' | 'paid' | 'open_source';
+    pricing: PricingType;
     pricingLabel: string;
     websiteUrl: string;
     logoUrl?: string;
@@ -27,7 +31,7 @@ export interface AITool {
     launchedOn: string;
     launchedAgo: string;
     isFeatured: boolean;
-    listingType?: 'free' | 'fast' | 'verified' | 'featured' | 'spotlight'; // Pricing tier
+    listingType?: ListingType; // Pricing tier
     spotlightPosition?: number;
     spotlightEnabled?: boolean;
     features?: string[];
@@ -44,6 +48,7 @@ export interface AITool {
     contactAddress?: string;
     // Back Links - enables dofollow SEO backlinks
     backLinks?: boolean;
+    /** Indicates the tool was reposted/reshared from another source (used for display formatting) */
     isReposted?: boolean;
 }
 
@@ -232,7 +237,7 @@ export interface ToolFilters {
     query?: string;
     category?: string;
     task?: string;
-    pricing?: 'free' | 'freemium' | 'paid' | 'open_source';
+    pricing?: PricingType;
     status?: 'draft' | 'published' | 'scheduled';
     isFeatured?: boolean;
 }

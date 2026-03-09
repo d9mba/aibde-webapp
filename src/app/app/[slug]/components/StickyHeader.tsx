@@ -56,7 +56,7 @@ export default function StickyHeader({
                         </button>
                     ))}
                 </div>
-                {tool.websiteUrl && (
+                {tool.websiteUrl && (tool.backLinks || tool.appUsername) && (
                     <a href={tool.backLinks ? tool.websiteUrl : `/go/${tool.appUsername}`} target="_blank" rel={tool.backLinks ? "noopener" : "noopener noreferrer nofollow"}
                         onClick={() => trackToolVisit(
                             { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },

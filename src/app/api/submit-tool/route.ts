@@ -49,6 +49,9 @@ interface ToolSubmissionData {
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const identifier = getClientIp(request);
+        if (!identifier) {
+            return NextResponse.json({ error: 'Unable to identify client' }, { status: 400 });
+        }
         const rateLimit = await checkRateLimit(`submit:${identifier}`, rateLimits.sensitive);
         if (!rateLimit.success) {
             return NextResponse.json(

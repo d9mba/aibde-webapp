@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAdmin } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import {
     Search, Eye, MousePointer, Clock, ExternalLink, TrendingUp, BarChart3, X,
@@ -67,7 +66,7 @@ interface RealtimeEvent {
 export default function AnalysisPage() {
     const router = useRouter();
 
-    const [publishedCount, setPublishedCount] = useState(0);
+    const [publishedCount, setPublishedCount] = useState<number | null>(null);
     const [categoryCount, setCategoryCount] = useState<number | null>(null);
     const [taskCount, setTaskCount] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -167,21 +166,29 @@ export default function AnalysisPage() {
             throw new Error(data.error || 'API Error');
         }
         return (await res.json()).results;
-    }, [timeRange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [timeRange, customStartDate, customEndDate]);
 
-    // Load data based on active tab
-    const loadData = useCallback(async () => {
+    // Track whether we have any data loaded (ref to avoid useCallback dependency cycle)
+    const hasDataRef = useRef(false);
+
+    // Load data based on active tab — retries on PostHog API failures
+    const loadData = useCallback(async (retryCount = 0) => {
+        const MAX_RETRIES = 2;
+        const RETRY_DELAY = 2000;
         setLoading(true);
-        setError(null);
+        // Only clear error when we still have retries left or this is the first attempt
+        if (retryCount === 0) setError(null);
         try {
             if (selectedTab === 'overview') {
-                const [summaryData, topToolsData, dailyData, hourlyData, referrerData, pageData] = await Promise.all([
+                const [summaryData, topToolsData, dailyData, hourlyData, referrerData, pageData, searchData] = await Promise.all([
                     fetchData('summary'),
                     fetchData('top_tools'),
                     fetchData('daily_activity'),
                     fetchData('hourly_activity'),
                     fetchData('referrer_stats'),
                     fetchData('page_urls'),
+                    fetchData('search_queries'),
                 ]);
                 if (summaryData?.[0]) setSummary(summaryData[0]);
                 if (topToolsData) setTopTools(topToolsData);
@@ -189,6 +196,7 @@ export default function AnalysisPage() {
                 if (hourlyData) setHourlyActivity(hourlyData);
                 if (referrerData) setReferrerStats(referrerData);
                 if (pageData) setPageUrls(pageData);
+                if (searchData) setSearchQueries(searchData);
             } else if (selectedTab === 'tools') {
                 const topToolsData = await fetchData('top_tools');
                 if (topToolsData) setTopTools(topToolsData);
@@ -200,9 +208,19 @@ export default function AnalysisPage() {
                 if (filterData) setFilterStats(filterData);
                 if (searchData) setSearchQueries(searchData);
             }
+            hasDataRef.current = true;
+            setError(null);
             setLastRefresh(new Date());
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load');
+            // Retry silently — keep showing loading skeleton instead of error
+            if (retryCount < MAX_RETRIES) {
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                return loadData(retryCount + 1);
+            }
+            // All retries exhausted — only show error if we have no data at all
+            if (!hasDataRef.current) {
+                setError(err instanceof Error ? err.message : 'Failed to load');
+            }
         } finally {
             setLoading(false);
         }
@@ -478,7 +496,7 @@ export default function AnalysisPage() {
                         Auto
                     </label>
                     <button
-                        onClick={loadData}
+                        onClick={() => loadData()}
                         disabled={loading}
                         className="px-3 sm:px-4 py-2 bg-bg-secondary border border-border rounded-lg text-xs sm:text-sm flex items-center gap-2 hover:bg-bg-tertiary transition-colors disabled:opacity-50"
                     >
@@ -1077,7 +1095,7 @@ export default function AnalysisPage() {
                                                 <tbody>
                                                     {paginatedTools.map((tool, i) => (
                                                         <tr
-                                                            key={tool.tool_slug || `row-${i}`}
+                                                            key={tool.tool_slug || `${tool.tool_name}-${i}`}
                                                             onClick={() => router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
                                                             className="border-t border-border cursor-pointer transition-colors hover:bg-bg-secondary/50"
                                                         >

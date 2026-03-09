@@ -198,7 +198,7 @@ export function SearchableSelect({
                                 {/* Loading indicator for infinite scroll */}
                                 {filteredOptions.length > displayLimit && (
                                     <div className="px-3 py-2 text-xs text-text-tertiary text-center">
-                                        {search ? 'Scroll for more...' : showSearch ? `Type to filter ${filteredOptions.length - displayLimit} more` : 'Scroll for more...'}
+                                        {search ? 'Scroll for more...' : showSearch ? `Type to filter ${filteredOptions.length - displayLimit} more items` : 'Scroll for more...'}
                                     </div>
                                 )}
                             </>

@@ -26,7 +26,8 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
     const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const abortRef = useRef<AbortController | null>(null);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = useCallback(async (query: string) => {
@@ -36,14 +37,24 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
         }
 
         setIsLoading(true);
+        // Cancel any in-flight suggestion request
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         try {
             const { getSearchSuggestionsAction } = await import('@/lib/actions');
             const tools = await getSearchSuggestionsAction(query, 5);
-            setSuggestions(tools);
+            if (!controller.signal.aborted) {
+                setSuggestions(tools);
+            }
         } catch (error) {
-            console.error('Search suggestions failed:', error);
+            if (!controller.signal.aborted) {
+                console.error('Search suggestions failed:', error);
+            }
         } finally {
-            setIsLoading(false);
+            if (!controller.signal.aborted) {
+                setIsLoading(false);
+            }
         }
     }, []);
 

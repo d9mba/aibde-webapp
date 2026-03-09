@@ -24,15 +24,18 @@ const securityHeaders = [
             "default-src 'self'",
             // 'unsafe-inline': Required by Next.js for inline scripts during page hydration
             // 'unsafe-eval': Required by Clerk auth SDK and Next.js dev mode HMR
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://us-assets.i.posthog.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://us-assets.i.posthog.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://www.clarity.ms https://*.clarity.ms",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
-            "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://*.upstash.io https://us.i.posthog.com https://us.posthog.com",
+            "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://*.upstash.io https://us.i.posthog.com https://us.posthog.com https://www.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com https://www.clarity.ms https://*.clarity.ms",
             "frame-src https://challenges.cloudflare.com https://*.clerk.accounts.dev",
             "worker-src 'self' blob:",
             "object-src 'none'",
             "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'none'",
+            "upgrade-insecure-requests",
         ].join('; '),
     },
 ];
@@ -85,6 +88,12 @@ const nextConfig = {
         'isomorphic-dompurify',
         'dompurify',
         'jsdom',
+        // Packages that use Node.js native streams (kState/TransformStream internals)
+        // must run natively — bundling them causes "transformAlgorithm is not a function"
+        'file-type',
+        'sharp',
+        '@aws-sdk/client-s3',
+        'csv-parse',
     ],
     images: {
         domains: [],

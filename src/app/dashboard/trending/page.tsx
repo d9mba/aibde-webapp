@@ -30,12 +30,16 @@ export default function TrendingManagementPage() {
     const isLoaded = !trendLoading;
 
     // Capture initial total so "Available" stat stays constant during search
-    const initialTotalRef = useRef<number>(0);
+    const initialTotalRef = useRef<number | null>(null);
     useEffect(() => {
-        if (availableTotal > 0 && initialTotalRef.current === 0) {
+        if (availableTotal !== undefined && initialTotalRef.current === null) {
             initialTotalRef.current = availableTotal;
         }
     }, [availableTotal]);
+    // Reset when tools are added/removed so the stat refreshes
+    useEffect(() => {
+        initialTotalRef.current = null;
+    }, [toolsMutated]);
 
     // Local state for pending changes
     const [pendingTrendingIds, setPendingTrendingIds] = useState<string[]>([]);
@@ -63,9 +67,11 @@ export default function TrendingManagementPage() {
     }, [trendingToolsRaw]);
 
     // Combined tools for lookups
-    const allTools = useMemo(() => [...trendingToolsRaw, ...availableToolsRaw], [trendingToolsRaw, availableToolsRaw]);
+    const allTools = useMemo(() => {
+        return [...trendingToolsRaw, ...availableToolsRaw];
+    }, [trendingToolsRaw, availableToolsRaw]);
 
-    // Populate cache in an effect to avoid side effects in useMemo
+    // Populate cache as a proper side effect
     useEffect(() => {
         allTools.forEach(t => pendingToolsCacheRef.current.set(t.id, t));
     }, [allTools]);
@@ -81,10 +87,6 @@ export default function TrendingManagementPage() {
     const availableTools = useMemo(() => {
         return availableToolsRaw.filter(t => !pendingTrendingIds.includes(t.id));
     }, [availableToolsRaw, pendingTrendingIds]);
-
-    // Available tools exclude pending trending — server-side pagination handles the rest
-    const filteredAvailableTools = availableTools;
-    const paginatedTools = filteredAvailableTools;
 
     const handleSearch = (value: string) => {
         setSearch(value);
@@ -259,7 +261,7 @@ export default function TrendingManagementPage() {
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Display</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{Math.max(0, (initialTotalRef.current || availableTotal) - trendingTools.length)}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{Math.max(0, (initialTotalRef.current ?? availableTotal ?? 0) - trendingTools.length)}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>
@@ -404,17 +406,17 @@ export default function TrendingManagementPage() {
                         </div>
 
                         <div className={`divide-y divide-border max-h-[400px] overflow-y-auto transition-opacity duration-200 ${availLoading ? 'opacity-50' : ''}`}>
-                            {availLoading && paginatedTools.length === 0 ? (
+                            {availLoading && availableTools.length === 0 ? (
                                 <div className="p-6 sm:p-8 flex items-center justify-center gap-2 text-text-tertiary text-sm">
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                     Loading tools...
                                 </div>
-                            ) : paginatedTools.length === 0 ? (
+                            ) : availableTools.length === 0 ? (
                                 <div className="p-6 sm:p-8 text-center text-text-tertiary text-sm">
                                     {search ? 'No tools match your search' : 'All published tools are in trending'}
                                 </div>
                             ) : (
-                                paginatedTools.map((tool) => (
+                                availableTools.map((tool: AdminTool) => (
                                     <div key={tool.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-bg-secondary transition-colors">
                                         {tool.logoUrl ? (
                                             <img src={tool.logoUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain" />

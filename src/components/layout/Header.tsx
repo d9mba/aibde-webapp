@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
+import { AdminTool } from '@/types';
 import { useTheme } from '@/context/ThemeContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { trackToolClick } from '@/hooks/useToolAnalytics';
@@ -70,9 +71,9 @@ export default function Header() {
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     // API-based search suggestions (instead of sharedTools)
-    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = async (query: string) => {
@@ -629,6 +630,7 @@ export default function Header() {
                             )}
                             onClick={() => setThemeMode(getNextThemeMode(themeMode as ThemeMode))}
                             title={`Current: ${themeMode}`}
+                            suppressHydrationWarning
                         >
                             {getThemeIcon(themeMode as ThemeMode)}
                         </button>
@@ -645,6 +647,7 @@ export default function Header() {
                                 )}
                                 onClick={() => setThemeMode('light')}
                                 title="Light mode"
+                                suppressHydrationWarning
                             >
                                 <Sun size={16} strokeWidth={1.5} />
                             </button>
@@ -655,6 +658,7 @@ export default function Header() {
                                 )}
                                 onClick={() => setThemeMode('dark')}
                                 title="Dark mode"
+                                suppressHydrationWarning
                             >
                                 <Moon size={16} strokeWidth={1.5} />
                             </button>
@@ -665,6 +669,7 @@ export default function Header() {
                                 )}
                                 onClick={() => setThemeMode('system')}
                                 title="System preference"
+                                suppressHydrationWarning
                             >
                                 <Monitor size={16} strokeWidth={1.5} />
                             </button>
@@ -681,6 +686,7 @@ export default function Header() {
                             (sidebarOpen || isPinned) ? "flex" : "hidden lg:group-hover:flex"
                         )}
                         title={isPinned ? "Unpin sidebar" : "Pin sidebar"}
+                        suppressHydrationWarning
                     >
                         <Pin size={18} strokeWidth={1.5} className={cn(isPinned && "rotate-45")} fill={isPinned ? "currentColor" : "none"} />
                     </button>

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Metadata } from 'next';
 import { getCategories } from '@/lib/data';
 
@@ -11,7 +12,7 @@ export async function generateMetadata({
     const p = await params;
     const slug = p.slug;
 
-    if (slug === 'new') {
+    if (slug.toLowerCase() === 'new') {
         return {
             title: 'Add New Category - Dashboard | AIBDE',
         };
@@ -38,7 +39,7 @@ export async function generateMetadata({
 export default function EditCategoryLayout({
     children,
 }: {
-    children: React.ReactNode;
+    children: ReactNode;
 }) {
-    return <>{children}</>;
+    return children;
 }

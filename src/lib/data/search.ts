@@ -3,31 +3,19 @@ import { AdminTool } from '@/types';
 
 const MAX_SEARCH_LIMIT = 200;
 
-// Strip search results to card-level fields only
+// Strip search results to card-level fields only.
+// Provides safe defaults for required AdminTool fields not present in card data.
 function toSearchResult(tool: AdminTool): AdminTool {
     return {
-        id: tool.id,
-        name: tool.name,
-        appUsername: tool.appUsername,
-        logoUrl: tool.logoUrl,
-        summary: tool.summary,
-        categoryName: tool.categoryName,
-        taskName: tool.taskName,
-        tags: tool.tags,
-        pricing: tool.pricing,
-        pricingLabel: tool.pricingLabel,
-        saveCount: tool.saveCount,
-        viewCount: tool.viewCount,
-        rating: tool.rating,
-        isFeatured: tool.isFeatured,
-        listingType: tool.listingType,
-        spotlightEnabled: tool.spotlightEnabled,
-        status: tool.status,
-        createdAt: tool.createdAt,
-        updatedAt: tool.updatedAt,
-        launchedOn: tool.launchedOn,
-        launchedAgo: tool.launchedAgo,
-    } as AdminTool;
+        ...tool,
+        description: tool.description ?? '',
+        category: tool.category ?? '',
+        task: tool.task ?? '',
+        websiteUrl: tool.websiteUrl ?? '',
+        categoryName: tool.categoryName ?? [],
+        taskName: tool.taskName ?? [],
+        tags: tool.tags ?? [],
+    };
 }
 
 const PRICING_KEYWORDS: Record<string, string> = {
@@ -97,6 +85,7 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
                 console.warn('Search timeout, retrying with reduced limit...');
                 attempts++;
                 currentLimit = Math.max(20, Math.floor(currentLimit / 2));
+                await new Promise(resolve => setTimeout(resolve, 150));
                 continue;
             }
             console.error('Search error:', error);
@@ -111,9 +100,15 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
         // can outrank "ChatGPT" when the query is "chatgpt". This re-sort fixes that.
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
+            // Precompute nameRelevance scores to avoid calling twice per comparator
+            const scoreMap = new Map<string, number>();
+            for (const t of tools) {
+                scoreMap.set(t.id, nameRelevance(t.name, q));
+            }
+            const listOrder: Record<string, number> = { spotlight: 0, featured: 1, verified: 2, fast: 3 };
             tools.sort((a: AdminTool, b: AdminTool) => {
-                // 1. Name accuracy
-                const nameDiff = nameRelevance(b.name, q) - nameRelevance(a.name, q);
+                // 1. Name accuracy (precomputed)
+                const nameDiff = (scoreMap.get(b.id) ?? 0) - (scoreMap.get(a.id) ?? 0);
                 if (nameDiff !== 0) return nameDiff;
                 // 2. Spotlight
                 const spotDiff = (b.spotlightEnabled ? 1 : 0) - (a.spotlightEnabled ? 1 : 0);
@@ -122,7 +117,6 @@ export async function searchTools(params: SearchParams): Promise<AdminTool[]> {
                 const featDiff = (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
                 if (featDiff !== 0) return featDiff;
                 // 4. Listing type priority
-                const listOrder: Record<string, number> = { spotlight: 0, featured: 1, verified: 2, fast: 3 };
                 const aList = listOrder[a.listingType ?? ''] ?? 4;
                 const bList = listOrder[b.listingType ?? ''] ?? 4;
                 if (aList !== bList) return aList - bList;
@@ -199,6 +193,7 @@ export async function searchToolsCount(params: Omit<SearchParams, 'limit'>): Pro
         if (error) {
             if (error.code === '57014' && attempt === 0) {
                 console.warn('Count timeout, retrying...');
+                await new Promise(resolve => setTimeout(resolve, 150));
                 continue;
             }
             console.error('Count error:', error);

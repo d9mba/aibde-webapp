@@ -22,9 +22,14 @@ export default function GlobalError({
                         <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px' }}>Something went wrong</h2>
                         <p style={{ color: '#888', marginBottom: '20px', maxWidth: '400px' }}>
                             An unexpected error occurred. Please try again later.
+                            {error.digest && (
+                                <span style={{ display: 'block', marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                                    Reference ID: {error.digest}
+                                </span>
+                            )}
                         </p>
                         <button
-                            onClick={() => reset()}
+                            onClick={reset}
                             style={{
                                 padding: '10px 20px',
                                 background: '#3b82f6',

@@ -51,7 +51,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             p_tool_id: toolId,
             p_action: action,
             p_vote_type: voteType,
-            p_previous_vote: previousVote || null,
+            p_previous_vote: action === 'change' ? (previousVote || null) : null,
         });
 
         if (rpcError) {

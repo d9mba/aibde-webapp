@@ -9,19 +9,23 @@
 -- Step 1: Move pg_trgm from public to extensions schema
 -- =============================================================================
 
+BEGIN;
+
 -- Create the extensions schema if it doesn't exist
 CREATE SCHEMA IF NOT EXISTS extensions;
 
 -- Drop the dependent trigram index first
 DROP INDEX IF EXISTS public.idx_tools_name_trgm;
 
--- Drop from public, then re-create in extensions
+-- Drop from public then re-create in extensions
 DROP EXTENSION IF EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA extensions;
 
 -- Re-create the trigram index (now using the extension from the extensions schema)
 CREATE INDEX IF NOT EXISTS idx_tools_name_trgm
     ON public.tools USING gin (name extensions.gin_trgm_ops);
+
+COMMIT;
 
 -- =============================================================================
 -- Step 2: Re-create search_tools with SET search_path
@@ -48,12 +52,15 @@ BEGIN
     cleaned := trim(coalesce(search_query, ''));
 
     IF cleaned <> '' THEN
-        tsq := to_tsquery('english',
-            regexp_replace(
-                plainto_tsquery('english', cleaned)::text,
-                '''$', ''':*'
-            )
-        );
+        DECLARE pq_text text;
+        BEGIN
+            pq_text := plainto_tsquery('english', cleaned)::text;
+            IF pq_text <> '' THEN
+                tsq := to_tsquery('english',
+                    regexp_replace(pq_text, '''([^'']+)''$', '''\1'':*')
+                );
+            END IF;
+        END;
     END IF;
 
     RETURN QUERY
@@ -62,14 +69,18 @@ BEGIN
     WHERE t.status IN ('published', 'approved')
       AND (
           cleaned = ''
-          OR (tsq IS NOT NULL AND t.search_vector @@ tsq)
+          OR tsq IS NULL
+          OR t.search_vector @@ tsq
       )
       AND (filter_category IS NULL OR t.category_name @> ARRAY[filter_category])
       AND (filter_task IS NULL OR t.task_name @> ARRAY[filter_task])
       AND (filter_pricing IS NULL OR t.pricing = filter_pricing)
     ORDER BY
         CASE
-            WHEN cleaned = '' THEN 0
+            WHEN cleaned = ''
+                THEN 0
+            WHEN tsq IS NULL
+                THEN 0
             ELSE ts_rank_cd(t.search_vector, tsq, 32)
         END DESC,
         t.save_count DESC
@@ -100,12 +111,15 @@ BEGIN
     cleaned := trim(coalesce(search_query, ''));
 
     IF cleaned <> '' THEN
-        tsq := to_tsquery('english',
-            regexp_replace(
-                plainto_tsquery('english', cleaned)::text,
-                '''$', ''':*'
-            )
-        );
+        DECLARE pq_text text;
+        BEGIN
+            pq_text := plainto_tsquery('english', cleaned)::text;
+            IF pq_text <> '' THEN
+                tsq := to_tsquery('english',
+                    regexp_replace(pq_text, '''([^'']+)''$', '''\1'':*')
+                );
+            END IF;
+        END;
     END IF;
 
     SELECT count(*) INTO total
@@ -113,7 +127,8 @@ BEGIN
     WHERE t.status IN ('published', 'approved')
       AND (
           cleaned = ''
-          OR (tsq IS NOT NULL AND t.search_vector @@ tsq)
+          OR tsq IS NULL
+          OR t.search_vector @@ tsq
       )
       AND (filter_category IS NULL OR t.category_name @> ARRAY[filter_category])
       AND (filter_task IS NULL OR t.task_name @> ARRAY[filter_task])

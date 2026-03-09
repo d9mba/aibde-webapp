@@ -61,7 +61,8 @@ UPDATE public.tools SET
         setweight(to_tsvector('english', coalesce(array_to_string(category_name, ' '), '')), 'B') ||
         setweight(to_tsvector('english', coalesce(array_to_string(task_name, ' '), '')), 'B') ||
         setweight(to_tsvector('english', coalesce(array_to_string(tags, ' '), '')), 'C') ||
-        setweight(to_tsvector('english', coalesce(description, '')), 'D');
+        setweight(to_tsvector('english', coalesce(description, '')), 'D')
+WHERE search_vector IS NULL;
 
 -- =============================================================================
 -- Step 6: RPC function — search_tools (Optimized for Type-ahead)
@@ -97,12 +98,15 @@ BEGIN
     -- "video edi" -> plainto_tsquery gives "'video' & 'edi'"
     -- regexp_replace turns it into "'video' & 'edi':*" (prefix match on last word)
     IF cleaned <> '' THEN
-        tsq := to_tsquery('english',
-            regexp_replace(
-                plainto_tsquery('english', cleaned)::text,
-                '''$', ''':*'
-            )
-        );
+        DECLARE pq_text text;
+        BEGIN
+            pq_text := plainto_tsquery('english', cleaned)::text;
+            IF pq_text <> '' THEN
+                tsq := to_tsquery('english',
+                    regexp_replace(pq_text, '''([^'']+)''$', '''\1'':*')
+                );
+            END IF;
+        END;
     END IF;
 
     RETURN QUERY
@@ -110,9 +114,11 @@ BEGIN
     FROM public.tools t
     WHERE t.status IN ('published', 'approved')
       -- Fast vector match (GIN index used, no ILIKE fallback)
+      -- Falls back to browsing when query is all stop words / unparseable (tsq NULL)
       AND (
           cleaned = ''
-          OR (tsq IS NOT NULL AND t.search_vector @@ tsq)
+          OR tsq IS NULL
+          OR t.search_vector @@ tsq
       )
       -- Optional filters (array containment uses GIN index too)
       AND (filter_category IS NULL OR t.category_name @> ARRAY[filter_category])
@@ -121,7 +127,7 @@ BEGIN
     ORDER BY
         -- Rank by FTS relevance when available
         CASE
-            WHEN cleaned = '' THEN 0
+            WHEN cleaned = '' OR tsq IS NULL THEN 0
             ELSE ts_rank_cd(t.search_vector, tsq, 32)
         END DESC,
         -- Popularity tiebreaker
@@ -156,12 +162,15 @@ BEGIN
     cleaned := trim(coalesce(search_query, ''));
 
     IF cleaned <> '' THEN
-        tsq := to_tsquery('english',
-            regexp_replace(
-                plainto_tsquery('english', cleaned)::text,
-                '''$', ''':*'
-            )
-        );
+        DECLARE pq_text text;
+        BEGIN
+            pq_text := plainto_tsquery('english', cleaned)::text;
+            IF pq_text <> '' THEN
+                tsq := to_tsquery('english',
+                    regexp_replace(pq_text, '''([^'']+)''$', '''\1'':*')
+                );
+            END IF;
+        END;
     END IF;
 
     SELECT count(*) INTO total
@@ -169,7 +178,8 @@ BEGIN
     WHERE t.status IN ('published', 'approved')
       AND (
           cleaned = ''
-          OR (tsq IS NOT NULL AND t.search_vector @@ tsq)
+          OR tsq IS NULL
+          OR t.search_vector @@ tsq
       )
       AND (filter_category IS NULL OR t.category_name @> ARRAY[filter_category])
       AND (filter_task IS NULL OR t.task_name @> ARRAY[filter_task])

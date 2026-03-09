@@ -83,15 +83,18 @@ export async function generateMetadata(): Promise<Metadata> {
     };
 }
 
+const RECENT_RELEASE_DAYS = 90;
+const TRENDING_TOOL_LIMIT = 50;
+
 export default async function HomePage() {
     // OPTIMIZED: Fetch only what's needed - counts + limited tools
     const [toolCount, categoryCount, taskCount, recentTools, spotlightTools, trendingTools, categories, tasks, settings] = await Promise.all([
         getToolsCount(['published', 'approved']),
         getCategoriesCount(),
         getTasksCount(),
-        getRecentlyReleasedTools(90),
+        getRecentlyReleasedTools(RECENT_RELEASE_DAYS),
         getSpotlightTools(),
-        getTrendingTools(50),
+        getTrendingTools(TRENDING_TOOL_LIMIT),
         getCategories(),
         getTasks(),
         getHomeSettings(),

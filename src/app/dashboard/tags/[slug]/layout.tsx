@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Metadata } from 'next';
 import { getTags } from '@/lib/data';
 
@@ -11,7 +12,7 @@ export async function generateMetadata({
     const p = await params;
     const slug = p.slug;
 
-    if (slug === 'new') {
+    if (slug.toLowerCase() === 'new') {
         return {
             title: 'Add New Tag - Dashboard | AIBDE',
         };
@@ -19,7 +20,7 @@ export async function generateMetadata({
 
     try {
         const tags = await getTags();
-        const tag = tags.find((t) => slugify(t.tagName) === slug);
+        const tag = tags.find((t) => t.tagName != null && slugify(t.tagName) === slug);
 
         if (tag?.tagName) {
             return {
@@ -38,7 +39,7 @@ export async function generateMetadata({
 export default function EditTagLayout({
     children,
 }: {
-    children: React.ReactNode;
+    children: ReactNode;
 }) {
-    return <>{children}</>;
+    return children;
 }

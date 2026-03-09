@@ -1,5 +1,8 @@
-import { Metadata } from 'next';
+import type { ReactNode } from 'react';
+import type { Metadata } from 'next';
 import { supabaseAdmin } from '@/lib/supabase';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Generate dynamic metadata for SEO/Browser Tab
 export async function generateMetadata({
@@ -15,6 +18,11 @@ export async function generateMetadata({
         return {
             title: 'Add New Tool - Dashboard | AIBDE',
         };
+    }
+
+    // Skip DB query for malformed IDs
+    if (!UUID_RE.test(id)) {
+        return { title: 'Edit Tool - Dashboard | AIBDE' };
     }
 
     try {
@@ -44,7 +52,7 @@ export async function generateMetadata({
 export default function EditToolLayout({
     children,
 }: {
-    children: React.ReactNode;
+    children: ReactNode;
 }) {
     return <>{children}</>;
 }

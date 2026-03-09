@@ -32,15 +32,15 @@ export default function FeaturedPage() {
     const isLoaded = !featuredLoading;
 
     // Capture initial total so "Available" stat stays constant during search
-    const [initialTotal, setInitialTotal] = useState(0);
+    const [initialTotal, setInitialTotal] = useState<number | null>(null);
     useEffect(() => {
-        if (availableTotal > 0 && initialTotal === 0) {
+        if (availableTotal !== undefined && initialTotal === null) {
             setInitialTotal(availableTotal);
         }
     }, [availableTotal, initialTotal]);
-    // Reset initial total when tools are mutated so it refreshes
     useEffect(() => {
-        setInitialTotal(0);
+        setInitialTotal(null);
+        featuredInitializedRef.current = false;
     }, [toolsMutated]);
 
     // Local state for pending changes
@@ -55,13 +55,13 @@ export default function FeaturedPage() {
     // Initialize from current data (once)
     const featuredInitializedRef = useRef(false);
     useEffect(() => {
-        if (featuredInitializedRef.current) return;
+        if (featuredInitializedRef.current || featuredLoading) return;
+        featuredInitializedRef.current = true;
         const currentFeatured = featuredTools.filter((t: AdminTool) => t.isFeatured || t.listingType === 'featured');
         const ids = currentFeatured.map(t => t.id);
 
         setPendingFeaturedIds(ids);
-        featuredInitializedRef.current = true;
-    }, [featuredTools]);
+    }, [featuredTools, featuredLoading]);
 
     // Current featured tools based on pending changes
     const allFeaturedTools = useMemo(() => {
@@ -100,11 +100,13 @@ export default function FeaturedPage() {
     const featuredStartIndex = (featuredPage - 1) * ITEMS_PER_PAGE;
     const paginatedFeaturedTools = filteredFeaturedTools.slice(featuredStartIndex, featuredStartIndex + ITEMS_PER_PAGE);
 
-    // Pagination for regular tools — use server pagination
-    const totalPages = apiTotalPages;
-    const totalCount = availableTotal ?? filteredRegularTools.length;
+    // Pagination for regular tools — use server pagination, but fall back to
+    // client-side pagination when a search filter is active (since client filters
+    // reduce the result set below what the server reports)
+    const totalPages = search ? Math.ceil(filteredRegularTools.length / ITEMS_PER_PAGE) : apiTotalPages;
+    const totalCount = search ? filteredRegularTools.length : (availableTotal ?? filteredRegularTools.length);
     const startIndex = (availablePage - 1) * ITEMS_PER_PAGE;
-    const paginatedTools = filteredRegularTools;
+    const paginatedTools = search ? filteredRegularTools.slice(startIndex, startIndex + ITEMS_PER_PAGE) : filteredRegularTools;
 
     const handleSearch = (value: string) => {
         setSearch(value);
@@ -220,7 +222,7 @@ export default function FeaturedPage() {
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Featured</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{Math.max(0, (initialTotal || availableTotal) - allFeaturedTools.length)}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{Math.max(0, (initialTotal ?? availableTotal ?? 0) - allFeaturedTools.length)}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>

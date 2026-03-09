@@ -60,11 +60,15 @@ export async function PUT(
         const body = await request.json();
 
         // Fetch old categories/tasks before update (for count syncing)
-        const { data: oldTool } = await supabaseAdmin
+        const { data: oldTool, error: oldToolError } = await supabaseAdmin
             .from('tools')
             .select('category_name, task_name')
             .eq('id', id)
             .single();
+
+        if (oldToolError && oldToolError.code !== 'PGRST116') {
+            console.warn('[PUT API] Failed to fetch old tool for count sync:', oldToolError.message);
+        }
 
         // Validate input with Zod schema (partial for updates)
         const parseResult = toolUpdateSchema.safeParse(body);

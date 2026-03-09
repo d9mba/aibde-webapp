@@ -56,8 +56,8 @@ export function usePostHogAnalytics(): UsePostHogAnalyticsReturn {
         setError(null);
 
         try {
-            // Fetch all three in parallel to reduce total wait time
-            const [topToolsRes, dailyRes, hourlyRes] = await Promise.all([
+            // Fetch all three in parallel — allSettled so one failure doesn't block others
+            const [topToolsResult, dailyResult, hourlyResult] = await Promise.allSettled([
                 fetch('/api/analytics/posthog', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -76,29 +76,31 @@ export function usePostHogAnalytics(): UsePostHogAnalyticsReturn {
             ]);
 
             // Process top tools
-            if (!topToolsRes.ok) {
-                const data = await topToolsRes.json();
-                if (data.error?.includes('not configured') || data.details?.includes('not configured')) {
-                    setIsConfigured(false);
-                    setLoading(false);
-                    return;
+            if (topToolsResult.status === 'fulfilled') {
+                const topToolsRes = topToolsResult.value;
+                if (!topToolsRes.ok) {
+                    const data = await topToolsRes.json();
+                    if (data.error?.includes('not configured') || data.details?.includes('not configured')) {
+                        setIsConfigured(false);
+                        setLoading(false);
+                        return;
+                    }
+                    throw new Error(data.error || 'Failed to fetch top tools');
                 }
-                throw new Error(data.error || 'Failed to fetch top tools');
+                setIsConfigured(true);
+                const topToolsData = await topToolsRes.json();
+                setTopTools(topToolsData.results || []);
             }
 
-            setIsConfigured(true);
-            const topToolsData = await topToolsRes.json();
-            setTopTools(topToolsData.results || []);
-
             // Process daily activity
-            if (dailyRes.ok) {
-                const dailyData = await dailyRes.json();
+            if (dailyResult.status === 'fulfilled' && dailyResult.value.ok) {
+                const dailyData = await dailyResult.value.json();
                 setDailyActivity(dailyData.results || []);
             }
 
             // Process hourly activity
-            if (hourlyRes.ok) {
-                const hourlyData = await hourlyRes.json();
+            if (hourlyResult.status === 'fulfilled' && hourlyResult.value.ok) {
+                const hourlyData = await hourlyResult.value.json();
                 setHourlyActivity(hourlyData.results || []);
             }
 

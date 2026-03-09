@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
-import { Category, Task } from '@/types';
+import { Category, Task, AdminTool } from '@/types';
 import { trackSearch, trackFilterUsed } from '@/hooks/useToolAnalytics';
 import { searchWithCountAction, getSearchSuggestionsAction } from '@/lib/actions';
 
@@ -22,7 +22,8 @@ interface SearchPageClientProps {
 export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount }: SearchPageClientProps) {
     const searchParams = useSearchParams();
     const lastTrackedQuery = useRef<string>('');
-    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const router = useRouter();
     const searchCommittedRef = useRef(false);
 
     const [query, setQuery] = useState('');
@@ -31,7 +32,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     const [selectedPricing, setSelectedPricing] = useState<string | null>(null);
 
     // Search state
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<AdminTool[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
     const [isSearching, setIsSearching] = useState(false);
@@ -127,8 +128,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     // Navigate to a specific page
     async function goToPage(page: number): Promise<void> {
         await performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing, page);
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) ?? window.scrollTo(0, 0);
     }
 
     // Debounced suggestions on query change (NOT full search)
@@ -174,7 +174,10 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-                window.location.href = `/app/${suggestions[selectedIndex].appUsername}`;
+                const selected = suggestions[selectedIndex];
+                if (selected?.appUsername) {
+                    router.push(`/app/${selected.appUsername}`);
+                }
             } else {
                 if (searchTimeout.current) {
                     clearTimeout(searchTimeout.current);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 // SECURITY: Use anonymous client (not admin) to let RLS act as safety net
-import { supabase, dbToolToAdminTool } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { toFullUrl, toArray } from '@/lib/url';
 
 // PERFORMANCE: Edge runtime for faster cold starts
 export const runtime = 'edge';
@@ -13,25 +14,25 @@ const PUBLIC_LIST_FIELDS = `
     status, created_at, updated_at
 `;
 
-// Strip response to only public-safe fields (dbToolToAdminTool maps ALL fields)
-function toPublicTool(tool: ReturnType<typeof dbToolToAdminTool>) {
+// Map DB row directly to public-safe fields (skips full dbToolToAdminTool)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dbToolToPublicTool(row: any) {
     return {
-        id: tool.id,
-        name: tool.name,
-        appUsername: tool.appUsername,
-        logoUrl: tool.logoUrl,
-        summary: tool.summary,
-        categoryName: tool.categoryName,
-        taskName: tool.taskName,
-        tags: tool.tags,
-        pricing: tool.pricing,
-        pricingLabel: tool.pricingLabel,
-        saveCount: tool.saveCount,
-        isFeatured: tool.isFeatured,
-        listingType: tool.listingType,
-        status: tool.status,
-        createdAt: tool.createdAt,
-        updatedAt: tool.updatedAt,
+        id: row.id,
+        name: row.name,
+        appUsername: row.app_username,
+        logoUrl: toFullUrl(row.logo_url) ?? null,
+        summary: row.summary,
+        categoryName: toArray(row.category_name),
+        taskName: toArray(row.task_name),
+        tags: toArray(row.tags),
+        pricing: row.pricing,
+        pricingLabel: row.pricing_label,
+        saveCount: row.save_count ?? 0,
+        isFeatured: row.is_featured ?? false,
+        listingType: row.listing_type,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
     };
 }
 
@@ -98,7 +99,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Failed to fetch tools' }, { status: 500 });
         }
 
-        const tools = (data || []).map((tool) => toPublicTool(dbToolToAdminTool(tool)));
+        const tools = (data || []).map(dbToolToPublicTool);
 
         // PERFORMANCE: Cache public responses to reduce DB hits
         // 1 hour cache, allow stale for 24 hours while revalidating

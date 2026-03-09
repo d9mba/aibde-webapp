@@ -25,7 +25,7 @@ export default function TopHeader() {
     // API-based search suggestions
     const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = useCallback(async (query: string) => {
@@ -157,7 +157,7 @@ export default function TopHeader() {
                 // Selected a tool - track the click
                 const tool = suggestions[selectedIndex];
                 trackToolClick({ id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-                router.push(`/app/${suggestions[selectedIndex].appUsername}`);
+                router.push(`/app/${tool.appUsername}`);
                 setShowRecommendations(false);
                 setSearchQuery('');
             } else {

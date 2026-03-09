@@ -25,7 +25,7 @@ export default function PricingSection({ plans }: PricingSectionProps) {
                             }`}
                     >
                         {plan.highlighted && (
-                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 text-xs font-semibold bg-accent-primary text-white rounded-full">
+                            <span role="status" aria-label="Popular plan" className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 text-xs font-semibold bg-accent-primary text-white rounded-full">
                                 Popular
                             </span>
                         )}

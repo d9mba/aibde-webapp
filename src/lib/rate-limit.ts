@@ -4,7 +4,7 @@
  * Production-ready rate limiting with:
  * - Distributed state (works across serverless instances)
  * - Sliding window algorithm for smooth rate limiting
- * - Graceful fallback if Redis unavailable
+ * - Fail-closed: denies requests if Redis unavailable
  */
 
 import { Ratelimit } from '@upstash/ratelimit';

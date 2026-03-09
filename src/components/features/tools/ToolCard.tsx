@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AITool } from '@/types';
 import ShareModal from '@/components/ui/ShareModal';
 import { trackToolClick, useToolImpression, trackFilterUsed } from '@/hooks/useToolAnalytics';
@@ -50,6 +51,7 @@ function getRankingDisplay(ranking: number): string {
 
 export default function AIToolCard({ tool, variant = 'default', ranking }: AIToolCardProps) {
     const [showShareModal, setShowShareModal] = useState(false);
+    const router = useRouter();
     const { getImpressions } = useImpressions();
     const colorIndex = tool.name.charCodeAt(0) % logoColors.length;
     const logoColor = logoColors[colorIndex];
@@ -88,11 +90,17 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
         setShowShareModal(true);
     };
 
+    // Compute the canonical share URL for this tool (SSR-safe: computed lazily on click)
+    const getShareUrl = () =>
+        typeof window !== 'undefined'
+            ? `${window.location.origin}/app/${tool.appUsername}`
+            : `/app/${tool.appUsername}`;
+
     const handleTaskClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         const firstTask = (tool.taskName || [])[0];
         if (firstTask) {
-            window.location.href = `/task/${slugify(firstTask)}`;
+            router.push(`/task/${slugify(firstTask)}`);
         }
     };
 
@@ -102,7 +110,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
             { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
             isFeatured ? 'featured' : 'card'
         );
-        window.location.href = `/app/${tool.appUsername}`;
+        router.push(`/app/${tool.appUsername}`);
     };
 
     return (
@@ -185,7 +193,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     trackFilterUsed('category', (tool.categoryName || [])[0]);
-                                    window.location.href = `/category/${slugify((tool.categoryName || [])[0])}`;
+                                    router.push(`/category/${slugify((tool.categoryName || [])[0])}`);
                                 }}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.backgroundColor = '#10b981';
@@ -208,7 +216,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     trackFilterUsed('task', (tool.taskName || [])[0]);
-                                    window.location.href = `/task/${slugify((tool.taskName || [])[0])}`;
+                                    router.push(`/task/${slugify((tool.taskName || [])[0])}`);
                                 }}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.backgroundColor = '#f59e0b';
@@ -258,7 +266,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                     onClick={(e) => {
                         e.stopPropagation();
                         trackFilterUsed('pricing', tool.pricing || 'unknown');
-                        window.location.href = `/search?pricing=${tool.pricing}`;
+                        router.push(`/search?pricing=${encodeURIComponent(tool.pricing || 'unknown')}`);
                     }}
                 >
                     {tool.pricingLabel || getPricingLabel(tool.pricing || '')}
@@ -290,7 +298,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
             <ShareModal
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
-                url={typeof window !== 'undefined' ? `${window.location.origin}/app/${tool.appUsername}` : ''}
+                url={getShareUrl()}
                 title={tool.name}
                 description={tool.summary || tool.description}
             />

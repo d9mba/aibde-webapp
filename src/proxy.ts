@@ -45,7 +45,7 @@ async function verifyCookieValue(cookieValue: string, secret: string): Promise<b
 // 1. Define Routes
 const isSecretEntry = createRouteMatcher(['/login/:secret']) // Matches /login/super-secret
 const isLoginPage = createRouteMatcher(['/login(.*)', '/sign-in(.*)']) // Matches /login, /login/factor-one
-const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/cron(.*)', '/api/vote', '/api/submit-tool', '/api/contact', '/api/search', '/api/tools/by-category', '/api/tools/by-task'])
+const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/vote', '/api/submit-tool', '/api/contact', '/api/search', '/api/tools/by-category', '/api/tools/by-task'])
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api(.*)'])
 
 export const proxy = clerkMiddleware(async (auth, req) => {
@@ -133,7 +133,9 @@ export const proxy = clerkMiddleware(async (auth, req) => {
         }
         const adminSecret = process.env.ADMIN_LOGIN_SECRET;
         if (!adminSecret || !(await verifyCookieValue(hasAccess.value, adminSecret))) {
-            return NextResponse.redirect(new URL('/', req.url));
+            const res = NextResponse.redirect(new URL('/', req.url));
+            res.cookies.delete('admin_access');
+            return res;
         }
     }
 
@@ -151,7 +153,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
 
         // Admins can still browse API routes directly
         if (!userId && fetchDest === 'document' && fetchMode === 'navigate') {
-            return new NextResponse(null, { status: 403 });
+            return NextResponse.json({ error: 'Access denied' }, { status: 403 });
         }
     }
 

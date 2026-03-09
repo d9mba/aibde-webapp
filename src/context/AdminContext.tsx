@@ -262,7 +262,6 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             setToolsMutated(c => c + 1);
         } else {
             console.warn('[AdminContext] updateTool is a no-op in non-API mode');
-            setToolsMutated(c => c + 1);
         }
     };
 
@@ -276,7 +275,6 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             setToolsMutated(c => c + 1);
         } else {
             console.warn('[AdminContext] deleteTool is a no-op in non-API mode');
-            setToolsMutated(c => c + 1);
         }
     };
 
@@ -447,7 +445,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             if (!res.ok) throw new Error(updatedNote.error || 'Failed to update note');
             // Pages fetch notes via SWR
         } else {
-            // Fallback
+            console.warn('[AdminContext] updateNote: API mode is disabled, note update skipped');
         }
     };
 
@@ -460,7 +458,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
             }
             // Let pages handle refresh via SWR
         } else {
-            // Fallback
+            console.warn('[AdminContext] deleteNote: API mode is disabled, note deletion skipped');
         }
     };
 
@@ -497,7 +495,7 @@ export function AdminProvider({ children, initialTools }: AdminProviderProps) {
     return (
         <AdminContext.Provider
             value={{
-                settings: settings,
+                settings,
                 isLoaded,
                 isLoading,
                 toolsMutated,

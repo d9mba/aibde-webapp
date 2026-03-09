@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Task } from '@/types';
 import { slugify } from '@/lib/utils';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 
 function HomeIcon({ className }: { className?: string }) {
     return (
@@ -29,7 +29,6 @@ interface TasksPageClientProps {
 const ITEMS_PER_PAGE = 48;
 
 export default function TasksPageClient({ tasks, totalCount }: TasksPageClientProps) {
-    const [currentPage, setCurrentPage] = useState(1);
     const [activeLetter, setActiveLetter] = useState<string>('');
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
@@ -41,7 +40,7 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
                 byId.set(task.id, task);
             }
         });
-        return Array.from(byId.values()).sort((a, b) => a.taskName.localeCompare(b.taskName));
+        return Array.from(byId.values()).sort((a, b) => (a.taskName ?? '').localeCompare(b.taskName ?? ''));
     }, [tasks]);
 
     // Get visible tasks (progressively loaded) — memoized so groupedTasks stays stable
@@ -121,12 +120,31 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
         return () => window.removeEventListener('scroll', handleScroll);
     }, [hasMore, sortedTasks.length]);
 
+    // Ref to track active RAF so we can cancel on letter-switch or unmount
+    const activeRafRef = useRef<number | null>(null);
+
+    // Cleanup RAF on unmount
+    useEffect(() => {
+        return () => {
+            if (activeRafRef.current !== null) {
+                cancelAnimationFrame(activeRafRef.current);
+                activeRafRef.current = null;
+            }
+        };
+    }, []);
+
     // Scroll to letter — find which page has that letter and navigate there
     function scrollToLetter(letter: string) {
         const idx = sortedTasks.findIndex(
             task => (task.taskName?.charAt(0) || '?').toUpperCase() === letter
         );
         if (idx === -1) return;
+
+        // Cancel any previous scroll-retry loop
+        if (activeRafRef.current !== null) {
+            cancelAnimationFrame(activeRafRef.current);
+            activeRafRef.current = null;
+        }
 
         const scrollToElement = () => {
             let attempts = 0;
@@ -135,12 +153,17 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
                 const element = document.getElementById(`section-${letter}`);
                 if (element) {
                     element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    activeRafRef.current = null;
                 } else if (attempts < maxAttempts) {
                     attempts++;
-                    requestAnimationFrame(tryScroll);
+                    activeRafRef.current = requestAnimationFrame(tryScroll);
+                } else {
+                    console.warn(`[scrollToElement] Could not find section-${letter} after ${maxAttempts} attempts`);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    activeRafRef.current = null;
                 }
             }
-            requestAnimationFrame(tryScroll);
+            activeRafRef.current = requestAnimationFrame(tryScroll);
         };
 
         // Ensure items up to this letter are visible

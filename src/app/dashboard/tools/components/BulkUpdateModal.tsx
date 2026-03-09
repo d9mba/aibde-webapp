@@ -537,7 +537,7 @@ export default function BulkUpdateModal({ isOpen, onClose, onUpdateComplete }: B
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
                     <div className="bg-bg-card rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
                         <div className="flex items-center justify-between p-4 border-b border-border">
-                            <h2 className="text-lg font-bold text-text-primary">Preview: {previewingTool.name || previewingTool.appUsername}</h2>
+                            <h2 className="text-lg font-bold text-text-primary">Preview: {previewingTool.name || previewingTool.app_username}</h2>
                             <button onClick={() => setPreviewIndex(null)} className="p-2 hover:bg-bg-secondary rounded-lg transition-colors">
                                 <X size={20} className="text-text-tertiary" />
                             </button>
@@ -556,7 +556,7 @@ export default function BulkUpdateModal({ isOpen, onClose, onUpdateComplete }: B
                                 </div>
                                 <div>
                                     <label className="text-xs font-medium text-text-tertiary uppercase">Slug</label>
-                                    <p className="text-sm text-text-primary mt-1">{previewingTool.appUsername || '-'}</p>
+                                    <p className="text-sm text-text-primary mt-1">{previewingTool.app_username || '-'}</p>
                                 </div>
                                 <div className="col-span-2">
                                     <label className="text-xs font-medium text-text-tertiary uppercase">Summary</label>

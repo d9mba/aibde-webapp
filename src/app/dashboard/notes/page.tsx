@@ -107,19 +107,37 @@ export default function NotesPage() {
         const uniqueIds = [...new Set(unknownIds)];
         // Mark as fetching to prevent re-requests
         uniqueIds.forEach(id => fetchedToolIdsRef.current.add(id));
+
+        const controller = new AbortController();
         // Fetch details for unknown tool IDs
         uniqueIds.forEach(id => {
-            fetch(`/api/tools/${id}`)
+            fetch(`/api/tools/${id}`, { signal: controller.signal })
                 .then(r => r.ok ? r.json() : null)
                 .then(tool => {
-                    if (tool) setKnownTools(prev => {
+                    if (tool && !controller.signal.aborted) setKnownTools(prev => {
                         const next = new Map(prev);
                         next.set(tool.id, tool);
                         return next;
                     });
                 })
-                .catch(() => { });
+                .catch((err) => {
+                    if (err.name === 'AbortError') return;
+                    console.error(`[Notes] Failed to fetch tool ${id}:`, err);
+                    fetchedToolIdsRef.current.delete(id);
+                });
         });
+
+        return () => {
+            controller.abort();
+            // Remove pending IDs so they can be retried on next mount
+            // Use functional check against fetchedToolIdsRef (stable ref)
+            uniqueIds.forEach(id => {
+                // Only remove if the fetch didn't complete successfully
+                // We can't check knownTools from stale closure, so we check
+                // if the controller was aborted to decide cleanup behavior
+                fetchedToolIdsRef.current.delete(id);
+            });
+        };
     }, [notes]);
 
     // Fetch tools for filter dropdown

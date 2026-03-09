@@ -32,10 +32,15 @@ export async function generateMetadata({
     const categoryLabel = tool.categoryName?.[0] || 'AI Tool';
     const taskLabels = tool.taskName?.slice(0, 3) || [];
     const year = new Date().getFullYear();
-    const shortSummary = tool.summary?.slice(0, 60) || categoryLabel;
+    const suffix = ` (Reviews, Pricing & Alternatives) | ${year} | AiBDE`;
+    const prefix = `${tool.name}: `;
+    const maxSummaryLen = Math.max(10, 60 - prefix.length - suffix.length);
+    const shortSummary = tool.summary
+        ? tool.summary.slice(0, maxSummaryLen) + (tool.summary.length > maxSummaryLen ? '…' : '')
+        : categoryLabel;
 
     // Title format: "ToolName: Summary (Reviews, Prices & Alternatives) | Year | AiBDE"
-    const title = `${tool.name}: ${shortSummary} (Reviews, Pricing & Alternatives) | ${year} | AiBDE`;
+    const title = `${prefix}${shortSummary}${suffix}`;
 
     // Description: mentions competitors and use cases for SERP visibility
     const baseSummary = tool.summary || tool.description?.slice(0, 100) || `Discover ${tool.name}`;

@@ -69,9 +69,11 @@ interface DashboardStats {
 export default function DashboardHome() {
     const [data, setData] = useState<DashboardStats | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     const loadStats = useCallback(async () => {
         setError(null);
+        setIsLoading(true);
         try {
             const res = await fetch('/api/dashboard/stats');
             const body = await res.text();
@@ -84,6 +86,8 @@ export default function DashboardHome() {
             setData(stats);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -279,7 +283,7 @@ export default function DashboardHome() {
                                     No published tools yet.
                                 </div>
                             ) : (
-                                recentPublished.map((tool) => (
+                                recentPublished.filter(tool => tool.appUsername).map((tool) => (
                                     <Link
                                         key={tool.id}
                                         href={`/app/${tool.appUsername}`}

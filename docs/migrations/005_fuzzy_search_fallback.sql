@@ -5,7 +5,7 @@
 --   2. Spotlight tools first
 --   3. Featured tools next
 --   4. Fast/verified/premium listings
---   5. Rest by save_count
+--   5. Rest by view_count, then save_count
 --
 -- Run this in Supabase SQL Editor
 
@@ -30,20 +30,29 @@ DECLARE
     cleaned text;
 BEGIN
     IF result_limit > 200 THEN result_limit := 200; END IF;
+    IF result_limit < 1 THEN result_limit := 1; END IF;
+    IF result_offset < 0 THEN result_offset := 0; END IF;
 
     cleaned := trim(coalesce(search_query, ''));
 
     IF cleaned <> '' THEN
-        tsq := to_tsquery('english',
-            regexp_replace(
-                plainto_tsquery('english', cleaned)::text,
-                '''$', ''':*'
-            )
-        );
+        DECLARE pq_text text;
+        BEGIN
+            pq_text := plainto_tsquery('english', cleaned)::text;
+            IF pq_text <> '' THEN
+                tsq := to_tsquery('english',
+                    regexp_replace(pq_text, '''$', ''':*')
+                );
+            END IF;
+        END;
     END IF;
 
     IF cleaned <> '' THEN
         -- Combined: FTS matches + trigram name matches in one query
+        -- Escape ILIKE wildcards in user input to prevent unintended pattern matching
+        DECLARE escaped_cleaned text;
+        BEGIN
+            escaped_cleaned := replace(replace(replace(cleaned, '\', '\\'), '%', '\%'), '_', '\_');
         RETURN QUERY
         SELECT t.*
         FROM public.tools t
@@ -51,7 +60,7 @@ BEGIN
           AND (
               (tsq IS NOT NULL AND t.search_vector @@ tsq)
               OR similarity(t.name, cleaned) > 0.15
-              OR t.name ILIKE '%' || cleaned || '%'
+              OR t.name ILIKE '%' || escaped_cleaned || '%' ESCAPE '\'
           )
           AND (filter_category IS NULL OR t.category_name @> ARRAY[filter_category])
           AND (filter_task IS NULL OR t.task_name @> ARRAY[filter_task])
@@ -80,6 +89,7 @@ BEGIN
             t.save_count DESC
         LIMIT result_limit
         OFFSET result_offset;
+        END;
         RETURN;
     END IF;
 
@@ -129,26 +139,34 @@ BEGIN
     cleaned := trim(coalesce(search_query, ''));
 
     IF cleaned <> '' THEN
-        tsq := to_tsquery('english',
-            regexp_replace(
-                plainto_tsquery('english', cleaned)::text,
-                '''$', ''':*'
-            )
-        );
+        DECLARE pq_text text;
+        BEGIN
+            pq_text := plainto_tsquery('english', cleaned)::text;
+            IF pq_text <> '' THEN
+                tsq := to_tsquery('english',
+                    regexp_replace(pq_text, '''$', ''':*')
+                );
+            END IF;
+        END;
     END IF;
 
     IF cleaned <> '' THEN
+        -- Escape ILIKE wildcards
+        DECLARE escaped_cleaned text;
+        BEGIN
+            escaped_cleaned := replace(replace(replace(cleaned, '\', '\\'), '%', '\%'), '_', '\_');
         SELECT count(*) INTO total
         FROM public.tools t
         WHERE t.status IN ('published', 'approved')
           AND (
               (tsq IS NOT NULL AND t.search_vector @@ tsq)
               OR similarity(t.name, cleaned) > 0.15
-              OR t.name ILIKE '%' || cleaned || '%'
+              OR t.name ILIKE '%' || escaped_cleaned || '%' ESCAPE '\'
           )
           AND (filter_category IS NULL OR t.category_name @> ARRAY[filter_category])
           AND (filter_task IS NULL OR t.task_name @> ARRAY[filter_task])
           AND (filter_pricing IS NULL OR t.pricing = filter_pricing);
+        END;
         RETURN total;
     END IF;
 

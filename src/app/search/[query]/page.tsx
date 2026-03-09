@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import { AdminTool } from '@/types';
@@ -9,6 +9,7 @@ import { ToolGridSkeleton } from '@/components/ui/Skeleton';
 
 export default function SearchResultsPage() {
     const params = useParams();
+    const router = useRouter();
     const rawQuery = params.query;
     const queryStr = Array.isArray(rawQuery) ? rawQuery[0] || '' : (rawQuery ?? '');
     const initialQuery = (() => {
@@ -18,22 +19,34 @@ export default function SearchResultsPage() {
     const [searchQuery, setSearchQuery] = useState(initialQuery);
     const [results, setResults] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     // Fetch search results from API instead of loading all tools in memory
     useEffect(() => {
+        if (!initialQuery) {
+            router.replace('/search');
+            return;
+        }
+
+        let cancelled = false;
         setIsLoading(true);
+        setError(null);
         const controller = new AbortController();
         fetch(`/api/tools?search=${encodeURIComponent(initialQuery)}&status=published&limit=100`, { signal: controller.signal })
-            .then(r => r.ok ? r.json() : { data: [] })
-            .then(json => setResults(json.data || []))
+            .then(r => {
+                if (!r.ok) throw new Error(`Search failed: ${r.status}`);
+                return r.json();
+            })
+            .then(json => { if (!cancelled) setResults(json.data || []); })
             .catch((err) => {
-                if (err.name !== 'AbortError') {
+                if (err.name !== 'AbortError' && !cancelled) {
                     console.error('[Search] Fetch failed:', err);
                     setResults([]);
+                    setError('Failed to load search results');
                 }
             })
-            .finally(() => setIsLoading(false));
-        return () => controller.abort();
+            .finally(() => { if (!cancelled) setIsLoading(false); });
+        return () => { cancelled = true; controller.abort(); };
     }, [initialQuery]);
 
     // Keep searchQuery in sync when the route/initialQuery changes
@@ -130,10 +143,31 @@ export default function SearchResultsPage() {
                 <h1 className="text-xl font-bold text-text-primary mb-1">
                     Search results for &quot;<span className="text-accent-primary">{initialQuery}</span>&quot;
                 </h1>
-                <p className="text-sm text-text-tertiary">{results.length} tool{results.length !== 1 ? 's' : ''} found</p>
+                <p className="text-sm text-text-tertiary">
+                    {results.length === 100 ? 'Showing top 100 tools' : `${results.length} tool${results.length !== 1 ? 's' : ''} found`}
+                </p>
+                {results.length === 100 && (
+                    <p className="text-xs text-text-secondary mt-1">Please refine your search for more specific matches.</p>
+                )}
             </div>
 
-            {results.length > 0 ? (
+            {error ? (
+                <div className="text-center py-16">
+                    <svg className="mx-auto mb-4 text-accent-red" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <h2 className="text-lg font-semibold text-text-primary mb-2">{error}</h2>
+                    <p className="text-text-secondary mb-4">Something went wrong while searching</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-4 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                    >
+                        Try again
+                    </button>
+                </div>
+            ) : results.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {results.map((tool: AdminTool) => (
                         <AIToolCard key={tool.id} tool={tool} />

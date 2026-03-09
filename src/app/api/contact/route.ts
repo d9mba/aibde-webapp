@@ -35,7 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (ip !== 'anonymous') {
             identifier = ip;
         } else {
-            // Build a fingerprint from stable request headers + time-bucketed salt
+            // Build a fingerprint from stable request headers
             // to reduce spoofing via client-controlled headers alone
             const ua = request.headers.get('user-agent') || '';
             const lang = request.headers.get('accept-language') || '';
@@ -43,9 +43,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             const chUa = request.headers.get('sec-ch-ua') || '';
             const chPlatform = request.headers.get('sec-ch-ua-platform') || '';
             const chMobile = request.headers.get('sec-ch-ua-mobile') || '';
-            // Hourly time bucket prevents replay across time windows
-            const hourBucket = Math.floor(Date.now() / 3_600_000);
-            const raw = `${ip}|${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}|${hourBucket}`;
+            const raw = `${ip}|${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}`;
             const digest = createHmac('sha256', effectiveFingerprintSecret).update(raw).digest('hex').slice(0, 16);
             identifier = `anon:${digest}`;
         }

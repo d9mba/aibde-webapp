@@ -5,6 +5,19 @@ import { toolSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { escapeLike } from '@/lib/utils';
 import { syncToolCounts } from '@/lib/sync-counts';
+import { getFullUrl } from '@/lib/url';
+
+// Lightweight card-level mapper: avoids full dbToolToAdminTool for dashboard card views
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dbToolToCardTool(t: any) {
+    return {
+        id: t.id, name: t.name, appUsername: t.app_username,
+        logoUrl: getFullUrl(t.logo_url || ''), categoryName: t.category_name, status: t.status,
+        isFeatured: t.is_featured, listingType: t.listing_type,
+        spotlightEnabled: t.spotlight_enabled, spotlightPosition: t.spotlight_position,
+        trendingPosition: t.trending_position,
+    };
+}
 
 // All fields for tools - needed for edit form to work correctly
 // WARNING: Contains sensitive fields - use only for single-tool detail view
@@ -136,7 +149,7 @@ function applyFilters(query: any, filters: {
     if (filters.spotlight === 'true') {
         query = query.eq('spotlight_enabled', true);
     }
-    if (filters.listing) {
+    if (filters.listing && filters.listing !== 'all') {
         query = query.eq('listing_type', filters.listing);
     }
     if (filters.trending === 'true') {
@@ -209,6 +222,8 @@ export async function GET(request: NextRequest) {
             while (hasMore) {
                 let query = supabaseAdmin
                     .from('tools')
+                    // NOTE: allData uses LIST_FIELDS (includes version_history, alternative_tools, etc.)
+                    // while paginated uses TABLE_FIELDS (subset) — intentional for export vs dashboard views
                     .select(fieldsParam === 'card' ? CARD_FIELDS : LIST_FIELDS) // Use CARD_FIELDS for management pages, LIST_FIELDS for full data
                     .order('created_at', { ascending: false })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
@@ -253,19 +268,12 @@ export async function GET(request: NextRequest) {
         }
 
         // Map to frontend-friendly format
+        // When fields=card, skip the heavy dbToolToAdminTool and map directly from DB rows
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mapped = (data || []).map((tool: any) => dbToolToAdminTool(tool));
-
-        // Strip to card fields when requested (avoids sending 40+ fields for management UIs)
         const tools = fieldsParam === 'card'
-            ? mapped.map(t => ({
-                id: t.id, name: t.name, appUsername: t.appUsername,
-                logoUrl: t.logoUrl, categoryName: t.categoryName, status: t.status,
-                isFeatured: t.isFeatured, listingType: t.listingType,
-                spotlightEnabled: t.spotlightEnabled, spotlightPosition: t.spotlightPosition,
-                trendingPosition: t.trendingPosition,
-            }))
-            : mapped;
+            ? (data || []).map(dbToolToCardTool)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            : (data || []).map((tool: any) => dbToolToAdminTool(tool));
 
         // Return paginated response
         if (allData) {

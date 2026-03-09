@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import Pagination from '@/components/ui/Pagination';
@@ -34,6 +34,14 @@ export default function CategorySlugPageClient({
     const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
     const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, totalCount);
+
+    // Abort any in-flight page fetch on unmount
+    useEffect(() => {
+        return () => {
+            pageFetchControllerRef.current?.abort();
+            pageFetchControllerRef.current = null;
+        };
+    }, []);
 
     // Fetch a specific page of tools
     const goToPage = useCallback(async (page: number) => {
@@ -80,7 +88,10 @@ export default function CategorySlugPageClient({
             console.error('Failed to load tools:', error);
             setFetchError(msg);
         } finally {
-            setIsLoading(false);
+            // Only clear loading if this controller is still the current one
+            if (pageFetchControllerRef.current === controller) {
+                setIsLoading(false);
+            }
         }
     }, [category, initialTools]);
 
@@ -141,8 +152,9 @@ export default function CategorySlugPageClient({
             {/* Tools Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
                 {isLoading ? (
-                    <div className="col-span-full flex items-center justify-center py-16">
+                    <div className="col-span-full flex items-center justify-center py-16" role="status">
                         <span className="w-6 h-6 border-2 border-border border-t-accent-primary rounded-full animate-spin" />
+                        <span className="sr-only">Loading content</span>
                     </div>
                 ) : tools.length > 0 ? (
                     tools.map((tool) => (

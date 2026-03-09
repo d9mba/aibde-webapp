@@ -16,7 +16,14 @@ import ExportToolsModal from './components/ExportToolsModal';
 import { SafeHtml } from '@/components/ui/SafeHtml';
 
 // SWR fetcher
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Fetch error ${res.status}: ${res.statusText} ${body}`);
+    }
+    return res.json();
+};
 
 // Pagination response type
 interface PaginatedToolsResponse {
@@ -134,7 +141,7 @@ export default function ToolsListPage() {
     // Fetch categories for filter dropdown
     const { data: catResponse } = useSWR<{ data: { id: string; categoryName: string }[] }>(
         '/api/categories?limit=500',
-        (url: string) => fetch(url).then(r => r.json()),
+        fetcher,
         { revalidateOnFocus: false }
     );
     const categoryOptions = [

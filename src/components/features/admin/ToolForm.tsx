@@ -305,6 +305,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     const [jsonInput, setJsonInput] = useState('');
     const [jsonError, setJsonError] = useState('');
     const [parsedJsonData, setParsedJsonData] = useState<Record<string, any> | null>(null);
+    const [slugLocked, setSlugLocked] = useState(isEdit); // locked by default in edit mode
     const isRepostUpdate = useRef(false);
 
     // Search-as-you-type for alternative tools combobox
@@ -356,7 +357,14 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
         const sanitized = { ...defaultToolValues };
 
+        // AdminTool uses camelCase `appUsername` but the form schema uses snake_case `app_username`
+        // Remap explicitly so the field is populated when editing an existing tool
+        if (tool.appUsername) {
+            sanitized.app_username = tool.appUsername;
+        }
+
         for (const key in tool) {
+            if (key === 'appUsername') continue; // already mapped above
             const value = (tool as any)[key];
 
             if (value === null || value === undefined) {
@@ -380,26 +388,36 @@ export default function ToolForm({ toolId }: ToolFormProps) {
         return sanitized as ToolFormData;
     };
 
+
     useEffect(() => { if (existingTool) reset(sanitizeToolData(existingTool)); }, [existingTool, reset]);
 
     const watchName = watch('name');
     useEffect(() => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let controller: AbortController | undefined;
+
         if (!isEdit && watchName) {
             setValue('app_username', slugify(watchName || ''));
-            // Debounce the duplicate check API call
-            const timer = setTimeout(() => {
-                const controller = new AbortController();
-                fetch(`/api/tools?search=${encodeURIComponent(watchName)}&limit=1&status=published`, { signal: controller.signal })
+            controller = new AbortController();
+            timer = setTimeout(() => {
+                fetch(`/api/tools?search=${encodeURIComponent(watchName)}&limit=1&status=published`, { signal: controller!.signal })
                     .then(r => r.ok ? r.json() : { data: [] })
                     .then(json => {
                         const match = (json.data || []).find((t: AdminTool) => (t.name || '').toLowerCase() === watchName.toLowerCase());
                         setShowDuplicateWarning(!!match);
                     })
-                    .catch(() => { });
+                    .catch((err) => {
+                        if (err.name !== 'AbortError') console.error('[ToolForm] Duplicate check failed:', err);
+                    });
             }, 300);
-            return () => clearTimeout(timer);
+        } else if (!isEdit) {
+            setValue('app_username', slugify(watchName || ''));
         }
-        if (!isEdit) setValue('app_username', slugify(watchName || ''));
+
+        return () => {
+            if (timer) clearTimeout(timer);
+            controller?.abort();
+        };
     }, [watchName, isEdit, setValue]);
 
     // Track and cleanup unsaved uploads
@@ -931,7 +949,49 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                     {/* 1. Basic Settings */}
                     <Section title="1. Basic Settings">
                         <Input label="Name of Tool" required {...register('name')} error={errors.name?.message} />
-                        <Input label="App Username" {...register('app_username')} placeholder="unique-username" />
+                        {/* App Username - locked by default in edit mode, unlock by clicking the edit button */}
+                        <div>
+                            <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                                App Username
+                            </label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    {...register('app_username')}
+                                    readOnly={isEdit && slugLocked}
+                                    placeholder="unique-username"
+                                    className={`flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-colors ${
+                                        isEdit && slugLocked ? 'opacity-60 cursor-not-allowed select-none' : ''
+                                    }`}
+                                />
+                                {isEdit && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSlugLocked(l => !l)}
+                                        title={slugLocked ? 'Unlock to edit slug' : 'Lock slug'}
+                                        className={`flex items-center justify-center w-9 h-9 rounded-lg border transition-all flex-shrink-0 ${
+                                            slugLocked
+                                                ? 'border-border text-text-tertiary hover:border-accent-primary hover:text-accent-primary'
+                                                : 'border-accent-primary text-accent-primary bg-accent-primary/10'
+                                        }`}
+                                    >
+                                        {slugLocked ? (
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                                <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                            {isEdit && slugLocked && (
+                                <p className="mt-1 text-xs text-text-tertiary">Click 🔒 to edit the URL slug (changes break existing links)</p>
+                            )}
+                        </div>
                         <Input label="Summary" required {...register('summary')} maxLength={200} error={errors.summary?.message} />
                         <Controller name="logoUrl" control={control} render={({ field }) => <MediaUpload label="App Logo" value={field.value || ''} onChange={field.onChange} uploadType="logo" toolName={watch('name')} />} />
                         <div>
@@ -1281,8 +1341,14 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                             Object.entries(watch('socialLinks') || {}).filter(([_, v]) => v != null)
                         ) as Record<string, string> : undefined,
                     }}
-                    categories={catSearch.options.map(o => ({ categoryName: o.value }))}
-                    tasks={taskSearch.options.map(o => ({ taskName: o.value }))}
+                    categories={[
+                        ...(watch('categoryName') || []).map(name => ({ categoryName: name })),
+                        ...catSearch.options.filter(o => !(watch('categoryName') || []).includes(o.value)).map(o => ({ categoryName: o.value })),
+                    ]}
+                    tasks={[
+                        ...(watch('taskName') || []).map(name => ({ taskName: name })),
+                        ...taskSearch.options.filter(o => !(watch('taskName') || []).includes(o.value)).map(o => ({ taskName: o.value })),
+                    ]}
                     onClose={() => setShowFullPreview(false)}
                 />
             )}

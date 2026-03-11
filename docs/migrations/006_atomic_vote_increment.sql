@@ -58,4 +58,4 @@ BEGIN
 
   RETURN QUERY SELECT public.tools.upvotes, public.tools.downvotes FROM public.tools WHERE id = p_tool_id;
 END;
-$$ LANGUAGE plpgsql SET search_path = '';
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';

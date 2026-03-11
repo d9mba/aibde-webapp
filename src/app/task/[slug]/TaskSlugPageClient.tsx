@@ -78,7 +78,8 @@ export default function TaskSlugPageClient({
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') return;
-            console.error('Failed to load tools:', error);
+            const msg = error instanceof Error ? error.message : 'Failed to load tools';
+            console.error('Failed to load tools:', msg);
             setTools(initialTools);
             setCurrentPage(1);
         } finally {

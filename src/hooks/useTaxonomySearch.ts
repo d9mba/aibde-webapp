@@ -55,7 +55,7 @@ export function useTaxonomySearch(
 
     return {
         options: items,
-        loading: isLoading,
+        loading: isValidating || (!data && isLoading),
         error,
         onSearchChange: setSearch,
     };

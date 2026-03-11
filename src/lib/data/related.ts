@@ -56,7 +56,7 @@ export async function getRelatedTools(tool: AdminTool, limit: number = 6): Promi
     const manual = tools.filter(t => manualSlugs.includes(t.appUsername));
     const auto = tools
         .filter(t => !manualSlugs.includes(t.appUsername))
-        .sort((a, b) => a.id.localeCompare(b.id)) // deterministic tie-breaker
+        .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0) // numeric-safe deterministic tie-breaker
         .slice(0, limit - manual.length);
 
     return [...manual, ...auto].slice(0, limit);

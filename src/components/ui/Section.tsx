@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { useState, useId, ReactNode } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SectionProps {
@@ -11,10 +11,11 @@ interface SectionProps {
 
 export default function Section({ title, children, defaultOpen = true }: SectionProps) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
-    const panelId = `section-${title.toLowerCase().replace(/\s+/g, '-')}-panel`;
+    const uid = useId();
+    const panelId = `section-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}-${uid.replace(/:/g, '')}-panel`;
 
     return (
-        <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
+        <div className="bg-bg-card border border-border rounded-xl">
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}

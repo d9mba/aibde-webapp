@@ -326,9 +326,10 @@ export default function AnalysisPage() {
         const merged = [...topTools, ...(toolsSearchDebounced ? dbSearchResults : [])];
         const seen = new Set<string>();
         return merged
-            .filter(t => {
-                if (seen.has(t.tool_slug)) return false;
-                seen.add(t.tool_slug);
+            .filter((t, index) => {
+                const key = t.tool_slug || t.tool_name || `unknown-${index}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
                 return !toolsSearchDebounced || (t.tool_name || t.tool_slug).toLowerCase().includes(toolsSearchDebounced.toLowerCase());
             })
             .sort((a, b) => {

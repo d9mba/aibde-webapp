@@ -139,13 +139,14 @@ export function isRedisConfigured(): boolean {
  *
  * NOTE: x-forwarded-for is only trustworthy when the app runs behind a trusted
  * reverse proxy (e.g., Vercel, Cloudflare). In other deployments the header can
- * be spoofed by clients. The 'anonymous' fallback aggregates all unidentifiable
- * requests into one bucket — acceptable for rate-limiting but not for audit.
+ * be spoofed by clients. The per-request fallback gives each unidentifiable
+ * request its own bucket to avoid a single shared rate-limit bucket.
  */
 export function getClientIp(request: { headers: { get: (name: string) => string | null } }): string {
     const forwarded = request.headers.get('x-forwarded-for');
     const clientIp = forwarded?.split(',')[0]?.trim() || null;
     if (clientIp) return clientIp;
     const realIp = request.headers.get('x-real-ip')?.trim() || null;
-    return realIp || 'anonymous';
+    if (realIp) return realIp;
+    return 'anonymous';
 }

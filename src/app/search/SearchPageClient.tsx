@@ -23,6 +23,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     const searchParams = useSearchParams();
     const lastTrackedQuery = useRef<string>('');
     const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const abortRef = useRef<AbortController | null>(null);
     const router = useRouter();
     const searchCommittedRef = useRef(false);
 
@@ -84,13 +85,22 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             return;
         }
         setIsLoadingSuggestions(true);
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         try {
             const tools = await getSearchSuggestionsAction(q, 6);
-            setSuggestions(tools);
+            if (!controller.signal.aborted) {
+                setSuggestions(tools);
+            }
         } catch (error) {
-            console.error('Suggestions failed:', error);
+            if (!controller.signal.aborted) {
+                console.error('Suggestions failed:', error);
+            }
         } finally {
-            setIsLoadingSuggestions(false);
+            if (!controller.signal.aborted) {
+                setIsLoadingSuggestions(false);
+            }
         }
     }, []);
 
@@ -128,7 +138,11 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     // Navigate to a specific page
     async function goToPage(page: number): Promise<void> {
         await performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing, page);
-        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) ?? window.scrollTo(0, 0);
+        if (resultsRef.current) {
+            resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            window.scrollTo(0, 0);
+        }
     }
 
     // Debounced suggestions on query change (NOT full search)
@@ -137,13 +151,14 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             clearTimeout(searchTimeout.current);
         }
 
+        // Skip suggestions when search is already committed (e.g. landing on /search?q=audio)
+        if (searchCommittedRef.current) return;
+
         if (query.length >= 2) {
             searchTimeout.current = setTimeout(() => {
                 fetchSuggestions(query);
-                if (!searchCommittedRef.current) {
-                    setShowSuggestions(true);
-                }
-            }, 200);
+                setShowSuggestions(true);
+            }, 350);
         } else {
             setSuggestions([]);
             setShowSuggestions(false);
@@ -284,7 +299,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 }}
                                 onKeyDown={handleKeyDown}
                                 onFocus={() => {
-                                    if (query.length >= 2) {
+                                    if (query.length >= 2 && !searchCommittedRef.current) {
                                         setShowSuggestions(true);
                                         fetchSuggestions(query);
                                     }

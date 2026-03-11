@@ -480,19 +480,23 @@ export default function ModerationPage() {
     // Fetch full tool data + categories/tasks on-demand for preview
     const handlePreview = async (toolId: string) => {
         setPreviewLoading(true);
+        setPreviewTool(null); // Clear stale preview while loading
         try {
             const [toolRes, catRes, taskRes] = await Promise.all([
                 fetch(`/api/tools/${toolId}`),
                 previewCategories == null ? fetch('/api/categories?limit=50') : null,
                 previewTasks == null ? fetch('/api/tasks?limit=50') : null,
             ]);
-            if (!toolRes.ok) throw new Error('Failed to fetch');
+            if (!toolRes.ok) {
+                setPreviewTool(null);
+                throw new Error('Failed to fetch');
+            }
             const fullTool = await toolRes.json();
             setPreviewTool(fullTool);
             if (catRes && !catRes.ok) {
                 console.warn(`[Moderation] Failed to load categories: ${catRes.status} ${catRes.statusText}`);
                 showToast('Failed to load categories for preview', 'error');
-                setPreviewCategories([]);
+                setPreviewCategories(null); // null so next call retries
             } else if (catRes?.ok) {
                 const catData = await catRes.json();
                 const catItems = Array.isArray(catData.data) ? catData.data : Array.isArray(catData) ? catData : [];
@@ -501,7 +505,7 @@ export default function ModerationPage() {
             if (taskRes && !taskRes.ok) {
                 console.warn(`[Moderation] Failed to load tasks: ${taskRes.status} ${taskRes.statusText}`);
                 showToast('Failed to load tasks for preview', 'error');
-                setPreviewTasks([]);
+                setPreviewTasks(null); // null so next call retries
             } else if (taskRes?.ok) {
                 const taskData = await taskRes.json();
                 const taskItems = Array.isArray(taskData.data) ? taskData.data : Array.isArray(taskData) ? taskData : [];
@@ -510,6 +514,7 @@ export default function ModerationPage() {
         } catch (err) {
             showToast('Failed to load preview', 'error');
             console.error('[Moderation] handlePreview error:', err);
+            setPreviewTool(null);
         } finally {
             setPreviewLoading(false);
         }

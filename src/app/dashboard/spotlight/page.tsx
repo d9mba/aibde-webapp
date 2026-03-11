@@ -35,15 +35,15 @@ export default function SpotlightPage() {
     const isLoaded = !spotLoading;
 
     // Capture initial total so "Available" stat stays constant during search
-    const initialTotalRef = useRef<number>(0);
+    const initialTotalRef = useRef<number | null>(null);
     useEffect(() => {
-        if (availableTotal != null && initialTotalRef.current === 0) {
+        if (availableTotal != null && initialTotalRef.current === null) {
             initialTotalRef.current = availableTotal;
         }
     }, [availableTotal]);
     // Reset initial total when tools are mutated so it refreshes
     useEffect(() => {
-        initialTotalRef.current = 0;
+        initialTotalRef.current = null;
     }, [toolsMutated]);
 
     // Local state for pending changes

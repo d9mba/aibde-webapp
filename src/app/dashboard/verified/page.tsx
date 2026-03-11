@@ -62,6 +62,8 @@ export default function VerifiedPage() {
     // Local state for pending changes
     const [pendingVerifiedIds, setPendingVerifiedIds] = useState<string[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
+    // Cache tool data when added to pending — prevents data loss on pagination
+    const pendingToolsRef = useRef<Map<string, AdminTool>>(new Map());
 
     // Initialize from current data (one-time)
     const verifiedInitializedRef = useRef(false);
@@ -77,7 +79,7 @@ export default function VerifiedPage() {
     // Current verified tools based on pending changes
     const allVerifiedTools = useMemo(() => {
         return pendingVerifiedIds
-            .map(id => allTools.find(t => t.id === id))
+            .map(id => allTools.find(t => t.id === id) || pendingToolsRef.current.get(id))
             .filter((t): t is AdminTool => t !== undefined);
     }, [allTools, pendingVerifiedIds]);
 
@@ -144,13 +146,15 @@ export default function VerifiedPage() {
 
     const handleAddToVerified = (toolId: string) => {
         const tool = allTools.find((t: AdminTool) => t.id === toolId);
+        if (tool) pendingToolsRef.current.set(toolId, tool);
         setPendingVerifiedIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
         showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
     };
 
     const handleRemoveFromVerified = (toolId: string) => {
-        const tool = allTools.find((t: AdminTool) => t.id === toolId);
+        const tool = allTools.find((t: AdminTool) => t.id === toolId) || pendingToolsRef.current.get(toolId);
+        pendingToolsRef.current.delete(toolId);
         setPendingVerifiedIds(prev => prev.filter(id => id !== toolId));
         setHasChanges(true);
         showToast(`Removed "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');

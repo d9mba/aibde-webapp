@@ -43,7 +43,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             const chUa = request.headers.get('sec-ch-ua') || '';
             const chPlatform = request.headers.get('sec-ch-ua-platform') || '';
             const chMobile = request.headers.get('sec-ch-ua-mobile') || '';
-            const raw = `${ip}|${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}`;
+            const raw = `${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}`;
             const digest = createHmac('sha256', effectiveFingerprintSecret).update(raw).digest('hex').slice(0, 16);
             identifier = `anon:${digest}`;
         }

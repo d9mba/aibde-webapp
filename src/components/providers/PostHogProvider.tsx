@@ -12,13 +12,24 @@ import { useEffect } from 'react';
  */
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
-        // Only initialize if the key is provided AND in production
-        if (process.env.NEXT_PUBLIC_POSTHOG_KEY && process.env.NODE_ENV === 'production') {
+        // Only enable analytics on the production hostname (set NEXT_PUBLIC_SITE_HOSTNAME in .env)
+        const prodHostname = process.env.NEXT_PUBLIC_SITE_HOSTNAME;
+        const isProduction = prodHostname && window.location.hostname === prodHostname;
+
+        if (process.env.NEXT_PUBLIC_POSTHOG_KEY && isProduction) {
             posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
                 api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
                 ui_host: 'https://us.posthog.com',
                 capture_pageview: true,
                 capture_pageleave: true,
+                // Reduce network requests via batching and rate limiting
+                request_batching: true,
+                advanced_disable_decide: true,
+                advanced_disable_feature_flags: true,
+                rate_limiting: {
+                    events_per_second: 2,
+                    events_burst_limit: 5,
+                },
             });
         }
     }, []);

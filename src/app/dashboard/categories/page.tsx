@@ -90,10 +90,7 @@ export default function CategoriesPage() {
         setPageLoading(true);
     }, [search]);
 
-    // Clear pageLoading when debouncedSearch stabilizes
-    useEffect(() => {
-        setPageLoading(false);
-    }, [debouncedSearch]);
+
 
     const handleAdd = async () => {
         if (!newName.trim()) return;

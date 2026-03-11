@@ -281,6 +281,8 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
     // Fetch existing tool from API instead of context
     const [existingTool, setExistingTool] = useState<AdminTool | null>(null);
+    const showToastRef = useRef(showToast);
+    useEffect(() => { showToastRef.current = showToast; }, [showToast]);
     useEffect(() => {
         if (!isEdit) return;
         const controller = new AbortController();
@@ -293,11 +295,12 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             .catch((err) => {
                 if (err.name !== 'AbortError') {
                     console.error(err);
-                    showToast(err.message || 'Failed to load tool details', 'error');
+                    showToastRef.current(err.message || 'Failed to load tool details', 'error');
                 }
             });
         return () => controller.abort();
-    }, [toolId, isEdit, showToast]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [toolId, isEdit]);
 
     const [showFullPreview, setShowFullPreview] = useState(false);
     const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);

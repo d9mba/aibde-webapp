@@ -6,6 +6,8 @@
  */
 
 import { searchTools, searchToolsCount } from '@/lib/data';
+import { supabase } from '@/lib/supabase';
+import { toFullUrl } from '@/lib/url';
 import { AdminTool } from '@/types';
 
 export interface SearchParams {
@@ -59,24 +61,47 @@ export async function getSearchSuggestionsAction(query: string, limit: number = 
     if (!query || query.length < 2) {
         return [];
     }
-    // Over-fetch so server-side nameRelevance re-sort can surface exact matches
-    const overFetch = Math.max(limit, 30);
-    const results = await searchTools({ query, limit: overFetch });
-    const q = query.toLowerCase();
-    // Precompute scores to avoid recreating the score function per comparison
-    const score = (n: string): number => {
-        if (n === q) return 100;
-        if (n.startsWith(q)) return 80;
-        if (n.includes(q)) return 60;
-        if (q.startsWith(n)) return 50;
-        return 0;
-    };
-    const scoreMap = new Map<string, number>();
-    for (const r of results) {
-        scoreMap.set(r.id, score((r.name || '').toLowerCase()));
+
+    const q = query.trim();
+
+    // Lightweight query — only fetch the fields needed for the suggestion dropdown
+    const { data, error } = await supabase
+        .from('tools')
+        .select('id, name, app_username, logo_url, summary, listing_type, is_featured, spotlight_enabled, pricing, view_count')
+        .eq('status', 'published')
+        .ilike('name', `%${q}%`)
+        .order('spotlight_enabled', { ascending: false, nullsFirst: false })
+        .order('is_featured', { ascending: false, nullsFirst: false })
+        .order('view_count', { ascending: false, nullsFirst: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Suggestion query error:', error);
+        return [];
     }
-    results.sort((a, b) => (scoreMap.get(b.id) ?? 0) - (scoreMap.get(a.id) ?? 0));
-    return results.slice(0, limit);
+
+    const qLower = q.toLowerCase();
+    // Map to the minimal AdminTool shape the dropdown expects
+    return (data || [])
+        .map(t => ({
+            id: t.id,
+            name: t.name,
+            appUsername: t.app_username,
+            logoUrl: toFullUrl(t.logo_url),
+            summary: t.summary || '',
+            listingType: t.listing_type,
+            isFeatured: t.is_featured,
+            spotlightEnabled: t.spotlight_enabled,
+            pricing: t.pricing || 'freemium',
+        } as AdminTool))
+        .sort((a, b) => {
+            // Prioritize exact/prefix name matches
+            const aName = a.name.toLowerCase();
+            const bName = b.name.toLowerCase();
+            const aExact = aName === qLower ? 2 : aName.startsWith(qLower) ? 1 : 0;
+            const bExact = bName === qLower ? 2 : bName.startsWith(qLower) ? 1 : 0;
+            return bExact - aExact;
+        });
 }
 
 const POSTHOG_API_HOST = process.env.POSTHOG_API_HOST || 'https://app.posthog.com';

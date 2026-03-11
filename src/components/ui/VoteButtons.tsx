@@ -109,9 +109,10 @@ export default function VoteButtons({ toolId, initialUpvotes, initialDownvotes }
             </button>
 
             {/* Vote count */}
-            <span className={`min-w-[40px] text-center text-sm font-medium ${netVotes > 0 ? 'text-green-500' : 'text-text-secondary'
+            <span className={`min-w-[40px] text-center text-sm font-medium ${
+                netVotes > 0 ? 'text-green-500' : netVotes < 0 ? 'text-red-500' : 'text-text-secondary'
                 }`}>
-                {Math.max(0, netVotes) >= 1000 ? `${(Math.max(0, netVotes) / 1000).toFixed(1)}k` : Math.max(0, netVotes)}
+                {Math.abs(netVotes) >= 1000 ? `${(netVotes / 1000).toFixed(1)}k` : netVotes}
             </span>
 
             {/* Downvote button */}

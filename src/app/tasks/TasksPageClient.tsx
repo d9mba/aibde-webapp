@@ -133,6 +133,10 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
         };
     }, []);
 
+    // Ref to track latest visibleCount for use in scrollToLetter (avoids stale closure)
+    const visibleCountRef = useRef(visibleCount);
+    useEffect(() => { visibleCountRef.current = visibleCount; }, [visibleCount]);
+
     // Scroll to letter — find which page has that letter and navigate there
     function scrollToLetter(letter: string) {
         const idx = sortedTasks.findIndex(
@@ -167,12 +171,16 @@ export default function TasksPageClient({ tasks, totalCount }: TasksPageClientPr
         };
 
         // Ensure items up to this letter are visible
-        if (idx >= visibleCount) {
+        if (idx >= visibleCountRef.current) {
             setVisibleCount(idx + ITEMS_PER_PAGE);
             scrollToElement();
         } else {
             const element = document.getElementById(`section-${letter}`);
-            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                scrollToElement();
+            }
         }
     }
 

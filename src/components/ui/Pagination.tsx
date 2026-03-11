@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 interface PaginationProps {
     currentPage: number;
     totalPages: number;
@@ -17,6 +19,13 @@ export default function Pagination({
 
     // Clamp currentPage to valid range
     const validatedPage = Math.min(Math.max(1, currentPage), totalPages);
+
+    // Sync parent when currentPage is out of valid range
+    useEffect(() => {
+        if (currentPage !== validatedPage) {
+            onPageChange(validatedPage);
+        }
+    }, [currentPage, validatedPage, onPageChange]);
 
     function handlePageChange(page: number) {
         onPageChange(page);

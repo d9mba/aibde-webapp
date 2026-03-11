@@ -57,21 +57,23 @@ export async function POST() {
             });
         });
 
-        // Reset all counts to 0
-        await Promise.all([
-            supabaseAdmin.from('categories').update({ count: 0 }).neq('id', ''),
-            supabaseAdmin.from('tasks').update({ count: 0 }).neq('id', ''),
-        ]);
-
         // Batch upsert categories in parallel chunks
+        // NOTE: Supabase JS client doesn't support multi-table transactions.
+        // Each upsert is individually atomic. On partial failure, the response
+        // includes per-table errors so the caller can decide to retry.
         const categoryRows = Array.from(categoryCounts.entries()).map(([category_name, count]) => ({
             category_name,
             count,
         }));
+        const categoryErrors: string[] = [];
         await Promise.all(
-            chunk(categoryRows, BATCH_SIZE).map(batch =>
-                supabaseAdmin.from('categories').upsert(batch, { onConflict: 'category_name' })
-            )
+            chunk(categoryRows, BATCH_SIZE).map(async (batch) => {
+                const { error } = await supabaseAdmin.from('categories').upsert(batch, { onConflict: 'category_name' });
+                if (error) {
+                    console.error('[Sync Counts] Category upsert failed:', error.message);
+                    categoryErrors.push(error.message);
+                }
+            })
         );
 
         // Batch upsert tasks in parallel chunks
@@ -79,11 +81,24 @@ export async function POST() {
             task_name,
             count,
         }));
+        const taskErrors: string[] = [];
         await Promise.all(
-            chunk(taskRows, BATCH_SIZE).map(batch =>
-                supabaseAdmin.from('tasks').upsert(batch, { onConflict: 'task_name' })
-            )
+            chunk(taskRows, BATCH_SIZE).map(async (batch) => {
+                const { error } = await supabaseAdmin.from('tasks').upsert(batch, { onConflict: 'task_name' });
+                if (error) {
+                    console.error('[Sync Counts] Task upsert failed:', error.message);
+                    taskErrors.push(error.message);
+                }
+            })
         );
+
+        if (categoryErrors.length > 0 || taskErrors.length > 0) {
+            return NextResponse.json({
+                error: 'Some upserts failed during sync',
+                categoryErrors,
+                taskErrors,
+            }, { status: 500 });
+        }
 
         return NextResponse.json({
             success: true,

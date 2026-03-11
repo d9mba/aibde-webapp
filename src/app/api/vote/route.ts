@@ -1,23 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        const identifier = getClientIp(request);
-        if (!identifier) {
-            console.warn('[vote] Could not determine client IP — rejecting request');
-            return NextResponse.json({ error: 'Unable to identify client' }, { status: 400 });
-        }
-        const rateLimit = await checkRateLimit(`vote:${identifier}`, rateLimits.sensitive);
-        if (!rateLimit.success) {
-            return NextResponse.json(
-                { error: 'Too many requests. Try again later.' },
-                { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rateLimit.resetTime - Date.now()) / 1000))) } }
-            );
-        }
 
         const body = await request.json();
         const { toolId, voteType, action = 'add', previousVote } = body;

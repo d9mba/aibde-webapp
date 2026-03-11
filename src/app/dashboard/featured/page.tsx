@@ -100,13 +100,12 @@ export default function FeaturedPage() {
     const featuredStartIndex = (featuredPage - 1) * ITEMS_PER_PAGE;
     const paginatedFeaturedTools = filteredFeaturedTools.slice(featuredStartIndex, featuredStartIndex + ITEMS_PER_PAGE);
 
-    // Pagination for regular tools — use server pagination, but fall back to
-    // client-side pagination when a search filter is active (since client filters
-    // reduce the result set below what the server reports)
-    const totalPages = search ? Math.ceil(filteredRegularTools.length / ITEMS_PER_PAGE) : apiTotalPages;
-    const totalCount = search ? filteredRegularTools.length : (availableTotal ?? filteredRegularTools.length);
+    // Pagination for regular tools — when search is active, let the server handle pagination
+    // (the server already returned only the matching page); when no search, use server values directly
+    const totalPages = search ? apiTotalPages : apiTotalPages;
+    const totalCount = availableTotal ?? filteredRegularTools.length;
     const startIndex = (availablePage - 1) * ITEMS_PER_PAGE;
-    const paginatedTools = search ? filteredRegularTools.slice(startIndex, startIndex + ITEMS_PER_PAGE) : filteredRegularTools;
+    const paginatedTools = filteredRegularTools;
 
     const handleSearch = (value: string) => {
         setSearch(value);

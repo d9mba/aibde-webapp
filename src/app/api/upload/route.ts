@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
                 safeBuffer = Buffer.from(new TextEncoder().encode(sanitized));
 
                 // Validate that the sanitized output still contains a valid SVG root element
-                if (!sanitized.includes('<svg')) {
+                if (!/<svg[\s>]/i.test(sanitized)) {
                     return NextResponse.json({ error: 'SVG sanitization removed essential content' }, { status: 400 });
                 }
             } catch (err) {

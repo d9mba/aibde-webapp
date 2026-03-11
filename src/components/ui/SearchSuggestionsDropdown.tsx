@@ -1,6 +1,7 @@
 'use client';
 
 import { AdminTool } from '@/types';
+import { ToolBadge } from '@/components/icons/ToolBadge';
 import SearchIcon from '@/assets/svg/ui/search.svg';
 
 interface SearchSuggestionsDropdownProps {
@@ -49,8 +50,9 @@ export default function SearchSuggestionsDropdown({
                             {tool.name[0]}
                         </div>
                     )}
-                    <span className="text-sm text-text-primary truncate">
+                    <span className="text-sm text-text-primary truncate flex items-center gap-1">
                         {tool.name}
+                        <ToolBadge listingType={tool.listingType} spotlightEnabled={tool.spotlightEnabled} isFeatured={tool.isFeatured} />
                     </span>
                 </a>
             ))}

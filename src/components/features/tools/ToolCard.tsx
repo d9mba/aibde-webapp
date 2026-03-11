@@ -87,14 +87,12 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
 
     const handleShareClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        setShareUrl(`${window.location.origin}/app/${tool.appUsername}`);
         setShowShareModal(true);
     };
 
-    // Compute the canonical share URL for this tool (SSR-safe: computed lazily on click)
-    const getShareUrl = () =>
-        typeof window !== 'undefined'
-            ? `${window.location.origin}/app/${tool.appUsername}`
-            : `/app/${tool.appUsername}`;
+    // Share URL - computed lazily on the client when the share modal opens
+    const [shareUrl, setShareUrl] = useState(`/app/${tool.appUsername}`);
 
     const handleTaskClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -298,7 +296,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
             <ShareModal
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
-                url={getShareUrl()}
+                url={shareUrl}
                 title={tool.name}
                 description={tool.summary || tool.description}
             />

@@ -7,6 +7,7 @@ import { AdminTool } from '@/types';
 import { useTheme } from '@/context/ThemeContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { trackToolClick } from '@/hooks/useToolAnalytics';
+import { getSearchSuggestionsAction } from '@/lib/actions';
 import {
     Home,
     Search,
@@ -74,6 +75,7 @@ export default function Header() {
     const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const abortRef = useRef<AbortController | null>(null);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = async (query: string) => {
@@ -83,14 +85,22 @@ export default function Header() {
         }
 
         setIsLoading(true);
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         try {
-            const { getSearchSuggestionsAction } = await import('@/lib/actions');
             const tools = await getSearchSuggestionsAction(query, 8);
-            setSuggestions(tools);
+            if (!controller.signal.aborted) {
+                setSuggestions(tools);
+            }
         } catch (error) {
-            console.error('Search suggestions failed:', error);
+            if (!controller.signal.aborted) {
+                console.error('Search suggestions failed:', error);
+            }
         } finally {
-            setIsLoading(false);
+            if (!controller.signal.aborted) {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -103,7 +113,7 @@ export default function Header() {
         if (searchQuery.length >= 2 && searchOpen) {
             searchTimeout.current = setTimeout(() => {
                 fetchSuggestions(searchQuery);
-            }, 200);
+            }, 350);
         } else {
             setSuggestions([]);
         }

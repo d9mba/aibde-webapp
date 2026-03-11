@@ -175,7 +175,7 @@ export default function Combobox(props: Props) {
                 const rawNext = focusedIdx + 1;
                 setFocusedIdx(Math.min(rawNext, visibleTotalItems - 1));
                 // Expand displayLimit when reaching last visible option and more exist
-                if (rawNext === visibleCount - 1 && filteredOptions.length > displayLimit) {
+                if (rawNext === visibleCount && filteredOptions.length > displayLimit) {
                     setDisplayLimit(dl => dl + 20);
                 }
                 break;
@@ -256,10 +256,15 @@ export default function Combobox(props: Props) {
                     {canAddNew && (
                         <div
                             onClick={createAndSelect}
-                            className={`px-3 py-2.5 text-sm cursor-pointer text-accent-primary border-t border-border ${focusedIdx === filteredOptions.length ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'
+                            className={`px-3 py-2.5 text-sm cursor-pointer text-accent-primary border-t border-border ${focusedIdx === visibleCount ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'
                                 }`}
                         >
                             + Create "{search}"
+                        </div>
+                    )}
+                    {allowCreate && !canAddNew && !search.trim() && !loading && (
+                        <div className="px-3 py-2 text-xs text-text-tertiary text-center border-t border-border">
+                            Type to search or add new
                         </div>
                     )}
                 </div>

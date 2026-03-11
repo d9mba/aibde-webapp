@@ -74,7 +74,12 @@ export async function syncTaskCounts(taskNames: string[]): Promise<void> {
 /**
  * Sync both category and task counts for the given arrays.
  * Call this after tool create/update/delete.
- * Runs in the background — errors are logged but don't throw.
+ *
+ * This is an async function — it runs synchronously when awaited.
+ * It only runs "in the background" if callers intentionally do not await it
+ * (fire-and-forget). Errors are logged inside and do not propagate.
+ *
+ * Internally calls syncCategoryCounts and syncTaskCounts in parallel.
  */
 export async function syncToolCounts(
     categories: string[],

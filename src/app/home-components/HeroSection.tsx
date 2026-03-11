@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
+import { getSearchSuggestionsAction } from '@/lib/actions';
 import { AdminTool } from '@/types';
 import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
 import SearchIcon from '@/assets/svg/ui/search.svg';
@@ -38,11 +39,12 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
 
         setIsLoading(true);
         // Cancel any in-flight suggestion request
+        // NOTE: AbortController is only used to guard against stale state updates;
+        // server actions (getSearchSuggestionsAction) don't accept AbortSignal.
         abortRef.current?.abort();
         const controller = new AbortController();
         abortRef.current = controller;
         try {
-            const { getSearchSuggestionsAction } = await import('@/lib/actions');
             const tools = await getSearchSuggestionsAction(query, 5);
             if (!controller.signal.aborted) {
                 setSuggestions(tools);
@@ -67,7 +69,7 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
         if (searchQuery.length >= 2) {
             searchTimeout.current = setTimeout(() => {
                 fetchSuggestions(searchQuery);
-            }, 200);
+            }, 350);
         } else {
             setSuggestions([]);
         }

@@ -80,6 +80,7 @@ export default function NotesPage() {
                 return r.json();
             })
             .then(json => {
+                if (controller.signal.aborted) return;
                 const tools = json.data || [];
                 setKnownTools(prev => {
                     const next = new Map(prev);
@@ -129,14 +130,8 @@ export default function NotesPage() {
 
         return () => {
             controller.abort();
-            // Remove pending IDs so they can be retried on next mount
-            // Use functional check against fetchedToolIdsRef (stable ref)
-            uniqueIds.forEach(id => {
-                // Only remove if the fetch didn't complete successfully
-                // We can't check knownTools from stale closure, so we check
-                // if the controller was aborted to decide cleanup behavior
-                fetchedToolIdsRef.current.delete(id);
-            });
+            // Successfully fetched IDs remain tracked in fetchedToolIdsRef.
+            // Only failed/aborted fetches are cleaned up by the error handler above.
         };
     }, [notes]);
 
@@ -152,11 +147,11 @@ export default function NotesPage() {
 
     // Filtered tools for dropdowns
     const toolFilterOptions = useMemo(() => {
-        return [{ id: '', name: 'All Tools', logoUrl: null }, ...filterResults] as AdminTool[];
+        return [{ id: '', name: 'All Tools', logoUrl: undefined } as Pick<AdminTool, 'id' | 'name' | 'logoUrl'>, ...filterResults];
     }, [filterResults]);
 
     const linkOptions = useMemo(() => {
-        return [{ id: '', name: 'No tool linked', logoUrl: null }, ...linkResults] as AdminTool[];
+        return [{ id: '', name: 'No tool linked', logoUrl: undefined } as Pick<AdminTool, 'id' | 'name' | 'logoUrl'>, ...linkResults];
     }, [linkResults]);
 
     useEffect(() => { setToolFilterIndex(0); }, [toolFilterSearch]);

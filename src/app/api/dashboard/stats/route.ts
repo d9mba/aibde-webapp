@@ -77,8 +77,10 @@ export async function GET() {
         const warnings: string[] = [];
         for (const { name, result } of queryResults) {
             if (result.error) {
-                const msg = `Query "${name}" failed: ${result.error.message}`;
-                console.error(`[Stats API] ${msg}`);
+                console.error(`[Stats API] Query "${name}" failed:`, result.error.message);
+                const msg = process.env.NODE_ENV === 'development'
+                    ? `Query "${name}" failed: ${result.error.message}`
+                    : `Query "${name}" failed`;
                 warnings.push(msg);
             }
         }

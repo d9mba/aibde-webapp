@@ -47,7 +47,7 @@ export default function SearchResultsPage() {
             })
             .finally(() => { if (!cancelled) setIsLoading(false); });
         return () => { cancelled = true; controller.abort(); };
-    }, [initialQuery]);
+    }, [initialQuery, router]);
 
     // Keep searchQuery in sync when the route/initialQuery changes
     useEffect(() => {
@@ -122,7 +122,7 @@ export default function SearchResultsPage() {
                                 <div
                                     key={tool.id}
                                     className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-bg-tertiary"
-                                    onClick={() => { window.location.href = `/app/${tool.appUsername}`; }}
+                                    onClick={() => { if (tool.appUsername) window.location.href = `/app/${tool.appUsername}`; }}
                                 >
                                     <div
                                         className="w-9 h-9 rounded-md flex items-center justify-center text-white font-bold text-sm"

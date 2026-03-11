@@ -20,7 +20,7 @@ export async function generateMetadata({
 
     try {
         const tasks = await getTasks();
-        const task = tasks.find((t) => slugify(t.taskName) === slug);
+        const task = tasks.find((t) => slugify(t.taskName) === slugify(slug));
 
         if (task?.taskName) {
             return {

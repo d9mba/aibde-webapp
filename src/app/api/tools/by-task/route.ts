@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         }
         return NextResponse.json({
             tools,
-            count: count ?? tools.length,
+            count: count ?? null,
             countExact: count !== null,
         });
     } catch (err) {

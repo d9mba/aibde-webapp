@@ -54,6 +54,7 @@ export default function CategorySlugPageClient({
             setTools(initialTools);
             setCurrentPage(1);
             setFetchError(null);
+            setIsLoading(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }

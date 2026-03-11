@@ -31,7 +31,7 @@ export interface AITool {
     launchedOn: string;
     launchedAgo: string;
     isFeatured: boolean;
-    listingType?: ListingType; // Pricing tier
+    listingType?: ListingType; // Visibility/promotion tier (see `pricing` for pricing model)
     spotlightPosition?: number;
     spotlightEnabled?: boolean;
     features?: string[];

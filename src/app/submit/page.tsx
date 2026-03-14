@@ -49,6 +49,7 @@ interface FormData {
     socialLinks: SocialLink[];
     imageUrls: string;
     videoUrls: string;
+    plan: 'basic' | 'verified' | 'featured';
 }
 
 // Main content component that receives isPreview as prop
@@ -70,6 +71,7 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
         socialLinks: [{ platform: 'twitter', url: '' }],
         imageUrls: '',
         videoUrls: '',
+        plan: 'basic',
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,14 +145,27 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
         setIsSubmitting(true);
 
         try {
+            const baseUrl = window.location.origin;
+
             const response = await fetch('/api/submit-tool', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, description: formData.shortDescription, turnstileToken }),
+                body: JSON.stringify({
+                    ...formData,
+                    description: formData.shortDescription,
+                    turnstileToken,
+                    baseUrl,
+                }),
             });
 
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Submission failed');
+
+            if (result.checkoutUrl) {
+                window.location.href = result.checkoutUrl as string;
+                return;
+            }
+
             setIsSubmitted(true);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -210,14 +225,17 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
             <div className="mb-12">
                 <h2 className="text-xl font-bold text-text-primary mb-2 text-center">Choose Your Plan</h2>
                 <p className="text-text-tertiary text-sm text-center mb-6">Pick the plan that works for you</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Free */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Basic */}
                     <div className="p-5 bg-bg-card border border-border rounded-2xl">
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center justify-between mb-1">
                             <span className="font-semibold text-text-primary">Basic</span>
-                            <span className="text-lg font-bold text-text-primary">Free</span>
+                            <span className="text-lg font-bold text-text-primary">$49</span>
                         </div>
-                        <p className="text-xs text-text-tertiary mb-4">Perfect for new tools looking to get discovered</p>
+                        <p className="text-[11px] text-text-tertiary mb-3">One-time listing fee</p>
+                        <p className="text-xs text-text-tertiary mb-4">
+                            Perfect for new tools looking to get discovered
+                        </p>
                         <ul className="space-y-2 text-sm text-text-secondary mb-4">
                             <li className="flex items-center gap-2">
                                 <span className="text-accent-green">✓</span> Your tool in our directory
@@ -236,20 +254,23 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
                             </li>
                         </ul>
                         <div className="text-center text-xs text-text-tertiary py-2 border border-dashed border-border rounded-lg">
-                            Use form below to submit
+                            Billed as one-time listing fee
                         </div>
                     </div>
 
-                    {/* Featured */}
+                    {/* Verified */}
                     <div className="p-5 bg-bg-card border-2 border-accent-primary rounded-2xl">
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
-                                <span className="font-semibold text-text-primary">Pro</span>
+                                <span className="font-semibold text-text-primary">Verified</span>
                                 <span className="px-2 py-0.5 bg-accent-primary/10 text-accent-primary text-xs rounded-full">Recommended</span>
                             </div>
-                            <span className="text-sm font-semibold text-accent-primary">Contact</span>
+                            <span className="text-lg font-semibold text-accent-primary">$99</span>
                         </div>
-                        <p className="text-xs text-text-tertiary mb-4">For tools that want maximum exposure</p>
+                        <p className="text-[11px] text-text-tertiary mb-3">One-time verified listing</p>
+                        <p className="text-xs text-text-tertiary mb-4">
+                            For tools that want maximum exposure
+                        </p>
                         <ul className="space-y-2 text-sm text-text-secondary mb-4">
                             <li className="flex items-center gap-2">
                                 <span className="text-accent-green">✓</span> Everything in Basic
@@ -264,12 +285,45 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
                                 <span className="text-accent-green">✓</span> Reviewed within 24-48 hours
                             </li>
                         </ul>
-                        <a
-                            href="mailto:support@aibde.tech?subject=Featured%20Listing"
-                            className="block text-center py-2 bg-accent-primary text-white text-sm font-medium rounded-lg hover:opacity-90"
-                        >
-                            Get Featured
-                        </a>
+                        <div className="text-center text-xs text-text-tertiary py-2 border border-dashed border-border rounded-lg">
+                            Includes verified badge and priority review
+                        </div>
+                    </div>
+
+                    {/* Featured */}
+                    <div className="p-5 bg-bg-card border border-accent-primary/60 rounded-2xl">
+                        <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                                <span className="font-semibold text-text-primary">Featured</span>
+                                <span className="px-2 py-0.5 bg-accent-primary/10 text-accent-primary text-xs rounded-full">
+                                    Max visibility
+                                </span>
+                            </div>
+                            <span className="text-lg font-semibold text-accent-primary">$249</span>
+                        </div>
+                        <p className="text-[11px] text-text-tertiary mb-3">Premium featured placement</p>
+                        <p className="text-xs text-text-tertiary mb-4">
+                            For tools that want the highest exposure
+                        </p>
+                        <ul className="space-y-2 text-sm text-text-secondary mb-4">
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Everything in Verified
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Multiple homepage spotlight
+                                placements
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Top placement in category
+                                & search
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className="text-accent-green">✓</span> Enhanced SEO backlinks
+                            </li>
+                        </ul>
+                        <div className="text-center text-xs text-text-tertiary py-2 border border-dashed border-border rounded-lg">
+                            Includes featured badge and premium placement
+                        </div>
                     </div>
                 </div>
             </div>
@@ -419,6 +473,54 @@ function SubmitToolContent({ isPreview }: { isPreview: boolean }) {
                         <label className="block text-sm font-medium text-text-secondary mb-1">Add Videos (one per line)</label>
                         <textarea name="videoUrls" value={formData.videoUrls} onChange={handleChange} rows={2} className={`${inputClass('videoUrls')} resize-none`} placeholder="https://youtube.com/watch?v=..." />
                         <p className="text-xs text-text-tertiary mt-1">YouTube, Vimeo, or any other video URL</p>
+                    </div>
+
+                    {/* Plan selection */}
+                    <div className="pt-2 border-t border-border">
+                        <p className="text-sm font-medium text-text-secondary mb-2">
+                            Choose your listing plan <span className="text-accent-red">*</span>
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {[
+                                { id: 'basic', label: 'Basic', description: 'Standard listing' },
+                                {
+                                    id: 'verified',
+                                    label: 'Verified',
+                                    description: 'Verified badge & priority',
+                                },
+                                {
+                                    id: 'featured',
+                                    label: 'Featured',
+                                    description: 'Maximum visibility',
+                                },
+                            ].map((plan) => (
+                                <button
+                                    key={plan.id}
+                                    type="button"
+                                    onClick={() =>
+                                        setFormData((prev) => ({
+                                            ...prev,
+                                            plan: plan.id as FormData['plan'],
+                                        }))
+                                    }
+                                    className={`p-3 rounded-lg border text-left text-sm transition-colors ${
+                                        formData.plan === plan.id
+                                            ? 'border-accent-primary bg-accent-primary/5 text-text-primary'
+                                            : 'border-border text-text-secondary hover:border-accent-primary/60'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-medium">{plan.label}</span>
+                                        {formData.plan === plan.id && (
+                                            <Check className="w-4 h-4 text-accent-primary" />
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-text-tertiary">
+                                        {plan.description}
+                                    </p>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Guidelines & Submit */}

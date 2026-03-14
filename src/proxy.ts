@@ -45,7 +45,17 @@ async function verifyCookieValue(cookieValue: string, secret: string): Promise<b
 // 1. Define Routes
 const isSecretEntry = createRouteMatcher(['/login/:secret']) // Matches /login/super-secret
 const isLoginPage = createRouteMatcher(['/login(.*)', '/sign-in(.*)']) // Matches /login, /login/factor-one
-const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/vote', '/api/submit-tool', '/api/contact', '/api/search', '/api/tools/by-category', '/api/tools/by-task'])
+const isPublicApiRoute = createRouteMatcher([
+    '/api/public(.*)',
+    '/api/vote',
+    '/api/submit-tool',
+    '/api/contact',
+    '/api/search',
+    '/api/tools/by-category',
+    '/api/tools/by-task',
+    // Dodo webhooks must be publicly accessible for the payment provider
+    '/api/dodo/webhook(.*)',
+])
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api(.*)'])
 
 export const proxy = clerkMiddleware(async (auth, req) => {
@@ -159,6 +169,11 @@ export const proxy = clerkMiddleware(async (auth, req) => {
 
     // Allow Public APIs - but block direct browser access AND CLI access for non-admins
     if (isPublicApiRoute(req)) {
+        // Special case: Dodo webhook must allow unauthenticated, non-browser POSTs
+        if (path.startsWith('/api/dodo/webhook')) {
+            return NextResponse.next();
+        }
+
         // If user is logged in (admin), allow all access
         if (userId) {
             return NextResponse.next();

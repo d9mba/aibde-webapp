@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { supabaseAdmin } from '@/lib/supabase';
 
-const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_TOOL_SUBMISSIONS_URL || '';
+const MAX_LEN = {
+    name: 100,
+    email: 254,
+    toolName: 200,
+    url: 500,
+    shortDesc: 1000,
+    longDesc: 5000,
+    tags: 500,
+    features: 2000,
+};
 
-const MAX_LEN = { name: 100, email: 254, toolName: 200, url: 500, shortDesc: 1000, longDesc: 5000, tags: 500, features: 2000 };
+const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
+const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || 'https://test.dodopayments.com';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
+
+const BASIC_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_BASIC_PRODUCT_ID;
+const VERIFIED_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_VERIFIED_PRODUCT_ID;
+const FEATURED_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_FEATURED_PRODUCT_ID;
+
+type PlanType = 'basic' | 'verified' | 'featured';
 
 interface SocialLink {
     platform: string;
@@ -37,14 +55,26 @@ interface ToolSubmissionData {
     imageUrls?: string;
     videoUrls?: string;
 
-    // Security
-    turnstileToken: string;
+    // Selected paid plan
+    plan: PlanType;
 
-    // Legacy field (for backward compatibility)
-    description?: string;
+    // URL & Security
+    baseUrl?: string;
+    turnstileToken: string;
 }
 
-
+function getProductIdForPlan(plan: PlanType): string | null {
+    switch (plan) {
+        case 'basic':
+            return BASIC_PRODUCT_ID || null;
+        case 'verified':
+            return VERIFIED_PRODUCT_ID || null;
+        case 'featured':
+            return FEATURED_PRODUCT_ID || null;
+        default:
+            return null;
+    }
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
@@ -56,16 +86,49 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!rateLimit.success) {
             return NextResponse.json(
                 { error: 'Too many submissions. Try again later.' },
-                { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rateLimit.resetTime - Date.now()) / 1000))) } }
+                {
+                    status: 429,
+                    headers: {
+                        'Retry-After': String(
+                            Math.max(1, Math.ceil((rateLimit.resetTime - Date.now()) / 1000)),
+                        ),
+                    },
+                },
             );
         }
 
         const body: ToolSubmissionData = await request.json();
 
-        if (!body.submitterName || !body.submitterEmail || !body.toolName || !body.toolUrl || !body.shortDescription) {
+        if (
+            !body.submitterName ||
+            !body.submitterEmail ||
+            !body.toolName ||
+            !body.toolUrl ||
+            !body.shortDescription ||
+            !body.plan
+        ) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
-                { status: 400 }
+                { status: 400 },
+            );
+        }
+
+        if (!['basic', 'verified', 'featured'].includes(body.plan)) {
+            return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 });
+        }
+
+        const productId = getProductIdForPlan(body.plan);
+        if (!productId) {
+            return NextResponse.json(
+                { error: 'Payment configuration is missing for selected plan' },
+                { status: 500 },
+            );
+        }
+
+        if (!DODO_API_KEY) {
+            return NextResponse.json(
+                { error: 'Payment provider is not configured' },
+                { status: 500 },
             );
         }
 
@@ -100,7 +163,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!body.turnstileToken) {
             return NextResponse.json(
                 { error: 'Security verification required' },
-                { status: 400 }
+                { status: 400 },
             );
         }
 
@@ -108,77 +171,135 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!isTurnstileValid) {
             return NextResponse.json(
                 { error: 'Security verification failed. Please try again.' },
-                { status: 400 }
+                { status: 400 },
             );
         }
 
-        // Remove turnstileToken from data before saving
-        const { turnstileToken: _, ...formData } = body;
+        const { turnstileToken: _turnstile, baseUrl: clientBaseUrl, ...formData } = body;
 
-        // Format social links for spreadsheet
-        const socialLinksFormatted = body.socialLinks
-            ?.filter(link => link.url)
-            .map(link => `${link.platform}: ${link.url}`)
-            .join('\n') || '';
+        // 1) Insert tool submission
+        const { data: submission, error: submissionError } = await supabaseAdmin
+            .from('tool_submissions')
+            .insert({
+                tool_name: formData.toolName,
+                website_url: formData.toolUrl,
+                category: null,
+                pricing_model: formData.pricing || null,
+                short_description: formData.shortDescription,
+                full_description: formData.longDescription || null,
+                logo_url: null,
+                submitter_name: formData.submitterName,
+                submitter_email: formData.submitterEmail,
+                plan_selected: formData.plan,
+                // Track payment status at submission level as well
+                payment_status: 'initiated',
+                review_status: 'pending',
+            })
+            .select('*')
+            .single();
 
-        // Prepare data for Google Sheets
-        const sheetData = {
-            timestamp: new Date().toISOString(),
-            status: 'pending',
-            source: 'aibde-submit-form',
-            submitterName: body.submitterName,
-            submitterEmail: body.submitterEmail,
-            toolName: body.toolName,
-            toolUrl: body.toolUrl,
-            shortDescription: body.shortDescription,
-            longDescription: body.longDescription || '',
-            pricing: body.pricing || '',
-            releasedDate: body.releasedDate || '',
-            tags: body.tags || '',
-            features: body.features || '',
-            hasAffiliateProgram: body.hasAffiliateProgram ? 'Yes' : 'No',
-            affiliateUrl: body.affiliateUrl || '',
-            socialLinks: socialLinksFormatted,
-            imageUrls: body.imageUrls || '',
-            videoUrls: body.videoUrls || '',
+        if (submissionError || !submission) {
+            console.error('[Submit Tool API] Failed to insert tool_submissions', submissionError);
+            return NextResponse.json(
+                { error: 'Failed to save submission. Please try again.' },
+                { status: 500 },
+            );
+        }
+
+        // 2) Insert payment record (initiated)
+        const { data: payment, error: paymentError } = await supabaseAdmin
+            .from('payments')
+            .insert({
+                submission_id: submission.id,
+                submitter_name: formData.submitterName,
+                submitter_email: formData.submitterEmail,
+                tool_name: formData.toolName,
+                tool_url: formData.toolUrl,
+                plan: formData.plan,
+                product_id: productId,
+                payment_provider: 'dodo',
+                status: 'initiated',
+            })
+            .select('*')
+            .single();
+
+        if (paymentError || !payment) {
+            console.error('[Submit Tool API] Failed to insert payments', paymentError);
+            return NextResponse.json(
+                { error: 'Failed to create payment record. Please try again.' },
+                { status: 500 },
+            );
+        }
+
+        // 3) Create Dodo checkout session
+        const isDev = process.env.NODE_ENV === 'development';
+        const baseUrl =
+            clientBaseUrl ||
+            (isDev ? request.nextUrl.origin : SITE_URL || request.nextUrl.origin);
+        const returnUrl = `${baseUrl.replace(/\/$/, '')}/submit/result/${submission.id}`;
+
+        const response = await fetch(`${DODO_BASE_URL}/checkouts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${DODO_API_KEY}`,
+            },
+            body: JSON.stringify({
+                product_cart: [
+                    {
+                        product_id: productId,
+                        quantity: 1,
+                    },
+                ],
+                customer: {
+                    email: formData.submitterEmail,
+                    name: formData.submitterName,
+                },
+                return_url: returnUrl,
+                metadata: {
+                    submission_id: submission.id,
+                    payment_id: payment.id,
+                    tool_name: formData.toolName,
+                    email: formData.submitterEmail,
+                    plan: formData.plan,
+                },
+            }),
+        });
+
+        if (!response.ok) {
+            const text = await response.text().catch(() => '');
+            console.error('[Submit Tool API] Failed to create Dodo checkout', response.status, text);
+            return NextResponse.json(
+                { error: 'Failed to start checkout. Please try again.' },
+                { status: 502 },
+            );
+        }
+
+        const session = (await response.json()) as {
+            session_id: string;
+            checkout_url: string;
         };
 
-        // If Google Apps Script URL is configured, send to Google Sheets
-        // Use waitUntil to make it non-blocking (user doesn't wait for Google)
-        if (GOOGLE_APPS_SCRIPT_URL) {
-            // Dynamic import to avoid issues in non-Vercel environments
-            import('@vercel/functions').then(({ waitUntil }) => {
-                waitUntil(
-                    fetch(GOOGLE_APPS_SCRIPT_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(sheetData),
-                    }).catch(err => {
-                        console.error('[Submit Tool API] Background Google Sheets sync failed:', err);
-                    })
-                );
-            }).catch(() => {
-                // Fallback for non-Vercel environments (development)
-                fetch(GOOGLE_APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(sheetData),
-                }).catch(err => {
-                    console.error('[Submit Tool API] Google Sheets sync failed:', err);
-                });
-            });
+        if (!session.checkout_url) {
+            console.error('[Submit Tool API] Missing checkout_url in Dodo response', session);
+            return NextResponse.json(
+                { error: 'Failed to start checkout. Please try again.' },
+                { status: 502 },
+            );
         }
 
         return NextResponse.json({
             success: true,
-            message: 'Tool submitted successfully! We\'ll review it soon.',
+            submissionId: submission.id,
+            paymentId: payment.id,
+            checkoutUrl: session.checkout_url,
         });
-
     } catch (err) {
         console.error('[Submit Tool API] Error:', err);
         return NextResponse.json(
             { error: 'Failed to process submission' },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }
+

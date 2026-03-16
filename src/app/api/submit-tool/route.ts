@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { supabaseAdmin } from '@/lib/supabase';
+import { generateSubmissionRef } from '@/lib/submission-ref';
 
 const MAX_LEN = {
     name: 100,
@@ -177,10 +178,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const { turnstileToken: _turnstile, baseUrl: clientBaseUrl, ...formData } = body;
 
-        // 1) Insert tool submission
+        const submissionRef = generateSubmissionRef();
+
+        // 1) Insert tool submission (with human-readable ref for display/emails)
         const { data: submission, error: submissionError } = await supabaseAdmin
             .from('tool_submissions')
             .insert({
+                submission_ref: submissionRef,
                 tool_name: formData.toolName,
                 website_url: formData.toolUrl,
                 category: null,
@@ -191,7 +195,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 submitter_name: formData.submitterName,
                 submitter_email: formData.submitterEmail,
                 plan_selected: formData.plan,
-                // Track payment status at submission level as well
                 payment_status: 'initiated',
                 review_status: 'pending',
             })

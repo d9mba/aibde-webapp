@@ -102,6 +102,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ received: true }, { status: 200 });
         }
 
+        // Optional: human-readable submission ref for emails (e.g. A250314093501)
+        let submissionRef: string | null = null;
+        const { data: submissionRow } = await supabaseAdmin
+            .from('tool_submissions')
+            .select('submission_ref')
+            .eq('id', existingPayment.submission_id)
+            .maybeSingle();
+        if (submissionRow?.submission_ref) submissionRef = submissionRow.submission_ref;
+
         // Send email notifications based on status
         const emailType = statusFromEvent === 'success' ? 'success' : 'failed';
         const submitterName =
@@ -125,6 +134,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 tool_name: toolName,
                 tool_url: toolUrl,
                 plan,
+                submission_ref: submissionRef,
             });
 
             if (emailId) {

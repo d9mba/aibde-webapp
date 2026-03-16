@@ -52,12 +52,12 @@ export default function RetryPaymentButton({ submissionId }: RetryPaymentButtonP
                 type="button"
                 onClick={handleRetry}
                 disabled={loading}
-                className="w-full px-4 py-2 bg-accent-primary text-white text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="submit-btn-primary w-full py-3.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
                 {loading ? 'Redirecting to payment...' : 'Retry Payment'}
             </button>
             {error && (
-                <p className="mt-2 text-xs text-accent-red text-center">
+                <p className="mt-2 text-center text-xs text-[var(--accent-red)]">
                     {error}
                 </p>
             )}

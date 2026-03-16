@@ -489,3 +489,116 @@ select option:checked {
     background: none;
     padding: 0;
 }
+
+/* ========== Submit & Result pages – modern UI ========== */
+.submit-hero-bg {
+    background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
+}
+[data-theme='dark'] .submit-hero-bg {
+    background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(32, 34, 34, 0.6) 50%, var(--bg-primary) 100%);
+}
+.submit-hero-glow {
+    position: absolute;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120%;
+    max-width: 800px;
+    height: 60%;
+    background: radial-gradient(ellipse, rgba(52, 178, 123, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+[data-theme='dark'] .submit-hero-glow {
+    background: radial-gradient(ellipse, rgba(52, 178, 123, 0.08) 0%, transparent 70%);
+}
+.submit-card {
+    border-radius: 1.25rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.06), 0 8px 16px -6px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+[data-theme='dark'] .submit-card {
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.25), 0 8px 16px -6px rgba(0, 0, 0, 0.15);
+}
+.submit-card:hover {
+    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.08), 0 16px 24px -8px rgba(0, 0, 0, 0.04);
+    border-color: rgba(52, 178, 123, 0.2);
+}
+[data-theme='dark'] .submit-card:hover {
+    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.35);
+}
+.submit-btn-primary {
+    border-radius: 9999px;
+    background: var(--accent-primary);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(52, 178, 123, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.submit-btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(52, 178, 123, 0.4);
+    opacity: 1;
+}
+.submit-btn-secondary {
+    border-radius: 9999px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-weight: 500;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.submit-btn-secondary:hover {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-bg);
+    transform: translateY(-1px);
+}
+.submit-input {
+    border-radius: 1rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    padding: 0.875rem 1rem;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.submit-input::placeholder {
+    color: var(--text-tertiary);
+}
+.submit-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(52, 178, 123, 0.15);
+}
+.result-success-icon {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(52, 178, 123, 0.2) 0%, rgba(52, 178, 123, 0.08) 100%);
+    color: var(--accent-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 4px rgba(52, 178, 123, 0.15);
+}
+.result-fail-icon {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.06) 100%);
+    color: var(--accent-red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
+}
+.result-card {
+    border-radius: 1.25rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.06), 0 8px 16px -6px rgba(0, 0, 0, 0.04);
+}
+[data-theme='dark'] .result-card {
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.25);
+}

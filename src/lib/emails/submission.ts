@@ -16,6 +16,8 @@ export interface SubmissionEmailData {
     tool_name: string;
     tool_url?: string | null;
     plan: string;
+    /** Human-readable ref e.g. A250314093501 */
+    submission_ref?: string | null;
 }
 
 export async function sendSubmissionEmail(
@@ -24,7 +26,7 @@ export async function sendSubmissionEmail(
 ): Promise<string | null> {
     if (!resend) return null;
 
-    const { submitter_name, submitter_email, tool_name, tool_url, plan } = data;
+    const { submitter_name, submitter_email, tool_name, tool_url, plan, submission_ref } = data;
 
     let subject: string;
     let html: string;
@@ -41,6 +43,7 @@ export async function sendSubmissionEmail(
           <li><strong>Tool Name:</strong> ${tool_name}</li>
           ${tool_url ? `<li><strong>Website:</strong> <a href="${tool_url}">${tool_url}</a></li>` : ''}
           <li><strong>Selected Plan:</strong> ${plan}</li>
+          ${submission_ref ? `<li><strong>Submission ID:</strong> <code>${submission_ref}</code></li>` : ''}
         </ul>
         <p>Our team will review your submission soon.</p>
         <p>If your tool meets our guidelines, it will be published on <a href="https://www.aibde.tech">AiBDE.tech</a>.</p>
@@ -57,6 +60,7 @@ export async function sendSubmissionEmail(
         <ul style="padding-left: 20px; margin-top: 4px; margin-bottom: 16px;">
           <li><strong>Tool Name:</strong> ${tool_name}</li>
           <li><strong>Selected Plan:</strong> ${plan}</li>
+          ${submission_ref ? `<li><strong>Submission ID:</strong> <code>${submission_ref}</code></li>` : ''}
         </ul>
         <p>You may retry your submission again at any time.</p>
         <p style="margin-top: 24px;">Best regards<br/>AiBDE Team</p>

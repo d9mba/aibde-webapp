@@ -53,6 +53,8 @@ const isPublicApiRoute = createRouteMatcher([
     '/api/search',
     '/api/tools/by-category',
     '/api/tools/by-task',
+    // Payment retry must be publicly accessible for submitters
+    '/api/payments/retry',
     // Dodo webhooks must be publicly accessible for the payment provider
     '/api/dodo/webhook(.*)',
 ])

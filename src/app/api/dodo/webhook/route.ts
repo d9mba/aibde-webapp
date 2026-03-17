@@ -80,6 +80,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ received: true }, { status: 200 });
         }
 
+        // Extract failure reason from Dodo payload (check multiple possible field names)
+        const failureReason: string | null =
+            statusFromEvent === 'failed'
+                ? (payment.failure_reason as string) ||
+                  (payment.error_message as string) ||
+                  (payment.status_reason as string) ||
+                  (payment.decline_reason as string) ||
+                  'Payment was declined by the payment provider.'
+                : null;
+
         // Prevent duplicate processing: only update if not already in a terminal state
         const { data: existingPayment, error: fetchError } = await supabaseAdmin
             .from('payments')
@@ -146,7 +156,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             }
         }
 
-        // Update payments with status + email metadata
+        // Update payments with status + email metadata + failure reason
         const { error: updateError } = await supabaseAdmin
             .from('payments')
             .update({
@@ -154,6 +164,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 payment_id: dodoPaymentId || existingPayment.payment_id,
                 amount: amount ?? existingPayment.amount,
                 currency: currency || existingPayment.currency,
+                failure_reason: failureReason,
                 updated_at: new Date().toISOString(),
                 email_status: emailStatus,
                 email_sent_at: emailSentAt,

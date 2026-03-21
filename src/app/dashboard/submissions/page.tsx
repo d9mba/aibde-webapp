@@ -5,12 +5,15 @@ import Link from 'next/link';
 import {
     Clock, RefreshCw, Loader2, Search,
     ChevronLeft, ChevronRight, ExternalLink,
-    Mail, Eye, Globe, CreditCard, ArrowRight,
+    Mail, Eye, Globe, CreditCard, ArrowRight, CheckCircle2, XCircle
 } from 'lucide-react';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmModal';
 
 interface Submission {
     id: string;
+    submission_ref: string;
     tool_name: string;
     website_url: string;
     category: string;
@@ -41,23 +44,43 @@ const REVIEW_STATUS_OPTIONS = [
     { value: 'published', label: 'Published' },
 ];
 
-function getPaymentStatusClass(status: string): string {
-    switch (status) {
-        case 'success': return 'bg-accent-primary/10 text-accent-primary';
-        case 'failed': return 'bg-accent-red/10 text-accent-red';
-        case 'initiated': return 'bg-accent-orange/10 text-accent-orange';
-        default: return 'bg-bg-tertiary text-text-tertiary';
+const EDITABLE_REVIEW_OPTIONS = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'published', label: 'Published' },
+];
+
+function getStatusBoxClass(status: string, type: 'payment' | 'review'): string {
+    if (type === 'payment') {
+        switch (status) {
+            case 'success': return 'bg-accent-primary/10 border-accent-primary/20 text-accent-primary';
+            case 'failed': return 'bg-accent-red/10 border-accent-red/20 text-accent-red';
+            case 'initiated': return 'bg-accent-orange/10 border-accent-orange/20 text-accent-orange';
+            default: return 'bg-bg-tertiary border-border text-text-tertiary';
+        }
+    } else {
+        switch (status) {
+            case 'pending': return 'bg-accent-orange/10 border-accent-orange/20 text-accent-orange';
+            case 'approved': return 'bg-accent-primary/10 border-accent-primary/20 text-accent-primary';
+            case 'rejected': return 'bg-accent-red/10 border-accent-red/20 text-accent-red';
+            case 'published': return 'bg-accent-green/10 border-accent-green/20 text-accent-green';
+            default: return 'bg-bg-tertiary border-border text-text-tertiary';
+        }
     }
 }
 
-function getReviewStatusClass(status: string): string {
-    switch (status) {
-        case 'pending': return 'bg-accent-orange/10 text-accent-orange';
-        case 'approved': return 'bg-accent-primary/10 text-accent-primary';
-        case 'rejected': return 'bg-accent-red/10 text-accent-red';
-        case 'published': return 'bg-accent-green/10 text-accent-green';
-        default: return 'bg-bg-tertiary text-text-tertiary';
+function getStatusIcon(status: string) {
+    if (status === 'success' || status === 'approved' || status === 'published') {
+        return <CheckCircle2 className="w-3.5 h-3.5" />;
     }
+    if (status === 'failed' || status === 'rejected') {
+        return <XCircle className="w-3.5 h-3.5" />;
+    }
+    if (status === 'initiated' || status === 'pending') {
+        return <RefreshCw className="w-3.5 h-3.5" />;
+    }
+    return <Clock className="w-3.5 h-3.5" />;
 }
 
 function formatDate(dateStr: string): string {
@@ -83,6 +106,9 @@ export default function SubmissionsDashboard() {
     const [paymentFilter, setPaymentFilter] = useState('all');
     const [reviewFilter, setReviewFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
+    const { showToast, updateToast } = useToast();
+    const { confirm } = useConfirm();
 
     async function fetchSubmissions(): Promise<void> {
         setLoading(true);
@@ -93,7 +119,9 @@ export default function SubmissionsDashboard() {
             if (!res.ok) throw new Error(json.error || 'Failed to fetch');
             setSubmissions(json.data || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load submissions');
+            const msg = err instanceof Error ? err.message : 'Failed to load submissions';
+            setError(msg);
+            showToast(msg, 'error');
         } finally {
             setLoading(false);
         }
@@ -101,12 +129,53 @@ export default function SubmissionsDashboard() {
 
     useEffect(() => { fetchSubmissions(); }, []);
 
+    const handleStatusUpdate = async (id: string, newStatus: string, currentStatus: string) => {
+        if (newStatus === currentStatus) return;
+
+        const sub = submissions.find(s => s.id === id);
+        const name = sub?.tool_name || 'this submission';
+
+        const confirmed = await confirm({
+            title: 'Change Review Status?',
+            message: `Change "${name}" from "${currentStatus}" to "${newStatus}"?`,
+            confirmText: 'Yes, Update',
+            cancelText: 'Cancel',
+            danger: newStatus === 'rejected',
+        });
+
+        if (!confirmed) return;
+
+        setUpdatingStatusId(id);
+        const toastId = showToast(`Updating status to "${newStatus}"...`, 'loading');
+        try {
+            const res = await fetch('/api/dashboard/submissions', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, review_status: newStatus }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to update status');
+
+            setSubmissions(prev => prev.map(s => s.id === id ? { ...s, review_status: newStatus } : s));
+            if (previewSub?.id === id) {
+                setPreviewSub(prev => prev ? { ...prev, review_status: newStatus } : null);
+            }
+            updateToast(toastId, `Status updated to "${newStatus}"`, 'success');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to update status';
+            updateToast(toastId, msg, 'error');
+        } finally {
+            setUpdatingStatusId(null);
+        }
+    };
+
     const filtered = useMemo(() => submissions.filter(s => {
         const matchesSearch = !searchQuery ||
             (s.tool_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
             (s.submitter_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
             (s.submitter_email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.id.toLowerCase().includes(searchQuery.toLowerCase());
+            s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (s.submission_ref && s.submission_ref.toLowerCase().includes(searchQuery.toLowerCase()));
         const matchesPayment = paymentFilter === 'all' || s.payment_status === paymentFilter;
         const matchesReview = reviewFilter === 'all' || s.review_status === reviewFilter;
         return matchesSearch && matchesPayment && matchesReview;
@@ -173,7 +242,7 @@ export default function SubmissionsDashboard() {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search by tool, name, email, or ID..."
+                            placeholder="Search by tool, name, email, ref or ID..."
                             className="w-full pl-9 pr-4 py-2 sm:py-2.5 text-sm bg-bg-secondary border border-border rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/30"
                         />
                     </div>
@@ -221,19 +290,18 @@ export default function SubmissionsDashboard() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="font-medium text-text-primary truncate">{sub.tool_name || 'Untitled'}</div>
-                                            <div className="flex gap-1 flex-shrink-0">
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getPaymentStatusClass(sub.payment_status)}`}>
-                                                    {sub.payment_status || 'N/A'}
-                                                </span>
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getReviewStatusClass(sub.review_status)}`}>
-                                                    {sub.review_status || 'N/A'}
-                                                </span>
-                                            </div>
+                                            <div className="text-xs font-mono text-text-secondary">Ref: {sub.submission_ref || '-'}</div>
                                         </div>
                                         <div className="text-xs text-text-tertiary mt-0.5">{sub.submitter_name}</div>
-                                        <div className="flex items-center gap-2 mt-2 text-[10px] text-text-tertiary">
-                                            <span className="font-mono">{sub.id.slice(0, 8)}...</span>
-                                            {sub.plan_selected && <span className="capitalize">{sub.plan_selected}</span>}
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium capitalize ${getStatusBoxClass(sub.payment_status, 'payment')}`}>
+                                                {getStatusIcon(sub.payment_status)}
+                                                {sub.payment_status || 'N/A'}
+                                            </div>
+                                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium capitalize ${getStatusBoxClass(sub.review_status, 'review')}`}>
+                                                {getStatusIcon(sub.review_status)}
+                                                {sub.review_status || 'N/A'}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -243,24 +311,23 @@ export default function SubmissionsDashboard() {
                 </div>
 
                 {/* Desktop Table */}
-                <div className="hidden sm:block bg-bg-card border border-border rounded-xl overflow-hidden">
+                <div className="hidden sm:block bg-bg-card border border-border rounded-xl">
                     <table className="w-full">
                         <thead className="bg-bg-secondary border-b border-border">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Tool</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Submitter</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Submission ID</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Ref</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Plan</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Payment</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Review</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Date</th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary uppercase tracking-wide">Actions</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                             {paginated.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-12 text-center text-text-tertiary">
+                                    <td colSpan={7} className="px-4 py-12 text-center text-text-tertiary">
                                         No submissions found
                                     </td>
                                 </tr>
@@ -274,7 +341,7 @@ export default function SubmissionsDashboard() {
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
                                                 {sub.logo_url ? (
-                                                    <img src={sub.logo_url} alt="" className="w-9 h-9 rounded-lg object-contain" />
+                                                    <img src={sub.logo_url} alt="" className="w-9 h-9 rounded-lg object-contain bg-white" />
                                                 ) : (
                                                     <div className="w-9 h-9 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm">
                                                         {(sub.tool_name || '?')[0]}
@@ -282,11 +349,7 @@ export default function SubmissionsDashboard() {
                                                 )}
                                                 <div>
                                                     <div className="font-medium text-text-primary">{sub.tool_name || 'Untitled'}</div>
-                                                    {sub.website_url && (
-                                                        <div className="text-xs text-text-tertiary truncate max-w-[180px]">
-                                                            {sub.website_url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                                                        </div>
-                                                    )}
+                                                    <div className="text-xs text-text-tertiary">{formatDate(sub.created_at)}</div>
                                                 </div>
                                             </div>
                                         </td>
@@ -295,23 +358,37 @@ export default function SubmissionsDashboard() {
                                             <div className="text-xs text-text-tertiary">{sub.submitter_email || '-'}</div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className="text-xs font-mono text-text-secondary">{sub.id.slice(0, 8)}...</span>
+                                            <span className="text-xs font-mono text-text-secondary bg-bg-secondary px-2 py-1 rounded border border-border">
+                                                {sub.submission_ref || '-'}
+                                            </span>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-text-secondary capitalize">
                                             {sub.plan_selected || '-'}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${getPaymentStatusClass(sub.payment_status)}`}>
+                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium capitalize ${getStatusBoxClass(sub.payment_status, 'payment')}`}>
+                                                {getStatusIcon(sub.payment_status)}
                                                 {sub.payment_status || 'N/A'}
-                                            </span>
+                                            </div>
                                         </td>
-                                        <td className="px-4 py-3">
-                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${getReviewStatusClass(sub.review_status)}`}>
-                                                {sub.review_status || 'N/A'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-text-tertiary">
-                                            {formatDate(sub.created_at)}
+                                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                            <div className="w-[130px] relative">
+                                                {updatingStatusId === sub.id && (
+                                                    <div className="absolute inset-x-0 bottom-full mb-1 flex justify-center z-10">
+                                                        <Loader2 className="w-4 h-4 animate-spin text-accent-primary" />
+                                                    </div>
+                                                )}
+                                                <SearchableSelect
+                                                    value={sub.review_status}
+                                                    onChange={(v) => handleStatusUpdate(sub.id, v, sub.review_status)}
+                                                    options={EDITABLE_REVIEW_OPTIONS}
+                                                    placeholder="Status"
+                                                    showSearch={false}
+                                                    className={`w-full text-xs font-medium capitalize [&>button]:!py-1 [&>button]:!px-2.5 ${getStatusBoxClass(sub.review_status, 'review')} ${
+                                                        updatingStatusId === sub.id ? 'opacity-50 pointer-events-none' : ''
+                                                    }`}
+                                                />
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex items-center justify-end gap-1">
@@ -378,30 +455,34 @@ export default function SubmissionsDashboard() {
                         <div className="p-6 border-b border-border">
                             <div className="flex items-start gap-4">
                                 {previewSub.logo_url ? (
-                                    <img src={previewSub.logo_url} alt="" className="w-16 h-16 rounded-xl object-contain" />
+                                    <img src={previewSub.logo_url} alt="" className="w-16 h-16 rounded-xl object-contain bg-white" />
                                 ) : (
                                     <div className="w-16 h-16 bg-accent-primary/20 rounded-xl flex items-center justify-center text-2xl font-bold text-accent-primary">
                                         {(previewSub.tool_name || '?')[0]}
                                     </div>
                                 )}
                                 <div className="flex-1">
-                                    <h2 className="text-2xl font-bold text-text-primary">{previewSub.tool_name || 'Untitled'}</h2>
+                                    <div className="flex items-start justify-between">
+                                        <h2 className="text-2xl font-bold text-text-primary">{previewSub.tool_name || 'Untitled'}</h2>
+                                        <button onClick={() => setPreviewSub(null)} className="text-text-tertiary hover:text-text-primary text-xl leading-none">&times;</button>
+                                    </div>
                                     <p className="text-sm text-text-secondary mt-0.5">{previewSub.submitter_name}</p>
-                                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${getPaymentStatusClass(previewSub.payment_status)}`}>
-                                            Payment: {previewSub.payment_status || 'N/A'}
-                                        </span>
-                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${getReviewStatusClass(previewSub.review_status)}`}>
-                                            Review: {previewSub.review_status || 'N/A'}
-                                        </span>
+                                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-semibold uppercase tracking-wide ${getStatusBoxClass(previewSub.payment_status, 'payment')}`}>
+                                            {getStatusIcon(previewSub.payment_status)}
+                                            {previewSub.payment_status || 'N/A'}
+                                        </div>
+                                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-semibold uppercase tracking-wide ${getStatusBoxClass(previewSub.review_status, 'review')}`}>
+                                            {getStatusIcon(previewSub.review_status)}
+                                            {previewSub.review_status || 'N/A'}
+                                        </div>
                                         {previewSub.plan_selected && (
-                                            <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full capitalize">
+                                            <span className="text-xs px-3 py-1.5 bg-accent-primary/10 text-accent-primary border border-accent-primary/20 rounded-md font-semibold tracking-wide uppercase">
                                                 {previewSub.plan_selected}
                                             </span>
                                         )}
                                     </div>
                                 </div>
-                                <button onClick={() => setPreviewSub(null)} className="text-text-tertiary hover:text-text-primary text-xl leading-none">&times;</button>
                             </div>
                         </div>
 
@@ -409,8 +490,14 @@ export default function SubmissionsDashboard() {
                             {/* Details Grid */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Submission ID</h3>
-                                    <p className="text-sm text-text-primary font-mono break-all">{previewSub.id}</p>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Submission Ref</h3>
+                                    <div className="inline-block px-2 py-1 bg-bg-secondary border border-border rounded text-sm font-mono text-text-primary">
+                                        {previewSub.submission_ref || '-'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Full Submission ID</h3>
+                                    <p className="text-sm text-text-primary font-mono break-all text-xs">{previewSub.id}</p>
                                 </div>
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Email</h3>
@@ -439,7 +526,7 @@ export default function SubmissionsDashboard() {
                                     </div>
                                 )}
                                 <div>
-                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Submitted</h3>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Submitted Date</h3>
                                     <p className="text-sm text-text-primary">{formatDate(previewSub.created_at)}</p>
                                 </div>
                             </div>
@@ -448,7 +535,7 @@ export default function SubmissionsDashboard() {
                             {previewSub.short_description && (
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Short Description</h3>
-                                    <div className="p-3 bg-bg-secondary rounded-lg text-sm text-text-primary">
+                                    <div className="p-3 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary">
                                         {previewSub.short_description}
                                     </div>
                                 </div>
@@ -456,7 +543,7 @@ export default function SubmissionsDashboard() {
                             {previewSub.full_description && (
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Full Description</h3>
-                                    <div className="p-3 bg-bg-secondary rounded-lg text-sm text-text-primary whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                    <div className="p-3 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary whitespace-pre-wrap max-h-40 overflow-y-auto">
                                         {previewSub.full_description}
                                     </div>
                                 </div>
@@ -479,7 +566,7 @@ export default function SubmissionsDashboard() {
                                     <ExternalLink size={14} /> Result Page
                                 </a>
                                 <Link
-                                    href="/dashboard/payments"
+                                    href={`/dashboard/payments?search=${encodeURIComponent(previewSub.id)}`}
                                     className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border text-text-primary rounded-lg text-sm font-medium hover:bg-bg-tertiary transition-colors"
                                 >
                                     <CreditCard size={14} /> View Payments

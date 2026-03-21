@@ -62,8 +62,8 @@ export default function StickyHeader({
                             { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
                             tool.websiteUrl || ''
                         )}
-                        className="px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium no-underline">
-                        Visit
+                        className="px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium no-underline whitespace-nowrap hover:bg-accent-primary/90 transition-colors">
+                        Try Now
                     </a>
                 )}
             </div>

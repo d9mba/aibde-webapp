@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import AIToolCard from '@/components/features/tools/ToolCard';
+import { useRouter } from 'next/navigation';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
 import { Category, Task, AdminTool } from '@/types';
+import AIToolCard from '@/components/features/tools/ToolCard';
 import { trackSearch, trackFilterUsed } from '@/hooks/useToolAnalytics';
 import { searchWithCountAction, getSearchSuggestionsAction } from '@/lib/actions';
 
@@ -17,20 +17,23 @@ interface SearchPageClientProps {
     toolCount: number;
     taskCount: number;
     categoryCount: number;
+    initialQuery: string;
+    initialCategory: string | null;
+    initialTask: string | null;
+    initialPricing: string | null;
 }
 
-export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount }: SearchPageClientProps) {
-    const searchParams = useSearchParams();
+export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount, initialQuery, initialCategory, initialTask, initialPricing }: SearchPageClientProps) {
     const lastTrackedQuery = useRef<string>('');
     const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
     const abortRef = useRef<AbortController | null>(null);
     const router = useRouter();
-    const searchCommittedRef = useRef(false);
+    const searchCommittedRef = useRef(!!initialQuery);
 
-    const [query, setQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    const [selectedTask, setSelectedTask] = useState<string | null>(null);
-    const [selectedPricing, setSelectedPricing] = useState<string | null>(null);
+    const [query, setQuery] = useState(initialQuery);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory);
+    const [selectedTask, setSelectedTask] = useState<string | null>(initialTask);
+    const [selectedPricing, setSelectedPricing] = useState<string | null>(initialPricing);
 
     // Search state
     const [searchResults, setSearchResults] = useState<AdminTool[]>([]);
@@ -55,27 +58,11 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // Read URL parameters on mount and trigger search if query exists
-    useEffect(() => {
-        const q = searchParams.get('q');
-        const pricing = searchParams.get('pricing');
-        const category = searchParams.get('category');
-        const task = searchParams.get('task');
-
-        if (q) {
-            setQuery(q);
-            setCommittedQuery(q);
-            searchCommittedRef.current = true;
-        }
-        if (pricing) setSelectedPricing(pricing);
-        if (category) setSelectedCategory(category);
-        if (task) setSelectedTask(task);
-    }, [searchParams]);
 
     // Suggestions state (shown while typing)
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [committedQuery, setCommittedQuery] = useState(''); // Query that triggers full search
+    const [committedQuery, setCommittedQuery] = useState(initialQuery); // Query that triggers full search
     const [selectedIndex, setSelectedIndex] = useState(-1); // For arrow key navigation
 
     // Fetch suggestions while typing (small list)

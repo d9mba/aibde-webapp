@@ -1,16 +1,20 @@
 /**
- * Generate a human-readable submission reference: A + YYMMDD + HHMMSS + 2-digit suffix.
- * Example: A250314093501 (A + 25/03/14 + 09:35:01 + 01)
- * Uniqueness: same-second submissions get a random 01–99 suffix; retry on DB conflict if needed.
+ * Generate a human-readable submission reference.
+ * Format: A + DD + MM + YY + PLAN_CODE(3 letters) + seq(01-99)
+ * Example: A210326FEA01 = day 21, month 03, year 26, plan "featured", seq 01
  */
-export function generateSubmissionRef(): string {
+const PLAN_CODES: Record<string, string> = {
+    basic: 'BAS',
+    verified: 'VER',
+    featured: 'FEA',
+};
+
+export function generateSubmissionRef(plan?: string): string {
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
-    const hh = String(now.getHours()).padStart(2, '0');
-    const min = String(now.getMinutes()).padStart(2, '0');
-    const ss = String(now.getSeconds()).padStart(2, '0');
-    const suffix = String(Math.floor(Math.random() * 99) + 1).padStart(2, '0');
-    return `A${yy}${mm}${dd}${hh}${min}${ss}${suffix}`;
+    const planCode = PLAN_CODES[(plan || '').toLowerCase()] || 'SUB';
+    const seq = String(Math.floor(Math.random() * 99) + 1).padStart(2, '0');
+    return `A${dd}${mm}${yy}${planCode}${seq}`;
 }

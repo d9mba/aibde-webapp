@@ -178,7 +178,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const { turnstileToken: _turnstile, baseUrl: clientBaseUrl, ...formData } = body;
 
-        const submissionRef = generateSubmissionRef();
+        const submissionRef = generateSubmissionRef(formData.plan);
 
         // 1) Insert tool submission (with human-readable ref for display/emails)
         const { data: submission, error: submissionError } = await supabaseAdmin

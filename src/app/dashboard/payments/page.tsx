@@ -6,12 +6,15 @@ import {
     Clock, RefreshCw, Loader2, Search,
     ChevronLeft, ChevronRight, ExternalLink,
     DollarSign, Mail, CreditCard, Eye, Globe,
+    CheckCircle2, XCircle
 } from 'lucide-react';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useToast } from '@/components/ui/Toast';
 
 interface Payment {
     id: string;
     submission_id: string;
+    submission_ref: string | null;
     submitter_name: string;
     submitter_email: string;
     tool_name: string;
@@ -33,6 +36,7 @@ interface Payment {
 
 interface GroupedPayments {
     submission_id: string;
+    submission_ref: string | null;
     tool_name: string;
     submitter_name: string;
     submitter_email: string;
@@ -53,13 +57,26 @@ const STATUS_OPTIONS = [
     { value: 'initiated', label: 'Initiated' },
 ];
 
-function getStatusClass(status: string): string {
+function getStatusBoxClass(status: string): string {
     switch (status) {
-        case 'success': return 'bg-accent-primary/10 text-accent-primary';
-        case 'failed': return 'bg-accent-red/10 text-accent-red';
-        case 'initiated': return 'bg-accent-orange/10 text-accent-orange';
-        default: return 'bg-bg-tertiary text-text-tertiary';
+        case 'success': return 'bg-accent-primary/10 border-accent-primary/20 text-accent-primary';
+        case 'failed': return 'bg-accent-red/10 border-accent-red/20 text-accent-red';
+        case 'initiated': return 'bg-accent-orange/10 border-accent-orange/20 text-accent-orange';
+        default: return 'bg-bg-tertiary border-border text-text-tertiary';
     }
+}
+
+function getStatusIcon(status: string) {
+    if (status === 'success') {
+        return <CheckCircle2 className="w-3.5 h-3.5" />;
+    }
+    if (status === 'failed') {
+        return <XCircle className="w-3.5 h-3.5" />;
+    }
+    if (status === 'initiated') {
+        return <RefreshCw className="w-3.5 h-3.5" />;
+    }
+    return <Clock className="w-3.5 h-3.5" />;
 }
 
 function formatDate(dateStr: string): string {
@@ -87,6 +104,7 @@ function groupBySubmission(payments: Payment[]): GroupedPayments[] {
         if (!map.has(key)) {
             map.set(key, {
                 submission_id: key,
+                submission_ref: p.submission_ref || null,
                 tool_name: p.tool_name || 'Unknown',
                 submitter_name: p.submitter_name || 'Unknown',
                 submitter_email: p.submitter_email || '',
@@ -101,6 +119,7 @@ function groupBySubmission(payments: Payment[]): GroupedPayments[] {
             });
         }
         const group = map.get(key)!;
+        if (!group.submission_ref && p.submission_ref) group.submission_ref = p.submission_ref;
         group.payments.push(p);
         group.total_attempts++;
     }
@@ -117,6 +136,16 @@ export default function PaymentsDashboard() {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const { showToast } = useToast();
+
+    // Initial check for 'search' query param from router url search params
+    useEffect(() => {
+        const initialSearch = new URLSearchParams(window.location.search).get('search');
+        if (initialSearch) {
+            setSearchQuery(initialSearch);
+        }
+        fetchPayments();
+    }, []);
 
     async function fetchPayments(): Promise<void> {
         setLoading(true);
@@ -127,13 +156,13 @@ export default function PaymentsDashboard() {
             if (!res.ok) throw new Error(json.error || 'Failed to fetch');
             setPayments(json.data || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load payments');
+            const msg = err instanceof Error ? err.message : 'Failed to load payments';
+            setError(msg);
+            showToast(msg, 'error');
         } finally {
             setLoading(false);
         }
     }
-
-    useEffect(() => { fetchPayments(); }, []);
 
     const grouped = useMemo(() => groupBySubmission(payments), [payments]);
 
@@ -242,9 +271,6 @@ export default function PaymentsDashboard() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="font-medium text-text-primary truncate">{group.tool_name}</div>
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${getStatusClass(group.latest_status)}`}>
-                                                {group.latest_status}
-                                            </span>
                                         </div>
                                         <div className="text-xs text-text-tertiary mt-0.5">{group.submitter_name}</div>
                                         <div className="flex items-center gap-2 mt-2">
@@ -256,6 +282,12 @@ export default function PaymentsDashboard() {
                                                     {group.total_attempts} attempts
                                                 </span>
                                             )}
+                                        </div>
+                                        <div className="mt-2 text-xs">
+                                            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium capitalize ${getStatusBoxClass(group.latest_status)}`}>
+                                                {getStatusIcon(group.latest_status)}
+                                                {group.latest_status}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -271,8 +303,8 @@ export default function PaymentsDashboard() {
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Tool</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Submitter</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Ref</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Amount</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Plan</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Status</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Attempts</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Date</th>
@@ -305,16 +337,24 @@ export default function PaymentsDashboard() {
                                             <div className="text-sm text-text-primary">{group.submitter_name}</div>
                                             <div className="text-xs text-text-tertiary">{group.submitter_email}</div>
                                         </td>
-                                        <td className="px-4 py-3 text-sm font-medium text-text-primary">
-                                            {formatAmount(group.total_amount, group.currency)}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-text-secondary capitalize">
-                                            {group.plan || '-'}
+                                        <td className="px-4 py-3">
+                                            {group.submission_ref ? (
+                                                <span className="text-xs font-mono bg-bg-secondary border border-border px-2 py-1 rounded text-text-secondary">
+                                                    {group.submission_ref}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-text-tertiary">-</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusClass(group.latest_status)}`}>
+                                            <div className="text-sm font-semibold text-text-primary">{formatAmount(group.total_amount, group.currency)}</div>
+                                            {group.plan && <div className="text-xs text-text-tertiary capitalize">{group.plan}</div>}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium capitalize ${getStatusBoxClass(group.latest_status)}`}>
+                                                {getStatusIcon(group.latest_status)}
                                                 {group.latest_status}
-                                            </span>
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-text-secondary">
                                             {group.total_attempts}
@@ -332,7 +372,7 @@ export default function PaymentsDashboard() {
                                                     <Eye className="w-4 h-4" />
                                                 </button>
                                                 <Link
-                                                    href={`/dashboard/submissions`}
+                                                    href={`/dashboard/submissions?search=${encodeURIComponent(group.submission_id)}`}
                                                     prefetch={false}
                                                     className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                                     title="View Submission"
@@ -389,15 +429,16 @@ export default function PaymentsDashboard() {
                                 <div>
                                     <h2 className="text-2xl font-bold text-text-primary">{previewGroup.tool_name}</h2>
                                     <p className="text-sm text-text-secondary mt-1">{previewGroup.submitter_name}</p>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusClass(previewGroup.latest_status)}`}>
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-semibold uppercase tracking-wide ${getStatusBoxClass(previewGroup.latest_status)}`}>
+                                            {getStatusIcon(previewGroup.latest_status)}
                                             {previewGroup.latest_status}
-                                        </span>
-                                        <span className="text-sm font-semibold text-text-primary">
+                                        </div>
+                                        <span className="text-sm font-semibold text-text-primary ml-2">
                                             {formatAmount(previewGroup.total_amount, previewGroup.currency)}
                                         </span>
                                         {previewGroup.plan && (
-                                            <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full capitalize">
+                                            <span className="text-xs px-3 py-1.5 border border-accent-primary/20 bg-accent-primary/10 text-accent-primary rounded-md font-semibold tracking-wide uppercase">
                                                 {previewGroup.plan}
                                             </span>
                                         )}
@@ -410,6 +451,12 @@ export default function PaymentsDashboard() {
                         <div className="p-6 space-y-5">
                             {/* Contact Info */}
                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Submission Ref</h3>
+                                    <div className="inline-block px-2 py-1 bg-bg-secondary border border-border rounded text-sm font-mono text-text-primary">
+                                        {previewGroup.submission_ref || '-'}
+                                    </div>
+                                </div>
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Email</h3>
                                     <a href={`mailto:${previewGroup.submitter_email}`} className="text-sm text-accent-primary hover:underline flex items-center gap-1">
@@ -425,8 +472,8 @@ export default function PaymentsDashboard() {
                                     </div>
                                 )}
                                 <div>
-                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Submission ID</h3>
-                                    <p className="text-sm text-text-primary font-mono break-all">{previewGroup.submission_id}</p>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Full Submission ID</h3>
+                                    <p className="text-xs text-text-primary font-mono break-all">{previewGroup.submission_id}</p>
                                 </div>
                             </div>
 
@@ -442,9 +489,10 @@ export default function PaymentsDashboard() {
                                                 <span className="text-xs text-text-tertiary font-medium">
                                                     #{previewGroup.total_attempts - idx}
                                                 </span>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusClass(p.status)}`}>
+                                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium uppercase tracking-wide ${getStatusBoxClass(p.status)}`}>
+                                                    {getStatusIcon(p.status)}
                                                     {p.status}
-                                                </span>
+                                                </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2 text-sm">
                                                 <div>
@@ -453,7 +501,7 @@ export default function PaymentsDashboard() {
                                                 </div>
                                                 <div>
                                                     <span className="text-text-tertiary">Provider: </span>
-                                                    <span className="text-text-primary">{p.payment_provider || '-'}</span>
+                                                    <span className="text-text-primary capitalize">{p.payment_provider || '-'}</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-text-tertiary">Date: </span>
@@ -462,7 +510,7 @@ export default function PaymentsDashboard() {
                                                 {p.payment_id && (
                                                     <div>
                                                         <span className="text-text-tertiary">ID: </span>
-                                                        <span className="text-text-primary font-mono text-xs break-all">{p.payment_id}</span>
+                                                        <span className="text-text-primary font-mono text-[10px] break-all">{p.payment_id}</span>
                                                     </div>
                                                 )}
                                                 {p.email_status && p.email_status !== 'not_sent' && (
@@ -495,7 +543,7 @@ export default function PaymentsDashboard() {
                                     <ExternalLink size={14} /> View Result Page
                                 </a>
                                 <Link
-                                    href={`/dashboard/submissions`}
+                                    href={`/dashboard/submissions?search=${encodeURIComponent(previewGroup.submission_id)}`}
                                     className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border text-text-primary rounded-lg text-sm font-medium hover:bg-bg-tertiary transition-colors"
                                 >
                                     <CreditCard size={14} /> View Submission

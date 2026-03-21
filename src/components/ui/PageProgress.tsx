@@ -12,7 +12,6 @@ export default function PageProgress() {
     const hideRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const completeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const safetyInnerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const deferredStartRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const startTimeRef = useRef(0);
     const isNavigatingRef = useRef(false);
 
@@ -21,46 +20,49 @@ export default function PageProgress() {
         if (hideRef.current) clearTimeout(hideRef.current);
         if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
         if (safetyInnerRef.current) clearTimeout(safetyInnerRef.current);
-        if (deferredStartRef.current) clearTimeout(deferredStartRef.current);
     }, []);
 
-    // Complete and hide progress bar with minimum visible duration
+    // Complete and hide the bar, ensuring minimum visible duration of 500ms
     const complete = useCallback(() => {
         cleanup();
         isNavigatingRef.current = false;
 
-        // Ensure bar is visible for at least 600ms
         const elapsed = Date.now() - startTimeRef.current;
-        const remaining = Math.max(0, 600 - elapsed);
+        const remaining = Math.max(0, 500 - elapsed);
 
         hideRef.current = setTimeout(() => {
             setProgress(100);
             completeTimerRef.current = setTimeout(() => {
                 setActive(false);
                 setProgress(0);
-            }, 400);
+            }, 350);
         }, remaining);
     }, [cleanup]);
 
-    // Start progress bar with ticking animation
+    // Start the bar. All setState calls are deferred via setTimeout so this
+    // is safe to call from inside history.pushState (which runs in React's
+    // useInsertionEffect and disallows synchronous state updates).
     const start = useCallback(() => {
-        // Guard: don't re-show if complete() already ran
-        if (!isNavigatingRef.current) return;
-        cleanup();
+        if (isNavigatingRef.current) return; // already running
+        isNavigatingRef.current = true;
         startTimeRef.current = Date.now();
-        setActive(true);
-        setProgress(15);
+        cleanup();
 
-        tickRef.current = setInterval(() => {
-            setProgress(prev => {
-                if (prev >= 90) return 90;
-                const increment = prev < 30 ? 6 : prev < 60 ? 3 : 1;
-                return Math.min(prev + increment, 90);
-            });
-        }, 250);
+        setTimeout(() => {
+            setActive(true);
+            setProgress(15);
+
+            tickRef.current = setInterval(() => {
+                setProgress(prev => {
+                    if (prev >= 90) return 90;
+                    const step = prev < 30 ? 6 : prev < 60 ? 3 : 1;
+                    return Math.min(prev + step, 90);
+                });
+            }, 250);
+        }, 0);
     }, [cleanup]);
 
-    // Intercept clicks on internal links
+    // Intercept <Link> / <a> clicks
     useEffect(() => {
         function shouldIgnore(anchor: HTMLAnchorElement, e: MouseEvent): boolean {
             const href = anchor.getAttribute('href');
@@ -68,12 +70,8 @@ export default function PageProgress() {
             if (anchor.target === '_blank') return true;
             if (href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return true;
             if (e.ctrlKey || e.metaKey || e.shiftKey) return true;
-
-            // Same page check
             const url = new URL(href, window.location.origin);
-            if (url.pathname + url.search === window.location.pathname + window.location.search) return true;
-
-            return false;
+            return url.pathname + url.search === window.location.pathname + window.location.search;
         }
 
         function handleClick(e: MouseEvent) {
@@ -82,74 +80,62 @@ export default function PageProgress() {
             start();
         }
 
-        // Use capture phase to catch clicks before Next.js processes them
         document.addEventListener('click', handleClick, { capture: true, passive: true });
         return () => document.removeEventListener('click', handleClick, true);
     }, [start]);
 
-    // Also intercept programmatic navigation (router.push)
-    // Note: start() is deferred with setTimeout because Next.js 16 calls
-    // pushState/replaceState from useInsertionEffect, which forbids state updates.
+    // Intercept programmatic router.push / router.replace
     useEffect(() => {
-        const originalPushState = history.pushState.bind(history);
-        const originalReplaceState = history.replaceState.bind(history);
+        const origPush = history.pushState.bind(history);
+        const origReplace = history.replaceState.bind(history);
 
         history.pushState = function (...args) {
-            if (!isNavigatingRef.current) {
-                isNavigatingRef.current = true;
-                deferredStartRef.current = setTimeout(start, 0);
-            }
-            return originalPushState(...args);
+            start();
+            return origPush(...args);
         };
 
         history.replaceState = function (...args) {
             const url = args[2];
             if (url && typeof url === 'string') {
-                const normalize = (u: string): string => u.replace(/\/$/, '') || '/';
-                if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
-                    if (!isNavigatingRef.current) {
-                        isNavigatingRef.current = true;
-                        deferredStartRef.current = setTimeout(start, 0);
-                    }
+                const norm = (u: string) => u.replace(/\/$/, '') || '/';
+                if (norm(url) !== norm(window.location.pathname + window.location.search)) {
+                    start();
                 }
             }
-            return originalReplaceState(...args);
+            return origReplace(...args);
         };
 
         return () => {
-            history.pushState = originalPushState;
-            history.replaceState = originalReplaceState;
+            history.pushState = origPush;
+            history.replaceState = origReplace;
         };
     }, [start]);
 
-    // Complete when route changes (use idle callback to wait for page content to settle)
+    // Complete when the new route renders
     useEffect(() => {
         if (!isNavigatingRef.current) return;
 
-        // Wait for browser to be idle (page done rendering) before completing
         if ('requestIdleCallback' in window) {
             const id = requestIdleCallback(() => complete(), { timeout: 2000 });
             return () => cancelIdleCallback(id);
         }
-        // Fallback for Safari
-        const timer = setTimeout(complete, 300);
-        return () => clearTimeout(timer);
+        const t = setTimeout(complete, 300);
+        return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pathname, searchParams, complete]);
+    }, [pathname, searchParams]);
 
-    // Safety timeout - never show bar for more than 8 seconds
+    // Safety: never show for more than 8 s
     useEffect(() => {
         if (!active) return;
-        const safety = setTimeout(() => {
+        const t = setTimeout(() => {
             cleanup();
             isNavigatingRef.current = false;
             setProgress(100);
-            safetyInnerRef.current = setTimeout(() => { setActive(false); setProgress(0); }, 400);
+            safetyInnerRef.current = setTimeout(() => { setActive(false); setProgress(0); }, 350);
         }, 8000);
-        return () => clearTimeout(safety);
+        return () => clearTimeout(t);
     }, [active, cleanup]);
 
-    // Cleanup on unmount
     useEffect(() => cleanup, [cleanup]);
 
     if (!active && progress === 0) return null;

@@ -3,7 +3,7 @@ import { createHmac } from 'crypto';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 
-const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || '';
+const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_CONTACT_URL || '';
 const effectiveFingerprintSecret = (() => {
     if (process.env.CONTACT_FINGERPRINT_SECRET) return process.env.CONTACT_FINGERPRINT_SECRET;
     if (process.env.ADMIN_LOGIN_SECRET) return process.env.ADMIN_LOGIN_SECRET;
@@ -101,6 +101,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const { turnstileToken: _, ...formData } = body;
 
+        let sheetsError = false;
         if (GOOGLE_APPS_SCRIPT_URL) {
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -115,17 +116,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
                 if (!response.ok) {
                     console.error('[Contact API] Google Apps Script error:', response.status);
+                    sheetsError = true;
                 }
             } catch (err) {
                 console.error('[Contact API] Failed to send to Google Apps Script:', err);
+                sheetsError = true;
             }
         } else {
-            // No Google Apps Script URL configured - form submission is lost
-            // Consider adding database storage as a fallback
+            sheetsError = true;
         }
 
         return NextResponse.json({
             success: true,
+            sheetsError,
             message: 'Thank you for contacting us! We\'ll get back to you soon.',
         });
 

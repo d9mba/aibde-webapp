@@ -171,7 +171,7 @@ export default function ToolDetailClient({
                         <span className="text-sm font-medium text-text-primary truncate">{tool.name}</span>
                     </div>
 
-                    {/* Visit button */}
+                    {/* Try Now button */}
                     {tool.appUsername && (
                         <a
                             href={`/go/${tool.appUsername}`}
@@ -188,7 +188,7 @@ export default function ToolDetailClient({
                             }}
                             className="flex items-center justify-center px-3.5 py-1.5 bg-accent-primary text-white rounded-full text-xs font-medium hover:bg-accent-primary/90 transition-colors"
                         >
-                            Visit
+                            Try Now
                         </a>
                     )}
 

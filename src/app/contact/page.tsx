@@ -59,6 +59,7 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(isPreview);
+    const [sheetsError, setSheetsError] = useState(false);
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -104,6 +105,8 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
             });
 
             if (!response.ok) throw new Error('Failed to submit form');
+            const data = await response.json();
+            setSheetsError(data.sheetsError === true);
             setIsSubmitted(true);
         } catch {
             setError('Something went wrong. Please try again or email us directly.');
@@ -138,6 +141,12 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
                     <p className="text-text-tertiary text-sm">
                         We&apos;ll get back to you at <span className="text-accent-primary">{formData.email}</span> within 24-48 hours.
                     </p>
+                    {sheetsError && (
+                        <div className="mt-4 p-3 bg-accent-orange/10 border border-accent-orange/30 rounded-lg text-sm text-accent-orange">
+                            We&apos;re currently experiencing a technical issue. If you don&apos;t hear from us, please email us directly at{' '}
+                            <a href="mailto:support@aibde.tech" className="font-semibold underline">support@aibde.tech</a>.
+                        </div>
+                    )}
                 </div>
             ) : (
                 /* Contact Form */

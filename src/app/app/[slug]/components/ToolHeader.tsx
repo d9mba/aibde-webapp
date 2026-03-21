@@ -133,7 +133,7 @@ export default function ToolHeader({
                             <p className="text-text-secondary text-sm sm:text-base mt-0.5 sm:mt-1">{tool.summary || 'An AI-powered tool'}</p>
                         </div>
 
-                        {/* Visit Website Button - All screens */}
+                        {/* Try Now Website Button - All screens */}
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                             {tool.websiteUrl && (
                                 <a
@@ -146,7 +146,7 @@ export default function ToolHeader({
                                     )}
                                     className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2.5 bg-accent-primary text-white rounded-lg text-xs sm:text-sm font-medium no-underline hover:opacity-90 transition-opacity"
                                 >
-                                    Visit
+                                    Try Now
                                 </a>
                             )}
                             {onShare && (

@@ -69,8 +69,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
+    const counterRef = useRef(0);
+
     const showToast = useCallback((message: string, type: Toast['type'] = 'info', title?: string) => {
-        const id = Date.now().toString();
+        const id = `${Date.now()}-${++counterRef.current}`;
         setToasts(prev => [...prev, { id, message, type, title }]);
 
         if (type !== 'loading') {
@@ -123,8 +125,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                     return (
                         <div
                             key={toast.id}
+                            onClick={() => hideToast(toast.id)}
                             className={`
-                                bg-bg-card rounded-lg shadow-lg border-l-4 ${styles.border} border border-border
+                                cursor-pointer bg-bg-card rounded-lg shadow-lg border-l-4 ${styles.border} border border-border
                                 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 min-w-[240px] sm:min-w-[300px] max-w-[calc(100vw-1rem)] sm:max-w-[400px]
                                 animate-slide-in
                             `}

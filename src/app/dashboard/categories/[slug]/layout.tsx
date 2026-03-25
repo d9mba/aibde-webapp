@@ -11,8 +11,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
     const p = await params;
     const slug = p.slug;
+    const normalizedSlug = slugify(slug);
 
-    if (slug.toLowerCase() === 'new') {
+    if (normalizedSlug === 'new') {
         return {
             title: 'Add New Category - Dashboard | AIBDE',
         };
@@ -20,7 +21,7 @@ export async function generateMetadata({
 
     try {
         const categories = await getCategories();
-        const category = categories.find((c) => slugify(c.categoryName) === slug);
+        const category = categories.find((c) => slugify(c.categoryName) === normalizedSlug);
 
         if (category?.categoryName) {
             return {

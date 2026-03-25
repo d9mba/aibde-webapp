@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 export async function GET(): Promise<NextResponse> {
+    const authResult = await requireAdmin();
+    if (isAuthError(authResult)) {
+        return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+    }
+
     const { data: payments, error: paymentsError } = await supabaseAdmin
         .from('payments')
         .select('*')
@@ -16,10 +22,15 @@ export async function GET(): Promise<NextResponse> {
 
     let refMap: Record<string, string> = {};
     if (submissionIds.length > 0) {
-        const { data: submissions } = await supabaseAdmin
+        const { data: submissions, error: submissionError } = await supabaseAdmin
             .from('tool_submissions')
             .select('id, submission_ref')
             .in('id', submissionIds);
+
+        if (submissionError) {
+            console.error('[Dashboard Payments] Failed to fetch submission refs', submissionError);
+            return NextResponse.json({ error: 'Failed to fetch submission details' }, { status: 500 });
+        }
 
         if (submissions) {
             for (const s of submissions) {

@@ -15,17 +15,18 @@ export default function Pagination({
     onPageChange,
     scrollToTop = true,
 }: PaginationProps) {
-    if (totalPages <= 1) return null;
-
     // Clamp currentPage to valid range
     const validatedPage = Math.min(Math.max(1, currentPage), totalPages);
 
     // Sync parent when currentPage is out of valid range
+    // IMPORTANT: This useEffect must be called before the early return to comply with Rules of Hooks
     useEffect(() => {
         if (currentPage !== validatedPage) {
             onPageChange(validatedPage);
         }
     }, [currentPage, validatedPage, onPageChange]);
+
+    if (totalPages <= 1) return null;
 
     function handlePageChange(page: number) {
         onPageChange(page);

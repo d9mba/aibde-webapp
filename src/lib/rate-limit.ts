@@ -137,10 +137,15 @@ export function isRedisConfigured(): boolean {
 /**
  * Extract client IP from a request for rate-limit identification.
  *
- * NOTE: x-forwarded-for is only trustworthy when the app runs behind a trusted
- * reverse proxy (e.g., Vercel, Cloudflare). In other deployments the header can
- * be spoofed by clients. The per-request fallback gives each unidentifiable
- * request its own bucket to avoid a single shared rate-limit bucket.
+ * Returns a per-request identifier:
+ * - x-forwarded-for header (first IP) if present (trustworthy behind reverse proxy)
+ * - x-real-ip header if present
+ * - 'anonymous' as shared fallback bucket when no IP can be determined
+ *
+ * NOTE: When 'anonymous' is returned, all unidentifiable clients share a single bucket,
+ * so rate limits on 'anonymous' requests are less restrictive than IP-based limits.
+ * To mitigate abuse, consider applying stricter checks or failing closed (rejecting
+ * requests with no identifiable client) at call sites that handle sensitive operations.
  */
 export function getClientIp(request: { headers: { get: (name: string) => string | null } }): string {
     const forwarded = request.headers.get('x-forwarded-for');

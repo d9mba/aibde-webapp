@@ -17,9 +17,48 @@ import { sendSubmissionEmail } from '@/lib/emails/submission';
  * - plan
  */
 
+function getWebhookSecret(): string | undefined {
+    return process.env.DODO_WEBHOOK_SECRET;
+}
+
+async function verifyWebhookSignature(
+    rawBody: string,
+    signature: string | null,
+    secret: string
+): Promise<boolean> {
+    if (!signature) return false;
+    const crypto = await import('crypto');
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(rawBody);
+    const expected = hmac.digest('hex');
+    
+    // Timing-safe comparison
+    let match = expected.length === signature.length ? 0 : 1;
+    for (let i = 0; i < Math.min(expected.length, signature.length); i++) {
+        match |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+    }
+    return match === 0;
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        const payload = await request.json().catch(() => null);
+        // Verify webhook signature first
+        const secret = getWebhookSecret();
+        if (!secret) {
+            console.error('[Dodo Webhook] DODO_WEBHOOK_SECRET not configured');
+            return NextResponse.json({ received: false }, { status: 500 });
+        }
+
+        const rawBody = await request.text();
+        const signature = request.headers.get('x-dodo-signature') || request.headers.get('x-signature');
+        
+        const isValid = await verifyWebhookSignature(rawBody, signature, secret);
+        if (!isValid) {
+            console.error('[Dodo Webhook] Invalid signature');
+            return NextResponse.json({ received: false }, { status: 401 });
+        }
+
+        const payload = JSON.parse(rawBody).catch(() => null);
         if (!payload) {
             return NextResponse.json({ received: false }, { status: 400 });
         }
@@ -60,13 +99,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const dodoPaymentId: string | undefined =
             payment.id || payment.payment_id || payment.paymentId;
+        
+        // Helper to determine decimal places per currency
+        function getCurrencyMinorUnits(currency: string | undefined): number {
+            if (!currency) return 2;
+            const currencyUpper = currency.toUpperCase();
+            // Common currencies with 0 decimal places (JPY, KRW, etc.)
+            if (['JPY', 'KRW', 'VND', 'ISK', 'TWD'].includes(currencyUpper)) return 0;
+            // Common currencies with 3 decimal places (KWD, BHD, JOD, OMR, TND)
+            if (['KWD', 'BHD', 'JOD', 'OMR', 'TND'].includes(currencyUpper)) return 3;
+            // Default to 2
+            return 2;
+        }
+        
+        const currency: string | undefined = payment.currency || payment.billing_currency;
+        const decimals = getCurrencyMinorUnits(currency);
         const amount: number | null =
             typeof payment.amount === 'number'
-                ? payment.amount / 100
+                ? payment.amount / Math.pow(10, decimals)
                 : typeof payment.amount === 'string'
-                ? Number(payment.amount) / 100 || null
+                ? Number(payment.amount) / Math.pow(10, decimals) || null
                 : null;
-        const currency: string | undefined = payment.currency || payment.billing_currency;
 
         const statusFromEvent =
             eventType === 'payment.succeeded'
@@ -95,7 +148,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             .from('payments')
             .select('*')
             .eq('id', paymentIdFromMetadata)
-            .single();
+            .maybeSingle();
 
         if (fetchError) {
             console.error('[Dodo Webhook] Failed to load payment', fetchError);

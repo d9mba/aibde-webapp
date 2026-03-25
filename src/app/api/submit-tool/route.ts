@@ -230,6 +230,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         if (paymentError || !payment) {
             console.error('[Submit Tool API] Failed to insert payments', paymentError);
+            
+            // Rollback: delete the submission that was just created
+            const { error: deleteError } = await supabaseAdmin
+                .from('tool_submissions')
+                .delete()
+                .eq('id', submission.id);
+            
+            if (deleteError) {
+                console.error('[Submit Tool API] Failed to rollback submission', deleteError);
+            }
+            
             return NextResponse.json(
                 { error: 'Failed to create payment record. Please try again.' },
                 { status: 500 },
@@ -295,10 +306,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         // Store the Dodo session_id for fallback status polling
         if (session.session_id) {
-            await supabaseAdmin
+            const { error: updateError } = await supabaseAdmin
                 .from('payments')
                 .update({ payment_id: session.session_id })
                 .eq('id', payment.id);
+            
+            if (updateError) {
+                console.error('[Submit Tool API] Failed to update payment with session_id', updateError);
+                // Log but don't fail - polling won't work but submission was created
+            }
         }
 
         return NextResponse.json({

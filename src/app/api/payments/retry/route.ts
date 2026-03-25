@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth, isAuthError } from '@/lib/auth-utils';
 
 const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
 const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || 'https://test.dodopayments.com';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
+const ALLOWED_ORIGINS = (process.env.ALLOWED_REDIRECT_ORIGINS || SITE_URL || 'https://www.aibde.tech').split(',').map(o => o.trim());
+
+function isAllowedRedirectOrigin(baseUrl: string): boolean {
+    try {
+        const url = new URL(baseUrl);
+        return ALLOWED_ORIGINS.some(allowed => {
+            const allowedUrl = new URL(allowed);
+            return url.origin === allowedUrl.origin;
+        });
+    } catch {
+        return false;
+    }
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
+        const authResult = await requireAuth();
+        if (isAuthError(authResult)) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+        }
+
         if (!DODO_API_KEY) {
             return NextResponse.json(
                 { error: 'Payment provider is not configured' },
@@ -79,9 +98,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
 
         const isDev = process.env.NODE_ENV === 'development';
-        const baseUrl =
-            clientBaseUrl ||
-            (isDev ? request.nextUrl.origin : SITE_URL || request.nextUrl.origin);
+        // Validate and sanitize the redirect URL - fail closed to prevent open redirects
+        let baseUrl = SITE_URL || request.nextUrl.origin;
+        if (clientBaseUrl && typeof clientBaseUrl === 'string' && isAllowedRedirectOrigin(clientBaseUrl)) {
+            baseUrl = clientBaseUrl;
+        }
         const returnUrl = `${baseUrl.replace(/\/$/, '')}/submit/result/${submissionId}`;
 
         // Create Dodo checkout session
@@ -116,6 +137,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!response.ok) {
             const text = await response.text().catch(() => '');
             console.error('[Retry Payment] Failed to create Dodo checkout', response.status, text);
+            
+            // Update payment status to failed on checkout failure
+            const { error: updateError } = await supabaseAdmin
+                .from('payments')
+                .update({ status: 'failed' })
+                .eq('id', newPayment.id);
+            
+            if (updateError) {
+                console.error('[Retry Payment] Failed to mark payment as failed', updateError);
+            }
+            
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },

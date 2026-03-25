@@ -25,7 +25,6 @@ export default function PageProgress() {
     // Complete and hide the bar, ensuring minimum visible duration of 500ms
     const complete = useCallback(() => {
         cleanup();
-        isNavigatingRef.current = false;
 
         const elapsed = Date.now() - startTimeRef.current;
         const remaining = Math.max(0, 500 - elapsed);
@@ -35,6 +34,9 @@ export default function PageProgress() {
             completeTimerRef.current = setTimeout(() => {
                 setActive(false);
                 setProgress(0);
+                // Defer resetting isNavigatingRef until after the fade-out completes
+                // This prevents a new navigation from showing a second progress bar
+                isNavigatingRef.current = false;
             }, 350);
         }, remaining);
     }, [cleanup]);
@@ -48,7 +50,10 @@ export default function PageProgress() {
         startTimeRef.current = Date.now();
         cleanup();
 
-        setTimeout(() => {
+        safetyInnerRef.current = setTimeout(() => {
+            // Check if navigation has already completed before setting up the interval
+            if (!isNavigatingRef.current) return;
+            
             setActive(true);
             setProgress(15);
 

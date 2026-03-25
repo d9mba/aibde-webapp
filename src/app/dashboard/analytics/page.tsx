@@ -877,7 +877,7 @@ export default function AnalysisPage() {
                                     <div className="space-y-2">
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Tools</span>
-                                            <span className="font-bold text-accent-green">{publishedCount}</span>
+                                            <span className="font-bold text-accent-green">{publishedCount ?? '—'}</span>
                                         </div>
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Categories</span>

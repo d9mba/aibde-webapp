@@ -401,7 +401,7 @@ export default function SubmissionsDashboard() {
                                                     <Eye className="w-4 h-4" />
                                                 </button>
                                                 <Link
-                                                    href="/dashboard/tools/new"
+                                                    href={`/dashboard/tools/new?submissionId=${encodeURIComponent(sub.id)}`}
                                                     prefetch={false}
                                                     className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                                                     title="Create Tool from Submission"
@@ -498,7 +498,7 @@ export default function SubmissionsDashboard() {
                                 </div>
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Full Submission ID</h3>
-                                    <p className="text-sm text-text-primary font-mono break-all text-xs">{previewSub.id}</p>
+                                    <p className="text-sm text-text-primary font-mono break-all">{previewSub.id}</p>
                                 </div>
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Email</h3>
@@ -553,7 +553,7 @@ export default function SubmissionsDashboard() {
                             {/* Quick Links */}
                             <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                                 <Link
-                                    href="/dashboard/tools/new"
+                                    href={`/dashboard/tools/new?submissionId=${encodeURIComponent(previewSub.id)}`}
                                     className="flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 transition-colors"
                                 >
                                     <ArrowRight size={14} /> Create Tool from This

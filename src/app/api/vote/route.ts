@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
+import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-    const body = await request.json();
+    // Apply rate limiting
+    const identifier = getClientIp(request);
+    const rateLimit = await checkRateLimit(`vote:${identifier}`, rateLimits.standard);
+    if (!rateLimit.success) {
+        return NextResponse.json(
+            { error: 'Too many votes. Please try again later.' },
+            { status: 429 }
+        );
+    }
+
+    let body;
+    try {
+        body = await request.json();
+    } catch (err) {
+        console.error('[Vote] Invalid JSON body:', err);
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
     const { toolId, voteType, action = 'add', previousVote } = body;
 
     if (!toolId || typeof toolId !== 'string' || !UUID_REGEX.test(toolId)) {
@@ -55,12 +72,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Bust the ISR cache for this tool's detail page so the next visit
     // gets fresh vote counts from the database instead of the stale cached render.
-    const { data: toolSlug } = await supabase
+    const { data: toolSlug, error: slugError } = await supabase
         .from('tools')
         .select('app_username')
         .eq('id', toolId)
-        .single();
+        .maybeSingle();
 
+    if (slugError) {
+        console.error('[Vote] Error fetching tool slug:', slugError);
+    }
+    
     if (toolSlug?.app_username) {
         revalidatePath(`/app/${toolSlug.app_username}`);
     }

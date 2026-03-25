@@ -5,18 +5,23 @@ import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 // Max 5MB for submission logos
 const MAX_SIZE = 5 * 1024 * 1024;
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 // POST /api/public/upload-logo — Public logo upload for tool submissions (rate-limited)
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        // Rate limit by IP to prevent abuse
+        // Rate limit by IP to prevent abuse - fail closed if no identifier
         const identifier = getClientIp(request);
-        if (identifier) {
-            const rateLimit = await checkRateLimit(`upload-logo:${identifier}`, rateLimits.sensitive);
-            if (!rateLimit.success) {
-                return NextResponse.json({ error: 'Too many uploads. Try again later.' }, { status: 429 });
-            }
+        if (!identifier) {
+            return NextResponse.json(
+                { error: 'Unable to determine client IP. Try again later.' },
+                { status: 429 }
+            );
+        }
+        
+        const rateLimit = await checkRateLimit(`upload-logo:${identifier}`, rateLimits.sensitive);
+        if (!rateLimit.success) {
+            return NextResponse.json({ error: 'Too many uploads. Try again later.' }, { status: 429 });
         }
 
         const formData = await request.formData();

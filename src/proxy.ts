@@ -184,7 +184,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
         // Block CLI/non-browser access (missing Sec-Fetch-Mode header)
         const fetchMode = req.headers.get('sec-fetch-mode');
         if (!fetchMode) {
-            return NextResponse.json({ error: 'access denied' }, { status: 403 });
+            return NextResponse.json({ error: 'Access denied' }, { status: 403 });
         }
 
         // Direct browser navigation is already blocked by the /api check above
@@ -195,7 +195,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     if (isProtectedRoute(req)) {
         if (!userId) {
             if (path.startsWith('/api/')) {
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+                return NextResponse.json({ error: 'Access denied' }, { status: 401 });
             }
             return NextResponse.redirect(new URL('/', req.url));
         }

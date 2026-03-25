@@ -112,7 +112,7 @@ function groupBySubmission(payments: Payment[]): GroupedPayments[] {
                 latest_status: p.status,
                 latest_date: p.created_at,
                 total_attempts: 0,
-                total_amount: p.amount || 0,
+                total_amount: (p.amount || 0),
                 currency: p.currency || 'USD',
                 plan: p.plan || '',
                 payments: [],
@@ -122,6 +122,13 @@ function groupBySubmission(payments: Payment[]): GroupedPayments[] {
         if (!group.submission_ref && p.submission_ref) group.submission_ref = p.submission_ref;
         group.payments.push(p);
         group.total_attempts++;
+        // Accumulate total_amount
+        group.total_amount += (p.amount || 0);
+        // Update latest_status and latest_date if this payment is more recent
+        if (p.created_at && (!group.latest_date || new Date(p.created_at) > new Date(group.latest_date))) {
+            group.latest_date = p.created_at;
+            group.latest_status = p.status;
+        }
     }
     return Array.from(map.values());
 }

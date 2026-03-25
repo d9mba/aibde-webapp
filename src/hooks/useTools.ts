@@ -127,11 +127,12 @@ export function useTools(options: UseToolsOptions = {}): UseToolsResult {
     const totalPages = all ? 1 : Math.max(1, Math.ceil(totalCount / Math.max(1, limit)));
 
     // Clamp page when totalPages shrinks below current page
+    // Skip clamping on initial load (when totalCount is 0) to preserve initialPage
     useEffect(() => {
-        if (page > totalPages) {
+        if (totalCount > 0 && page > totalPages) {
             setPage(totalPages);
         }
-    }, [page, totalPages]);
+    }, [page, totalPages, totalCount]);
 
     // Wrap setSearch to also reset pagination
     const handleSetSearch = useCallback((s: string) => {

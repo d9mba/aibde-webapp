@@ -571,6 +571,25 @@ select option:checked {
     border-color: var(--accent-primary);
     box-shadow: 0 0 0 3px rgba(52, 178, 123, 0.15);
 }
+/* Marquee – auto-scrolling tool cards */
+@keyframes submitMarquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+.submit-marquee-wrapper {
+    overflow: hidden;
+    mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
+}
+.submit-marquee {
+    display: flex;
+    gap: 1rem;
+    width: max-content;
+    animation: submitMarquee 30s linear infinite;
+}
+.submit-marquee:hover {
+    animation-play-state: paused;
+}
 /* Result page – status icons */
 .result-success-icon {
     width: 5rem;

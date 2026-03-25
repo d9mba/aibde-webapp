@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendSubmissionEmail } from '@/lib/emails/submission';
 import Link from 'next/link';
 import RetryPaymentButton from '../RetryPaymentButton';
 import CleanUrlClient from '../CleanUrlClient';
@@ -12,6 +13,7 @@ const TIMEOUT_MINUTES = 15;
 
 interface ResultPageProps {
     params: Promise<{ submission_id: string }>;
+    searchParams: Promise<{ payment_id?: string; status?: string; email?: string }>;
 }
 
 function formatDateTime(dateString: string): string {
@@ -28,8 +30,9 @@ function formatAmount(amount: number, currency: string): string {
     return `${symbol}${Number(amount).toFixed(2)}`;
 }
 
-export default async function SubmitResultPage({ params }: ResultPageProps) {
+export default async function SubmitResultPage({ params, searchParams }: ResultPageProps) {
     const { submission_id } = await params;
+    const resolvedSearchParams = await searchParams;
     const submissionId = submission_id;
 
     const uuidPattern = /^[0-9a-fA-F-]{36}$/;
@@ -64,6 +67,93 @@ export default async function SubmitResultPage({ params }: ResultPageProps) {
 
     // 15-minute timeout: treat stale "initiated" payments as failed
     let failureReason: string | null = payment?.failure_reason ?? null;
+
+    // ─── Fallback: Poll Dodo API when webhook hasn't fired ───
+    if (payment?.status === 'initiated') {
+        const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
+        const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || 'https://test.dodopayments.com';
+
+        // Use the payment_id from Dodo's return URL, or fall back to our stored ID
+        const dodoPaymentId = resolvedSearchParams.payment_id || payment.payment_id;
+
+        if (DODO_API_KEY && dodoPaymentId) {
+            try {
+                const dodoRes = await fetch(`${DODO_BASE_URL}/payments/${dodoPaymentId}`, {
+                    headers: { Authorization: `Bearer ${DODO_API_KEY}` },
+                    cache: 'no-store',
+                });
+
+                if (dodoRes.ok) {
+                    const dodoPayment = await dodoRes.json();
+                    const dodoStatus = dodoPayment.status;
+
+                    if (dodoStatus === 'succeeded') {
+                        // Update our DB to match Dodo's status
+                        await supabaseAdmin
+                            .from('payments')
+                            .update({
+                                status: 'success',
+                                payment_id: dodoPaymentId,
+                                amount: typeof dodoPayment.total_amount === 'number' ? dodoPayment.total_amount / 100 : payment.amount,
+                                currency: dodoPayment.currency || payment.currency,
+                                updated_at: new Date().toISOString(),
+                            })
+                            .eq('id', payment.id);
+
+                        await supabaseAdmin
+                            .from('tool_submissions')
+                            .update({ payment_status: 'success' })
+                            .eq('id', payment.submission_id);
+
+                        // Send confirmation email (same as webhook)
+                        if (payment.submitter_email) {
+                            const emailId = await sendSubmissionEmail('success', {
+                                submitter_name: payment.submitter_name || 'there',
+                                submitter_email: payment.submitter_email,
+                                tool_name: payment.tool_name || 'Your tool',
+                                tool_url: payment.tool_url || null,
+                                plan: payment.plan || 'basic',
+                                submission_ref: submission?.submission_ref || null,
+                            });
+                            if (emailId) {
+                                await supabaseAdmin
+                                    .from('payments')
+                                    .update({ email_status: 'sent', email_sent_at: new Date().toISOString(), email_provider_id: emailId })
+                                    .eq('id', payment.id);
+                            }
+                        }
+
+                        payment.status = 'success';
+                        payment.amount = typeof dodoPayment.total_amount === 'number' ? dodoPayment.total_amount / 100 : payment.amount;
+                        payment.currency = dodoPayment.currency || payment.currency;
+
+                        console.log('[Submit Result] Fallback: Payment confirmed via Dodo API', payment.payment_id);
+                    } else if (dodoStatus === 'failed' || dodoStatus === 'cancelled') {
+                        failureReason = dodoPayment.failure_reason || 'Payment was declined or cancelled.';
+
+                        await supabaseAdmin
+                            .from('payments')
+                            .update({
+                                status: 'failed',
+                                failure_reason: failureReason,
+                                updated_at: new Date().toISOString(),
+                            })
+                            .eq('id', payment.id);
+
+                        await supabaseAdmin
+                            .from('tool_submissions')
+                            .update({ payment_status: 'failed' })
+                            .eq('id', payment.submission_id);
+
+                        payment.status = 'failed';
+                    }
+                    // If still 'processing' or other status, leave as initiated
+                }
+            } catch (err) {
+                console.error('[Submit Result] Fallback Dodo API check failed:', err);
+            }
+        }
+    }
 
     if (payment?.status === 'initiated' && payment.created_at) {
         const elapsedMinutes = (Date.now() - new Date(payment.created_at).getTime()) / 1000 / 60;
@@ -292,6 +382,10 @@ export default async function SubmitResultPage({ params }: ResultPageProps) {
                             </p>
                         </div>
 
+                        <p className="mt-3 text-center text-sm text-[var(--text-secondary)]">
+                            If any amount was charged, it will be <span className="font-semibold text-[var(--text-primary)]">automatically refunded within 3–7 business days</span>.
+                        </p>
+
                         {receiptCard}
 
                         {supportFooter}
@@ -328,6 +422,10 @@ export default async function SubmitResultPage({ params }: ResultPageProps) {
                             <Clock className="h-3.5 w-3.5" />
                             <span>If not confirmed within 15 minutes, it will be marked as failed.</span>
                         </div>
+
+                        <p className="mt-3 text-center text-sm text-[var(--text-secondary)]">
+                            If the payment fails, any amount charged will be <span className="font-semibold text-[var(--text-primary)]">automatically refunded within 3–7 business days</span>.
+                        </p>
 
                         {receiptCard}
 

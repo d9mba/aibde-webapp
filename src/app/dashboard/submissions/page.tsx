@@ -10,6 +10,7 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
+import { toFullUrl } from '@/lib/url';
 
 interface Submission {
     id: string;
@@ -281,7 +282,7 @@ export default function SubmissionsDashboard() {
                             >
                                 <div className="flex items-start gap-3">
                                     {sub.logo_url ? (
-                                        <img src={sub.logo_url} alt="" className="w-10 h-10 rounded-lg object-contain flex-shrink-0" />
+                                        <img src={toFullUrl(sub.logo_url)} alt="" className="w-10 h-10 rounded-lg object-contain flex-shrink-0 bg-white" />
                                     ) : (
                                         <div className="w-10 h-10 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm flex-shrink-0">
                                             {(sub.tool_name || '?')[0]}
@@ -341,7 +342,7 @@ export default function SubmissionsDashboard() {
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
                                                 {sub.logo_url ? (
-                                                    <img src={sub.logo_url} alt="" className="w-9 h-9 rounded-lg object-contain bg-white" />
+                                                    <img src={toFullUrl(sub.logo_url)} alt="" className="w-9 h-9 rounded-lg object-contain bg-white" />
                                                 ) : (
                                                     <div className="w-9 h-9 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm">
                                                         {(sub.tool_name || '?')[0]}
@@ -455,7 +456,7 @@ export default function SubmissionsDashboard() {
                         <div className="p-6 border-b border-border">
                             <div className="flex items-start gap-4">
                                 {previewSub.logo_url ? (
-                                    <img src={previewSub.logo_url} alt="" className="w-16 h-16 rounded-xl object-contain bg-white" />
+                                    <img src={toFullUrl(previewSub.logo_url)} alt="" className="w-16 h-16 rounded-xl object-contain bg-white" />
                                 ) : (
                                     <div className="w-16 h-16 bg-accent-primary/20 rounded-xl flex items-center justify-center text-2xl font-bold text-accent-primary">
                                         {(previewSub.tool_name || '?')[0]}

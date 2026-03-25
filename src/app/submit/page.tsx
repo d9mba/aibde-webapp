@@ -1,32 +1,32 @@
 'use client';
 
-import { useState, useRef, Suspense, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
-    Send,
-    Loader2,
-    CheckCircle,
     AlertCircle,
-    ChevronDown,
-    Check,
-    Link2,
-    Users,
-    Bookmark,
     ArrowRight,
+    CheckCircle2,
+    ChevronDown,
+    Compass,
+    Crown,
+    Eye,
+    Globe2,
+    Image as ImageIcon,
+    LayoutDashboard,
+    Loader2,
+    Rocket,
+    Search,
+    ShieldCheck,
     Sparkles,
-    BarChart3,
+    Star,
+    TrendingUp,
+    Upload,
+    Users,
 } from 'lucide-react';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
-
-const PRICING_OPTIONS = [
-    { value: 'free', label: 'Free' },
-    { value: 'freemium', label: 'Freemium' },
-    { value: 'paid', label: 'Paid' },
-    { value: 'free_trial', label: 'Free Trial' },
-    { value: 'open_source', label: 'Open Source' },
-];
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { VerifiedBadge, FeaturedBadge, ToolBadge, CloseIcon } from '@/components/icons';
 
 interface FormData {
     submitterName: string;
@@ -34,15 +34,9 @@ interface FormData {
     toolName: string;
     toolUrl: string;
     shortDescription: string;
-    longDescription: string;
     pricing: string;
-    releasedDate: string;
-    tags: string;
-    features: string;
-    hasAffiliateProgram: boolean;
-    affiliateUrl: string;
-    imageUrls: string;
-    videoUrls: string;
+    category: string;
+    customCategory: string;
     plan: 'basic' | 'verified' | 'featured';
 }
 
@@ -52,46 +46,184 @@ interface RecentTool {
     appUsername?: string;
     logoUrl?: string | null;
     summary?: string | null;
+    listingType?: string;
+    isFeatured?: boolean;
 }
 
-function StatCard({ value, label }: { value: string; label: string }) {
+const PRICING_OPTIONS = [
+    { value: 'free', label: 'Free' },
+    { value: 'freemium', label: 'Freemium' },
+    { value: 'paid', label: 'Paid' },
+    { value: 'free_trial', label: 'Free Trial' },
+    { value: 'open_source', label: 'Open Source' },
+];
+
+const CATEGORY_OPTIONS = [
+    { value: 'ai-assistant', label: 'AI Assistant' },
+    { value: 'productivity', label: 'Productivity' },
+    { value: 'developer-tools', label: 'Developer Tools' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'design', label: 'Design' },
+    { value: 'automation', label: 'Automation' },
+    { value: 'video', label: 'Video' },
+    { value: 'research', label: 'Research' },
+    { value: 'other', label: 'Other' },
+];
+
+const PLANS = [
+    {
+        id: 'basic' as const,
+        name: 'Basic',
+        price: '$49',
+        tickColor: '',
+        description: 'Standard directory listing',
+        features: [
+            'Permanent directory listing',
+            'Category & task placement',
+            'Basic SEO indexing',
+            'Email support',
+        ],
+    },
+    {
+        id: 'verified' as const,
+        name: 'Verified',
+        price: '$99',
+        badge: 'Most Popular',
+        tickColor: 'text-blue-500',
+        description: 'Blue tick verified listing',
+        features: [
+            'Everything in Basic',
+            'Priority 24h review',
+            'Blue verified badge ✓',
+            'Enhanced SEO placement',
+            'Social media mention',
+        ],
+    },
+    {
+        id: 'featured' as const,
+        name: 'Featured',
+        price: '$249',
+        tickColor: 'text-yellow-500',
+        description: 'Gold tick + maximum exposure',
+        features: [
+            'Everything in Verified',
+            'Gold verified badge ✓',
+            '3-day homepage Featured placement',
+            'Newsletter feature',
+            'Priority category ranking',
+            'Dedicated support',
+            'Analytics dashboard access',
+        ],
+    },
+];
+
+const FOUNDER_REVIEWS = [
+    {
+        name: 'Sarah Chen',
+        role: 'Founder, CodePilot AI',
+        quote: 'AiBDE drove consistent organic traffic to our tool page from day one. Best ROI for any directory listing.',
+    },
+    {
+        name: 'Marcus Rivera',
+        role: 'CEO, DataForge',
+        quote: 'The SEO benefits alone justified the investment. We rank for keywords we never targeted before.',
+    },
+    {
+        name: 'Priya Sharma',
+        role: 'Co-founder, WriteFlow',
+        quote: 'Submitting was effortless and the review was thorough. Our listing went live within 24 hours.',
+    },
+];
+
+function Counter({ end, suffix, label }: { end: number; suffix?: string; label: string }) {
+    const [value, setValue] = useState(0);
+
+    useEffect(() => {
+        let raf = 0;
+        const start = performance.now();
+        const duration = 1000;
+
+        function run(now: number): void {
+            const progress = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            setValue(Math.floor(end * eased));
+            if (progress < 1) raf = requestAnimationFrame(run);
+        }
+
+        raf = requestAnimationFrame(run);
+        return () => cancelAnimationFrame(raf);
+    }, [end]);
+
     return (
-        <div className="submit-card px-8 py-6 text-center">
-            <div className="text-3xl font-bold tracking-tight text-[var(--accent-primary)]">{value}</div>
-            <div className="mt-2 text-sm font-medium text-[var(--text-secondary)]">{label}</div>
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+            <p className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
+                {value.toLocaleString()}
+                {suffix || ''}
+            </p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">{label}</p>
         </div>
     );
 }
 
-function WhyCard({
-    icon: Icon,
-    title,
-    description,
-}: {
-    icon: React.ElementType;
-    title: string;
-    description: string;
-}) {
+function FAQItem({ question, children }: { question: string; children: React.ReactNode }) {
     return (
-        <div className="submit-card p-6 sm:p-7">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]">
-                <Icon className="h-6 w-6" strokeWidth={1.75} />
-            </div>
-            <h3 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h3>
-            <p className="mt-2 text-[15px] leading-relaxed text-[var(--text-secondary)]">{description}</p>
-        </div>
-    );
-}
-
-function FAQAccordion({ question, children }: { question: string; children: React.ReactNode }) {
-    return (
-        <details className="group border-b border-[var(--border-color)] last:border-0">
-            <summary className="flex cursor-pointer list-none items-center justify-between py-5 text-left text-base font-medium text-[var(--text-primary)] transition hover:text-[var(--accent-primary)] [&::-webkit-details-marker]:hidden">
+        <details className="group border-b border-[var(--border-color)] last:border-none">
+            <summary className="flex cursor-pointer list-none items-center justify-between py-5 text-[15px] font-semibold text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
                 <span>{question}</span>
-                <ChevronDown className="h-5 w-5 shrink-0 text-[var(--text-tertiary)] transition group-open:rotate-180" />
+                <ChevronDown className="h-4 w-4 text-[var(--text-tertiary)] transition group-open:rotate-180" />
             </summary>
-            <div className="pb-5 text-[15px] leading-relaxed text-[var(--text-secondary)]">{children}</div>
+            <p className="pb-5 text-sm leading-relaxed text-[var(--text-secondary)]">{children}</p>
         </details>
+    );
+}
+
+function ToolCardSkeleton() {
+    return (
+        <div className="min-w-[260px] max-w-[290px] flex-shrink-0 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
+            <div className="flex items-center gap-3">
+                <div className="skeleton h-10 w-10 rounded-lg" />
+                <div className="skeleton h-4 w-24 rounded" />
+            </div>
+            <div className="mt-3 space-y-2">
+                <div className="skeleton h-3 w-full rounded" />
+                <div className="skeleton h-3 w-3/4 rounded" />
+            </div>
+        </div>
+    );
+}
+
+function MarqueeToolCards({ tools }: { tools: RecentTool[] }) {
+    const doubled = [...tools, ...tools];
+
+    return (
+        <div className="submit-marquee-wrapper">
+            <div className="submit-marquee">
+                {doubled.map((tool, i) => (
+                    <Link
+                        key={`${tool.id}-${i}`}
+                        href={tool.appUsername ? `/app/${tool.appUsername}` : '#'}
+                        className="min-w-[260px] max-w-[290px] flex-shrink-0 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 transition hover:-translate-y-0.5 hover:border-[var(--accent-primary)]/40"
+                    >
+                        <div className="flex items-center gap-3">
+                            {tool.logoUrl ? (
+                                <img src={tool.logoUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                            ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--bg-secondary)]">
+                                    <ImageIcon className="h-5 w-5 text-[var(--text-tertiary)]" />
+                                </div>
+                            )}
+                            <div className="flex items-center gap-1">
+                                <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{tool.name}</p>
+                                <ToolBadge listingType={tool.listingType} isFeatured={tool.isFeatured} size={14} />
+                            </div>
+                        </div>
+                        <p className="mt-3 line-clamp-2 text-sm text-[var(--text-secondary)]">
+                            {tool.summary || 'AI tool listed on AiBDE.'}
+                        </p>
+                    </Link>
+                ))}
+            </div>
+        </div>
     );
 }
 
@@ -102,68 +234,123 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
         toolName: '',
         toolUrl: '',
         shortDescription: '',
-        longDescription: '',
         pricing: '',
-        releasedDate: '',
-        tags: '',
-        features: '',
-        hasAffiliateProgram: false,
-        affiliateUrl: '',
-        imageUrls: '',
-        videoUrls: '',
+        category: '',
+        customCategory: '',
         plan: 'verified',
     });
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(isPreview);
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
-    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const [agreedToGuidelines, setAgreedToGuidelines] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [localLogoPreview, setLocalLogoPreview] = useState('');
+    const [logoFileName, setLogoFileName] = useState('');
     const [recentTools, setRecentTools] = useState<RecentTool[]>([]);
+    const [toolsLoading, setToolsLoading] = useState(true);
+    const [toolCount, setToolCount] = useState(0);
+    const [categoryCount, setCategoryCount] = useState(0);
+    const [taskCount, setTaskCount] = useState(0);
+
     const turnstileRef = useRef<TurnstileInstance>(null);
+    const logoFileRef = useRef<File | null>(null);
 
     useEffect(() => {
+        setToolsLoading(true);
         fetch('/api/public/tools?limit=8')
             .then((r) => r.json())
             .then((d) => setRecentTools(d.data || []))
+            .catch(() => {})
+            .finally(() => setToolsLoading(false));
+
+        // Same count functions used by the homepage
+        fetch('/api/public/stats')
+            .then((r) => r.json())
+            .then((d) => {
+                if (d.tools) setToolCount(d.tools);
+                if (d.categories) setCategoryCount(d.categories);
+                if (d.tasks) setTaskCount(d.tasks);
+            })
             .catch(() => {});
     }, []);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value, type } = e.target;
-        if (type === 'checkbox') {
-            setFormData((prev) => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-        } else {
-            setFormData((prev) => ({ ...prev, [name]: value }));
-        }
+    useEffect(() => {
+        return () => {
+            if (localLogoPreview) URL.revokeObjectURL(localLogoPreview);
+        };
+    }, [localLogoPreview]);
+
+    const inputClass = useCallback(
+        (field: string) =>
+            `submit-input w-full ${fieldErrors[field] ? '!border-[var(--accent-red)] !shadow-[0_0_0_3px_rgba(220,38,38,0.15)]' : ''}`,
+        [fieldErrors],
+    );
+
+    function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
         setError('');
         if (value) setFieldErrors((prev) => ({ ...prev, [name]: false }));
-    };
+    }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>): void {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const objectUrl = URL.createObjectURL(file);
+        setLocalLogoPreview(objectUrl);
+        setLogoFileName(file.name);
+        logoFileRef.current = file;
+    }
+
+    async function handleSubmit(e: React.FormEvent): Promise<void> {
         e.preventDefault();
         setError('');
+
         if (!agreedToGuidelines) {
             setError('Please agree to the submission guidelines.');
             return;
         }
+
         const errors: Record<string, boolean> = {};
         if (!formData.submitterName) errors.submitterName = true;
         if (!formData.submitterEmail) errors.submitterEmail = true;
         if (!formData.toolName) errors.toolName = true;
         if (!formData.toolUrl) errors.toolUrl = true;
         if (!formData.shortDescription) errors.shortDescription = true;
+        if (!formData.category) errors.category = true;
+        if (!formData.pricing) errors.pricing = true;
+        if (formData.category === 'other' && !formData.customCategory) errors.customCategory = true;
+
         if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
             setError('Please complete the required fields.');
             return;
         }
+
         if (!turnstileToken) {
             setError('Please complete the security check.');
             return;
         }
+
         setIsSubmitting(true);
         try {
+            // Upload logo to R2 first (if selected)
+            let logoUrl: string | null = null;
+            if (logoFileRef.current) {
+                const logoFormData = new FormData();
+                logoFormData.append('file', logoFileRef.current);
+                const logoRes = await fetch('/api/public/upload-logo', {
+                    method: 'POST',
+                    body: logoFormData,
+                });
+                if (logoRes.ok) {
+                    const logoResult = await logoRes.json();
+                    logoUrl = logoResult.path;
+                }
+            }
+
             const baseUrl = window.location.origin;
             const response = await fetch('/api/submit-tool', {
                 method: 'POST',
@@ -171,17 +358,23 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                 body: JSON.stringify({
                     ...formData,
                     description: formData.shortDescription,
+                    tags: formData.category,
+                    customCategory: formData.category === 'other' ? formData.customCategory : undefined,
                     socialLinks: [],
+                    logoUrl,
                     turnstileToken,
                     baseUrl,
                 }),
             });
+
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Submission failed');
+
             if (result.checkoutUrl) {
                 window.location.href = result.checkoutUrl as string;
                 return;
             }
+
             setIsSubmitted(true);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -190,461 +383,529 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }
 
-    const inputClass = (field: string) =>
-        `submit-input w-full ${fieldErrors[field] ? '!border-[var(--accent-red)] !shadow-[0_0_0_3px_rgba(220,38,38,0.15)]' : ''}`;
-
-    const scrollToForm = () => document.getElementById('submit-form')?.scrollIntoView({ behavior: 'smooth' });
+    function scrollToForm(): void {
+        document.getElementById('submit-form')?.scrollIntoView({ behavior: 'smooth' });
+    }
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)]">
-            {/* Hero */}
-            <section className="submit-hero-bg relative overflow-hidden px-4 pt-20 pb-24 md:pt-28 md:pb-32">
-                <div className="submit-hero-glow" aria-hidden />
-                <div className="relative mx-auto max-w-3xl text-center">
-                    <h1 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-5xl lg:text-6xl lg:leading-[1.1]">
-                        Launch Your AI Tool on <span className="text-[var(--accent-primary)]">AiBDE</span>
-                    </h1>
-                    <p className="mt-5 text-lg text-[var(--text-secondary)] md:text-xl md:leading-relaxed">
-                        Reach developers, founders, and businesses searching for the best AI tools.
-                    </p>
-                    <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-                        <button
-                            type="button"
-                            onClick={scrollToForm}
-                            className="submit-btn-primary inline-flex items-center gap-2 px-8 py-3.5 text-base"
-                        >
-                            Submit Your Tool
-                            <ArrowRight className="h-5 w-5" />
-                        </button>
-                        <a href="#pricing" className="submit-btn-secondary inline-flex items-center gap-2 px-8 py-3.5 text-base">
-                            View Featured Plans
-                        </a>
+            {/* ── Hero ── */}
+            <section className="relative overflow-hidden border-b border-[var(--border-color)] px-4 pt-16 pb-14 md:pt-24 md:pb-20">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(52,178,123,0.12),transparent_45%)]" />
+                <div className="relative mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+                    <div>
+                        <p className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+                            <Sparkles className="h-3.5 w-3.5 text-[var(--accent-primary)]" />
+                            AiBDE Tool Launch Portal
+                        </p>
+                        <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-5xl lg:text-6xl lg:leading-[1.05]">
+                            Launch Your AI Tool on AiBDE
+                        </h1>
+                        <p className="mt-4 max-w-xl text-base leading-relaxed text-[var(--text-secondary)] md:text-lg">
+                            Reach developers, founders, and businesses actively looking for innovative AI products.
+                        </p>
+                        <div className="mt-8 flex flex-wrap gap-3">
+                            <button type="button" onClick={scrollToForm} className="submit-btn-primary inline-flex items-center gap-2 px-7 py-3.5">
+                                Submit Your Tool
+                                <ArrowRight className="h-4 w-4" />
+                            </button>
+                            <a href="#proof" className="submit-btn-secondary inline-flex items-center gap-2 px-7 py-3.5">
+                                Why Founders Choose AiBDE
+                            </a>
+                        </div>
+                        <div className="mt-8 flex flex-wrap gap-2">
+                            {[`${toolCount.toLocaleString()}+ AI Tools Listed`, 'Growing Global AI Directory', 'AI Builders Community'].map((pill) => (
+                                <span key={pill} className="rounded-full border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                                    {pill}
+                                </span>
+                            ))}
+                        </div>
                     </div>
-                    <div className="mt-14 flex flex-wrap justify-center gap-4">
-                        {['1000+ AI Tools Listed', 'Growing Global Directory', 'AI Builders Community'].map((label) => (
-                            <span
-                                key={label}
-                                className="rounded-full border border-[var(--border-color)] bg-[var(--bg-card)]/80 px-4 py-2 text-sm font-medium text-[var(--text-secondary)] shadow-sm backdrop-blur-sm"
-                            >
-                                {label}
-                            </span>
-                        ))}
+
+                    <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 shadow-lg">
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">Launch Snapshot</p>
+                        <div className="mt-4 grid grid-cols-3 gap-3">
+                            <Counter end={toolCount} suffix="+" label="Tools listed" />
+                            <Counter end={categoryCount} suffix="" label="Categories" />
+                            <Counter end={taskCount} suffix="+" label="Tasks covered" />
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                            <Counter end={50} suffix="K+" label="Monthly visitors" />
+                            <Counter end={195} suffix="+" label="Countries" />
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* Trusted by */}
-            <section className="border-b border-[var(--border-color)] px-4 py-14 md:py-20">
-                <div className="mx-auto max-w-4xl text-center">
-                    <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Trusted by industry experts</h2>
-                    <p className="mt-2 text-[15px] text-[var(--text-secondary)]">
-                        Professionals from leading tech companies use AiBDE to discover innovative tools.
-                    </p>
-                    <div className="mt-8 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-                        {['Google', 'Microsoft', 'OpenAI', 'Meta', 'Amazon', 'NVIDIA', 'Adobe', 'IBM'].map((name) => (
-                            <span key={name} className="text-sm font-medium text-[var(--text-tertiary)] transition hover:text-[var(--text-secondary)]">
-                                {name}
-                            </span>
-                        ))}
-                    </div>
-                    <p className="mt-6 text-xs text-[var(--text-tertiary)]">
-                        Company names represent where AI professionals work and do not imply affiliation.
-                    </p>
-                </div>
-            </section>
-
-            {/* Platform stats */}
-            <section className="border-b border-[var(--border-color)] px-4 py-14 md:py-20">
-                <div className="mx-auto grid max-w-4xl grid-cols-1 gap-5 sm:grid-cols-3">
-                    <StatCard value="1000+" label="AI Tools Listed" />
-                    <StatCard value="350+" label="Categories" />
-                    <StatCard value="50K+" label="Monthly Visitors" />
-                </div>
-            </section>
-
-            {/* Recently submitted tools */}
-            <section className="border-b border-[var(--border-color)] px-4 py-14 md:py-20">
+            {/* ── Why Founders Choose AiBDE ── */}
+            <section id="proof" className="border-b border-[var(--border-color)] px-4 py-14">
                 <div className="mx-auto max-w-6xl">
-                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Recently submitted</h2>
-                    <p className="mt-1 text-[15px] text-[var(--text-secondary)]">Join these tools on AiBDE</p>
-                    <div className="mt-8 flex gap-5 overflow-x-auto pb-2">
-                        {recentTools.length === 0 ? (
-                            <div className="submit-card flex h-36 w-full min-w-[260px] items-center justify-center text-[var(--text-tertiary)]">
-                                Loading…
+                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Why Founders Choose AiBDE</h2>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Everything you need to grow your AI tool&apos;s reach.</p>
+
+                    <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                            <Globe2 className="h-5 w-5 text-[var(--accent-primary)]" />
+                            <h3 className="mt-3 text-lg font-semibold text-[var(--text-primary)]">Global Discovery</h3>
+                            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                                Your tool gets seen by users in 195+ countries searching for AI solutions across {categoryCount} categories and {taskCount.toLocaleString()}+ tasks.
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                            <Eye className="h-5 w-5 text-[var(--accent-primary)]" />
+                            <h3 className="mt-3 text-lg font-semibold text-[var(--text-primary)]">Visibility That Lasts</h3>
+                            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                                Your listing stays discoverable in directory search and browsing experiences — not a one-day spike.
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                            <ShieldCheck className="h-5 w-5 text-[var(--accent-primary)]" />
+                            <h3 className="mt-3 text-lg font-semibold text-[var(--text-primary)]">Manual Review</h3>
+                            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                                Each submission is reviewed for quality and fit so users trust the directory.
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                            <Search className="h-5 w-5 text-[var(--accent-primary)]" />
+                            <h3 className="mt-3 text-lg font-semibold text-[var(--text-primary)]">SEO-Optimized Listings</h3>
+                            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                                Each listing is structured with rich metadata, FAQ schema, and semantic markup for maximum search visibility.
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                            <LayoutDashboard className="h-5 w-5 text-[var(--accent-primary)]" />
+                            <h3 className="mt-3 text-lg font-semibold text-[var(--text-primary)]">Founder Dashboard</h3>
+                            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                                Track views, clicks, and engagement on your listing through a dedicated analytics dashboard.
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                            <TrendingUp className="h-5 w-5 text-[var(--accent-primary)]" />
+                            <h3 className="mt-3 text-lg font-semibold text-[var(--text-primary)]">Growing Community</h3>
+                            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                                Join {toolCount.toLocaleString()}+ AI tools already listed and benefit from an ever-expanding audience of AI enthusiasts.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ── Founder Reviews ── */}
+            <section className="border-b border-[var(--border-color)] px-4 py-14">
+                <div className="mx-auto max-w-6xl">
+                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">What Founders Say</h2>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Hear from builders who launched on AiBDE.</p>
+
+                    <div className="mt-6 grid gap-5 md:grid-cols-3">
+                        {FOUNDER_REVIEWS.map((review) => (
+                            <div key={review.name} className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                                <div className="flex gap-1">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                        <Star key={i} className="h-4 w-4 fill-[var(--accent-yellow)] text-[var(--accent-yellow)]" />
+                                    ))}
+                                </div>
+                                <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)] italic">
+                                    &ldquo;{review.quote}&rdquo;
+                                </p>
+                                <div className="mt-4 border-t border-[var(--border-color)] pt-3">
+                                    <p className="text-sm font-semibold text-[var(--text-primary)]">{review.name}</p>
+                                    <p className="text-xs text-[var(--text-tertiary)]">{review.role}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── Recently Submitted Tools (Auto-scroll Marquee) ── */}
+            <section className="border-b border-[var(--border-color)] px-4 py-14">
+                <div className="mx-auto max-w-6xl">
+                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Recently Submitted Tools</h2>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Social proof from builders already launching on AiBDE.</p>
+
+                    <div className="mt-6">
+                        {toolsLoading ? (
+                            <div className="flex gap-4 overflow-hidden">
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                    <ToolCardSkeleton key={i} />
+                                ))}
+                            </div>
+                        ) : recentTools.length === 0 ? (
+                            <div className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 text-sm text-[var(--text-tertiary)]">
+                                No recent submissions yet.
                             </div>
                         ) : (
-                            recentTools.map((t) => (
-                                <Link
-                                    key={t.id}
-                                    href={t.appUsername ? `/app/${t.appUsername}` : '#'}
-                                    className="submit-card flex min-w-[240px] max-w-[280px] shrink-0 flex-col p-5"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        {t.logoUrl ? (
-                                            <img src={t.logoUrl} alt="" className="h-11 w-11 rounded-xl object-cover" />
-                                        ) : (
-                                            <div className="h-11 w-11 rounded-xl bg-[var(--bg-tertiary)]" />
-                                        )}
-                                        <span className="truncate font-semibold text-[var(--text-primary)]">{t.name}</span>
-                                    </div>
-                                    <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-[var(--text-secondary)]">{t.summary || '—'}</p>
-                                </Link>
-                            ))
+                            <MarqueeToolCards tools={recentTools} />
                         )}
                     </div>
                 </div>
             </section>
 
-            {/* Why submit */}
-            <section className="border-b border-[var(--border-color)] px-4 py-14 md:py-20">
-                <div className="mx-auto max-w-5xl">
-                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Why submit to AiBDE</h2>
-                    <p className="mt-1 text-[15px] text-[var(--text-secondary)]">Get more visibility and credibility</p>
-                    <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                        <WhyCard
-                            icon={BarChart3}
-                            title="Traffic Exposure"
-                            description="Reach thousands of AI users actively searching for tools."
-                        />
-                        <WhyCard
-                            icon={Link2}
-                            title="SEO Backlink"
-                            description="Improve search visibility with a quality backlink."
-                        />
-                        <WhyCard
-                            icon={Users}
-                            title="AI Community"
-                            description="Reach founders and developers in the AI space."
-                        />
-                        <WhyCard
-                            icon={Bookmark}
-                            title="Permanent Listing"
-                            description="Your tool stays discoverable in our directory."
-                        />
-                    </div>
-                </div>
-            </section>
-
-            {/* Pricing */}
-            <section id="pricing" className="border-b border-[var(--border-color)] px-4 py-14 md:py-20">
-                <div className="mx-auto max-w-5xl">
-                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Pricing plans</h2>
-                    <p className="mt-1 text-[15px] text-[var(--text-secondary)]">Choose the right plan for your tool</p>
-                    <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
-                        <div
-                            className={`submit-card p-6 transition-all ${
-                                formData.plan === 'basic'
-                                    ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-primary)]'
-                                    : ''
-                            }`}
-                        >
-                            <h3 className="text-lg font-semibold text-[var(--text-primary)]">Free Listing</h3>
-                            <p className="mt-2 text-3xl font-bold tracking-tight text-[var(--text-primary)]">$49</p>
-                            <p className="text-sm text-[var(--text-tertiary)]">One-time</p>
-                            <ul className="mt-5 space-y-3 text-[15px] text-[var(--text-secondary)]">
-                                <li className="flex items-center gap-2"><Check className="h-5 w-5 shrink-0 text-[var(--accent-primary)]" /> Basic listing</li>
-                                <li className="flex items-center gap-2"><Check className="h-5 w-5 shrink-0 text-[var(--accent-primary)]" /> Standard approval</li>
-                            </ul>
-                            <button
-                                type="button"
-                                onClick={() => setFormData((p) => ({ ...p, plan: 'basic' }))}
-                                className="submit-btn-secondary mt-6 w-full py-3"
-                            >
-                                Select
-                            </button>
-                        </div>
-                        <div
-                            className={`submit-card relative p-6 transition-all ${
-                                formData.plan === 'verified'
-                                    ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-primary)]'
-                                    : ''
-                            }`}
-                        >
-                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[var(--accent-primary)] px-3 py-1 text-xs font-semibold text-white shadow-md">
-                                Most Popular
-                            </span>
-                            <h3 className="text-lg font-semibold text-[var(--text-primary)]">Featured Listing</h3>
-                            <p className="mt-2 text-3xl font-bold tracking-tight text-[var(--accent-primary)]">$99</p>
-                            <p className="text-sm text-[var(--text-tertiary)]">One-time</p>
-                            <ul className="mt-5 space-y-3 text-[15px] text-[var(--text-secondary)]">
-                                <li className="flex items-center gap-2"><Check className="h-5 w-5 shrink-0 text-[var(--accent-primary)]" /> Priority approval</li>
-                                <li className="flex items-center gap-2"><Check className="h-5 w-5 shrink-0 text-[var(--accent-primary)]" /> Featured placement</li>
-                                <li className="flex items-center gap-2"><Check className="h-5 w-5 shrink-0 text-[var(--accent-primary)]" /> Higher visibility</li>
-                            </ul>
-                            <button
-                                type="button"
-                                onClick={() => setFormData((p) => ({ ...p, plan: 'verified' }))}
-                                className="submit-btn-primary mt-6 w-full py-3"
-                            >
-                                Select
-                            </button>
-                        </div>
-                        <div
-                            className={`submit-card p-6 transition-all ${
-                                formData.plan === 'featured'
-                                    ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-primary)]'
-                                    : ''
-                            }`}
-                        >
-                            <h3 className="text-lg font-semibold text-[var(--text-primary)]">Premium Launch</h3>
-                            <p className="mt-2 text-3xl font-bold tracking-tight text-[var(--text-primary)]">$249</p>
-                            <p className="text-sm text-[var(--text-tertiary)]">One-time</p>
-                            <ul className="mt-5 space-y-3 text-[15px] text-[var(--text-secondary)]">
-                                <li className="flex items-center gap-2"><Check className="h-5 w-5 shrink-0 text-[var(--accent-primary)]" /> Homepage feature</li>
-                                <li className="flex items-center gap-2"><Check className="h-5 w-5 shrink-0 text-[var(--accent-primary)]" /> Maximum exposure</li>
-                            </ul>
-                            <button
-                                type="button"
-                                onClick={() => setFormData((p) => ({ ...p, plan: 'featured' }))}
-                                className="submit-btn-secondary mt-6 w-full py-3"
-                            >
-                                Select
-                            </button>
-                        </div>
-                    </div>
-                    <p className="mt-6 text-center text-sm text-[var(--text-tertiary)]">
-                        Limited featured spots available weekly.
+            {/* ── Pricing Plans ── */}
+            <section id="pricing" className="border-b border-[var(--border-color)] px-4 py-14">
+                <div className="mx-auto max-w-6xl">
+                    <h2 className="text-center text-2xl font-bold tracking-tight text-[var(--text-primary)]">Choose Your Plan</h2>
+                    <p className="mt-1 text-center text-sm text-[var(--text-secondary)]">
+                        Every plan includes a permanent listing in the AiBDE directory.
                     </p>
+
+                    <div className="mt-8 grid gap-5 md:grid-cols-3">
+                        {PLANS.map((plan) => {
+                            const isSelected = formData.plan === plan.id;
+                            return (
+                                <button
+                                    key={plan.id}
+                                    type="button"
+                                    onClick={() => setFormData((prev) => ({ ...prev, plan: plan.id }))}
+                                    className={`group relative flex flex-col rounded-2xl border-2 p-6 text-left transition ${
+                                        isSelected
+                                            ? 'border-[var(--accent-primary)] bg-[var(--accent-primary-bg)]'
+                                            : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-[var(--accent-primary)]/60'
+                                    }`}
+                                >
+                                    {plan.badge && (
+                                        <span className="absolute -top-3 right-4 rounded-full bg-[var(--accent-primary)] px-3 py-0.5 text-xs font-bold text-white">
+                                            {plan.badge}
+                                        </span>
+                                    )}
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="text-sm font-semibold text-[var(--text-secondary)]">{plan.name}</p>
+                                        {plan.id === 'verified' && <VerifiedBadge size={14} />}
+                                        {plan.id === 'featured' && <FeaturedBadge size={14} />}
+                                    </div>
+                                    <p className="mt-1 text-3xl font-extrabold text-[var(--text-primary)]">
+                                        {plan.price}
+                                        <span className="text-sm font-normal text-[var(--text-tertiary)]"> one-time</span>
+                                    </p>
+                                    <p className="mt-2 text-sm text-[var(--text-secondary)]">{plan.description}</p>
+                                    <ul className="mt-4 flex-1 space-y-2">
+                                        {plan.features.map((f) => (
+                                            <li key={f} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                                                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-primary)]" />
+                                                {f}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    {isSelected ? (
+                                        <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-[var(--accent-primary)] px-4 py-2 text-sm font-semibold text-white">
+                                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                            Selected
+                                        </div>
+                                    ) : (
+                                        <div className="mt-4 flex items-center justify-center rounded-full border border-[var(--border-color)] px-4 py-2 text-sm font-medium text-[var(--text-tertiary)] opacity-0 transition group-hover:opacity-100 group-hover:border-[var(--accent-primary)] group-hover:text-[var(--accent-primary)]">
+                                            Select {plan.name}
+                                        </div>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Custom Launch */}
+                    <div className="mt-6 rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-card)] p-6 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                            <Crown className="h-5 w-5 text-[var(--accent-yellow)]" />
+                            <h3 className="text-lg font-bold text-[var(--text-primary)]">Custom Launch</h3>
+                        </div>
+                        <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                            Need a tailored launch strategy, custom placement, or bulk submissions? We&apos;ll create a plan that fits your goals.
+                        </p>
+                        <a
+                            href="mailto:support@aibde.tech?subject=Custom Launch Inquiry"
+                            className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--accent-primary)] px-6 py-2.5 text-sm font-semibold text-[var(--accent-primary)] transition hover:bg-[var(--accent-primary)] hover:text-white"
+                        >
+                            Contact Us
+                            <ArrowRight className="h-4 w-4" />
+                        </a>
+                    </div>
                 </div>
             </section>
 
-            {/* Submission form */}
+            {/* ── Submit Form ── */}
             <section id="submit-form" className="px-4 py-14 md:py-20">
-                <div className="mx-auto max-w-3xl">
-                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Submit your tool</h2>
-                    <p className="mt-1 text-[15px] text-[var(--text-secondary)]">Your submission will be reviewed within 24–48 hours.</p>
-
-                    {isSubmitted ? (
-                        <div className="submit-card mt-10 border-[var(--accent-primary)]/30 bg-[var(--accent-primary-bg)] p-10 text-center">
-                            <div className="result-success-icon mx-auto">
-                                <CheckCircle className="h-10 w-10" />
+                <div className="mx-auto max-w-6xl">
+                    <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                        <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 md:p-8">
+                            <div className="mb-6">
+                                <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Submit Your Tool</h2>
+                                <p className="mt-1 text-sm text-[var(--text-secondary)]">Your submission is typically reviewed within 24–48 hours.</p>
                             </div>
-                            <h3 className="mt-6 text-xl font-semibold text-[var(--text-primary)]">Thank you</h3>
-                            <p className="mt-2 text-[15px] text-[var(--text-secondary)]">
-                                Your tool <strong>{formData.toolName}</strong> has been sent for review.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="submit-card mt-10 p-6 md:p-10">
-                            <form onSubmit={handleSubmit} className="space-y-5">
-                                <div className="grid gap-5 sm:grid-cols-2">
-                                    <div>
-                                        <label className="mb-2 block text-[15px] font-medium text-[var(--text-secondary)]">Tool Name *</label>
-                                        <input
-                                            type="text"
-                                            name="toolName"
-                                            value={formData.toolName}
-                                            onChange={handleChange}
-                                            className={inputClass('toolName')}
-                                            placeholder="My AI Tool"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="mb-2 block text-[15px] font-medium text-[var(--text-secondary)]">Website URL *</label>
-                                        <input
-                                            type="url"
-                                            name="toolUrl"
-                                            value={formData.toolUrl}
-                                            onChange={handleChange}
-                                            className={inputClass('toolUrl')}
-                                            placeholder="https://myaitool.com"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="mb-2 block text-[15px] font-medium text-[var(--text-secondary)]">Short Description *</label>
-                                    <input
-                                        type="text"
-                                        name="shortDescription"
-                                        value={formData.shortDescription}
-                                        onChange={handleChange}
-                                        maxLength={160}
-                                        className={inputClass('shortDescription')}
-                                        placeholder="A brief one-liner about your tool"
-                                    />
-                                    <p className="mt-1 text-xs text-[var(--text-tertiary)]">{formData.shortDescription.length}/160</p>
-                                </div>
-                                <div>
-                                    <label className="mb-2 block text-[15px] font-medium text-[var(--text-secondary)]">Pricing Model</label>
-                                    <SearchableSelect
-                                        value={formData.pricing}
-                                        onChange={(v) => setFormData((p) => ({ ...p, pricing: v }))}
-                                        options={PRICING_OPTIONS}
-                                        placeholder="Select pricing"
-                                        showSearch={false}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-2 block text-[15px] font-medium text-[var(--text-secondary)]">Logo / Image URLs (one per line)</label>
-                                    <textarea
-                                        name="imageUrls"
-                                        value={formData.imageUrls}
-                                        onChange={handleChange}
-                                        rows={2}
-                                        className={inputClass('imageUrls')}
-                                        placeholder="https://..."
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-2 block text-[15px] font-medium text-[var(--text-secondary)]">Founder Email *</label>
-                                    <input
-                                        type="email"
-                                        name="submitterEmail"
-                                        value={formData.submitterEmail}
-                                        onChange={handleChange}
-                                        className={inputClass('submitterEmail')}
-                                        placeholder="you@company.com"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-2 block text-[15px] font-medium text-[var(--text-secondary)]">Your Name *</label>
-                                    <input
-                                        type="text"
-                                        name="submitterName"
-                                        value={formData.submitterName}
-                                        onChange={handleChange}
-                                        className={inputClass('submitterName')}
-                                        placeholder="Jane Doe"
-                                    />
-                                </div>
 
-                                {/* Live preview */}
-                                <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5">
-                                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Listing preview</p>
-                                    <div className="flex items-start gap-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
-                                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-tertiary)]">
-                                            {formData.imageUrls.trim() ? (
+                            {isSubmitted ? (
+                                <div className="rounded-2xl border border-[var(--accent-primary)]/30 bg-[var(--accent-primary-bg)] p-8 text-center">
+                                    <CheckCircle2 className="mx-auto h-10 w-10 text-[var(--accent-primary)]" />
+                                    <h3 className="mt-4 text-lg font-semibold text-[var(--text-primary)]">Submission captured</h3>
+                                    <p className="mt-2 text-sm text-[var(--text-secondary)]">Your tool has been sent for review.</p>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleSubmit} className="space-y-5">
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Tool Name *</label>
+                                            <input name="toolName" value={formData.toolName} onChange={handleChange} className={inputClass('toolName')} placeholder="My AI Tool" />
+                                        </div>
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Website URL *</label>
+                                            <input name="toolUrl" value={formData.toolUrl} onChange={handleChange} className={inputClass('toolUrl')} placeholder="https://myaitool.com" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Short Description *</label>
+                                        <textarea
+                                            name="shortDescription"
+                                            maxLength={160}
+                                            rows={2}
+                                            value={formData.shortDescription}
+                                            onChange={handleChange}
+                                            className={`${inputClass('shortDescription')} resize-none`}
+                                            placeholder="Describe your tool in one sentence"
+                                        />
+                                        <p className="mt-1 text-xs text-[var(--text-tertiary)]">{formData.shortDescription.length}/160</p>
+                                    </div>
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Category *</label>
+                                            <SearchableSelect
+                                                value={formData.category}
+                                                onChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
+                                                options={CATEGORY_OPTIONS}
+                                                placeholder="Select category"
+                                                showSearch={false}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Pricing Model *</label>
+                                            <SearchableSelect
+                                                value={formData.pricing}
+                                                onChange={(value) => setFormData((prev) => ({ ...prev, pricing: value }))}
+                                                options={PRICING_OPTIONS}
+                                                placeholder="Select pricing"
+                                                showSearch={false}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {formData.category === 'other' && (
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Custom Category Name *</label>
+                                            <input
+                                                name="customCategory"
+                                                value={formData.customCategory}
+                                                onChange={handleChange}
+                                                className={inputClass('customCategory')}
+                                                placeholder="e.g. Healthcare AI, Legal AI, etc."
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Founder Email *</label>
+                                            <input name="submitterEmail" value={formData.submitterEmail} onChange={handleChange} className={inputClass('submitterEmail')} placeholder="you@company.com" />
+                                        </div>
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Your Name *</label>
+                                            <input name="submitterName" value={formData.submitterName} onChange={handleChange} className={inputClass('submitterName')} placeholder="Jane Doe" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Logo Upload</label>
+                                        <label className={`submit-input flex cursor-pointer items-center gap-3 text-[var(--text-secondary)] hover:border-[var(--accent-primary)] ${localLogoPreview ? '!border-[var(--accent-primary)]/40' : ''}`}>
+                                            {localLogoPreview ? (
+                                                <>
+                                                    <img src={localLogoPreview} alt="" className="h-8 w-8 rounded-md object-cover" />
+                                                    <span className="flex-1 truncate text-sm text-[var(--text-primary)]">{logoFileName}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.preventDefault(); setLocalLogoPreview(''); setLogoFileName(''); }}
+                                                        className="rounded-full p-0.5 hover:bg-[var(--bg-secondary)]"
+                                                    >
+                                                        <CloseIcon size={14} className="text-[var(--text-tertiary)] hover:text-[var(--accent-red)]" />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Upload className="h-4 w-4" />
+                                                    Upload file
+                                                </>
+                                            )}
+                                            <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                                        </label>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
+                                        <label className="flex items-start gap-3 text-sm text-[var(--text-secondary)]">
+                                            <input
+                                                type="checkbox"
+                                                checked={agreedToGuidelines}
+                                                onChange={(e) => setAgreedToGuidelines(e.target.checked)}
+                                                className="mt-0.5 h-4 w-4 rounded border-[var(--border-color)]"
+                                            />
+                                            I agree to the submission guidelines and confirm the tool is publicly accessible and not NSFW.
+                                        </label>
+                                    </div>
+
+                                    <div className="flex justify-center">
+                                        <Turnstile
+                                            ref={turnstileRef}
+                                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+                                            onSuccess={(token) => setTurnstileToken(token)}
+                                            onError={() => setTurnstileToken(null)}
+                                            onExpire={() => setTurnstileToken(null)}
+                                        />
+                                    </div>
+
+                                    {error && (
+                                        <div className="flex items-center gap-2 rounded-xl border border-[var(--accent-red)]/30 bg-[var(--accent-red-bg)] p-3 text-sm text-[var(--accent-red)]">
+                                            <AlertCircle className="h-4 w-4 shrink-0" />
+                                            {error}
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-center">
+                                        <button
+                                            type="submit"
+                                            disabled={isSubmitting || !agreedToGuidelines || !turnstileToken}
+                                            className="submit-btn-primary inline-flex items-center gap-2 px-8 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {isSubmitting ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    Submitting...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Rocket className="h-4 w-4" />
+                                                    Pay and Launch
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    <p className="text-center text-xs text-[var(--text-tertiary)]">
+                                        By submitting, you agree to our <Link href="/terms" className="text-[var(--accent-primary)] hover:underline">Terms</Link>.
+                                    </p>
+                                </form>
+                            )}
+                        </div>
+
+                        <div className="space-y-5">
+                            {/* Listing Preview */}
+                            <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                                <p className="text-sm font-semibold text-[var(--text-primary)]">Listing Preview</p>
+                                <div className="mt-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--bg-card)]">
+                                            {localLogoPreview ? (
                                                 <img
-                                                    src={formData.imageUrls.split('\n')[0].trim()}
+                                                    src={localLogoPreview}
                                                     alt=""
                                                     className="h-12 w-12 object-cover"
                                                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                                 />
-                                            ) : null}
+                                            ) : (
+                                                <ImageIcon className="h-6 w-6 text-[var(--text-tertiary)]" />
+                                            )}
                                         </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="font-medium text-[var(--text-primary)]">{formData.toolName || 'Tool name'}</div>
-                                            <p className="mt-0.5 line-clamp-2 text-xs text-[var(--text-secondary)]">
-                                                {formData.shortDescription || 'Short description will appear here.'}
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-1">
+                                                <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                                                    {formData.toolName || 'Tool name'}
+                                                </p>
+                                                {formData.plan === 'verified' && <VerifiedBadge size={14} />}
+                                                {formData.plan === 'featured' && <FeaturedBadge size={14} />}
+                                            </div>
+                                            <p className="mt-1 line-clamp-2 break-words text-xs text-[var(--text-secondary)]">
+                                                {formData.shortDescription || 'Short description appears here.'}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5">
-                                    <label className="flex cursor-pointer items-start gap-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={agreedToGuidelines}
-                                            onChange={(e) => setAgreedToGuidelines(e.target.checked)}
-                                            className="mt-0.5 h-5 w-5 rounded-md border-[var(--border-color)] text-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-0"
-                                        />
-                                        <span className="text-[15px] text-[var(--text-secondary)]">
-                                            I have read and agree to the submission guidelines. I confirm my tool is publicly accessible and does not contain NSFW content.
-                                        </span>
-                                    </label>
-                                </div>
-
-                                <div className="flex justify-center">
-                                    <Turnstile
-                                        ref={turnstileRef}
-                                        siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
-                                        onSuccess={(token) => setTurnstileToken(token)}
-                                        onError={() => setTurnstileToken(null)}
-                                        onExpire={() => setTurnstileToken(null)}
-                                    />
-                                </div>
-
-                                {error && (
-                                    <div className="flex items-center gap-3 rounded-xl border border-[var(--accent-red)]/30 bg-[var(--accent-red-bg)] p-4 text-[15px] text-[var(--accent-red)]">
-                                        <AlertCircle className="h-5 w-5 shrink-0" />
-                                        {error}
+                            {/* Selected Plan */}
+                            <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                                <p className="text-sm font-semibold text-[var(--text-primary)]">Selected Plan</p>
+                                <div className="mt-3 flex items-center gap-3">
+                                    <Crown className="h-5 w-5 text-[var(--accent-primary)]" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-[var(--text-primary)]">
+                                            {PLANS.find((p) => p.id === formData.plan)?.name || 'Pro'} Plan
+                                        </p>
+                                        <p className="text-xs text-[var(--text-secondary)]">
+                                            {PLANS.find((p) => p.id === formData.plan)?.price || '$79'} one-time
+                                        </p>
                                     </div>
-                                )}
-
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting || !agreedToGuidelines || !turnstileToken}
-                                    className="submit-btn-primary w-full py-3.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                            Submitting…
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send className="h-5 w-5" />
-                                            Submit Your Tool
-                                        </>
-                                    )}
+                                </div>
+                                <button type="button" onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="mt-3 text-xs font-medium text-[var(--accent-primary)] hover:underline">
+                                    Change plan ↑
                                 </button>
-                                <p className="text-center text-xs text-[var(--text-tertiary)]">
-                                    By submitting you agree to our <Link href="/terms" className="text-[var(--accent-primary)] hover:underline">Terms</Link>.
-                                </p>
-                            </form>
-                        </div>
-                    )}
-                </div>
-            </section>
+                            </div>
 
-            {/* Testimonials */}
-            <section className="border-b border-[var(--border-color)] px-4 py-14 md:py-20">
-                <div className="mx-auto max-w-4xl">
-                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">What founders say</h2>
-                    <div className="mt-10 grid gap-6 sm:grid-cols-2">
-                        <div className="submit-card p-6 sm:p-8">
-                            <p className="text-[17px] leading-relaxed text-[var(--text-secondary)]">"AiBDE helped us reach early AI adopters."</p>
-                            <p className="mt-4 text-sm font-semibold text-[var(--text-primary)]">— AI tool founder</p>
-                        </div>
-                        <div className="submit-card p-6 sm:p-8">
-                            <p className="text-[17px] leading-relaxed text-[var(--text-secondary)]">"Our AI tool gained visibility after listing on AiBDE."</p>
-                            <p className="mt-4 text-sm font-semibold text-[var(--text-primary)]">— Startup founder</p>
+                            {/* What Happens Next */}
+                            <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
+                                <p className="text-sm font-semibold text-[var(--text-primary)]">What Happens Next</p>
+                                <div className="mt-4 space-y-3">
+                                    <div className="flex items-start gap-3 rounded-xl border border-[var(--border-color)] p-3">
+                                        <Compass className="mt-0.5 h-4 w-4 text-[var(--accent-primary)]" />
+                                        <div>
+                                            <p className="text-sm font-medium text-[var(--text-primary)]">Editorial Review</p>
+                                            <p className="text-xs text-[var(--text-secondary)]">Our team checks quality, category fit, and submission completeness.</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 rounded-xl border border-[var(--border-color)] p-3">
+                                        <Users className="mt-0.5 h-4 w-4 text-[var(--accent-primary)]" />
+                                        <div>
+                                            <p className="text-sm font-medium text-[var(--text-primary)]">Directory Publish</p>
+                                            <p className="text-xs text-[var(--text-secondary)]">Approved tools appear in the AiBDE directory and category/task discovery.</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 rounded-xl border border-[var(--border-color)] p-3">
+                                        <Rocket className="mt-0.5 h-4 w-4 text-[var(--accent-primary)]" />
+                                        <div>
+                                            <p className="text-sm font-medium text-[var(--text-primary)]">Founder Notification</p>
+                                            <p className="text-xs text-[var(--text-secondary)]">You get status updates by email as your listing is processed.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* FAQ */}
-            <section className="border-b border-[var(--border-color)] px-4 py-14 md:py-20">
-                <div className="mx-auto max-w-2xl">
-                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">FAQ</h2>
-                    <div className="submit-card mt-8 px-5">
-                        <FAQAccordion question="How long does approval take?">
-                            Your submission will be reviewed within 24–48 hours for paid plans. Free listings may take longer. We'll notify you by email once your tool is live.
-                        </FAQAccordion>
-                        <FAQAccordion question="Can I update my listing later?">
-                            Yes. Email support@aibde.tech with your tool name and the changes you'd like. We'll update the listing within 24–48 hours.
-                        </FAQAccordion>
-                        <FAQAccordion question="Do you offer featured placements?">
-                            Yes. We offer Featured and Premium Launch plans for priority placement, homepage visibility, and maximum exposure.
-                        </FAQAccordion>
-                        <FAQAccordion question="Is there a free listing option?">
-                            Yes. Our Free Listing plan gives you a basic listing with standard approval. Paid plans offer priority review and enhanced visibility.
-                        </FAQAccordion>
+            {/* ── FAQ ── */}
+            <section className="border-b border-[var(--border-color)] px-4 py-14">
+                <div className="mx-auto max-w-3xl rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] px-6 md:px-8">
+                    <h2 className="pt-6 text-2xl font-bold tracking-tight text-[var(--text-primary)]">Frequently Asked Questions</h2>
+                    <div className="mt-3">
+                        <FAQItem question="How long does approval take?">Most submissions are reviewed within 24–48 hours for paid plans. Free listings may take longer. We&apos;ll notify you by email once your tool is live.</FAQItem>
+                        <FAQItem question="Can I edit my listing later?">Yes. Email support@aibde.tech with your tool name and the changes you&apos;d like. We&apos;ll update the listing within 24–48 hours.</FAQItem>
+                        <FAQItem question="Do you offer featured placements?">Yes! Our Featured plan ($249) gives you homepage visibility, newsletter features, and priority category ranking for maximum exposure.</FAQItem>
+                        <FAQItem question="Is there a free listing option?">We currently offer three paid plans starting at $49. Each plan ensures manual review and a permanent listing in our directory.</FAQItem>
+                        <FAQItem question="What&apos;s the difference between Basic, Verified, and Featured?">Basic ($49) gets you listed with standard SEO. Verified ($99) adds a blue verified badge, priority review, and social mention. Featured ($249) includes a gold badge, 3-day homepage placement, newsletter feature, and analytics access.</FAQItem>
+                        <FAQItem question="Can I get a refund?">If your tool is not approved after review, we offer a full refund. Contact support@aibde.tech for assistance.</FAQItem>
+                        <FAQItem question="What categories do you support?">We support AI Assistant, Productivity, Developer Tools, Marketing, Design, Automation, Video, Research, and more. If your tool doesn&apos;t fit, select &quot;Other&quot; and specify your category.</FAQItem>
+                        <FAQItem question="How does AiBDE help with SEO?">Every listing gets a dedicated page with structured data, FAQ schema, meta tags, and internal linking — helping your tool rank in Google search results.</FAQItem>
+                        <FAQItem question="Do you verify the tools you list?">Yes. Our editorial team manually reviews each submission for quality, functionality, and relevance before it goes live.</FAQItem>
+                        <FAQItem question="Can I submit multiple tools?">Absolutely! Each tool requires a separate submission and plan. Volume discounts are available — contact support@aibde.tech.</FAQItem>
                     </div>
                 </div>
             </section>
 
-            {/* Final CTA */}
-            <section className="submit-hero-bg relative px-4 py-20 md:py-28">
-                <div className="submit-hero-glow opacity-60" aria-hidden />
-                <div className="relative mx-auto max-w-2xl text-center">
-                    <h2 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-4xl">
-                        Launch your AI tool today
-                    </h2>
-                    <p className="mt-4 text-lg text-[var(--text-secondary)]">
-                        Join the growing AI ecosystem on AiBDE.
-                    </p>
-                    <button
-                        type="button"
-                        onClick={scrollToForm}
-                        className="submit-btn-primary mt-10 inline-flex items-center gap-2 px-10 py-4 text-base"
-                    >
+            {/* ── Bottom CTA ── */}
+            <section className="px-4 py-16 md:py-20">
+                <div className="mx-auto max-w-4xl rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-8 text-center">
+                    <h2 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-4xl">Launch your AI tool today.</h2>
+                    <p className="mt-3 text-sm text-[var(--text-secondary)] md:text-base">Join the growing community of AI builders on AiBDE.</p>
+                    <button type="button" onClick={scrollToForm} className="submit-btn-primary mt-8 inline-flex items-center gap-2 px-8 py-3.5">
                         Submit Your Tool
-                        <Sparkles className="h-5 w-5" />
+                        <Sparkles className="h-4 w-4" />
                     </button>
                 </div>
             </section>

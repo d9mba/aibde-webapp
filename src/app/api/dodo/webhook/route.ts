@@ -62,9 +62,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             payment.id || payment.payment_id || payment.paymentId;
         const amount: number | null =
             typeof payment.amount === 'number'
-                ? payment.amount
+                ? payment.amount / 100
                 : typeof payment.amount === 'string'
-                ? Number(payment.amount) || null
+                ? Number(payment.amount) / 100 || null
                 : null;
         const currency: string | undefined = payment.currency || payment.billing_currency;
 

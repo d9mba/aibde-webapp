@@ -47,12 +47,12 @@ export default function RetryPaymentButton({ submissionId }: RetryPaymentButtonP
     };
 
     return (
-        <div className="mb-4">
+        <div>
             <button
                 type="button"
                 onClick={handleRetry}
                 disabled={loading}
-                className="submit-btn-primary w-full py-3.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="submit-btn-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
                 {loading ? 'Redirecting to payment...' : 'Retry Payment'}
             </button>

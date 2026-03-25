@@ -46,6 +46,7 @@ interface ToolSubmissionData {
     releasedDate?: string;
     tags?: string;
     features?: string;
+    customCategory?: string;
 
     // Affiliate
     hasAffiliateProgram?: boolean;
@@ -55,6 +56,7 @@ interface ToolSubmissionData {
     socialLinks?: SocialLink[];
     imageUrls?: string;
     videoUrls?: string;
+    logoUrl?: string;
 
     // Selected paid plan
     plan: PlanType;
@@ -187,11 +189,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 submission_ref: submissionRef,
                 tool_name: formData.toolName,
                 website_url: formData.toolUrl,
-                category: null,
+                category: formData.customCategory || null,
                 pricing_model: formData.pricing || null,
                 short_description: formData.shortDescription,
                 full_description: formData.longDescription || null,
-                logo_url: null,
+                logo_url: formData.logoUrl || null,
                 submitter_name: formData.submitterName,
                 submitter_email: formData.submitterEmail,
                 plan_selected: formData.plan,
@@ -289,6 +291,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },
             );
+        }
+
+        // Store the Dodo session_id for fallback status polling
+        if (session.session_id) {
+            await supabaseAdmin
+                .from('payments')
+                .update({ payment_id: session.session_id })
+                .eq('id', payment.id);
         }
 
         return NextResponse.json({

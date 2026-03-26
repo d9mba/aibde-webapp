@@ -41,10 +41,10 @@ function sanitizeUrl(urlString: string | null | undefined): string | null {
     if (!urlString) return null;
     try {
         // If no protocol, assume https
-        const url = urlString.startsWith('http') ? urlString : `https://${urlString}`;
+        const url = /^https?:/i.test(urlString) ? urlString : `https://${urlString}`;
         const parsed = new URL(url);
         // Only allow http and https
-        if (!['http:', 'https:'].includes(parsed.protocol)) {
+        if (!['http:', 'https:'].includes(parsed.protocol.toLowerCase())) {
             return null;
         }
         return parsed.href;

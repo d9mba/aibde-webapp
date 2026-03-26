@@ -153,7 +153,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
                             {/* Close Button */}
                             <button
-                                onClick={() => hideToast(toast.id)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    hideToast(toast.id);
+                                }}
                                 className="text-text-tertiary hover:text-text-primary flex-shrink-0 text-lg"
                             >
                                 ×

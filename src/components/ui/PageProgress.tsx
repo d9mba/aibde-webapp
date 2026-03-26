@@ -93,17 +93,30 @@ export default function PageProgress() {
     useEffect(() => {
         const origPush = history.pushState.bind(history);
         const origReplace = history.replaceState.bind(history);
+        const normalize = (u: string) => u.replace(/\/$/, '') || '/';
 
         history.pushState = function (...args) {
-            start();
+            const url = args[2];
+            if (url && typeof url === 'string') {
+                if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
+                    const res = origPush(...args);
+                    start();
+                    return res;
+                }
+            } else {
+                const before = normalize(window.location.pathname + window.location.search);
+                const res = origPush(...args);
+                const after = normalize(window.location.pathname + window.location.search);
+                if (before !== after) start();
+                return res;
+            }
             return origPush(...args);
         };
 
         history.replaceState = function (...args) {
             const url = args[2];
             if (url && typeof url === 'string') {
-                const norm = (u: string) => u.replace(/\/$/, '') || '/';
-                if (norm(url) !== norm(window.location.pathname + window.location.search)) {
+                if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
                     start();
                 }
             }

@@ -4,15 +4,16 @@ import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
     const authResult = await requireAdmin();
     if (isAuthError(authResult)) {
         return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     // Get pagination parameters
-    const limit = Math.min(parseInt(new URL('http://t').searchParams.get('limit') || '20', 10), 100);
-    const offset = Math.max(parseInt(new URL('http://t').searchParams.get('offset') || '0', 10), 0);
+    const url = new URL(request.url);
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20', 10), 100);
+    const offset = Math.max(parseInt(url.searchParams.get('offset') || '0', 10), 0);
 
     const { data, error, count } = await supabaseAdmin
         .from('tool_submissions')

@@ -34,6 +34,34 @@ export async function requireAuth(): Promise<AuthResult | AuthError> {
 const userCache = new Map<string, { result: AuthResult | AuthError; expires: number }>();
 const inflightRequests = new Map<string, Promise<AuthResult | AuthError>>();
 const CACHE_TTL_MS = 10_000; // 10 seconds
+const MAX_CACHE_ENTRIES = 1000;
+
+function pruneCaches(): void {
+    const now = Date.now();
+    for (const [key, entry] of userCache.entries()) {
+        if (entry.expires < now) userCache.delete(key);
+    }
+
+    if (userCache.size > MAX_CACHE_ENTRIES) {
+        const overflow = userCache.size - MAX_CACHE_ENTRIES;
+        let removed = 0;
+        for (const key of userCache.keys()) {
+            userCache.delete(key);
+            removed++;
+            if (removed >= overflow) break;
+        }
+    }
+
+    if (inflightRequests.size > MAX_CACHE_ENTRIES) {
+        const overflow = inflightRequests.size - MAX_CACHE_ENTRIES;
+        let removed = 0;
+        for (const key of inflightRequests.keys()) {
+            inflightRequests.delete(key);
+            removed++;
+            if (removed >= overflow) break;
+        }
+    }
+}
 
 /**
  * Require admin role - returns userId/role or error
@@ -43,6 +71,7 @@ const CACHE_TTL_MS = 10_000; // 10 seconds
  * 2. Add to Public Metadata: { "role": "admin" }
  */
 export async function requireAdmin(): Promise<AuthResult | AuthError> {
+    pruneCaches();
     const { userId } = await auth();
 
     if (!userId) {

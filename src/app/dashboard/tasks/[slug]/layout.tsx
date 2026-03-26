@@ -4,13 +4,13 @@ import { getTasks } from '@/lib/data';
 
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-// Extract task ID from slug (last segment after final dash if it's 6+ chars)
+// Extract task ID from slug (last segment after final dash, exactly 6 hex chars)
 function extractTaskIdSuffix(slug: string): string | null {
     const parts = slug.split('-');
     if (parts.length > 0) {
         const lastPart = parts[parts.length - 1];
         // ID suffix is last 6 chars of UUID, so check if it looks like hex
-        if (lastPart.length === 6 && /^[a-f0-9]+$/.test(lastPart)) {
+        if (lastPart.length === 6 && /^[a-f0-9]+$/i.test(lastPart)) {
             return lastPart;
         }
     }

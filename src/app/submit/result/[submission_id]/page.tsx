@@ -5,7 +5,7 @@ import RetryPaymentButton from '../RetryPaymentButton';
 import CleanUrlClient from '../CleanUrlClient';
 import Confetti from '../Confetti';
 import {
-    CheckCircle2, XCircle, RefreshCw, Mail,
+    XCircle, RefreshCw, Mail,
     Clock, ArrowRight, Home, Receipt, ExternalLink,
 } from 'lucide-react';
 
@@ -28,6 +28,18 @@ function formatAmount(amount: number, currency: string): string {
     const symbols: Record<string, string> = { USD: '$', INR: '₹', EUR: '€', GBP: '£' };
     const symbol = symbols[currency] || `${currency} `;
     return `${symbol}${Number(amount).toFixed(2)}`;
+}
+
+function sanitizeWebsiteUrl(urlString: string | null | undefined): string | null {
+    if (!urlString) return null;
+    try {
+        const normalized = /^https?:/i.test(urlString) ? urlString : `https://${urlString}`;
+        const parsed = new URL(normalized);
+        if (!['http:', 'https:'].includes(parsed.protocol.toLowerCase())) return null;
+        return parsed.href;
+    } catch {
+        return null;
+    }
 }
 
 export default async function SubmitResultPage({ params, searchParams }: ResultPageProps) {
@@ -73,15 +85,26 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
         const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
         const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || 'https://test.dodopayments.com';
 
-        // Use the payment_id from Dodo's return URL, or fall back to our stored ID
+        // Use the payment_id from Dodo's return URL as priority, or fall back to our stored session ID
         const dodoPaymentId = resolvedSearchParams.payment_id || payment.payment_id;
+        if (resolvedSearchParams.payment_id && payment.payment_id && resolvedSearchParams.payment_id !== payment.payment_id) {
+            console.warn('[Submit Result] SearchParam payment_id differs from stored payment_id (using search param)');
+        }
 
         if (DODO_API_KEY && dodoPaymentId) {
             try {
-                const dodoRes = await fetch(`${DODO_BASE_URL}/payments/${dodoPaymentId}`, {
-                    headers: { Authorization: `Bearer ${DODO_API_KEY}` },
-                    cache: 'no-store',
-                });
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
+                let dodoRes: Response;
+                try {
+                    dodoRes = await fetch(`${DODO_BASE_URL}/payments/${dodoPaymentId}`, {
+                        headers: { Authorization: `Bearer ${DODO_API_KEY}` },
+                        cache: 'no-store',
+                        signal: controller.signal,
+                    });
+                } finally {
+                    clearTimeout(timeout);
+                }
 
                 if (dodoRes.ok) {
                     const dodoPayment = await dodoRes.json();
@@ -105,8 +128,8 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                             .update({ payment_status: 'success' })
                             .eq('id', payment.submission_id);
 
-                        // Send confirmation email (same as webhook)
-                        if (payment.submitter_email) {
+                        // Send confirmation email (via Resend)
+                        if (payment.submitter_email && payment.email_status !== 'sent') {
                             const emailId = await sendSubmissionEmail('success', {
                                 submitter_name: payment.submitter_name || 'there',
                                 submitter_email: payment.submitter_email,
@@ -115,6 +138,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                                 plan: payment.plan || 'basic',
                                 submission_ref: submission?.submission_ref || null,
                             });
+                            
                             if (emailId) {
                                 await supabaseAdmin
                                     .from('payments')
@@ -150,7 +174,11 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                     // If still 'processing' or other status, leave as initiated
                 }
             } catch (err) {
-                console.error('[Submit Result] Fallback Dodo API check failed:', err);
+                if ((err as any)?.name === 'AbortError') {
+                    console.warn('[Submit Result] Fallback Dodo API check timed out');
+                } else {
+                    console.error('[Submit Result] Fallback Dodo API check failed:', err);
+                }
             }
         }
     }
@@ -192,6 +220,20 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
     const plan = payment?.plan || null;
     const toolName = payment?.tool_name || null;
     const websiteUrl = payment?.tool_url || submission?.website_url || null;
+    const safeWebsiteUrl = sanitizeWebsiteUrl(websiteUrl);
+
+    let liveListingHref: string | null = null;
+    if (isLive && websiteUrl) {
+        const { data: liveTool } = await supabaseAdmin
+            .from('tools')
+            .select('app_username')
+            .eq('status', 'published')
+            .eq('website_url', websiteUrl)
+            .maybeSingle();
+        if (liveTool?.app_username) {
+            liveListingHref = `/app/${liveTool.app_username}`;
+        }
+    }
 
     // Receipt header class
     const headerClass =
@@ -253,16 +295,16 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                         <span className="receipt-value">{toolName}</span>
                     </div>
                 )}
-                {websiteUrl && (
+                {safeWebsiteUrl && (
                     <div className="receipt-row">
                         <span className="receipt-label">Website</span>
                         <a
-                            href={websiteUrl}
+                            href={safeWebsiteUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="receipt-value inline-flex items-center gap-1 text-[var(--accent-primary)] hover:underline"
                         >
-                            {websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                            {safeWebsiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                             <ExternalLink className="h-3 w-3 shrink-0" />
                         </a>
                     </div>
@@ -350,8 +392,8 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                                 <Home className="h-4 w-4" />
                                 Back to Home
                             </Link>
-                            {isLive && (
-                                <Link href="/search" className="submit-btn-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium">
+                            {isLive && liveListingHref && (
+                                <Link href={liveListingHref} className="submit-btn-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium">
                                     <ArrowRight className="h-4 w-4" />
                                     View Listing
                                 </Link>

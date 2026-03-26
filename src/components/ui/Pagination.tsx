@@ -16,7 +16,8 @@ export default function Pagination({
     scrollToTop = true,
 }: PaginationProps) {
     // Clamp currentPage to valid range
-    const validatedPage = Math.min(Math.max(1, currentPage), totalPages);
+    const safeTotalPages = Math.max(1, totalPages);
+    const validatedPage = Math.min(Math.max(1, currentPage), safeTotalPages);
 
     // Sync parent when currentPage is out of valid range
     // IMPORTANT: This useEffect must be called before the early return to comply with Rules of Hooks
@@ -26,7 +27,7 @@ export default function Pagination({
         }
     }, [currentPage, validatedPage, onPageChange]);
 
-    if (totalPages <= 1) return null;
+    if (safeTotalPages <= 1) return null;
 
     function handlePageChange(page: number) {
         onPageChange(page);
@@ -99,7 +100,7 @@ export default function Pagination({
 
                 <button
                     onClick={() => handlePageChange(validatedPage + 1)}
-                    disabled={validatedPage === totalPages}
+                    disabled={validatedPage === safeTotalPages}
                     aria-label="Next page"
                     className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-bg-card text-text-secondary transition-all duration-200 hover:border-accent-primary hover:text-accent-primary disabled:opacity-40 disabled:pointer-events-none"
                 >

@@ -55,7 +55,7 @@ function toPublicDetailTool(row: any) {
 
 // GET /api/public/tools/[id] - Get single published tool (NO AUTH REQUIRED)
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {

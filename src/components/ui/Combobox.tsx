@@ -175,7 +175,7 @@ export default function Combobox(props: Props) {
                 const rawNext = focusedIdx + 1;
                 setFocusedIdx(Math.min(rawNext, visibleTotalItems - 1));
                 // Expand displayLimit when reaching last visible option and more exist
-                if (rawNext === visibleCount && filteredOptions.length > displayLimit) {
+                if (!canAddNew && rawNext >= visibleCount && filteredOptions.length > displayLimit) {
                     setDisplayLimit(dl => dl + 20);
                 }
                 break;

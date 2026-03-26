@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fileTypeFromBuffer } from 'file-type';
 import { uploadFile, generateUniqueFilename } from '@/services/storage.service';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
 
         if (!ALLOWED_TYPES.includes(file.type)) {
-            return NextResponse.json({ error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP, SVG' }, { status: 400 });
+            return NextResponse.json({ error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP' }, { status: 400 });
         }
 
         if (file.size > MAX_SIZE) {
@@ -41,12 +42,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const buffer = Buffer.from(await file.arrayBuffer());
 
+        // Validate real file bytes (not only client-provided MIME type).
+        const detectedType = await fileTypeFromBuffer(buffer);
+        if (!detectedType || !ALLOWED_TYPES.includes(detectedType.mime)) {
+            return NextResponse.json({ error: 'Invalid image file content' }, { status: 400 });
+        }
+
         // Compress to WebP if possible
         let finalBuffer: Uint8Array = new Uint8Array(buffer);
         let finalMimeType = file.type;
         let filename = generateUniqueFilename(file.name);
 
-        if (file.type !== 'image/svg+xml' && file.type !== 'image/gif') {
+        if (detectedType.mime !== 'image/gif') {
             try {
                 const sharp = (await import('sharp')).default;
                 const webpBuffer = await sharp(buffer)

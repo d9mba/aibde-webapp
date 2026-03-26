@@ -7,7 +7,7 @@ export default function CleanUrlClient() {
         if (typeof window === 'undefined') return;
         const url = new URL(window.location.href);
         if (url.search) {
-            const clean = url.origin + url.pathname;
+            const clean = url.origin + url.pathname + url.hash;
             window.history.replaceState({}, '', clean);
         }
     }, []);

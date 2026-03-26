@@ -301,7 +301,7 @@ export default function CategoriesPage() {
                             ) : (
                                 categories.map((cat: Category) => (
                                     <tr key={cat.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" 
-                                        role="button" tabIndex={editingId === cat.id ? -1 : 0} aria-disabled={pageLoading || !!editingId}
+                                        role="button" tabIndex={(pageLoading || !!editingId) ? -1 : 0} aria-disabled={pageLoading || !!editingId}
                                         onClick={() => { if (!pageLoading && !editingId) router.push(`/dashboard/categories/${slugify(cat.categoryName)}`); }}
                                         onKeyDown={(e) => { if (!pageLoading && !editingId && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); router.push(`/dashboard/categories/${slugify(cat.categoryName)}`); } }}
                                     >

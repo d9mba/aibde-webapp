@@ -590,6 +590,12 @@ select option:checked {
 .submit-marquee:hover {
     animation-play-state: paused;
 }
+@media (prefers-reduced-motion: reduce) {
+    .submit-marquee,
+    .submit-marquee:hover {
+        animation: none !important;
+    }
+}
 /* Result page – status icons */
 .result-success-icon {
     width: 5rem;
@@ -731,6 +737,11 @@ select option:checked {
 }
 .status-pulse {
     animation: statusPulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .status-pulse {
+        animation: none !important;
+    }
 }
 
 /* Google-style animated check / fail icons */

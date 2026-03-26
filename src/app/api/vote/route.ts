@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
@@ -7,7 +8,15 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     // Apply rate limiting
-    const identifier = getClientIp(request);
+    const ip = getClientIp(request);
+    const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+    const cfIp = request.headers.get('cf-connecting-ip')?.trim();
+    const identifier = ip && ip !== 'anonymous'
+        ? ip
+        : (forwarded || cfIp || `anon:${createHash('sha256')
+            .update(`${request.headers.get('user-agent') || ''}|${request.headers.get('accept-language') || ''}`)
+            .digest('hex')
+            .slice(0, 16)}`);
     const rateLimit = await checkRateLimit(`vote:${identifier}`, rateLimits.standard);
     if (!rateLimit.success) {
         return NextResponse.json(

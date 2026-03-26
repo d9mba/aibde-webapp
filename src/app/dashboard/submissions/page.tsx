@@ -502,9 +502,13 @@ export default function SubmissionsDashboard() {
                                 </div>
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Email</h3>
-                                    <a href={`mailto:${previewSub.submitter_email}`} className="text-sm text-accent-primary hover:underline flex items-center gap-1">
-                                        <Mail size={14} /> {previewSub.submitter_email}
-                                    </a>
+                                    {previewSub.submitter_email ? (
+                                        <a href={`mailto:${previewSub.submitter_email}`} className="text-sm text-accent-primary hover:underline flex items-center gap-1">
+                                            <Mail size={14} /> {previewSub.submitter_email}
+                                        </a>
+                                    ) : (
+                                        <span className="text-sm text-text-tertiary">—</span>
+                                    )}
                                 </div>
                                 {previewSub.website_url && (
                                     <div>
@@ -573,7 +577,7 @@ export default function SubmissionsDashboard() {
                                     <CreditCard size={14} /> View Payments
                                 </Link>
                                 <a
-                                    href={`mailto:${previewSub.submitter_email}?subject=Re: ${previewSub.tool_name} Submission`}
+                                    href={`mailto:${previewSub.submitter_email}?subject=${encodeURIComponent(`Re: ${previewSub.tool_name} Submission`)}`}
                                     className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border text-text-primary rounded-lg text-sm font-medium hover:bg-bg-tertiary transition-colors"
                                 >
                                     <Mail size={14} /> Email

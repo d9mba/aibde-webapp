@@ -122,7 +122,10 @@ export default function NotesPage() {
                     });
                 })
                 .catch((err) => {
-                    if (err.name === 'AbortError') return;
+                    if (err.name === 'AbortError') {
+                        fetchedToolIdsRef.current.delete(id);
+                        return;
+                    }
                     console.error(`[Notes] Failed to fetch tool ${id}:`, err);
                     fetchedToolIdsRef.current.delete(id);
                 });

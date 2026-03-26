@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendSubmissionEmail } from '@/lib/emails/submission';
 
@@ -21,23 +22,29 @@ function getWebhookSecret(): string | undefined {
     return process.env.DODO_WEBHOOK_SECRET;
 }
 
-async function verifyWebhookSignature(
+function verifyWebhookSignature(
     rawBody: string,
     signature: string | null,
     secret: string
-): Promise<boolean> {
+): boolean {
     if (!signature) return false;
-    const crypto = await import('crypto');
     const hmac = crypto.createHmac('sha256', secret);
     hmac.update(rawBody);
     const expected = hmac.digest('hex');
-    
-    // Timing-safe comparison
-    let match = expected.length === signature.length ? 0 : 1;
-    for (let i = 0; i < Math.min(expected.length, signature.length); i++) {
-        match |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+
+    const normalizedSignature = signature.trim().replace(/^sha256=/i, '');
+    if (expected.length !== normalizedSignature.length) {
+        return false;
     }
-    return match === 0;
+
+    try {
+        const expectedBuffer = Buffer.from(expected, 'hex');
+        const signatureBuffer = Buffer.from(normalizedSignature, 'hex');
+        if (expectedBuffer.length !== signatureBuffer.length) return false;
+        return crypto.timingSafeEqual(expectedBuffer, signatureBuffer);
+    } catch {
+        return false;
+    }
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -52,13 +59,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const rawBody = await request.text();
         const signature = request.headers.get('x-dodo-signature') || request.headers.get('x-signature');
         
-        const isValid = await verifyWebhookSignature(rawBody, signature, secret);
+        const isValid = verifyWebhookSignature(rawBody, signature, secret);
         if (!isValid) {
             console.error('[Dodo Webhook] Invalid signature');
             return NextResponse.json({ received: false }, { status: 401 });
         }
 
-        const payload = JSON.parse(rawBody).catch(() => null);
+        let payload: any = null;
+        try {
+            payload = JSON.parse(rawBody);
+        } catch {
+            payload = null;
+        }
         if (!payload) {
             return NextResponse.json({ received: false }, { status: 400 });
         }
@@ -185,12 +197,42 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const toolUrl = existingPayment.tool_url || metadata.tool_url || metadata.toolUrl || null;
         const plan = existingPayment.plan || metadata.plan || 'basic';
 
-        // Track email delivery metadata
-        let emailStatus: 'not_sent' | 'sent' | 'failed' = 'not_sent';
+        // First claim/update record before email send for idempotency.
+        const provisionalEmailStatus = submitterEmail
+            ? ((existingPayment.email_status === 'sent' ? 'sent' : 'pending') as 'sent' | 'pending')
+            : 'not_sent';
+
+        const { data: claimedPayment, error: updateError } = await supabaseAdmin
+            .from('payments')
+            .update({
+                status: statusFromEvent,
+                payment_id: dodoPaymentId || existingPayment.payment_id,
+                amount: amount ?? existingPayment.amount,
+                currency: currency || existingPayment.currency,
+                failure_reason: failureReason,
+                updated_at: new Date().toISOString(),
+                email_status: provisionalEmailStatus,
+            })
+            .eq('id', existingPayment.id)
+            .eq('status', existingPayment.status)
+            .select('id')
+            .maybeSingle();
+
+        if (updateError) {
+            console.error('[Dodo Webhook] Failed to update payment', updateError);
+            return NextResponse.json({ received: false }, { status: 500 });
+        }
+
+        // Concurrent event already claimed this transition.
+        if (!claimedPayment) {
+            return NextResponse.json({ received: true }, { status: 200 });
+        }
+
+        let emailStatus: 'pending' | 'not_sent' | 'sent' | 'failed' = provisionalEmailStatus;
         let emailSentAt: string | null = null;
         let emailProviderId: string | null = null;
 
-        if (submitterEmail) {
+        if (submitterEmail && provisionalEmailStatus !== 'sent') {
             const emailId = await sendSubmissionEmail(emailType, {
                 submitter_name: submitterName,
                 submitter_email: submitterEmail,
@@ -207,27 +249,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             } else {
                 emailStatus = 'failed';
             }
-        }
 
-        // Update payments with status + email metadata + failure reason
-        const { error: updateError } = await supabaseAdmin
-            .from('payments')
-            .update({
-                status: statusFromEvent,
-                payment_id: dodoPaymentId || existingPayment.payment_id,
-                amount: amount ?? existingPayment.amount,
-                currency: currency || existingPayment.currency,
-                failure_reason: failureReason,
-                updated_at: new Date().toISOString(),
-                email_status: emailStatus,
-                email_sent_at: emailSentAt,
-                email_provider_id: emailProviderId,
-            })
-            .eq('id', existingPayment.id);
+            const { error: emailUpdateError } = await supabaseAdmin
+                .from('payments')
+                .update({
+                    email_status: emailStatus,
+                    email_sent_at: emailSentAt,
+                    email_provider_id: emailProviderId,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', existingPayment.id);
 
-        if (updateError) {
-            console.error('[Dodo Webhook] Failed to update payment', updateError);
-            return NextResponse.json({ received: false }, { status: 500 });
+            if (emailUpdateError) {
+                console.error('[Dodo Webhook] Failed to update email metadata', emailUpdateError);
+            }
         }
 
         // Also mirror payment status on the related tool submission for easier admin filtering

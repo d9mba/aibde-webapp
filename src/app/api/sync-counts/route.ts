@@ -66,6 +66,14 @@ export async function POST() {
             count,
         }));
         const categoryErrors: string[] = [];
+        const { error: categoryResetError } = await supabaseAdmin
+            .from('categories')
+            .update({ count: 0 })
+            .gt('count', -1);
+        if (categoryResetError) {
+            console.error('[Sync Counts] Category reset failed:', categoryResetError.message);
+            categoryErrors.push(categoryResetError.message);
+        }
         await Promise.all(
             chunk(categoryRows, BATCH_SIZE).map(async (batch) => {
                 const { error } = await supabaseAdmin.from('categories').upsert(batch, { onConflict: 'category_name' });
@@ -82,6 +90,14 @@ export async function POST() {
             count,
         }));
         const taskErrors: string[] = [];
+        const { error: taskResetError } = await supabaseAdmin
+            .from('tasks')
+            .update({ count: 0 })
+            .gt('count', -1);
+        if (taskResetError) {
+            console.error('[Sync Counts] Task reset failed:', taskResetError.message);
+            taskErrors.push(taskResetError.message);
+        }
         await Promise.all(
             chunk(taskRows, BATCH_SIZE).map(async (batch) => {
                 const { error } = await supabaseAdmin.from('tasks').upsert(batch, { onConflict: 'task_name' });

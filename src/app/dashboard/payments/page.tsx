@@ -112,7 +112,7 @@ function groupBySubmission(payments: Payment[]): GroupedPayments[] {
                 latest_status: p.status,
                 latest_date: p.created_at,
                 total_attempts: 0,
-                total_amount: (p.amount || 0),
+                total_amount: 0,
                 currency: p.currency || 'USD',
                 plan: p.plan || '',
                 payments: [],

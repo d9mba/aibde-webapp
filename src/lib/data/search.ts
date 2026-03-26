@@ -3,8 +3,8 @@ import { AdminTool } from '@/types';
 
 const MAX_SEARCH_LIMIT = 200;
 
-// Strip search results to card-level fields only.
-// Provides safe defaults for required AdminTool fields not present in card data.
+// Provide safe defaults for required AdminTool fields.
+// This preserves the existing shape while ensuring card fields are always defined.
 function toSearchResult(tool: AdminTool): AdminTool {
     return {
         ...tool,

@@ -9,7 +9,7 @@ import { syncToolCounts } from '@/lib/sync-counts';
 // GET /api/tools/:id - Get single tool
 // SECURITY: Only admins can view non-published (draft/pending) tools
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -172,7 +172,7 @@ export async function PUT(
 
 // DELETE /api/tools/:id - Delete tool (ADMIN ONLY)
 export async function DELETE(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {

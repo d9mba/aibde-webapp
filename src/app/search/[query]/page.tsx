@@ -58,8 +58,9 @@ export default function SearchResultsPage() {
         if (searchQuery === initialQuery || searchQuery.length === 0) return [];
         const q = searchQuery.toLowerCase();
         return results.filter((t: AdminTool) =>
-            (t.name || '').toLowerCase().includes(q) ||
-            (t.description || '').toLowerCase().includes(q)
+            t.appUsername &&
+            ((t.name || '').toLowerCase().includes(q) ||
+            (t.description || '').toLowerCase().includes(q))
         ).slice(0, 6);
     }, [searchQuery, initialQuery, results]);
 

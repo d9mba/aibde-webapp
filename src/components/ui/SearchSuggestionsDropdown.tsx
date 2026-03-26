@@ -51,7 +51,7 @@ export default function SearchSuggestionsDropdown({
                         </div>
                     )}
                     <div className="flex items-center gap-1 min-w-0">
-                        <span className="text-sm text-text-primary truncate">
+                        <span className="text-sm text-text-primary truncate min-w-0">
                             {tool.name}
                         </span>
                         <ToolBadge listingType={tool.listingType} spotlightEnabled={tool.spotlightEnabled} isFeatured={tool.isFeatured} />

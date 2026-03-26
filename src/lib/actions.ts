@@ -63,13 +63,14 @@ export async function getSearchSuggestionsAction(query: string, limit: number = 
     }
 
     const q = query.trim();
+    const escapedQ = q.replace(/[\\%_]/g, '\\$&');
 
     // Lightweight query — only fetch the fields needed for the suggestion dropdown
     const { data, error } = await supabase
         .from('tools')
         .select('id, name, app_username, logo_url, summary, listing_type, is_featured, spotlight_enabled, pricing, view_count')
         .eq('status', 'published')
-        .ilike('name', `%${q}%`)
+        .ilike('name', `%${escapedQ}%`)
         .order('spotlight_enabled', { ascending: false, nullsFirst: false })
         .order('is_featured', { ascending: false, nullsFirst: false })
         .order('view_count', { ascending: false, nullsFirst: false })

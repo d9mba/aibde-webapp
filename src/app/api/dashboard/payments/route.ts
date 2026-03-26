@@ -14,7 +14,8 @@ export async function GET(): Promise<NextResponse> {
         .order('created_at', { ascending: false });
 
     if (paymentsError) {
-        return NextResponse.json({ error: paymentsError.message }, { status: 500 });
+        console.error('[Dashboard Payments] Failed to fetch payments', paymentsError);
+        return NextResponse.json({ error: 'An internal server error occurred' }, { status: 500 });
     }
 
     // Get unique submission IDs to fetch submission_refs

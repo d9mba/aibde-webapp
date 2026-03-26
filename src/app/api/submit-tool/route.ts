@@ -18,6 +18,10 @@ const MAX_LEN = {
 const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
 const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || 'https://test.dodopayments.com';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
+const ALLOWED_ORIGINS = (process.env.ALLOWED_REDIRECT_ORIGINS || SITE_URL || 'https://www.aibde.tech')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
 
 const BASIC_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_BASIC_PRODUCT_ID;
 const VERIFIED_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_VERIFIED_PRODUCT_ID;
@@ -64,6 +68,18 @@ interface ToolSubmissionData {
     // URL & Security
     baseUrl?: string;
     turnstileToken: string;
+}
+
+function isAllowedRedirectOrigin(baseUrl: string): boolean {
+    try {
+        const url = new URL(baseUrl);
+        return ALLOWED_ORIGINS.some(allowed => {
+            const allowedUrl = new URL(allowed);
+            return url.origin === allowedUrl.origin;
+        });
+    } catch {
+        return false;
+    }
 }
 
 function getProductIdForPlan(plan: PlanType): string | null {
@@ -194,6 +210,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 short_description: formData.shortDescription,
                 full_description: formData.longDescription || null,
                 logo_url: formData.logoUrl || null,
+                released_date: formData.releasedDate || null,
+                video_urls: formData.videoUrls || null,
+                screenshot_urls: formData.imageUrls || null,
+                tags: formData.tags || null,
+                key_features: formData.features || null,
+                has_affiliate_program: formData.hasAffiliateProgram ?? false,
+                affiliate_url: formData.affiliateUrl || null,
+                social_links: formData.socialLinks || null,
                 submitter_name: formData.submitterName,
                 submitter_email: formData.submitterEmail,
                 plan_selected: formData.plan,
@@ -248,43 +272,63 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
 
         // 3) Create Dodo checkout session
-        const isDev = process.env.NODE_ENV === 'development';
-        const baseUrl =
-            clientBaseUrl ||
-            (isDev ? request.nextUrl.origin : SITE_URL || request.nextUrl.origin);
+        let baseUrl = SITE_URL || request.nextUrl.origin;
+        if (clientBaseUrl && typeof clientBaseUrl === 'string' && isAllowedRedirectOrigin(clientBaseUrl)) {
+            baseUrl = clientBaseUrl;
+        }
         const returnUrl = `${baseUrl.replace(/\/$/, '')}/submit/result/${submission.id}`;
 
-        const response = await fetch(`${DODO_BASE_URL}/checkouts`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${DODO_API_KEY}`,
-            },
-            body: JSON.stringify({
-                product_cart: [
-                    {
-                        product_id: productId,
-                        quantity: 1,
+        const timeoutMs = Number(process.env.DODO_TIMEOUT_MS || 10_000);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+        let response: Response;
+        try {
+            response = await fetch(`${DODO_BASE_URL}/checkouts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${DODO_API_KEY}`,
+                },
+                body: JSON.stringify({
+                    product_cart: [
+                        {
+                            product_id: productId,
+                            quantity: 1,
+                        },
+                    ],
+                    customer: {
+                        email: formData.submitterEmail,
+                        name: formData.submitterName,
                     },
-                ],
-                customer: {
-                    email: formData.submitterEmail,
-                    name: formData.submitterName,
-                },
-                return_url: returnUrl,
-                metadata: {
-                    submission_id: submission.id,
-                    payment_id: payment.id,
-                    tool_name: formData.toolName,
-                    email: formData.submitterEmail,
-                    plan: formData.plan,
-                },
-            }),
-        });
+                    return_url: returnUrl,
+                    metadata: {
+                        submission_id: submission.id,
+                        payment_id: payment.id,
+                        tool_name: formData.toolName,
+                        email: formData.submitterEmail,
+                        plan: formData.plan,
+                    },
+                }),
+                signal: controller.signal,
+            });
+        } catch (error: any) {
+            if (error?.name === 'AbortError') {
+                await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+                return NextResponse.json(
+                    { error: 'Payment provider timeout. Please try again.' },
+                    { status: 504 },
+                );
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeout);
+        }
 
         if (!response.ok) {
             const text = await response.text().catch(() => '');
             console.error('[Submit Tool API] Failed to create Dodo checkout', response.status, text);
+            await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },
@@ -298,6 +342,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         if (!session.checkout_url) {
             console.error('[Submit Tool API] Missing checkout_url in Dodo response', session);
+            await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },

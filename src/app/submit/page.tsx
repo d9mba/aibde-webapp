@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
+import { addUtmParams } from '@/lib/url-utils';
 import { useSearchParams } from 'next/navigation';
 import {
     AlertCircle,
@@ -15,6 +16,7 @@ import {
     Image as ImageIcon,
     LayoutDashboard,
     Loader2,
+    Plus,
     Rocket,
     Search,
     ShieldCheck,
@@ -23,6 +25,7 @@ import {
     TrendingUp,
     Upload,
     Users,
+    X,
 } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -34,10 +37,16 @@ interface FormData {
     toolName: string;
     toolUrl: string;
     shortDescription: string;
+    fullDescription: string;
     pricing: string;
     category: string;
     customCategory: string;
     plan: 'basic' | 'verified' | 'featured';
+    releasedDate: string;
+    tags: string;
+    keyFeatures: string;
+    hasAffiliateProgram: boolean;
+    affiliateUrl: string;
 }
 
 interface RecentTool {
@@ -234,11 +243,34 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
         toolName: '',
         toolUrl: '',
         shortDescription: '',
+        fullDescription: '',
         pricing: '',
         category: '',
         customCategory: '',
         plan: 'verified',
+        releasedDate: '',
+        tags: '',
+        keyFeatures: '',
+        hasAffiliateProgram: false,
+        affiliateUrl: '',
     });
+
+    // Dynamic list fields
+    const [videoUrls, setVideoUrls] = useState<string[]>(['']);
+    const [screenshotUrls, setScreenshotUrls] = useState<string[]>(['']);
+    const [socialLinks, setSocialLinks] = useState<{ platform: string; url: string }[]>([{ platform: 'twitter', url: '' }]);
+
+    const SOCIAL_PLATFORMS = [
+        { value: 'twitter', label: 'Twitter/X' },
+        { value: 'linkedin', label: 'LinkedIn' },
+        { value: 'github', label: 'GitHub' },
+        { value: 'youtube', label: 'YouTube' },
+        { value: 'instagram', label: 'Instagram' },
+        { value: 'facebook', label: 'Facebook' },
+        { value: 'discord', label: 'Discord' },
+        { value: 'reddit', label: 'Reddit' },
+        { value: 'other', label: 'Other' },
+    ];
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(isPreview);
@@ -262,7 +294,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
         fetch('/api/public/tools?limit=8')
             .then((r) => r.json())
             .then((d) => setRecentTools(d.data || []))
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setToolsLoading(false));
 
         // Same count functions used by the homepage
@@ -273,7 +305,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                 if (d.categories) setCategoryCount(d.categories);
                 if (d.tasks) setTaskCount(d.tasks);
             })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     useEffect(() => {
@@ -341,26 +373,58 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
             if (logoFileRef.current) {
                 const logoFormData = new FormData();
                 logoFormData.append('file', logoFileRef.current);
-                const logoRes = await fetch('/api/public/upload-logo', {
-                    method: 'POST',
-                    body: logoFormData,
-                });
-                if (logoRes.ok) {
+                try {
+                    const logoRes = await fetch('/api/public/upload-logo', {
+                        method: 'POST',
+                        body: logoFormData,
+                    });
+
+                    if (!logoRes.ok) {
+                        const logoErrorBody = await logoRes.json().catch(() => null);
+                        const logoErrorMsg =
+                            logoErrorBody?.error || `Logo upload failed with status ${logoRes.status}`;
+                        throw new Error(logoErrorMsg);
+                    }
+
                     const logoResult = await logoRes.json();
                     logoUrl = logoResult.path;
+                } catch (uploadErr) {
+                    throw new Error(
+                        uploadErr instanceof Error
+                            ? `Logo upload failed: ${uploadErr.message}`
+                            : 'Logo upload failed. Please try again.',
+                    );
                 }
             }
+
+            // Serialize dynamic lists
+            const filteredVideoUrls = videoUrls.filter(u => u.trim()).join('\n');
+            const filteredScreenshotUrls = screenshotUrls.filter(u => u.trim()).join('\n');
+            const filteredSocialLinks = socialLinks.filter(s => s.url.trim());
 
             const baseUrl = window.location.origin;
             const response = await fetch('/api/submit-tool', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ...formData,
-                    description: formData.shortDescription,
-                    tags: formData.category,
+                    submitterName: formData.submitterName,
+                    submitterEmail: formData.submitterEmail,
+                    toolName: formData.toolName,
+                    toolUrl: formData.toolUrl,
+                    shortDescription: formData.shortDescription,
+                    longDescription: formData.fullDescription || undefined,
+                    pricing: formData.pricing,
+                    plan: formData.plan,
                     customCategory: formData.category === 'other' ? formData.customCategory : undefined,
-                    socialLinks: [],
+                    category: formData.category,
+                    releasedDate: formData.releasedDate || undefined,
+                    videoUrls: filteredVideoUrls || undefined,
+                    imageUrls: filteredScreenshotUrls || undefined,
+                    tags: formData.tags || undefined,
+                    features: formData.keyFeatures || undefined,
+                    hasAffiliateProgram: formData.hasAffiliateProgram,
+                    affiliateUrl: formData.affiliateUrl || undefined,
+                    socialLinks: filteredSocialLinks.length > 0 ? filteredSocialLinks : undefined,
                     logoUrl,
                     turnstileToken,
                     baseUrl,
@@ -558,12 +622,11 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                 <button
                                     key={plan.id}
                                     type="button"
-                                    onClick={() => setFormData((prev) => ({ ...prev, plan: plan.id }))}
-                                    className={`group relative flex flex-col rounded-2xl border-2 p-6 text-left transition ${
-                                        isSelected
+                                    onClick={() => { setFormData((prev) => ({ ...prev, plan: plan.id })); setTimeout(() => document.getElementById('submit-form')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
+                                    className={`group relative flex flex-col rounded-2xl border-2 p-6 text-left transition ${isSelected
                                             ? 'border-[var(--accent-primary)] bg-[var(--accent-primary-bg)]'
                                             : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-[var(--accent-primary)]/60'
-                                    }`}
+                                        }`}
                                 >
                                     {plan.badge && (
                                         <span className="absolute -top-3 right-4 rounded-full bg-[var(--accent-primary)] px-3 py-0.5 text-xs font-bold text-white">
@@ -643,18 +706,19 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                 <form onSubmit={handleSubmit} className="space-y-5">
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div>
-                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Tool Name *</label>
-                                            <input name="toolName" value={formData.toolName} onChange={handleChange} className={inputClass('toolName')} placeholder="My AI Tool" />
+                                            <label htmlFor="toolName" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Tool Name *</label>
+                                            <input id="toolName" name="toolName" value={formData.toolName} onChange={handleChange} className={inputClass('toolName')} placeholder="My AI Tool" />
                                         </div>
                                         <div>
-                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Website URL *</label>
-                                            <input name="toolUrl" value={formData.toolUrl} onChange={handleChange} className={inputClass('toolUrl')} placeholder="https://myaitool.com" />
+                                            <label htmlFor="toolUrl" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Website URL *</label>
+                                            <input id="toolUrl" name="toolUrl" value={formData.toolUrl} onChange={handleChange} className={inputClass('toolUrl')} placeholder="https://myaitool.com" />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Short Description *</label>
+                                        <label htmlFor="shortDescription" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Short Description *</label>
                                         <textarea
+                                            id="shortDescription"
                                             name="shortDescription"
                                             maxLength={160}
                                             rows={2}
@@ -671,28 +735,39 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                             <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Category *</label>
                                             <SearchableSelect
                                                 value={formData.category}
-                                                onChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
+                                                onChange={(value) => {
+                                                    setFormData((prev) => ({ ...prev, category: value }));
+                                                    setError('');
+                                                    if (value) setFieldErrors((prev) => ({ ...prev, category: false }));
+                                                }}
                                                 options={CATEGORY_OPTIONS}
                                                 placeholder="Select category"
                                                 showSearch={false}
+                                                error={!!fieldErrors.category}
                                             />
                                         </div>
                                         <div>
                                             <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Pricing Model *</label>
                                             <SearchableSelect
                                                 value={formData.pricing}
-                                                onChange={(value) => setFormData((prev) => ({ ...prev, pricing: value }))}
+                                                onChange={(value) => {
+                                                    setFormData((prev) => ({ ...prev, pricing: value }));
+                                                    setError('');
+                                                    if (value) setFieldErrors((prev) => ({ ...prev, pricing: false }));
+                                                }}
                                                 options={PRICING_OPTIONS}
                                                 placeholder="Select pricing"
                                                 showSearch={false}
+                                                error={!!fieldErrors.pricing}
                                             />
                                         </div>
                                     </div>
 
                                     {formData.category === 'other' && (
                                         <div>
-                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Custom Category Name *</label>
+                                            <label htmlFor="customCategory" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Custom Category Name *</label>
                                             <input
+                                                id="customCategory"
                                                 name="customCategory"
                                                 value={formData.customCategory}
                                                 onChange={handleChange}
@@ -702,14 +777,199 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                         </div>
                                     )}
 
+                                    {/* ── Expanded Optional Fields ── */}
+                                    <div>
+                                        <label htmlFor="fullDescription" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Full Description</label>
+                                        <textarea
+                                            id="fullDescription"
+                                            name="fullDescription"
+                                            rows={4}
+                                            value={formData.fullDescription}
+                                            onChange={(e) => {
+                                                const words = e.target.value.trim().split(/\s+/).filter(Boolean);
+                                                if (words.length <= 400 || e.target.value.length < formData.fullDescription.length) {
+                                                    handleChange(e);
+                                                }
+                                            }}
+                                            className={`${inputClass('fullDescription')} resize-none`}
+                                            placeholder="Provide a detailed description of your tool, its purpose, and how it works..."
+                                        />
+                                        <div className="mt-1 flex justify-between items-center">
+                                            <p className="text-xs text-[var(--text-tertiary)]">Long-form description for your tool listing page.</p>
+                                            <p className={`text-xs ${formData.fullDescription.trim().split(/\s+/).filter(Boolean).length >= 400 ? 'text-[var(--accent-red)]' : 'text-[var(--text-tertiary)]'}`}>
+                                                {formData.fullDescription.trim().split(/\s+/).filter(Boolean).length}/400 words
+                                            </p>
+                                        </div>
+                                    </div>
+
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div>
-                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Founder Email *</label>
-                                            <input name="submitterEmail" value={formData.submitterEmail} onChange={handleChange} className={inputClass('submitterEmail')} placeholder="you@company.com" />
+                                            <label htmlFor="releasedDate" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Released Date</label>
+                                            <input
+                                                id="releasedDate"
+                                                name="releasedDate"
+                                                type="date"
+                                                value={formData.releasedDate}
+                                                onChange={handleChange}
+                                                className={inputClass('releasedDate')}
+                                            />
                                         </div>
                                         <div>
-                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Your Name *</label>
-                                            <input name="submitterName" value={formData.submitterName} onChange={handleChange} className={inputClass('submitterName')} placeholder="Jane Doe" />
+                                            <label htmlFor="tags" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Tags</label>
+                                            <input
+                                                id="tags"
+                                                name="tags"
+                                                value={formData.tags}
+                                                onChange={handleChange}
+                                                className={inputClass('tags')}
+                                                placeholder="chatbot, productivity, automation"
+                                            />
+                                            <p className="mt-1 text-xs text-[var(--text-tertiary)]">Comma-separated tags for better discovery.</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="keyFeatures" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Key Features</label>
+                                        <textarea
+                                            id="keyFeatures"
+                                            name="keyFeatures"
+                                            rows={3}
+                                            value={formData.keyFeatures}
+                                            onChange={handleChange}
+                                            className={`${inputClass('keyFeatures')} resize-none`}
+                                            placeholder={"AI-powered code completion\nReal-time collaboration\nMulti-language support"}
+                                        />
+                                        <p className="mt-1 text-xs text-[var(--text-tertiary)]">One feature per line.</p>
+                                    </div>
+
+                                    {/* ── Video URLs (dynamic rows) ── */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-sm font-medium text-[var(--text-secondary)]">Video URLs</label>
+                                            <button type="button" onClick={() => setVideoUrls(prev => [...prev, ''])} className="flex items-center gap-1 px-3 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] rounded-lg text-sm font-medium hover:bg-[var(--accent-green)]/20 transition-colors">
+                                                <Plus className="w-4 h-4" /> Add Video
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {videoUrls.map((url, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center">
+                                                    <input
+                                                        type="url"
+                                                        value={url}
+                                                        onChange={(e) => { const next = [...videoUrls]; next[idx] = e.target.value; setVideoUrls(next); }}
+                                                        className="submit-input flex-1"
+                                                        placeholder="https://youtube.com/watch?v=..."
+                                                    />
+                                                    {videoUrls.length > 1 && (
+                                                        <button type="button" onClick={() => setVideoUrls(prev => prev.filter((_, i) => i !== idx))} className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* ── Screenshot URLs (dynamic rows) ── */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-sm font-medium text-[var(--text-secondary)]">Screenshot URLs</label>
+                                            <button type="button" onClick={() => setScreenshotUrls(prev => [...prev, ''])} className="flex items-center gap-1 px-3 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] rounded-lg text-sm font-medium hover:bg-[var(--accent-green)]/20 transition-colors">
+                                                <Plus className="w-4 h-4" /> Add Image
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {screenshotUrls.map((url, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center">
+                                                    <input
+                                                        type="url"
+                                                        value={url}
+                                                        onChange={(e) => { const next = [...screenshotUrls]; next[idx] = e.target.value; setScreenshotUrls(next); }}
+                                                        className="submit-input flex-1"
+                                                        placeholder="https://example.com/screenshot.png"
+                                                    />
+                                                    {screenshotUrls.length > 1 && (
+                                                        <button type="button" onClick={() => setScreenshotUrls(prev => prev.filter((_, i) => i !== idx))} className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* ── Affiliate Program ── */}
+                                    <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 space-y-3">
+                                        <label className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.hasAffiliateProgram}
+                                                onChange={(e) => setFormData((prev) => ({ ...prev, hasAffiliateProgram: e.target.checked }))}
+                                                className="h-4 w-4 rounded border-[var(--border-color)]"
+                                            />
+                                            This tool has an affiliate program
+                                        </label>
+                                        {formData.hasAffiliateProgram && (
+                                            <div>
+                                                <label htmlFor="affiliateUrl" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Affiliate URL</label>
+                                                <input
+                                                    id="affiliateUrl"
+                                                    name="affiliateUrl"
+                                                    value={formData.affiliateUrl}
+                                                    onChange={handleChange}
+                                                    className={inputClass('affiliateUrl')}
+                                                    placeholder="https://myaitool.com/affiliate"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* ── Social Media Links (dynamic rows) ── */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-sm font-medium text-[var(--text-secondary)]">Social Media Links</label>
+                                            <button type="button" onClick={() => setSocialLinks(prev => [...prev, { platform: 'twitter', url: '' }])} className="flex items-center gap-1 px-3 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] rounded-lg text-sm font-medium hover:bg-[var(--accent-green)]/20 transition-colors">
+                                                <Plus className="w-4 h-4" /> Add Link
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {socialLinks.map((link, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center">
+                                                    <div className="relative w-48">
+                                                        <SearchableSelect
+                                                            value={link.platform}
+                                                            onChange={(val) => { const next = [...socialLinks]; next[idx] = { ...next[idx], platform: val }; setSocialLinks(next); }}
+                                                            options={SOCIAL_PLATFORMS}
+                                                            showSearch={false}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+                                                    <input
+                                                        type="url"
+                                                        value={link.url}
+                                                        onChange={(e) => { const next = [...socialLinks]; next[idx] = { ...next[idx], url: e.target.value }; setSocialLinks(next); }}
+                                                        className="submit-input flex-1"
+                                                        placeholder="https://..."
+                                                    />
+                                                    {socialLinks.length > 1 && (
+                                                        <button type="button" onClick={() => setSocialLinks(prev => prev.filter((_, i) => i !== idx))} className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* ── Contact Info ── */}
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label htmlFor="submitterEmail" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Founder Email *</label>
+                                            <input id="submitterEmail" name="submitterEmail" value={formData.submitterEmail} onChange={handleChange} className={inputClass('submitterEmail')} placeholder="you@company.com" />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="submitterName" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Your Name *</label>
+                                            <input id="submitterName" name="submitterName" value={formData.submitterName} onChange={handleChange} className={inputClass('submitterName')} placeholder="Jane Doe" />
                                         </div>
                                     </div>
 
@@ -722,7 +982,13 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                                     <span className="flex-1 truncate text-sm text-[var(--text-primary)]">{logoFileName}</span>
                                                     <button
                                                         type="button"
-                                                        onClick={(e) => { e.preventDefault(); setLocalLogoPreview(''); setLogoFileName(''); }}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            if (localLogoPreview) URL.revokeObjectURL(localLogoPreview);
+                                                            logoFileRef.current = null;
+                                                            setLocalLogoPreview('');
+                                                            setLogoFileName('');
+                                                        }}
                                                         className="rounded-full p-0.5 hover:bg-[var(--bg-secondary)]"
                                                     >
                                                         <CloseIcon size={14} className="text-[var(--text-tertiary)] hover:text-[var(--accent-red)]" />
@@ -793,36 +1059,147 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                 </form>
                             )}
                         </div>
-
-                        <div className="space-y-5">
+                        <div className="lg:sticky lg:top-20 lg:self-start space-y-5">
                             {/* Listing Preview */}
                             <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
                                 <p className="text-sm font-semibold text-[var(--text-primary)]">Listing Preview</p>
-                                <div className="mt-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-                                    <div className="flex items-start gap-3">
+                                <div className="mt-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 max-w-full overflow-hidden">
+                                    <div className="flex items-start gap-3 min-w-0">
                                         <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--bg-card)]">
                                             {localLogoPreview ? (
                                                 <img
                                                     src={localLogoPreview}
-                                                    alt=""
-                                                    className="h-12 w-12 object-cover"
-                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                    alt="Logo"
+                                                    className="h-full w-full object-cover"
+                                                    onError={(e) => {
+                                                        e.currentTarget.style.display = 'none';
+                                                        e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
+                                                        e.currentTarget.parentElement?.insertAdjacentHTML('beforeend', '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="h-6 w-6 text-[var(--text-tertiary)]"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>');
+                                                    }}
                                                 />
                                             ) : (
                                                 <ImageIcon className="h-6 w-6 text-[var(--text-tertiary)]" />
                                             )}
                                         </div>
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-1">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-1 min-w-0">
                                                 <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
-                                                    {formData.toolName || 'Tool name'}
+                                                    {formData.toolName || <span className="text-[var(--text-tertiary)] italic font-normal">Tool Name</span>}
                                                 </p>
-                                                {formData.plan === 'verified' && <VerifiedBadge size={14} />}
-                                                {formData.plan === 'featured' && <FeaturedBadge size={14} />}
+                                                <div className="shrink-0 flex items-center">
+                                                    {formData.plan === 'verified' && <VerifiedBadge size={14} />}
+                                                    {formData.plan === 'featured' && <FeaturedBadge size={14} />}
+                                                </div>
                                             </div>
-                                            <p className="mt-1 line-clamp-2 break-words text-xs text-[var(--text-secondary)]">
-                                                {formData.shortDescription || 'Short description appears here.'}
+                                            <p className="mt-1 line-clamp-2 break-all text-xs text-[var(--text-secondary)]">
+                                                {formData.shortDescription || <span className="text-[var(--text-tertiary)] italic">Short description will appear here...</span>}
                                             </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Extended preview fields */}
+                                    <div className="mt-3 space-y-2 border-t border-[var(--border-color)] pt-3 w-full">
+                                        <div className="flex items-start gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Description</span>
+                                            <span className="break-all flex-1 min-w-0 text-[var(--text-primary)] line-clamp-3">
+                                                {formData.fullDescription || <span className="text-[var(--text-tertiary)] italic">Full description covering tool aspects, capabilities, and usage...</span>}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">URL</span>
+                                            {formData.toolUrl ? (
+                                                <a href={addUtmParams(formData.toolUrl)} target="_blank" rel="noopener noreferrer" className="truncate flex-1 min-w-0 text-[var(--accent-primary)] hover:underline">
+                                                    {formData.toolUrl}
+                                                </a>
+                                            ) : (
+                                                <span className="truncate flex-1 min-w-0 text-[var(--text-tertiary)] italic">https://myaitool.com</span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Category</span>
+                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">
+                                                {formData.category
+                                                    ? (formData.category === 'other' ? (formData.customCategory || 'Custom Category') : (CATEGORY_OPTIONS.find(c => c.value === formData.category)?.label || formData.category))
+                                                    : <span className="text-[var(--text-tertiary)] italic">—</span>}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Pricing</span>
+                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">
+                                                {formData.pricing ? (PRICING_OPTIONS.find(p => p.value === formData.pricing)?.label || formData.pricing) : <span className="text-[var(--text-tertiary)] italic">—</span>}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Released</span>
+                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">
+                                                {formData.releasedDate || <span className="text-[var(--text-tertiary)] italic">—</span>}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-start gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Tags</span>
+                                            <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                                                {formData.tags ? (
+                                                    formData.tags.split(',').map(t => t.trim()).filter(Boolean).map((tag, i) => (
+                                                        <span key={`${tag}-${i}`} className="max-w-full truncate rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">{tag}</span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-[var(--text-tertiary)] italic">—</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Features</span>
+                                            <ul className="space-y-0.5 flex-1 min-w-0">
+                                                {formData.keyFeatures ? (
+                                                    formData.keyFeatures.split('\n').filter(Boolean).slice(0, 5).map((f, i) => (
+                                                        <li key={i} className="flex items-start gap-1 text-[var(--text-primary)]">
+                                                            <span className="break-words min-w-0 flex-1">• {f}</span>
+                                                        </li>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-[var(--text-tertiary)] italic">—</span>
+                                                )}
+                                            </ul>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Videos</span>
+                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">{videoUrls.filter(u => u.trim()).length} video(s)</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Images</span>
+                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">{screenshotUrls.filter(u => u.trim()).length} screenshot(s)</span>
+                                        </div>
+
+                                        {formData.hasAffiliateProgram && (
+                                            <div className="flex items-center gap-2 text-xs">
+                                                <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Affiliate</span>
+                                                <a href={formData.affiliateUrl ? addUtmParams(formData.affiliateUrl) : '#'} target="_blank" rel="noopener noreferrer" className="truncate flex-1 min-w-0 text-[var(--accent-primary)] hover:underline">
+                                                    {formData.affiliateUrl || 'Yes'}
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-start gap-2 text-xs">
+                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Social</span>
+                                            <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                                                {socialLinks.filter(s => s.url.trim()).length > 0 ? (
+                                                    socialLinks.filter(s => s.url.trim()).map((s, i) => (
+                                                        <a href={s.url ? addUtmParams(s.url) : '#'} target="_blank" rel="noopener noreferrer" key={i} className="max-w-full truncate rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)] capitalize hover:text-[var(--accent-primary)] transition-colors">
+                                                            {s.platform}
+                                                        </a>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-[var(--text-tertiary)] italic">—</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

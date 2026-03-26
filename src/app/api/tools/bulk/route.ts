@@ -179,13 +179,6 @@ export async function POST(request: NextRequest) {
                 batchNames.add(toolNameLower);
                 batchSlugs.add(slug);
 
-                // Helper to parse JSON safely
-                const parseJSON = (val: any, defaultVal: any) => {
-                    if (!val) return defaultVal;
-                    if (typeof val !== 'string') return val;
-                    try { return JSON.parse(val); } catch { return defaultVal; }
-                };
-
                 // Helper for arrays
                 const parseArray = (val: any) => {
                     if (Array.isArray(val)) return val;

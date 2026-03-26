@@ -4,6 +4,7 @@ import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 
 const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_CONTACT_URL || '';
+const isProduction = process.env.NODE_ENV === 'production';
 const effectiveFingerprintSecret = (() => {
     if (process.env.CONTACT_FINGERPRINT_SECRET) return process.env.CONTACT_FINGERPRINT_SECRET;
     if (process.env.ADMIN_LOGIN_SECRET) return process.env.ADMIN_LOGIN_SECRET;
@@ -29,6 +30,14 @@ interface ContactFormData {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
+        if (isProduction && !GOOGLE_APPS_SCRIPT_URL) {
+            console.error('[Contact API] GOOGLE_APPS_SCRIPT_CONTACT_URL is not configured in production');
+            return NextResponse.json(
+                { error: 'Contact form backend is not configured' },
+                { status: 500 }
+            );
+        }
+
         // Rate limiting
         const ip = getClientIp(request);
         let identifier: string;

@@ -34,7 +34,7 @@ export async function generateMetadata({
     const year = new Date().getFullYear();
     const suffix = ` (Reviews, Pricing & Alternatives) | ${year} | AiBDE`;
     const prefix = `${tool.name}: `;
-    const maxSummaryLen = Math.max(10, 60 - prefix.length - suffix.length);
+    const maxSummaryLen = Math.max(0, 60 - prefix.length - suffix.length);
     const shortSummary = tool.summary
         ? tool.summary.slice(0, maxSummaryLen) + (tool.summary.length > maxSummaryLen ? '…' : '')
         : categoryLabel;

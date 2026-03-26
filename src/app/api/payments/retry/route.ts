@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { clerkClient } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuth, isAuthError } from '@/lib/auth-utils';
 
@@ -40,6 +41,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ error: 'submissionId is required' }, { status: 400 });
         }
 
+        // Verify ownership/authorization using the submitter email as principal.
+        const userId = authResult.userId;
+        const client = await clerkClient();
+        const user = await client.users.getUser(userId);
+        const primaryEmail = user.emailAddresses.find(
+            e => e.id === user.primaryEmailAddressId
+        )?.emailAddress?.toLowerCase();
+
         // Load the latest payment for this submission to get context
         const { data: latestPayment, error: latestError } = await supabaseAdmin
             .from('payments')
@@ -62,6 +71,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 { error: 'No payment found for this submission' },
                 { status: 404 },
             );
+        }
+
+        if (!primaryEmail || (latestPayment.submitter_email || '').toLowerCase() !== primaryEmail) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
         const productId = latestPayment.product_id;
@@ -97,7 +110,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        const isDev = process.env.NODE_ENV === 'development';
         // Validate and sanitize the redirect URL - fail closed to prevent open redirects
         let baseUrl = SITE_URL || request.nextUrl.origin;
         if (clientBaseUrl && typeof clientBaseUrl === 'string' && isAllowedRedirectOrigin(clientBaseUrl)) {
@@ -106,33 +118,52 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const returnUrl = `${baseUrl.replace(/\/$/, '')}/submit/result/${submissionId}`;
 
         // Create Dodo checkout session
-        const response = await fetch(`${DODO_BASE_URL}/checkouts`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${DODO_API_KEY}`,
-            },
-            body: JSON.stringify({
-                product_cart: [
-                    {
-                        product_id: productId,
-                        quantity: 1,
+        const timeoutMs = Number(process.env.DODO_TIMEOUT_MS || 10_000);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+        let response: Response;
+        try {
+            response = await fetch(`${DODO_BASE_URL}/checkouts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${DODO_API_KEY}`,
+                },
+                body: JSON.stringify({
+                    product_cart: [
+                        {
+                            product_id: productId,
+                            quantity: 1,
+                        },
+                    ],
+                    customer: {
+                        email: latestPayment.submitter_email,
+                        name: latestPayment.submitter_name,
                     },
-                ],
-                customer: {
-                    email: latestPayment.submitter_email,
-                    name: latestPayment.submitter_name,
-                },
-                return_url: returnUrl,
-                metadata: {
-                    submission_id: submissionId,
-                    payment_id: newPayment.id,
-                    tool_name: latestPayment.tool_name,
-                    email: latestPayment.submitter_email,
-                    plan: latestPayment.plan,
-                },
-            }),
-        });
+                    return_url: returnUrl,
+                    metadata: {
+                        submission_id: submissionId,
+                        payment_id: newPayment.id,
+                        tool_name: latestPayment.tool_name,
+                        email: latestPayment.submitter_email,
+                        plan: latestPayment.plan,
+                    },
+                }),
+                signal: controller.signal,
+            });
+        } catch (error: any) {
+            if (error?.name === 'AbortError') {
+                await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', newPayment.id);
+                return NextResponse.json(
+                    { error: 'Payment provider timeout. Please try again.' },
+                    { status: 504 },
+                );
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeout);
+        }
 
         if (!response.ok) {
             const text = await response.text().catch(() => '');
@@ -161,6 +192,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         if (!session.checkout_url) {
             console.error('[Retry Payment] Missing checkout_url in Dodo response', session);
+            const { error: updateError } = await supabaseAdmin
+                .from('payments')
+                .update({ status: 'failed' })
+                .eq('id', newPayment.id);
+            if (updateError) {
+                console.error('[Retry Payment] Failed to mark payment as failed', updateError);
+            }
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },

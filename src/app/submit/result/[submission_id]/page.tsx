@@ -52,7 +52,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
     const resolvedSearchParams = await searchParams;
     const submissionId = submission_id;
 
-    const uuidPattern = /^[0-9a-fA-F-]{36}$/;
+    const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/i;
     let payment: any = null;
     let submission: any = null;
     let error: any = null;
@@ -68,7 +68,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                 .maybeSingle(),
             supabaseAdmin
                 .from('tool_submissions')
-                .select('review_status, payment_status, submission_ref, website_url')
+                .select('review_status, payment_status, submission_ref, website_url, tool_id, app_username')
                 .eq('id', submissionId)
                 .maybeSingle(),
         ]);
@@ -88,7 +88,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
     // ─── Fallback: Poll Dodo API when webhook hasn't fired ───
     if (payment?.status === 'initiated') {
         const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
-        const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || 'https://test.dodopayments.com';
+        const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || (process.env.NODE_ENV === 'production' ? 'https://live.dodopayments.com' : 'https://test.dodopayments.com');
 
         // Use the payment_id from Dodo's return URL as priority, or fall back to our stored session ID
         const dodoPaymentId = resolvedSearchParams.payment_id || payment.payment_id;
@@ -112,85 +112,138 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                 }
 
                 if (dodoRes.ok) {
-                    const dodoPayment = await dodoRes.json();
-                    const dodoStatus = dodoPayment.status;
+                    let dodoPayment: any;
+                    try {
+                        dodoPayment = await dodoRes.json();
+                    } catch (parseErr) {
+                        console.error('[Submit Result] Failed to parse Dodo API response', { status: dodoRes.status, error: parseErr });
+                        dodoPayment = null;
+                    }
+                    const dodoStatus = dodoPayment?.status;
 
-                    if (dodoStatus === 'succeeded') {
-                        // Update our DB to match Dodo's status
-                        await supabaseAdmin
-                            .from('payments')
-                            .update({
-                                status: 'success',
-                                payment_id: dodoPaymentId,
-                                amount: typeof dodoPayment.total_amount === 'number' ? dodoPayment.total_amount / 100 : payment.amount,
-                                currency: dodoPayment.currency || payment.currency,
-                                updated_at: new Date().toISOString(),
-                            })
-                            .eq('id', payment.id);
-
-                        await supabaseAdmin
-                            .from('tool_submissions')
-                            .update({ payment_status: 'success' })
-                            .eq('id', payment.submission_id);
-
-                        // Send confirmation email (same as webhook)
-                        if (payment.submitter_email && payment.email_status !== 'sent') {
-                            const { data: emailClaim, error: emailClaimError } = await supabaseAdmin
-                                .from('payments')
-                                .update({ email_status: 'pending', updated_at: new Date().toISOString() })
-                                .eq('id', payment.id)
-                                .or('email_status.is.null,email_status.eq.not_sent,email_status.eq.failed')
-                                .select('id')
-                                .maybeSingle();
-
-                            if (emailClaimError) {
-                                console.error('[Submit Result] Failed to claim email send', emailClaimError);
-                            }
-
-                            if (emailClaim) {
-                                const emailId = await sendSubmissionEmail('success', {
-                                    submitter_name: payment.submitter_name || 'there',
-                                    submitter_email: payment.submitter_email,
-                                    tool_name: payment.tool_name || 'Your tool',
-                                    tool_url: payment.tool_url || null,
-                                    plan: payment.plan || 'basic',
-                                    submission_ref: submission?.submission_ref || null,
-                                });
-
-                                await supabaseAdmin
-                                    .from('payments')
-                                    .update(
-                                        emailId
-                                            ? { email_status: 'sent', email_sent_at: new Date().toISOString(), email_provider_id: emailId }
-                                            : { email_status: 'failed' }
-                                    )
-                                    .eq('id', payment.id);
-                            }
+                    if (dodoStatus === 'succeeded' || dodoStatus === 'failed' || dodoStatus === 'cancelled') {
+                        // CRITICAL SECURITY: Verify this Dodo payment actually belongs to this specific database transaction.
+                        const metaPaymentId = dodoPayment.metadata?.payment_id || dodoPayment.metadata?.paymentId;
+                        if (!metaPaymentId || metaPaymentId !== payment.id) {
+                            console.error('[Submit Result] Unauthorized Access Detected! Dodo payment metadata ID missing or mismatch.', { local: payment.id, meta: metaPaymentId });
+                            return (
+                                <div className="flex flex-col items-center justify-center min-h-[60vh] py-20 px-4 text-center">
+                                    <XCircle className="mx-auto h-16 w-16 text-[var(--accent-red)] mb-6" />
+                                    <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Transaction Invalid</h1>
+                                    <p className="mt-2 text-sm text-[var(--text-secondary)]">The payment reference could not be verified.</p>
+                                    <Link href="/" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent-primary)] hover:underline"><Home className="w-4 h-4" /> Return Home</Link>
+                                </div>
+                            );
                         }
 
-                        payment.status = 'success';
-                        payment.amount = typeof dodoPayment.total_amount === 'number' ? dodoPayment.total_amount / 100 : payment.amount;
-                        payment.currency = dodoPayment.currency || payment.currency;
+                        // Dynamically calculate explicit billing values
+                        const dodoCurrency = dodoPayment.currency || payment.currency || 'USD';
+                        const isZeroDecimal = ['JPY', 'KRW', 'VND', 'ISK', 'TWD'].includes(dodoCurrency.toUpperCase());
+                        const isThreeDecimal = ['KWD', 'BHD', 'JOD', 'OMR', 'TND'].includes(dodoCurrency.toUpperCase());
+                        const basePow = Math.pow(10, isZeroDecimal ? 0 : isThreeDecimal ? 3 : 2);
 
-                        console.log('[Submit Result] Fallback: Payment confirmed via Dodo API', payment.payment_id);
-                    } else if (dodoStatus === 'failed' || dodoStatus === 'cancelled') {
-                        failureReason = dodoPayment.failure_reason || 'Payment was declined or cancelled.';
+                        const grossAmount = typeof dodoPayment.total_amount === 'number' ? dodoPayment.total_amount / basePow : payment.amount;
+                        const taxAmount = typeof dodoPayment.tax === 'number' ? dodoPayment.tax / basePow : (typeof dodoPayment.tax_amount === 'number' ? dodoPayment.tax_amount / basePow : null);
+                        let netAmount = typeof dodoPayment.net_amount === 'number' ? dodoPayment.net_amount / basePow : (typeof dodoPayment.amount_net === 'number' ? dodoPayment.amount_net / basePow : null);
+                        if (netAmount === null && grossAmount !== null && taxAmount !== null) netAmount = grossAmount - taxAmount;
 
-                        await supabaseAdmin
-                            .from('payments')
-                            .update({
-                                status: 'failed',
-                                failure_reason: failureReason,
-                                updated_at: new Date().toISOString(),
-                            })
-                            .eq('id', payment.id);
+                        if (dodoStatus === 'succeeded') {
+                            try {
+                                await Promise.all([
+                                    supabaseAdmin
+                                        .from('payments')
+                                        .update({
+                                            status: 'success',
+                                            payment_id: dodoPaymentId,
+                                            amount: grossAmount,
+                                            tax: taxAmount,
+                                            net_amount: netAmount,
+                                            currency: dodoCurrency,
+                                            invoice_url: dodoPayment.invoice_url || dodoPayment.receipt_url || dodoPayment.receipt_link || null,
+                                            updated_at: new Date().toISOString(),
+                                        })
+                                        .eq('id', payment.id),
+                                    supabaseAdmin
+                                        .from('tool_submissions')
+                                        .update({ payment_status: 'success' })
+                                        .eq('id', payment.submission_id)
+                                ]);
+                            } catch (updateErr) {
+                                console.error('[Submit Result] DB update for success failed', updateErr);
+                            }
 
-                        await supabaseAdmin
-                            .from('tool_submissions')
-                            .update({ payment_status: 'failed' })
-                            .eq('id', payment.submission_id);
+                            // Send confirmation email via atomic claim lock
+                            if (payment.submitter_email && payment.email_status !== 'sent') {
+                                try {
+                                    const { data: emailClaim, error: claimError } = await supabaseAdmin
+                                        .from('payments')
+                                        .update({ email_provider_id: 'sending_lock' })
+                                        .eq('id', payment.id)
+                                        .is('email_provider_id', null)
+                                        .select('id')
+                                        .maybeSingle();
 
-                        payment.status = 'failed';
+                                    if (emailClaim && !claimError) {
+                                        const emailId = await sendSubmissionEmail('success', {
+                                            submitter_name: payment.submitter_name || 'there',
+                                            submitter_email: payment.submitter_email,
+                                            tool_name: payment.tool_name || 'Your tool',
+                                            tool_url: payment.tool_url || null,
+                                            plan: payment.plan || 'basic',
+                                            submission_ref: submission?.submission_ref || null,
+                                        });
+
+                                        await supabaseAdmin
+                                            .from('payments')
+                                            .update({
+                                                email_status: 'sent',
+                                                email_sent_at: new Date().toISOString(),
+                                                email_provider_id: emailId || 'sent_no_id',
+                                            })
+                                            .eq('id', payment.id);
+                                    }
+                                } catch (emailErr) {
+                                    console.error('[Submit Result] Email sending or tracking failed', emailErr);
+                                    // Don't clear email_provider_id — the lock prevents duplicate sends
+                                }
+                            }
+
+                            payment.status = 'success';
+                            payment.amount = grossAmount;
+                            payment.tax = taxAmount;
+                            payment.net_amount = netAmount;
+                            payment.currency = dodoCurrency;
+
+                            console.log('[Submit Result] Fallback: Payment confirmed via Dodo API', payment.payment_id);
+                        } else if (dodoStatus === 'failed' || dodoStatus === 'cancelled') {
+                            failureReason = dodoPayment.error_message || dodoPayment.failure_reason || 'Payment was declined or cancelled.';
+
+                            try {
+                                await Promise.all([
+                                    supabaseAdmin
+                                        .from('payments')
+                                        .update({
+                                            status: 'failed',
+                                            payment_id: dodoPaymentId,
+                                            amount: grossAmount,
+                                            currency: dodoCurrency,
+                                            failure_reason: failureReason,
+                                            updated_at: new Date().toISOString(),
+                                        })
+                                        .eq('id', payment.id),
+                                    supabaseAdmin
+                                        .from('tool_submissions')
+                                        .update({ payment_status: 'failed' })
+                                        .eq('id', payment.submission_id)
+                                ]);
+                            } catch (updateErr) {
+                                console.error('[Submit Result] DB update for failure failed', updateErr);
+                            }
+
+                            payment.status = 'failed';
+                            payment.amount = grossAmount;
+                            payment.currency = dodoCurrency;
+                        }
                     }
                     // If still 'processing' or other status, leave as initiated
                 }
@@ -210,19 +263,24 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
         if (elapsedMinutes >= TIMEOUT_MINUTES) {
             failureReason = 'Payment was not completed within 15 minutes. The session has expired.';
 
-            await supabaseAdmin
-                .from('payments')
-                .update({
-                    status: 'failed',
-                    failure_reason: failureReason,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq('id', payment.id);
-
-            await supabaseAdmin
-                .from('tool_submissions')
-                .update({ payment_status: 'failed' })
-                .eq('id', payment.submission_id);
+            try {
+                await Promise.all([
+                    supabaseAdmin
+                        .from('payments')
+                        .update({
+                            status: 'failed',
+                            failure_reason: failureReason,
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq('id', payment.id),
+                    supabaseAdmin
+                        .from('tool_submissions')
+                        .update({ payment_status: 'failed' })
+                        .eq('id', payment.submission_id)
+                ]);
+            } catch (timeoutErr) {
+                console.error('[Submit Result] DB update for timeout failed', timeoutErr);
+            }
 
             payment.status = 'failed';
         }
@@ -237,22 +295,31 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
     const displayRef = submission?.submission_ref ?? submissionId;
     const paymentDate = payment?.created_at ? formatDateTime(payment.created_at) : null;
     const amount = payment?.amount;
+    const taxAmount = payment?.tax ?? null;
+    const netAmount = payment?.net_amount ?? null;
     const currency = (payment?.currency || 'USD').toUpperCase();
+    const hasTaxBreakdown = status === 'success' && taxAmount != null && taxAmount > 0 && netAmount != null;
     const plan = payment?.plan || null;
     const toolName = payment?.tool_name || null;
     const websiteUrl = payment?.tool_url || submission?.website_url || null;
     const safeWebsiteUrl = sanitizeWebsiteUrl(websiteUrl);
 
     let liveListingHref: string | null = null;
-    if (isLive && websiteUrl) {
-        const { data: liveTool } = await supabaseAdmin
-            .from('tools')
-            .select('app_username')
-            .eq('status', 'published')
-            .eq('website_url', websiteUrl)
-            .maybeSingle();
-        if (liveTool?.app_username) {
-            liveListingHref = `/app/${liveTool.app_username}`;
+    if (submission?.app_username) {
+        liveListingHref = `/app/${submission.app_username}`;
+    } else if (isLive && safeWebsiteUrl) {
+        try {
+            const { data: liveTool, error: toolErr } = await supabaseAdmin
+                .from('tools')
+                .select('app_username')
+                .eq('status', 'published')
+                .eq('website_url', safeWebsiteUrl)
+                .maybeSingle();
+            if (!toolErr && liveTool?.app_username) {
+                liveListingHref = `/app/${liveTool.app_username}`;
+            }
+        } catch (err) {
+            console.error('[Submit Result] Error resolving live tool username', err);
         }
     }
 
@@ -271,7 +338,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
             <div className={`${headerClass} flex items-center justify-between px-5 py-3.5 sm:px-6`}>
                 <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-secondary)]">
                     <Receipt className="h-4 w-4" />
-                    Payment Receipt
+                    {status === 'success' ? 'Payment Receipt' : 'Payment Details'}
                 </div>
                 {status === 'success' && (
                     <span className="status-badge status-badge-paid">
@@ -296,12 +363,40 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
             {/* Amount */}
             {amount != null && (
                 <div className="px-5 py-5 text-center sm:px-6">
-                    <p className="text-xs font-medium uppercase tracking-widest text-[var(--text-tertiary)]">
-                        {status === 'success' ? 'Amount Paid' : 'Amount Due'}
-                    </p>
-                    <p className="mt-1 text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
-                        {formatAmount(amount, currency)}
-                    </p>
+                    {hasTaxBreakdown ? (
+                        <>
+                            <p className="text-xs font-medium uppercase tracking-widest text-[var(--text-tertiary)]">
+                                {status === 'success' ? 'Amount Paid' : 'Amount Due'}
+                            </p>
+                            <p className="mt-1 text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
+                                {formatAmount(amount, currency)}
+                            </p>
+                            <div className="mt-3 space-y-1">
+                                <div className="flex items-center justify-between text-sm text-[var(--text-secondary)]">
+                                    <span>Subtotal</span>
+                                    <span>{formatAmount(netAmount!, currency)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm text-[var(--text-secondary)]">
+                                    <span>Tax</span>
+                                    <span>{formatAmount(taxAmount!, currency)}</span>
+                                </div>
+                                <div className="receipt-divider my-1.5" />
+                                <div className="flex items-center justify-between text-sm font-semibold text-[var(--text-primary)]">
+                                    <span>Total</span>
+                                    <span>{formatAmount(amount, currency)}</span>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-xs font-medium uppercase tracking-widest text-[var(--text-tertiary)]">
+                                {status === 'success' ? 'Amount Paid' : 'Amount Due'}
+                            </p>
+                            <p className="mt-1 text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
+                                {formatAmount(amount, currency)}
+                            </p>
+                        </>
+                    )}
                 </div>
             )}
 
@@ -346,16 +441,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                         <span className="receipt-value">{paymentDate}</span>
                     </div>
                 )}
-                <div className="receipt-row">
-                    <span className="receipt-label">Review</span>
-                    {isLive ? (
-                        <span className="status-badge status-badge-paid">Published</span>
-                    ) : (
-                        <span className="status-badge status-badge-pending">
-                            {reviewStatus.charAt(0).toUpperCase() + reviewStatus.slice(1)}
-                        </span>
-                    )}
-                </div>
+
             </div>
         </div>
     ) : null;
@@ -384,7 +470,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
     return (
         <div className="min-h-screen bg-[var(--bg-primary)]">
             <CleanUrlClient />
-            <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-20 md:py-28">
+            <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-10 md:py-16">
 
                 {/* ─── Success ─── */}
                 {hasPayment && status === 'success' && (
@@ -398,7 +484,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                             Thank you, {submitterName}! <span id="confetti-origin">🎉</span>
                         </h1>
                         <p className="mt-3 text-center text-base leading-relaxed text-[var(--text-secondary)]">
-                            Your AI tool has been submitted successfully. Our team will review it and you&apos;ll receive an email once it&apos;s live.
+                            Your AI tool has been submitted successfully. Our team will review it in 24-48 hrs and you&apos;ll receive an email once it&apos;s live.
                         </p>
                         <p className="mt-2 text-center text-sm text-[var(--text-tertiary)]">
                             Our team will reach out to you shortly if we need any further information.
@@ -436,7 +522,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                         </h1>
 
                         {/* Failure reason */}
-                        <div className="mt-5 w-full rounded-xl border border-[var(--accent-red)]/20 bg-[var(--accent-red)]/5 px-5 py-4">
+                        <div className="mt-5 w-full rounded-xl bg-[var(--accent-red-bg)] px-5 py-4">
                             <p className="flex items-start gap-3 text-left text-sm text-[var(--accent-red)]">
                                 <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
                                 <span>

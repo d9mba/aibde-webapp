@@ -19,9 +19,9 @@ interface PublicTool {
 }
 
 function toPublicTool(tool: Record<string, unknown>): PublicTool & { app_username: string } {
-    const username = (tool.app_username ?? tool.appUsername ?? '') as string;
+    const username = (tool.app_username || tool.appUsername || '') as string;
     if (username === '') {
-        console.warn(`[toPublicTool] Missing username for tool id=${tool.id} name=${tool.name}`);
+        console.warn(`[toPublicTool] Missing username for tool id=${String(tool.id ?? 'unknown')} name=${String(tool.name ?? 'unknown')}`);
     }
     return {
         id: tool.id as string,

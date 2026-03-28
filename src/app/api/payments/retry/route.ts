@@ -27,6 +27,7 @@ function isAllowedRedirectOrigin(baseUrl: string): boolean {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+    let newPayment: any = null;
     try {
         const identifier = getClientIp(request);
         const rateLimitResult = await checkRateLimit(identifier, rateLimits.standard);
@@ -50,14 +51,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!submissionId || typeof submissionId !== 'string') {
             return NextResponse.json({ error: 'submissionId is required' }, { status: 400 });
         }
-
-        // Verify ownership/authorization using the submitter email as principal.
-        const userId = authResult.userId;
-        const client = await clerkClient();
-        const user = await client.users.getUser(userId);
-        const primaryEmail = user.emailAddresses.find(
-            e => e.id === user.primaryEmailAddressId
-        )?.emailAddress?.toLowerCase();
 
         // Load the latest payment for this submission to get context
         const { data: latestPayment, error: latestError } = await supabaseAdmin
@@ -83,9 +76,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        if (!primaryEmail || (latestPayment.submitter_email || '').toLowerCase() !== primaryEmail) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
 
         const productId = latestPayment.product_id;
         if (!productId) {
@@ -96,7 +86,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
 
         // Create a new payment attempt
-        const { data: newPayment, error: insertError } = await supabaseAdmin
+        const { data: insertedPayment, error: insertError } = await supabaseAdmin
             .from('payments')
             .insert({
                 submission_id: latestPayment.submission_id,
@@ -112,13 +102,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             .select('*')
             .single();
 
-        if (insertError || !newPayment) {
+        if (insertError || !insertedPayment) {
             console.error('[Retry Payment] Failed to create payment attempt', insertError);
             return NextResponse.json(
                 { error: 'Failed to create payment attempt' },
                 { status: 500 },
             );
         }
+
+        newPayment = insertedPayment;
 
         // Validate and sanitize the redirect URL - fail closed to prevent open redirects
         let baseUrl = SITE_URL || request.nextUrl.origin;
@@ -128,7 +120,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const returnUrl = `${baseUrl.replace(/\/$/, '')}/submit/result/${submissionId}`;
 
         // Create Dodo checkout session
-        const timeoutMs = Number(process.env.DODO_TIMEOUT_MS || 10_000);
+        const rawTimeout = Number(process.env.DODO_TIMEOUT_MS);
+        const timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 10_000;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -220,8 +213,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             paymentId: newPayment.id,
             checkoutUrl: session.checkout_url,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('[Retry Payment] Unhandled error', error);
+
+        if (newPayment?.id) {
+            try {
+                await supabaseAdmin.from('payments').update({ status: 'failed', failure_reason: 'Internal error during checkout' }).eq('id', newPayment.id);
+            } catch (cleanupErr) {
+                console.error('[Retry Payment] Failed to mark payment as failed during cleanup', cleanupErr);
+            }
+        }
+
         return NextResponse.json(
             { error: 'Failed to retry payment' },
             { status: 500 },

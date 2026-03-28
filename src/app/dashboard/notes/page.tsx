@@ -113,7 +113,10 @@ export default function NotesPage() {
         // Fetch details for unknown tool IDs
         uniqueIds.forEach(id => {
             fetch(`/api/tools/${id}`, { signal: controller.signal })
-                .then(r => r.ok ? r.json() : null)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.json();
+                })
                 .then(tool => {
                     if (tool && !controller.signal.aborted) setKnownTools(prev => {
                         const next = new Map(prev);
@@ -122,17 +125,17 @@ export default function NotesPage() {
                     });
                 })
                 .catch((err) => {
+                    // Remove from tracked set so transient failures can retry
+                    fetchedToolIdsRef.current.delete(id);
                     if (err.name !== 'AbortError') {
                         console.error(`[Notes] Failed to fetch tool ${id}:`, err);
                     }
-                    // purposefully leaving id in fetchedToolIdsRef to prevent retry loop
                 });
         });
 
         return () => {
             controller.abort();
-            // Successfully fetched IDs remain tracked in fetchedToolIdsRef.
-            // Only failed/aborted fetches are cleaned up by the error handler above.
+            // Aborted fetches will be removed from fetchedToolIdsRef by the catch above
         };
     }, [notes]);
 

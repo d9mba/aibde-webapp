@@ -455,7 +455,7 @@ export default function PaymentsDashboard() {
 
             {/* Preview Modal */}
             {previewGroup && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPreviewGroup(null)}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label={`Payment details for ${previewGroup.tool_name}`} onClick={() => setPreviewGroup(null)} onKeyDown={(e) => { if (e.key === 'Escape') setPreviewGroup(null); }}>
                     <div className="bg-bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className="p-6 border-b border-border">
@@ -478,7 +478,7 @@ export default function PaymentsDashboard() {
                                         )}
                                     </div>
                                 </div>
-                                <button onClick={() => setPreviewGroup(null)} className="text-text-tertiary hover:text-text-primary text-xl leading-none">&times;</button>
+                                <button onClick={() => setPreviewGroup(null)} className="text-text-tertiary hover:text-text-primary text-xl leading-none" aria-label="Close preview">&times;</button>
                             </div>
                         </div>
 
@@ -493,9 +493,13 @@ export default function PaymentsDashboard() {
                                 </div>
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Email</h3>
-                                    <a href={`mailto:${previewGroup.submitter_email}`} className="text-sm text-accent-primary hover:underline flex items-center gap-1">
-                                        <Mail size={14} /> {previewGroup.submitter_email}
-                                    </a>
+                                    {previewGroup.submitter_email ? (
+                                        <a href={`mailto:${previewGroup.submitter_email}`} className="text-sm text-accent-primary hover:underline flex items-center gap-1">
+                                            <Mail size={14} /> {previewGroup.submitter_email}
+                                        </a>
+                                    ) : (
+                                        <span className="text-sm text-text-tertiary">—</span>
+                                    )}
                                 </div>
                                 {previewGroup.tool_url && (
                                     <div>

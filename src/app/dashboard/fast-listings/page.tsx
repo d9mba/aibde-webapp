@@ -130,8 +130,9 @@ export default function FastListingsPage() {
     const fastStartIndex = (fastPage - 1) * ITEMS_PER_PAGE;
     const paginatedFastTools = filteredFastTools.slice(fastStartIndex, fastStartIndex + ITEMS_PER_PAGE);
 
-    // Pagination for regular tools (use server-reported total for page count)
-    const totalPages = Math.max(1, Math.ceil((availableTotal ?? 0) / ITEMS_PER_PAGE));
+    // Pagination for regular tools — adjust for tools hidden by pendingFastIds
+    const clientVisibleTotal = Math.max(0, (availableTotal ?? 0) - pendingFastIds.length);
+    const totalPages = Math.max(1, Math.ceil(clientVisibleTotal / ITEMS_PER_PAGE));
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     // Backend already applies limit/page
     const paginatedTools = filteredRegularTools;

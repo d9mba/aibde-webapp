@@ -191,6 +191,8 @@ export async function PUT(
             const oldTasks = Array.isArray(oldTool?.task_name) ? oldTool.task_name : [];
             const newTasks = Array.isArray(data.task_name) ? data.task_name : [];
             void syncToolCounts([...oldCats, ...newCats], [...oldTasks, ...newTasks]).catch(err => console.error('[Tools] syncToolCounts failed:', err));
+        } else {
+            console.warn('[PUT API] Skipping count sync — oldTool fetch failed:', oldToolError.message);
         }
 
         return NextResponse.json(dbToolToAdminTool(data));

@@ -23,8 +23,7 @@ export default function PricingSection({ plans }: PricingSectionProps) {
                             ? 'border-accent-primary bg-accent-primary/5'
                             : 'border-border bg-bg-card hover:border-accent-primary'
                             }`}
-                        aria-label={plan.highlighted ? `${plan.name} - Popular plan` : undefined}
-                        role={plan.highlighted ? 'region' : undefined}
+                        aria-current={plan.highlighted ? 'true' : undefined}
                     >
                         {plan.highlighted && (
                             <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 text-xs font-semibold bg-accent-primary text-white rounded-full">

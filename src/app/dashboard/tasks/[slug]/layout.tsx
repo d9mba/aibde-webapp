@@ -42,7 +42,9 @@ export async function generateMetadata({
             const idSuffix = extractTaskIdSuffix(slug);
             if (idSuffix) {
                 const slugWithoutId = normalizedSlug.slice(0, -(idSuffix.length + 1)); // Remove '-XXXXXX'
-                task = tasks.find((t) => slugify(t.taskName) === slugWithoutId);
+                if (slugWithoutId) {
+                    task = tasks.find((t) => slugify(t.taskName) === slugWithoutId);
+                }
             }
         }
 

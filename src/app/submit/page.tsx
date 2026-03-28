@@ -102,7 +102,7 @@ const PLANS = [
         features: [
             'Everything in Basic',
             'Priority 24h review',
-            'Blue verified badge ✓',
+            'Blue verified badge',
             'Enhanced SEO placement',
             'Social media mention',
         ],
@@ -115,12 +115,10 @@ const PLANS = [
         description: 'Gold tick + maximum exposure',
         features: [
             'Everything in Verified',
-            'Gold verified badge ✓',
-            '3-day homepage Featured placement',
-            'Newsletter feature',
+            'Gold verified badge',
+            '7-day homepage Featured placement',
             'Priority category ranking',
             'Dedicated support',
-            'Analytics dashboard access',
         ],
     },
 ];
@@ -279,6 +277,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
     const [localLogoPreview, setLocalLogoPreview] = useState('');
     const [logoFileName, setLogoFileName] = useState('');
     const [logoError, setLogoError] = useState(false);
+
     const [recentTools, setRecentTools] = useState<RecentTool[]>([]);
     const [toolsLoading, setToolsLoading] = useState(true);
     const [toolCount, setToolCount] = useState(0);
@@ -451,7 +450,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
     }
 
     function scrollToForm(): void {
-        document.getElementById('submit-form')?.scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
     }
 
     return (
@@ -505,7 +504,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
             </section>
 
             {/* ── Why Founders Choose AiBDE ── */}
-            <section id="proof" className="border-b border-[var(--border-color)] px-4 py-14">
+            <section id="proof" className="scroll-mt-24 border-b border-[var(--border-color)] px-4 py-14">
                 <div className="mx-auto max-w-6xl">
                     <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Why Founders Choose AiBDE</h2>
                     <p className="mt-1 text-sm text-[var(--text-secondary)]">Everything you need to grow your AI tool&apos;s reach.</p>
@@ -539,13 +538,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                 Each listing is structured with rich metadata, FAQ schema, and semantic markup for maximum search visibility.
                             </p>
                         </div>
-                        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
-                            <LayoutDashboard className="h-5 w-5 text-[var(--accent-primary)]" />
-                            <h3 className="mt-3 text-lg font-semibold text-[var(--text-primary)]">Founder Dashboard</h3>
-                            <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                                Track views, clicks, and engagement on your listing through a dedicated analytics dashboard.
-                            </p>
-                        </div>
+
                         <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6">
                             <TrendingUp className="h-5 w-5 text-[var(--accent-primary)]" />
                             <h3 className="mt-3 text-lg font-semibold text-[var(--text-primary)]">Growing Community</h3>
@@ -609,7 +602,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
             </section>
 
             {/* ── Pricing Plans ── */}
-            <section id="pricing" className="border-b border-[var(--border-color)] px-4 py-14">
+            <section id="pricing" className="scroll-mt-24 border-b border-[var(--border-color)] px-4 py-14">
                 <div className="mx-auto max-w-6xl">
                     <h2 className="text-center text-2xl font-bold tracking-tight text-[var(--text-primary)]">Choose Your Plan</h2>
                     <p className="mt-1 text-center text-sm text-[var(--text-secondary)]">
@@ -647,7 +640,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                     <ul className="mt-4 flex-1 space-y-2">
                                         {plan.features.map((f) => (
                                             <li key={f} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
-                                                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-primary)]" />
+                                                <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${plan.tickColor || 'text-[var(--accent-primary)]'}`} />
                                                 {f}
                                             </li>
                                         ))}
@@ -688,7 +681,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
             </section>
 
             {/* ── Submit Form ── */}
-            <section id="submit-form" className="px-4 py-14 md:py-20">
+            <section id="submit-form" className="scroll-mt-24 px-4 py-14 md:py-20">
                 <div className="mx-auto max-w-6xl">
                     <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
                         <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 md:p-8">
@@ -1108,112 +1101,6 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                             </p>
                                         </div>
                                     </div>
-
-                                    {/* Extended preview fields */}
-                                    <div className="mt-3 space-y-2 border-t border-[var(--border-color)] pt-3 w-full">
-                                        <div className="flex items-start gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Description</span>
-                                            <span className="break-all flex-1 min-w-0 text-[var(--text-primary)] line-clamp-3">
-                                                {formData.fullDescription || <span className="text-[var(--text-tertiary)] italic">Full description covering tool aspects, capabilities, and usage...</span>}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">URL</span>
-                                            {formData.toolUrl ? (
-                                                <a href={addUtmParams(formData.toolUrl)} target="_blank" rel="noopener noreferrer" className="truncate flex-1 min-w-0 text-[var(--accent-primary)] hover:underline">
-                                                    {formData.toolUrl}
-                                                </a>
-                                            ) : (
-                                                <span className="truncate flex-1 min-w-0 text-[var(--text-tertiary)] italic">https://myaitool.com</span>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Category</span>
-                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">
-                                                {formData.category
-                                                    ? (formData.category === 'other' ? (formData.customCategory || 'Custom Category') : (CATEGORY_OPTIONS.find(c => c.value === formData.category)?.label || formData.category))
-                                                    : <span className="text-[var(--text-tertiary)] italic">—</span>}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Pricing</span>
-                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">
-                                                {formData.pricing ? (PRICING_OPTIONS.find(p => p.value === formData.pricing)?.label || formData.pricing) : <span className="text-[var(--text-tertiary)] italic">—</span>}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Released</span>
-                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">
-                                                {formData.releasedDate || <span className="text-[var(--text-tertiary)] italic">—</span>}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex items-start gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Tags</span>
-                                            <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-                                                {formData.tags ? (
-                                                    formData.tags.split(',').map(t => t.trim()).filter(Boolean).map((tag, i) => (
-                                                        <span key={`${tag}-${i}`} className="max-w-full truncate rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">{tag}</span>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-[var(--text-tertiary)] italic">—</span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-start gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Features</span>
-                                            <ul className="space-y-0.5 flex-1 min-w-0">
-                                                {formData.keyFeatures ? (
-                                                    formData.keyFeatures.split('\n').filter(Boolean).slice(0, 5).map((f, i) => (
-                                                        <li key={i} className="flex items-start gap-1 text-[var(--text-primary)]">
-                                                            <span className="break-words min-w-0 flex-1">• {f}</span>
-                                                        </li>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-[var(--text-tertiary)] italic">—</span>
-                                                )}
-                                            </ul>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Videos</span>
-                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">{videoUrls.filter(u => u.url.trim()).length} video(s)</span>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Images</span>
-                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">{screenshotUrls.filter(u => u.url.trim()).length} screenshot(s)</span>
-                                        </div>
-
-                                        {formData.hasAffiliateProgram && (
-                                            <div className="flex items-center gap-2 text-xs">
-                                                <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Affiliate</span>
-                                                <a href={formData.affiliateUrl ? addUtmParams(formData.affiliateUrl) : '#'} target="_blank" rel="noopener noreferrer" className="truncate flex-1 min-w-0 text-[var(--accent-primary)] hover:underline">
-                                                    {formData.affiliateUrl || 'Yes'}
-                                                </a>
-                                            </div>
-                                        )}
-
-                                        <div className="flex items-start gap-2 text-xs">
-                                            <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Social</span>
-                                            <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-                                                {socialLinks.filter(s => s.url.trim()).length > 0 ? (
-                                                    socialLinks.filter(s => s.url.trim()).map((s, i) => (
-                                                        <a href={s.url ? addUtmParams(s.url) : '#'} target="_blank" rel="noopener noreferrer" key={i} className="max-w-full truncate rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)] capitalize hover:text-[var(--accent-primary)] transition-colors">
-                                                            {s.platform}
-                                                        </a>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-[var(--text-tertiary)] italic">—</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
@@ -1275,14 +1162,14 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                     <div className="mt-3">
                         <FAQItem question="How long does approval take?">Most submissions are reviewed within 24–48 hours for paid plans. Free listings may take longer. We&apos;ll notify you by email once your tool is live.</FAQItem>
                         <FAQItem question="Can I edit my listing later?">Yes. Email support@aibde.tech with your tool name and the changes you&apos;d like. We&apos;ll update the listing within 24–48 hours.</FAQItem>
-                        <FAQItem question="Do you offer featured placements?">Yes! Our Featured plan ($249) gives you homepage visibility, newsletter features, and priority category ranking for maximum exposure.</FAQItem>
+                        <FAQItem question="Do you offer featured placements?">Yes! Our Featured plan ($249) gives you homepage visibility and priority category ranking for maximum exposure.</FAQItem>
                         <FAQItem question="Is there a free listing option?">We currently offer three paid plans starting at $49. Each plan ensures manual review and a permanent listing in our directory.</FAQItem>
-                        <FAQItem question="What&apos;s the difference between Basic, Verified, and Featured?">Basic ($49) gets you listed with standard SEO. Verified ($99) adds a blue verified badge, priority review, and social mention. Featured ($249) includes a gold badge, 3-day homepage placement, newsletter feature, and analytics access.</FAQItem>
+                        <FAQItem question="What&apos;s the difference between Basic, Verified, and Featured?">Basic ($49) gets you listed with standard SEO. Verified ($99) adds a blue verified badge, priority review, and social mention. Featured ($249) includes a gold badge, 7-day homepage placement, and priority ranking.</FAQItem>
                         <FAQItem question="Can I get a refund?">If your tool is not approved after review, we offer a full refund. Contact support@aibde.tech for assistance.</FAQItem>
-                        <FAQItem question="What categories do you support?">We support AI Assistant, Productivity, Developer Tools, Marketing, Design, Automation, Video, Research, and more. If your tool doesn&apos;t fit, select &quot;Other&quot; and specify your category.</FAQItem>
+                        <FAQItem question="What categories do you support?">We support all AI categories except adult content or NSFW. If your tool doesn&apos;t fit the current list, select &quot;Other&quot; and specify your category.</FAQItem>
                         <FAQItem question="How does AiBDE help with SEO?">Every listing gets a dedicated page with structured data, FAQ schema, meta tags, and internal linking — helping your tool rank in Google search results.</FAQItem>
-                        <FAQItem question="Do you verify the tools you list?">Yes. Our editorial team manually reviews each submission for quality, functionality, and relevance before it goes live.</FAQItem>
-                        <FAQItem question="Can I submit multiple tools?">Absolutely! Each tool requires a separate submission and plan. Volume discounts are available — contact support@aibde.tech.</FAQItem>
+                        <FAQItem question="Do you verify the tools you list?">Yes. Our editorial review team manually reviews each submission for quality, functionality, and relevance before it goes live.</FAQItem>
+                        <FAQItem question="Can I submit multiple tools?">Absolutely! Each tool requires a separate submission and plan.</FAQItem>
                     </div>
                 </div>
             </section>

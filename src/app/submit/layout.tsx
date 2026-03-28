@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 };
 
 const submitFaqs = [
-    { question: 'How long does approval take?', answer: 'Most submissions are reviewed within 24–48 hours for paid plans. Free listings may take longer. We\'ll notify you by email once your tool is live.' },
+    { question: 'How long does approval take?', answer: 'Most submissions are reviewed within 24–48 hours. We\'ll notify you by email once your tool is live.' },
     { question: 'Can I edit my listing later?', answer: 'Yes. Email support@aibde.tech with your tool name and the changes you\'d like. We\'ll update the listing within 24–48 hours.' },
     { question: 'Do you offer featured placements?', answer: 'Yes! Our Featured plan ($249) gives you homepage visibility, newsletter features, and priority category ranking for maximum exposure.' },
     { question: 'Is there a free listing option?', answer: 'We currently offer three paid plans starting at $49. Each plan ensures manual review and a permanent listing in our directory.' },

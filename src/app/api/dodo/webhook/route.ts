@@ -151,7 +151,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const tax: number | null = parsedTax !== null && !Number.isNaN(parsedTax)
             ? parsedTax / Math.pow(10, decimals)
-            : 0;
+            : null;
 
         // Extract Net Amount
         const parsedNet = typeof payment.net_amount === 'number'
@@ -242,8 +242,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 payment_id: dodoPaymentId || existingPayment.payment_id,
                 amount: amount ?? existingPayment.amount,
                 currency: currency || existingPayment.currency,
-                tax: tax ?? existingPayment.tax ?? 0,
-                net_amount: net_amount ?? existingPayment.net_amount ?? 0,
+                tax: tax ?? existingPayment.tax ?? null,
+                net_amount: net_amount ?? existingPayment.net_amount ?? null,
                 invoice_url: invoice_url || existingPayment.invoice_url,
                 failure_reason: failureReason,
                 updated_at: new Date().toISOString(),
@@ -309,6 +309,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         if (submissionUpdateError) {
             console.error('[Dodo Webhook] Failed to update tool_submissions payment_status', submissionUpdateError);
+            return NextResponse.json({ received: false }, { status: 500 });
         }
 
         return NextResponse.json({ received: true }, { status: 200 });

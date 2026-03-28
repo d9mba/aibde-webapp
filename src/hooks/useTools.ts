@@ -107,7 +107,9 @@ export function useTools(options: UseToolsOptions = {}): UseToolsResult {
     }, [fetchTools]);
 
     useEffect(() => {
-        if (options.page !== undefined && options.page !== page) setPage(options.page);
+        if (options.page !== undefined && options.page !== page) {
+            setPage(Math.max(1, options.page));
+        }
         // Sync external page prop to internal state. Only depends on options.page
     // intentionally — setPage is stable and page would create a render loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps

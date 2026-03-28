@@ -238,9 +238,9 @@ export default function TagsPage() {
                             ) : (
                                 tags.map((tag: Tag) => (
                                     <tr key={tag.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer"
-                                        role="button" tabIndex={editingId === tag.id ? undefined : 0} aria-disabled={pageLoading || !!editingId}
-                                        onClick={() => { if (!pageLoading && !editingId) router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); }}
-                                        onKeyDown={(e) => { if (!pageLoading && !editingId && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); } }}
+                                        role="button" tabIndex={pageLoading || editingId === tag.id ? -1 : 0} aria-disabled={pageLoading || editingId === tag.id}
+                                        onClick={() => { if (!pageLoading && editingId !== tag.id) router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); }}
+                                        onKeyDown={(e) => { if (!pageLoading && editingId !== tag.id && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); } }}
                                     >
                                         <td className="px-4 py-3">
                                             {editingId === tag.id ? (

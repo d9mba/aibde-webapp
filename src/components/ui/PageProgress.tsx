@@ -8,18 +8,18 @@ export default function PageProgress() {
     const searchParams = useSearchParams();
     const [progress, setProgress] = useState(0);
     const [active, setActive] = useState(false);
-    const tickRef = useRef<ReturnType<typeof setInterval>>(undefined);
-    const hideRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const completeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const safetyInnerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const tickRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+    const hideRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const completeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const safetyInnerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const startTimeRef = useRef(0);
     const isNavigatingRef = useRef(false);
 
     const cleanup = useCallback(() => {
-        if (tickRef.current) clearInterval(tickRef.current);
-        if (hideRef.current) clearTimeout(hideRef.current);
-        if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
-        if (safetyInnerRef.current) clearTimeout(safetyInnerRef.current);
+        if (tickRef.current != null) clearInterval(tickRef.current);
+        if (hideRef.current != null) clearTimeout(hideRef.current);
+        if (completeTimerRef.current != null) clearTimeout(completeTimerRef.current);
+        if (safetyInnerRef.current != null) clearTimeout(safetyInnerRef.current);
     }, []);
 
     // Complete and hide the bar, ensuring minimum visible duration of 500ms
@@ -160,9 +160,12 @@ export default function PageProgress() {
         if (!active) return;
         const t = setTimeout(() => {
             cleanup();
-            isNavigatingRef.current = false;
             setProgress(100);
-            safetyInnerRef.current = setTimeout(() => { setActive(false); setProgress(0); }, 350);
+            safetyInnerRef.current = setTimeout(() => {
+                setActive(false);
+                setProgress(0);
+                isNavigatingRef.current = false;
+            }, 350);
         }, 8000);
         return () => clearTimeout(t);
     }, [active, cleanup]);

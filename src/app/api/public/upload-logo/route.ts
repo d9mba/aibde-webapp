@@ -74,7 +74,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 if (webpBuffer.length < buffer.length) {
                     finalBuffer = new Uint8Array(webpBuffer);
                     finalMimeType = 'image/webp';
-                    filename = filename.replace(/\.[^.]+$/, '.webp');
+                    filename = /\.[^.]+$/.test(filename) ? filename.replace(/\.[^.]+$/, '.webp') : `${filename}.webp`;
                 }
             } catch {
                 // Compression failed, use original

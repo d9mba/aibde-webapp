@@ -74,8 +74,12 @@ function isAllowedRedirectOrigin(baseUrl: string): boolean {
     try {
         const url = new URL(baseUrl);
         return ALLOWED_ORIGINS.some(allowed => {
-            const allowedUrl = new URL(allowed);
-            return url.origin === allowedUrl.origin;
+            try {
+                const allowedUrl = new URL(allowed);
+                return url.origin === allowedUrl.origin;
+            } catch {
+                return false;
+            }
         });
     } catch {
         return false;
@@ -277,10 +281,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
 
         // Now that payment row securely exists, elevate the submission status to initiated.
-        await supabaseAdmin
+        const { error: initiatedErr } = await supabaseAdmin
             .from('tool_submissions')
             .update({ payment_status: 'initiated' })
             .eq('id', submission.id);
+
+        if (initiatedErr) {
+            console.error('[Submit Tool API] Failed to update submission to initiated', initiatedErr);
+        }
 
         // 3) Create Dodo checkout session
         let baseUrl = SITE_URL || request.nextUrl.origin;
@@ -346,7 +354,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             console.error('[Submit Tool API] Failed to create Dodo checkout', response.status, text);
             const { error: failErr } = await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
             if (failErr) console.error('[Submit Tool API] DB update failed on checkout error', failErr);
-            await supabaseAdmin.from('tool_submissions').update({ payment_status: 'failed' }).eq('id', payment.submission_id);
+
+            const { error: subFailErr } = await supabaseAdmin.from('tool_submissions').update({ payment_status: 'failed' }).eq('id', payment.submission_id);
+            if (subFailErr) console.error('[Submit Tool API] Submission update failed on checkout error', subFailErr);
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },
@@ -359,7 +369,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             console.error('[Submit Tool API] Missing checkout_url in Dodo response', session);
             const { error: urlFailErr } = await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
             if (urlFailErr) console.error('[Submit Tool API] DB update failed on missing checkout_url', urlFailErr);
-            await supabaseAdmin.from('tool_submissions').update({ payment_status: 'failed' }).eq('id', payment.submission_id);
+
+            const { error: subUrlFailErr } = await supabaseAdmin.from('tool_submissions').update({ payment_status: 'failed' }).eq('id', payment.submission_id);
+            if (subUrlFailErr) console.error('[Submit Tool API] Submission update failed on missing checkout_url', subUrlFailErr);
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },

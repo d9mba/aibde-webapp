@@ -102,7 +102,7 @@ export default function FeaturedPage() {
 
     // Pagination for regular tools — when search is active, let the server handle pagination
     // (the server already returned only the matching page); when no search, use server values directly
-    const totalPages = search ? apiTotalPages : apiTotalPages;
+    const totalPages = apiTotalPages;
     const totalCount = availableTotal ?? filteredRegularTools.length;
     const startIndex = (availablePage - 1) * ITEMS_PER_PAGE;
     const paginatedTools = filteredRegularTools;

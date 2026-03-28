@@ -33,8 +33,13 @@ export async function generateMetadata({
     const taskLabels = tool.taskName?.slice(0, 3) || [];
     const year = new Date().getFullYear();
     const suffix = ` | AiBDE`;
-    const prefix = `${tool.name} – `;
-    const maxSummaryLen = Math.max(15, 60 - prefix.length - suffix.length);
+    // Cap name to prevent titles exceeding ~60 chars
+    const maxNameLen = 30;
+    const displayName = tool.name.length > maxNameLen
+        ? tool.name.slice(0, maxNameLen - 1) + '…'
+        : tool.name;
+    const prefix = `${displayName} – `;
+    const maxSummaryLen = Math.max(10, 60 - prefix.length - suffix.length);
     const shortSummary = tool.summary
         ? tool.summary.slice(0, maxSummaryLen) + (tool.summary.length > maxSummaryLen ? '…' : '')
         : categoryLabel;

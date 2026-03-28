@@ -1,0 +1,3 @@
+src/app/submit/page.tsx(1124,58): error TS2304: Cannot find name 'addUtmParams'.
+src/app/submit/page.tsx(1196,82): error TS2304: Cannot find name 'addUtmParams'.
+src/app/submit/page.tsx(1207,74): error TS2304: Cannot find name 'addUtmParams'.

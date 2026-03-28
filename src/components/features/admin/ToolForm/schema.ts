@@ -107,10 +107,7 @@ export const toolSchema = z.object({
 
     // Rating (0-5 scale, e.g., 4.5)
     rating: z.coerce.number().min(0).max(5).default(0),
-}).refine(
-    (data) => !data.spotlightEnabled || data.listingType === 'spotlight',
-    { message: 'Spotlight must be enabled only when listing type is "spotlight"', path: ['spotlightEnabled'] },
-);
+});
 
 // Use z.input for form data (allows undefined for defaulted fields)
 export type ToolFormData = z.input<typeof toolSchema>;

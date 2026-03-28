@@ -58,11 +58,11 @@ export async function searchCountAction(params: SearchParams): Promise<number> {
  * For real-time search suggestions in header/hero
  */
 export async function getSearchSuggestionsAction(query: string, limit: number = 6): Promise<AdminTool[]> {
-    if (!query || query.length < 2) {
+    const q = query.trim();
+    if (!q || q.length < 2) {
         return [];
     }
 
-    const q = query.trim();
     const escapedQ = q.replace(/[\\%_]/g, '\\$&');
 
     // Lightweight query — only fetch the fields needed for the suggestion dropdown

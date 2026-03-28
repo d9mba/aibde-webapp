@@ -142,10 +142,12 @@ export function isRedisConfigured(): boolean {
  * - x-real-ip header if present
  * - 'anonymous' as shared fallback bucket when no IP can be determined
  *
- * NOTE: When 'anonymous' is returned, all unidentifiable clients share a single bucket,
- * so rate limits on 'anonymous' requests are less restrictive than IP-based limits.
- * To mitigate abuse, consider applying stricter checks or failing closed (rejecting
- * requests with no identifiable client) at call sites that handle sensitive operations.
+ * NOTE: When 'anonymous' is returned, all unidentifiable clients share a single
+ * bucket, making the effective per-user limit FAR more restrictive — e.g., if 100
+ * anonymous users share a 5 req/min quota, each user effectively gets ~0.05 req/min.
+ * To mitigate accidental denial-of-service for legitimate anonymous users, consider
+ * applying per-request fingerprinting (e.g., cookie-based tokens) or rejecting
+ * requests with no identifiable client on sensitive endpoints.
  */
 export function getClientIp(request: { headers: { get: (name: string) => string | null } }): string {
     const forwarded = request.headers.get('x-forwarded-for');

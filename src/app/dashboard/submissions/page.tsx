@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
     Clock, RefreshCw, Loader2, Search,
     ChevronLeft, ChevronRight, ExternalLink,
@@ -111,6 +112,9 @@ function getSelectButtonClasses(status: string) {
         case 'approved': return '[&>button]:!bg-green-500/10 [&>button]:!text-green-500';
         case 'rejected': return '[&>button]:!bg-red-500/10 [&>button]:!text-red-500';
         case 'published': return '[&>button]:!bg-green-500/10 [&>button]:!text-green-500';
+        case 'draft': return '[&>button]:!bg-yellow-500/10 [&>button]:!text-yellow-500';
+        case 'unpublished': return '[&>button]:!bg-orange-500/10 [&>button]:!text-orange-500';
+        case 'scheduled': return '[&>button]:!bg-purple-500/10 [&>button]:!text-purple-500';
         default: return '[&>button]:!bg-gray-500/10 [&>button]:!text-gray-500';
     }
 }
@@ -136,30 +140,35 @@ export default function SubmissionsDashboard() {
     const { showToast, updateToast } = useToast();
     const { confirm } = useConfirm();
 
-    async function fetchSubmissions(): Promise<void> {
+    const searchParams = useSearchParams();
+
+    const fetchSubmissions = useCallback(async (signal?: AbortSignal): Promise<void> => {
         setLoading(true);
         setError('');
         try {
-            const res = await fetch('/api/dashboard/submissions');
+            const res = await fetch('/api/dashboard/submissions', { signal });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed to fetch');
             setSubmissions(json.data || []);
         } catch (err) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
             const msg = err instanceof Error ? err.message : 'Failed to load submissions';
             setError(msg);
             showToast(msg, 'error');
         } finally {
             setLoading(false);
         }
-    }
+    }, [showToast]);
 
     useEffect(() => {
-        const initialSearch = new URLSearchParams(window.location.search).get('search');
+        const initialSearch = searchParams.get('search');
         if (initialSearch) {
             setSearchQuery(initialSearch);
         }
-        fetchSubmissions();
-    }, []);
+        const controller = new AbortController();
+        fetchSubmissions(controller.signal);
+        return () => controller.abort();
+    }, [searchParams, fetchSubmissions]);
 
     const handleStatusUpdate = async (id: string, newStatus: string, currentStatus: string) => {
         if (newStatus === currentStatus) return;
@@ -263,7 +272,7 @@ export default function SubmissionsDashboard() {
                         </p>
                     </div>
                     <button
-                        onClick={fetchSubmissions}
+                        onClick={() => fetchSubmissions()}
                         className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary transition-colors"
                     >
                         <RefreshCw size={16} />
@@ -379,6 +388,14 @@ export default function SubmissionsDashboard() {
                                         key={sub.id}
                                         className="hover:bg-bg-secondary cursor-pointer transition-colors"
                                         onClick={() => setPreviewSub(sub)}
+                                        tabIndex={0}
+                                        role="button"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setPreviewSub(sub);
+                                            }
+                                        }}
                                     >
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
@@ -511,7 +528,7 @@ export default function SubmissionsDashboard() {
 
             {/* Preview Modal */}
             {previewSub && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPreviewSub(null)}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label={`Submission details for ${previewSub.tool_name || 'Untitled'}`} onClick={() => setPreviewSub(null)} onKeyDown={(e) => { if (e.key === 'Escape') setPreviewSub(null); }}>
                     <div className="bg-bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className="p-6 border-b border-border">
@@ -526,7 +543,7 @@ export default function SubmissionsDashboard() {
                                 <div className="flex-1">
                                     <div className="flex items-start justify-between">
                                         <h2 className="text-2xl font-bold text-text-primary">{previewSub.tool_name || 'Untitled'}</h2>
-                                        <button onClick={() => setPreviewSub(null)} className="text-text-tertiary hover:text-text-primary text-xl leading-none">&times;</button>
+                                        <button onClick={() => setPreviewSub(null)} className="text-text-tertiary hover:text-text-primary text-xl leading-none" aria-label="Close submission details">&times;</button>
                                     </div>
                                     <p className="text-sm text-text-secondary mt-0.5">{previewSub.submitter_name}</p>
                                     <div className="flex flex-wrap items-center gap-2 mt-3">

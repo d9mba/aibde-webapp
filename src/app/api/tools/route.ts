@@ -279,14 +279,20 @@ export async function GET(request: NextRequest) {
         try {
             if (tools.length > 0) {
                 const toolIds = tools.map((t: any) => t.id);
-                // Safe lookup limiting payload size overhead
-                const { data: subs } = await supabaseAdmin
-                    .from('tool_submissions')
-                    .select('tool_id, id, submission_ref')
-                    .in('tool_id', toolIds);
+                // Batch lookups to avoid Supabase URL length limits on large lists
+                const BATCH_SIZE = 100;
+                const allSubs: Array<{ tool_id: string; id: string; submission_ref: string }> = [];
+                for (let i = 0; i < toolIds.length; i += BATCH_SIZE) {
+                    const batch = toolIds.slice(i, i + BATCH_SIZE);
+                    const { data: subs } = await supabaseAdmin
+                        .from('tool_submissions')
+                        .select('tool_id, id, submission_ref')
+                        .in('tool_id', batch);
+                    if (subs) allSubs.push(...subs);
+                }
 
-                if (subs && subs.length > 0) {
-                    const subMap = new Map(subs.map((s) => [s.tool_id, s]));
+                if (allSubs.length > 0) {
+                    const subMap = new Map(allSubs.map((s) => [s.tool_id, s]));
                     tools = tools.map((t: any) => {
                         const sub = subMap.get(t.id);
                         if (sub) {

@@ -118,8 +118,8 @@ select {
 input:focus,
 textarea:focus,
 select:focus {
-    outline: none !important;
-    box-shadow: none !important;
+    outline: none;
+    box-shadow: none;
 }
 
 /* Remove webkit search input styling */

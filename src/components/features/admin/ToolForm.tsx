@@ -399,7 +399,10 @@ export default function ToolForm({ toolId, submissionId }: ToolFormProps) {
         if (!submissionId || isEdit) return;
         const controller = new AbortController();
         fetch(`/api/dashboard/submissions/${submissionId}`, { signal: controller.signal })
-            .then(r => r.ok ? r.json() : null)
+            .then(r => {
+                if (!r.ok) throw new Error(`Failed to load submission: ${r.status} ${r.statusText}`);
+                return r.json();
+            })
             .then(json => {
                 const sub = json?.data;
                 if (sub) {
@@ -427,7 +430,10 @@ export default function ToolForm({ toolId, submissionId }: ToolFormProps) {
                 }
             })
             .catch((err) => {
-                if (err.name !== 'AbortError') console.error('[ToolForm] Failed to load submission:', err);
+                if (err.name !== 'AbortError') {
+                    console.error('[ToolForm] Failed to load submission:', err);
+                    showToastRef.current('Failed to load submission', 'error');
+                }
             });
         return () => controller.abort();
     }, [submissionId, isEdit, reset]);
@@ -453,6 +459,7 @@ export default function ToolForm({ toolId, submissionId }: ToolFormProps) {
             }, 300);
         } else if (!isEdit) {
             setValue('app_username', slugify(watchName || ''));
+            setShowDuplicateWarning(false);
         }
 
         return () => {
@@ -574,30 +581,40 @@ export default function ToolForm({ toolId, submissionId }: ToolFormProps) {
 
     if (!isLoaded) return <div className="p-8 text-center text-text-secondary">Loading...</div>;
 
+    // Common form error handler - shows which fields are missing/invalid
+    const onFormError = (errors: any) => {
+        isRepostUpdate.current = false;
+
+        // Get all field names with errors
+        const errorFields = Object.keys(errors);
+
+        if (errorFields.length > 0) {
+            const errorMessages = Object.entries(errors).map(([field, error]: [string, any]) =>
+                `${field}: ${error?.message || 'Invalid'}`
+            );
+            const fieldList = errorFields.join(', ');
+            console.error('Form validation errors:', errors);
+            showToast(`Missing/invalid fields: ${fieldList}`, 'error');
+            console.log('Detailed errors:', errorMessages);
+        } else {
+            // Root-level refinement errors produce an empty field map
+            console.warn('Form validation failed with no field-level errors (possible .refine() issue)');
+            showToast('Please fill in required fields', 'error');
+        }
+    };
+
     const handleSaveAsDraft = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         setValue('status', 'draft', { shouldDirty: true });
-        // Use handleSubmit with onError callback to show validation errors
-        const onError = (errors: any) => {
-            console.error('Validation errors:', errors);
-            const firstError = Object.values(errors)[0] as any;
-            showToast(firstError?.message || 'Please fill in required fields', 'error');
-        };
-        await handleSubmit(onSubmit, onError)();
+        await handleSubmit(onSubmit, onFormError)();
     };
 
     const handleReadyForReview = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         setValue('status', 'pending', { shouldDirty: true });
-        // Use handleSubmit with onError callback to show validation errors
-        const onError = (errors: any) => {
-            console.error('Validation errors:', errors);
-            const firstError = Object.values(errors)[0] as any;
-            showToast(firstError?.message || 'Please fill in required fields', 'error');
-        };
-        await handleSubmit(onSubmit, onError)();
+        await handleSubmit(onSubmit, onFormError)();
     };
 
     const handleUpdateAndPost = async (e: React.MouseEvent) => {
@@ -605,27 +622,6 @@ export default function ToolForm({ toolId, submissionId }: ToolFormProps) {
         e.stopPropagation();
         isRepostUpdate.current = true;
         await handleSubmit(onSubmit, onFormError)();
-    };
-
-    // Common form error handler - shows which fields are missing/invalid
-    const onFormError = (errors: any) => {
-        isRepostUpdate.current = false;
-        console.error('Form validation errors:', errors);
-
-        // Get all field names with errors
-        const errorFields = Object.keys(errors);
-        const errorMessages = Object.entries(errors).map(([field, error]: [string, any]) => {
-            return `${field}: ${error?.message || 'Invalid'}`;
-        });
-
-        // Show detailed error message
-        if (errorFields.length > 0) {
-            const fieldList = errorFields.join(', ');
-            showToast(`Missing/invalid fields: ${fieldList}`, 'error');
-            console.log('Detailed errors:', errorMessages);
-        } else {
-            showToast('Please fill in required fields', 'error');
-        }
     };
 
 

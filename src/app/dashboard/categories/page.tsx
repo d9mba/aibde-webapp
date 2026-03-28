@@ -22,7 +22,8 @@ const fetcher = async (url: string) => {
 
 // Helper to slugify category name for URLs (Unicode-aware)
 const slugify = (str: string) => {
-    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || encodeURIComponent(str.toLowerCase());
+    const slug = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || (str ? encodeURIComponent(str.toLowerCase()) : 'untitled-category');
 };
 
 interface PaginatedResponse {

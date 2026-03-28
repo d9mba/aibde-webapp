@@ -126,6 +126,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                         <div
                             key={toast.id}
                             onClick={() => hideToast(toast.id)}
+                            role="alert"
+                            aria-live="assertive"
+                            aria-atomic="true"
                             className={`
                                 cursor-pointer bg-bg-card rounded-lg shadow-lg border-l-4 ${styles.border} border border-border
                                 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 min-w-[240px] sm:min-w-[300px] max-w-[calc(100vw-1rem)] sm:max-w-[400px]
@@ -153,6 +156,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
                             {/* Close Button */}
                             <button
+                                aria-label="Close notification"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     hideToast(toast.id);

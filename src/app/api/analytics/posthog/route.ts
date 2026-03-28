@@ -324,9 +324,9 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Invalid query type' }, { status: 400 });
         }
 
-        // Check cache first (normalize params: hourly_activity/realtime ignore days)
+        // Check cache first (normalize params: hourly_activity/realtime ignore toolSlug and days)
         const cacheParams = type === 'hourly_activity' || type === 'realtime'
-            ? { toolSlug }
+            ? {}
             : { toolSlug, days, startDate, endDate };
         const cacheKey = getCacheKey(type, cacheParams);
         const cached = getCached(cacheKey);

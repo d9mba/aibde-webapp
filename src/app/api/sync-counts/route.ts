@@ -69,20 +69,22 @@ export async function POST() {
         const { error: categoryResetError } = await supabaseAdmin
             .from('categories')
             .update({ count: 0 })
-            .gt('count', -1);
+            .or('count.gt.-1,count.is.null');
+
         if (categoryResetError) {
             console.error('[Sync Counts] Category reset failed:', categoryResetError.message);
             categoryErrors.push(categoryResetError.message);
+        } else {
+            await Promise.all(
+                chunk(categoryRows, BATCH_SIZE).map(async (batch) => {
+                    const { error } = await supabaseAdmin.from('categories').upsert(batch, { onConflict: 'category_name' });
+                    if (error) {
+                        console.error('[Sync Counts] Category upsert failed:', error.message);
+                        categoryErrors.push(error.message);
+                    }
+                })
+            );
         }
-        await Promise.all(
-            chunk(categoryRows, BATCH_SIZE).map(async (batch) => {
-                const { error } = await supabaseAdmin.from('categories').upsert(batch, { onConflict: 'category_name' });
-                if (error) {
-                    console.error('[Sync Counts] Category upsert failed:', error.message);
-                    categoryErrors.push(error.message);
-                }
-            })
-        );
 
         // Batch upsert tasks in parallel chunks
         const taskRows = Array.from(taskCounts.entries()).map(([task_name, count]) => ({
@@ -93,20 +95,22 @@ export async function POST() {
         const { error: taskResetError } = await supabaseAdmin
             .from('tasks')
             .update({ count: 0 })
-            .gt('count', -1);
+            .or('count.gt.-1,count.is.null');
+
         if (taskResetError) {
             console.error('[Sync Counts] Task reset failed:', taskResetError.message);
             taskErrors.push(taskResetError.message);
+        } else {
+            await Promise.all(
+                chunk(taskRows, BATCH_SIZE).map(async (batch) => {
+                    const { error } = await supabaseAdmin.from('tasks').upsert(batch, { onConflict: 'task_name' });
+                    if (error) {
+                        console.error('[Sync Counts] Task upsert failed:', error.message);
+                        taskErrors.push(error.message);
+                    }
+                })
+            );
         }
-        await Promise.all(
-            chunk(taskRows, BATCH_SIZE).map(async (batch) => {
-                const { error } = await supabaseAdmin.from('tasks').upsert(batch, { onConflict: 'task_name' });
-                if (error) {
-                    console.error('[Sync Counts] Task upsert failed:', error.message);
-                    taskErrors.push(error.message);
-                }
-            })
-        );
 
         if (categoryErrors.length > 0 || taskErrors.length > 0) {
             return NextResponse.json({

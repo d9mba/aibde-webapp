@@ -101,8 +101,12 @@ export const toolSchema = z.object({
     // Stats
     saveCount: z.number().default(0),
 
+    // Tracking
+    submissionId: z.string().optional(),
+    submissionRef: z.string().optional(),
+
     // Rating (0-5 scale, e.g., 4.5)
-    rating: z.number().min(0).max(5).nullable().default(null),
+    rating: z.coerce.number().min(0).max(5).default(0),
 }).refine(
     (data) => !data.spotlightEnabled || data.listingType === 'spotlight',
     { message: 'Spotlight must be enabled only when listing type is "spotlight"', path: ['spotlightEnabled'] },
@@ -161,5 +165,7 @@ export const defaultToolValues: ToolFormData = {
     listingType: 'free',
     backLinks: false,
     saveCount: 0,
-    rating: null,
+    rating: 0,
+    submissionId: undefined,
+    submissionRef: undefined,
 };

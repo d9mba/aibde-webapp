@@ -324,7 +324,7 @@ export default function FastListingsPage() {
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
                                 <span className="text-sm text-text-tertiary">
-                                    {(availableTotal ?? 0) === 0 ? 0 : startIndex + 1}-{Math.min(startIndex + paginatedTools.length, availableTotal ?? 0)} of {availableTotal ?? 0}
+                                    {(availableTotal ?? 0) === 0 || paginatedTools.length === 0 ? 0 : startIndex + 1}-{Math.min(startIndex + paginatedTools.length, availableTotal ?? 0)} of {availableTotal ?? 0}
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button
@@ -412,7 +412,7 @@ export default function FastListingsPage() {
                         {fastTotalPages > 1 && (
                             <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
                                 <span className="text-sm text-text-tertiary">
-                                    {fastStartIndex + 1}-{Math.min(fastStartIndex + ITEMS_PER_PAGE, filteredFastTools.length)} of {filteredFastTools.length}
+                                    {filteredFastTools.length === 0 ? 0 : fastStartIndex + 1}-{Math.min(fastStartIndex + ITEMS_PER_PAGE, filteredFastTools.length)} of {filteredFastTools.length}
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button

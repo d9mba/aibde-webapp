@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
-const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_CONTACT_URL || '';
+const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_CONTACT_URL || process.env.GOOGLE_APPS_SCRIPT_URL || '';
+
+if (!GOOGLE_APPS_SCRIPT_URL) {
+    console.warn('CRITICAL WARNING: GOOGLE_APPS_SCRIPT_CONTACT_URL is not configured in the environment variables. Contact syncs will fail.');
+}
 
 export interface ContactSubmission {
     id: number;

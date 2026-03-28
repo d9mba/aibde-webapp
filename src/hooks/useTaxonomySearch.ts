@@ -48,8 +48,8 @@ export function useTaxonomySearch(
     // Map API response to ComboboxOption format
     const items: TaxonomyItem[] = (data?.data || (Array.isArray(data) ? data : []))
         .map((item: Record<string, unknown>) => ({
-            value: String(item.id ?? (nameField in item ? item[nameField] : '') ?? ''),
-            label: (nameField in item ? (item[nameField] as string) : '') || '',
+            value: String((nameField in item ? item[nameField] : '') ?? ''),
+            label: String((nameField in item ? item[nameField] : '') ?? ''),
         }))
         .filter((item: TaxonomyItem) => item.value !== '' && item.value != null);
 

@@ -108,8 +108,9 @@ export default function Combobox(props: Props) {
 
     // Scroll focused item into view
     useEffect(() => {
-        if (focusedIdx >= 0 && listRef.current?.children[focusedIdx]) {
-            (listRef.current.children[focusedIdx] as HTMLElement).scrollIntoView({ block: 'nearest' });
+        if (focusedIdx >= 0 && listRef.current) {
+            const el = listRef.current.querySelector(`[data-index="${focusedIdx}"]`) as HTMLElement;
+            if (el) el.scrollIntoView({ block: 'nearest' });
         }
     }, [focusedIdx]);
 
@@ -227,6 +228,7 @@ export default function Combobox(props: Props) {
                         return (
                             <div
                                 key={`${idx}-${option.value}`}
+                                data-index={idx}
                                 onClick={() => selectOption(option.value)}
                                 className={`px-3 py-2.5 text-sm cursor-pointer transition-colors text-text-primary flex items-center gap-2
                                     ${isHighlighted ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'}
@@ -255,6 +257,7 @@ export default function Combobox(props: Props) {
                     )}
                     {canAddNew && (
                         <div
+                            data-index={visibleCount}
                             onClick={createAndSelect}
                             className={`px-3 py-2.5 text-sm cursor-pointer text-accent-primary border-t border-border ${focusedIdx === visibleCount ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'
                                 }`}

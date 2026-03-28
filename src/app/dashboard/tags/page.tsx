@@ -238,7 +238,7 @@ export default function TagsPage() {
                             ) : (
                                 tags.map((tag: Tag) => (
                                     <tr key={tag.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer"
-                                        role="button" tabIndex={editingId === tag.id ? -1 : 0} aria-disabled={pageLoading || !!editingId}
+                                        role="button" tabIndex={editingId === tag.id ? undefined : 0} aria-disabled={pageLoading || !!editingId}
                                         onClick={() => { if (!pageLoading && !editingId) router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); }}
                                         onKeyDown={(e) => { if (!pageLoading && !editingId && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); } }}
                                     >

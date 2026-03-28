@@ -270,10 +270,35 @@ export async function GET(request: NextRequest) {
         // Map to frontend-friendly format
         // When fields=card, skip the heavy dbToolToAdminTool and map directly from DB rows
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const tools = fieldsParam === 'card'
+        let tools = fieldsParam === 'card'
             ? (data || []).map(dbToolToCardTool)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             : (data || []).map((tool: any) => dbToolToAdminTool(tool));
+
+        // Attempt to fetch and attach submission IDs/Refs reversed from tool_ids
+        try {
+            if (tools.length > 0) {
+                const toolIds = tools.map((t: any) => t.id);
+                // Safe lookup limiting payload size overhead
+                const { data: subs } = await supabaseAdmin
+                    .from('tool_submissions')
+                    .select('tool_id, id, submission_ref')
+                    .in('tool_id', toolIds);
+
+                if (subs && subs.length > 0) {
+                    const subMap = new Map(subs.map((s) => [s.tool_id, s]));
+                    tools = tools.map((t: any) => {
+                        const sub = subMap.get(t.id);
+                        if (sub) {
+                            return { ...t, submissionId: sub.id, submissionRef: sub.submission_ref };
+                        }
+                        return t;
+                    });
+                }
+            }
+        } catch (subErr) {
+            console.warn('[Tools API] Failed to fetch submission refs for bulk list:', subErr);
+        }
 
         // Return paginated response
         if (allData) {
@@ -336,6 +361,20 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Tool already exists with this username' }, { status: 409 });
             }
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Check for linked tool submission to resolve
+        if (parseResult.data.submissionId) {
+            const updatePayload: any = {
+                tool_id: data.id,
+                app_username: data.app_username,
+            };
+
+            // Mirror the tool's status back into the submissions list precisely
+            updatePayload.review_status = data.status;
+
+            const { error: subErr } = await supabaseAdmin.from('tool_submissions').update(updatePayload).eq('id', parseResult.data.submissionId);
+            if (subErr) console.error('[Tools API] Failed to update linked submission:', subErr);
         }
 
         // Bust ISR cache so new tool appears instantly

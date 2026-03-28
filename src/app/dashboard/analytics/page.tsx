@@ -166,7 +166,7 @@ export default function AnalysisPage() {
             throw new Error(data.error || 'API Error');
         }
         return (await res.json()).results;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [timeRange, customStartDate, customEndDate]);
 
     // Track whether we have any data loaded (ref to avoid useCallback dependency cycle)
@@ -211,6 +211,7 @@ export default function AnalysisPage() {
             hasDataRef.current = true;
             setError(null);
             setLastRefresh(new Date());
+            setLoading(false);
         } catch (err) {
             // Retry silently — keep showing loading skeleton instead of error
             if (retryCount < MAX_RETRIES) {
@@ -221,7 +222,6 @@ export default function AnalysisPage() {
             if (!hasDataRef.current) {
                 setError(err instanceof Error ? err.message : 'Failed to load');
             }
-        } finally {
             setLoading(false);
         }
     }, [fetchData, selectedTab]);
@@ -326,11 +326,11 @@ export default function AnalysisPage() {
         const merged = [...topTools, ...(toolsSearchDebounced ? dbSearchResults : [])];
         const seen = new Set<string>();
         return merged
-            .filter((t, index) => {
-                const key = t.tool_slug || t.tool_name || `unknown-${index}`;
-                if (seen.has(key)) return false;
+            .filter((t) => {
+                const key = t.tool_slug || t.tool_name;
+                if (!key || seen.has(key)) return false;
                 seen.add(key);
-                return !toolsSearchDebounced || (t.tool_name || t.tool_slug).toLowerCase().includes(toolsSearchDebounced.toLowerCase());
+                return !toolsSearchDebounced || key.toLowerCase().includes(toolsSearchDebounced.toLowerCase());
             })
             .sort((a, b) => {
                 if (toolsSortBy === 'ctr') {

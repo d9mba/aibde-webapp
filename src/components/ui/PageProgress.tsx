@@ -53,7 +53,7 @@ export default function PageProgress() {
         safetyInnerRef.current = setTimeout(() => {
             // Check if navigation has already completed before setting up the interval
             if (!isNavigatingRef.current) return;
-            
+
             setActive(true);
             setProgress(15);
 
@@ -73,10 +73,15 @@ export default function PageProgress() {
             const href = anchor.getAttribute('href');
             if (!href) return true;
             if (anchor.target === '_blank') return true;
-            if (href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return true;
+            if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return true;
             if (e.ctrlKey || e.metaKey || e.shiftKey) return true;
-            const url = new URL(href, window.location.origin);
-            return url.pathname + url.search === window.location.pathname + window.location.search;
+            try {
+                const url = new URL(href, window.location.origin);
+                if (url.origin !== window.location.origin) return true;
+                return url.pathname + url.search === window.location.pathname + window.location.search;
+            } catch {
+                return true;
+            }
         }
 
         function handleClick(e: MouseEvent) {
@@ -94,11 +99,19 @@ export default function PageProgress() {
         const origPush = history.pushState.bind(history);
         const origReplace = history.replaceState.bind(history);
         const normalize = (u: string) => u.replace(/\/$/, '') || '/';
+        const resolveUrl = (u: string) => {
+            try {
+                const parsed = new URL(u, window.location.href);
+                return normalize(parsed.pathname + parsed.search);
+            } catch {
+                return normalize(u);
+            }
+        };
 
         history.pushState = function (...args) {
             const url = args[2];
             if (url && typeof url === 'string') {
-                if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
+                if (resolveUrl(url) !== normalize(window.location.pathname + window.location.search)) {
                     const res = origPush(...args);
                     start();
                     return res;
@@ -116,7 +129,7 @@ export default function PageProgress() {
         history.replaceState = function (...args) {
             const url = args[2];
             if (url && typeof url === 'string') {
-                if (normalize(url) !== normalize(window.location.pathname + window.location.search)) {
+                if (resolveUrl(url) !== normalize(window.location.pathname + window.location.search)) {
                     start();
                 }
             }

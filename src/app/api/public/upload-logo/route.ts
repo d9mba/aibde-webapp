@@ -19,7 +19,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 { status: 429 }
             );
         }
-        
+
         const rateLimit = await checkRateLimit(`upload-logo:${identifier}`, rateLimits.sensitive);
         if (!rateLimit.success) {
             return NextResponse.json({ error: 'Too many uploads. Try again later.' }, { status: 429 });
@@ -50,12 +50,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         // Compress to WebP if possible
         let finalBuffer: Uint8Array = new Uint8Array(buffer);
-        let finalMimeType = file.type;
+        let finalMimeType = detectedType.mime;
         let filename = generateUniqueFilename(file.name);
 
-        if (detectedType.mime !== 'image/gif') {
+        const sharp = (await import('sharp')).default;
+
+        if (detectedType.mime === 'image/gif') {
             try {
-                const sharp = (await import('sharp')).default;
+                const metadata = await sharp(buffer).metadata();
+                if ((metadata.width && metadata.width > 512) || (metadata.height && metadata.height > 512)) {
+                    return NextResponse.json({ error: 'GIF dimensions exceed 512x512 limit' }, { status: 400 });
+                }
+            } catch (err) {
+                return NextResponse.json({ error: 'Failed to validate GIF properties' }, { status: 400 });
+            }
+        } else {
+            try {
                 const webpBuffer = await sharp(buffer)
                     .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
                     .webp({ quality: 82 })
@@ -77,7 +87,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         await uploadFile(finalBuffer, `${folder}/${filename}`, finalMimeType);
 
         const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL || '';
-        const fullUrl = cdnUrl ? `${cdnUrl}${relativePath}` : relativePath;
+        const normalizedCdn = cdnUrl.replace(/\/+$/, '');
+        const fullUrl = normalizedCdn ? `${normalizedCdn}${relativePath}` : relativePath;
 
         return NextResponse.json({
             path: relativePath,

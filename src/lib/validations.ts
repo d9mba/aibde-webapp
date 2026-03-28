@@ -108,6 +108,9 @@ export const toolSchema = z.object({
 
     // Trending
     trendingPosition: z.number().int().min(0).optional().nullable(),
+    // System Tracking
+    submissionId: z.string().optional().nullable(),
+    submissionRef: z.string().optional().nullable(),
 }); // SECURITY: Removed .passthrough() to prevent injection of arbitrary fields
 
 // Partial schema for updates (all fields optional)

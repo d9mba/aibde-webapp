@@ -60,7 +60,7 @@ export default function SearchResultsPage() {
         return results.filter((t: AdminTool) =>
             t.appUsername &&
             ((t.name || '').toLowerCase().includes(q) ||
-            (t.description || '').toLowerCase().includes(q))
+                (t.description || '').toLowerCase().includes(q))
         ).slice(0, 6);
     }, [searchQuery, initialQuery, results]);
 
@@ -144,11 +144,15 @@ export default function SearchResultsPage() {
                 <h1 className="text-xl font-bold text-text-primary mb-1">
                     Search results for &quot;<span className="text-accent-primary">{initialQuery}</span>&quot;
                 </h1>
-                <p className="text-sm text-text-tertiary">
-                    {results.length === 100 ? 'Showing top 100 tools' : `${results.length} tool${results.length !== 1 ? 's' : ''} found`}
-                </p>
-                {results.length === 100 && (
-                    <p className="text-xs text-text-secondary mt-1">Please refine your search for more specific matches.</p>
+                {!error && !isLoading && (
+                    <>
+                        <p className="text-sm text-text-tertiary">
+                            {results.length === 100 ? 'Showing top 100 tools' : `${results.length} tool${results.length !== 1 ? 's' : ''} found`}
+                        </p>
+                        {results.length === 100 && (
+                            <p className="text-xs text-text-secondary mt-1">Please refine your search for more specific matches.</p>
+                        )}
+                    </>
                 )}
             </div>
 

@@ -13,7 +13,7 @@ import FullPreview from './ToolForm/FullPreview';
 import { getPricingClass, getPricingLabel } from '@/lib/formatters';
 import { getFullUrl } from '@/lib/url';
 
-interface ToolFormProps { toolId?: string; }
+interface ToolFormProps { toolId?: string; submissionId?: string; }
 
 // Slugify helper
 const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -268,7 +268,7 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
     );
 };
 
-export default function ToolForm({ toolId }: ToolFormProps) {
+export default function ToolForm({ toolId, submissionId }: ToolFormProps) {
     const router = useRouter();
     const { addTool, updateTool, addTag, addCategory, addTask, isLoaded } = useAdmin();
 
@@ -301,6 +301,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
         return () => controller.abort();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [toolId, isEdit]);
+
 
     const [showFullPreview, setShowFullPreview] = useState(false);
     const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -393,6 +394,43 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
 
     useEffect(() => { if (existingTool) reset(sanitizeToolData(existingTool)); }, [existingTool, reset]);
+
+    useEffect(() => {
+        if (!submissionId || isEdit) return;
+        const controller = new AbortController();
+        fetch(`/api/dashboard/submissions/${submissionId}`, { signal: controller.signal })
+            .then(r => r.ok ? r.json() : null)
+            .then(json => {
+                const sub = json?.data;
+                if (sub) {
+                    const sanitized: ToolFormData = {
+                        ...defaultToolValues,
+                        submissionId: sub.id,
+                        submissionRef: sub.submission_ref,
+                        name: sub.tool_name || '',
+                        app_username: slugify(sub.tool_name || ''),
+                        summary: sub.short_description || '',
+                        description: sub.full_description || '',
+                        logoUrl: sub.logo_url || '',
+                        websiteUrl: sub.website_url || '',
+                        pricing: sub.pricing_model || 'freemium',
+                        categoryName: sub.category ? [sub.category] : [],
+                        tags: typeof sub.tags === 'string' ? sub.tags.split(/[,\n]/).map((t: string) => t.trim()).filter(Boolean) : [],
+                        coreFeatures: typeof sub.key_features === 'string' ? sub.key_features.split(/[,\n]/).map((f: string) => f.trim()).filter(Boolean) : [],
+                        images: typeof sub.screenshot_urls === 'string' ? sub.screenshot_urls.split('\n').filter(Boolean) : [],
+                        videos: typeof sub.video_urls === 'string' ? sub.video_urls.split('\n').filter(Boolean) : [],
+                        contactName: sub.submitter_name || '',
+                        contactEmail: sub.submitter_email || '',
+                    };
+                    reset(sanitized);
+                    showToastRef.current('Loaded data from submission', 'success');
+                }
+            })
+            .catch((err) => {
+                if (err.name !== 'AbortError') console.error('[ToolForm] Failed to load submission:', err);
+            });
+        return () => controller.abort();
+    }, [submissionId, isEdit, reset]);
 
     const watchName = watch('name');
     useEffect(() => {
@@ -510,7 +548,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                 const updateData = wasRepost
                     ? { ...data, isReposted: true }
                     : data;
-                await updateTool(toolId, updateData);
+                await updateTool(toolId, updateData as any);
             }
             else await addTool(data as any);
             // Clear pending uploads on success - they're now saved
@@ -699,7 +737,18 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     return (
         <form onSubmit={handleSubmit(onSubmit, onFormError)} className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-text-primary">{isEdit ? 'Edit Tool' : 'Add New Tool'}</h1>
+                <div>
+                    <h1 className="text-2xl font-bold text-text-primary">{isEdit ? 'Edit Tool' : 'Add New Tool'}</h1>
+                    {watch('submissionId') && (
+                        <p className="mt-2 flex items-center gap-2">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-accent-primary bg-accent-primary/10 border border-accent-primary/20 text-[10px] font-bold uppercase tracking-wider leading-none">
+                                Linked Submission
+                            </span>
+                            {watch('submissionRef') && <span className="font-mono text-xs text-text-secondary">{watch('submissionRef')}</span>}
+                            <span className="font-mono text-xs text-text-tertiary hidden sm:inline" title="Submission ID">({watch('submissionId')})</span>
+                        </p>
+                    )}
+                </div>
                 <div className="flex gap-2">
                     {!isEdit && (
                         <button
@@ -962,20 +1011,18 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                                     {...register('app_username')}
                                     readOnly={isEdit && slugLocked}
                                     placeholder="unique-username"
-                                    className={`flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-colors ${
-                                        isEdit && slugLocked ? 'opacity-60 cursor-not-allowed select-none' : ''
-                                    }`}
+                                    className={`flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-colors ${isEdit && slugLocked ? 'opacity-60 cursor-not-allowed select-none' : ''
+                                        }`}
                                 />
                                 {isEdit && (
                                     <button
                                         type="button"
                                         onClick={() => setSlugLocked(l => !l)}
                                         title={slugLocked ? 'Unlock to edit slug' : 'Lock slug'}
-                                        className={`flex items-center justify-center w-9 h-9 rounded-lg border transition-all flex-shrink-0 ${
-                                            slugLocked
+                                        className={`flex items-center justify-center w-9 h-9 rounded-lg border transition-all flex-shrink-0 ${slugLocked
                                                 ? 'border-border text-text-tertiary hover:border-accent-primary hover:text-accent-primary'
                                                 : 'border-accent-primary text-accent-primary bg-accent-primary/10'
-                                        }`}
+                                            }`}
                                     >
                                         {slugLocked ? (
                                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

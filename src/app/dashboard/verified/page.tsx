@@ -146,10 +146,15 @@ export default function VerifiedPage() {
 
     const handleAddToVerified = (toolId: string) => {
         const tool = allTools.find((t: AdminTool) => t.id === toolId);
-        if (tool) pendingToolsRef.current.set(toolId, tool);
+
+        if (!tool) {
+            showToast('Tool not found', 'error');
+            return;
+        }
+        pendingToolsRef.current.set(toolId, tool);
         setPendingVerifiedIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
-        showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
+        showToast(`Added "${tool.name || 'Tool'}" - Click Save to apply`, 'info');
     };
 
     const handleRemoveFromVerified = (toolId: string) => {

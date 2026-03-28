@@ -136,10 +136,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
 
         return NextResponse.json({
-            success: true,
+            success: !sheetsError,
             sheetsError,
-            message: 'Thank you for contacting us! We\'ll get back to you soon.',
-        });
+            message: sheetsError
+                ? 'We encountered a problem saving your message. Please try again.'
+                : 'Thank you for contacting us! We\'ll get back to you soon.',
+        }, { status: sheetsError ? 502 : 200 });
 
     } catch (err) {
         console.error('[Contact API] Error:', err);

@@ -25,6 +25,9 @@ interface Payment {
     payment_id: string;
     amount: number;
     currency: string;
+    tax?: number;
+    net_amount?: number;
+    invoice_url?: string;
     status: string;
     failure_reason: string;
     email_status: string;
@@ -59,10 +62,10 @@ const STATUS_OPTIONS = [
 
 function getStatusBoxClass(status: string): string {
     switch (status) {
-        case 'success': return 'bg-accent-primary/10 border-accent-primary/20 text-accent-primary';
-        case 'failed': return 'bg-accent-red/10 border-accent-red/20 text-accent-red';
-        case 'initiated': return 'bg-accent-orange/10 border-accent-orange/20 text-accent-orange';
-        default: return 'bg-bg-tertiary border-border text-text-tertiary';
+        case 'success': return 'bg-green-500/10 text-green-500';
+        case 'failed': return 'bg-red-500/10 text-red-500';
+        case 'initiated': return 'bg-yellow-500/10 text-yellow-500';
+        default: return 'bg-gray-500/10 text-gray-500';
     }
 }
 
@@ -122,12 +125,13 @@ function groupBySubmission(payments: Payment[]): GroupedPayments[] {
         if (!group.submission_ref && p.submission_ref) group.submission_ref = p.submission_ref;
         group.payments.push(p);
         group.total_attempts++;
-        // Accumulate total_amount
-        group.total_amount += (p.amount || 0);
-        // Update latest_status and latest_date if this payment is more recent
+        // Update latest_status, latest_date, and singular amount if this payment is more recent
         if (p.created_at && (!group.latest_date || new Date(p.created_at) > new Date(group.latest_date))) {
             group.latest_date = p.created_at;
             group.latest_status = p.status;
+            if (p.amount) group.total_amount = p.amount;
+        } else if (!group.total_amount && p.amount) {
+            group.total_amount = p.amount;
         }
     }
     return Array.from(map.values());
@@ -178,7 +182,8 @@ export default function PaymentsDashboard() {
             g.tool_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             g.submitter_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             g.submitter_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            g.submission_id.toLowerCase().includes(searchQuery.toLowerCase());
+            g.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (g.submission_ref?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
         const matchesStatus = statusFilter === 'all' || g.latest_status === statusFilter;
         return matchesSearch && matchesStatus;
     }), [grouped, searchQuery, statusFilter]);
@@ -187,6 +192,17 @@ export default function PaymentsDashboard() {
     const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter]);
+
+    // Close preview modal on Escape
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && previewGroup) {
+                setPreviewGroup(null);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [previewGroup]);
 
     const stats = {
         total: payments.length,
@@ -268,8 +284,16 @@ export default function PaymentsDashboard() {
                         paginated.map((group) => (
                             <div
                                 key={group.submission_id}
-                                className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary transition-colors"
+                                className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-primary focus:bg-bg-secondary"
                                 onClick={() => setPreviewGroup(group)}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setPreviewGroup(group);
+                                    }
+                                }}
                             >
                                 <div className="flex items-start gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm flex-shrink-0">
@@ -330,7 +354,10 @@ export default function PaymentsDashboard() {
                                     <tr
                                         key={group.submission_id}
                                         className="hover:bg-bg-secondary cursor-pointer transition-colors"
+                                        tabIndex={0}
+                                        role="button"
                                         onClick={() => setPreviewGroup(group)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreviewGroup(group); } }}
                                     >
                                         <td className="px-4 py-3">
                                             <div className="font-medium text-text-primary">{group.tool_name}</div>
@@ -358,7 +385,7 @@ export default function PaymentsDashboard() {
                                             {group.plan && <div className="text-xs text-text-tertiary capitalize">{group.plan}</div>}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium capitalize ${getStatusBoxClass(group.latest_status)}`}>
+                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusBoxClass(group.latest_status)}`}>
                                                 {getStatusIcon(group.latest_status)}
                                                 {group.latest_status}
                                             </div>
@@ -437,7 +464,7 @@ export default function PaymentsDashboard() {
                                     <h2 className="text-2xl font-bold text-text-primary">{previewGroup.tool_name}</h2>
                                     <p className="text-sm text-text-secondary mt-1">{previewGroup.submitter_name}</p>
                                     <div className="flex items-center gap-2 mt-3">
-                                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-semibold uppercase tracking-wide ${getStatusBoxClass(previewGroup.latest_status)}`}>
+                                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getStatusBoxClass(previewGroup.latest_status)}`}>
                                             {getStatusIcon(previewGroup.latest_status)}
                                             {previewGroup.latest_status}
                                         </div>
@@ -445,7 +472,7 @@ export default function PaymentsDashboard() {
                                             {formatAmount(previewGroup.total_amount, previewGroup.currency)}
                                         </span>
                                         {previewGroup.plan && (
-                                            <span className="text-xs px-3 py-1.5 border border-accent-primary/20 bg-accent-primary/10 text-accent-primary rounded-md font-semibold tracking-wide uppercase">
+                                            <span className="text-xs px-3 py-1.5 bg-green-500/10 text-green-500 rounded-full font-semibold tracking-wide uppercase">
                                                 {previewGroup.plan}
                                             </span>
                                         )}
@@ -491,21 +518,33 @@ export default function PaymentsDashboard() {
                                 </h3>
                                 <div className="space-y-3">
                                     {previewGroup.payments.map((p, idx) => (
-                                        <div key={p.id} className="p-3 bg-bg-secondary rounded-lg border border-border">
+                                        <div key={p.id} className="p-3 bg-bg-secondary rounded-lg">
                                             <div className="flex items-center justify-between mb-2">
                                                 <span className="text-xs text-text-tertiary font-medium">
                                                     #{previewGroup.total_attempts - idx}
                                                 </span>
-                                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium uppercase tracking-wide ${getStatusBoxClass(p.status)}`}>
+                                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide ${getStatusBoxClass(p.status)}`}>
                                                     {getStatusIcon(p.status)}
                                                     {p.status}
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2 text-sm">
                                                 <div>
-                                                    <span className="text-text-tertiary">Amount: </span>
+                                                    <span className="text-text-tertiary">Gross Amount: </span>
                                                     <span className="font-medium text-text-primary">{formatAmount(p.amount, p.currency)}</span>
                                                 </div>
+                                                {typeof p.tax === 'number' && p.tax > 0 && (
+                                                    <div>
+                                                        <span className="text-text-tertiary">Tax: </span>
+                                                        <span className="text-text-primary">{formatAmount(p.tax, p.currency)}</span>
+                                                    </div>
+                                                )}
+                                                {typeof p.net_amount === 'number' && p.net_amount > 0 && (
+                                                    <div>
+                                                        <span className="text-text-tertiary">Net Amount: </span>
+                                                        <span className="text-text-primary">{formatAmount(p.net_amount, p.currency)}</span>
+                                                    </div>
+                                                )}
                                                 <div>
                                                     <span className="text-text-tertiary">Provider: </span>
                                                     <span className="text-text-primary capitalize">{p.payment_provider || '-'}</span>
@@ -528,9 +567,16 @@ export default function PaymentsDashboard() {
                                                         </span>
                                                     </div>
                                                 )}
+                                                {p.invoice_url && (
+                                                    <div className="col-span-2 pt-1">
+                                                        <a href={p.invoice_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase text-accent-primary hover:text-accent-primary/80 transition-colors">
+                                                            <ExternalLink size={12} /> View Official Invoice
+                                                        </a>
+                                                    </div>
+                                                )}
                                             </div>
                                             {p.failure_reason && (
-                                                <div className="mt-2 p-2 bg-accent-red/10 border border-accent-red/20 rounded text-xs text-accent-red">
+                                                <div className="mt-2 p-2 bg-red-500/10 rounded-md text-xs text-red-500">
                                                     {p.failure_reason}
                                                 </div>
                                             )}

@@ -7,7 +7,7 @@ const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(
 // Extract task ID from slug (last segment after final dash, exactly 6 hex chars)
 function extractTaskIdSuffix(slug: string): string | null {
     const parts = slug.split('-');
-    if (parts.length > 0) {
+    if (parts.length > 1) {
         const lastPart = parts[parts.length - 1];
         // ID suffix is last 6 chars of UUID, so check if it looks like hex
         if (lastPart.length === 6 && /^[a-f0-9]+$/i.test(lastPart)) {
@@ -36,7 +36,7 @@ export async function generateMetadata({
         const tasks = await getTasks();
         // First try matching by the full normalized slug (for backward compatibility)
         let task = tasks.find((t) => slugify(t.taskName) === normalizedSlug);
-        
+
         // If not found and slug has ID suffix, try finding by slug name prefix
         if (!task) {
             const idSuffix = extractTaskIdSuffix(slug);

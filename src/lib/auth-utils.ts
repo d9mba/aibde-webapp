@@ -51,16 +51,6 @@ function pruneCaches(): void {
             if (removed >= overflow) break;
         }
     }
-
-    if (inflightRequests.size > MAX_CACHE_ENTRIES) {
-        const overflow = inflightRequests.size - MAX_CACHE_ENTRIES;
-        let removed = 0;
-        for (const key of inflightRequests.keys()) {
-            inflightRequests.delete(key);
-            removed++;
-            if (removed >= overflow) break;
-        }
-    }
 }
 
 /**

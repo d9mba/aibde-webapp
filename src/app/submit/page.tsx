@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { addUtmParams } from '@/lib/url-utils';
 import { useSearchParams } from 'next/navigation';
 import {
     AlertCircle,
@@ -164,12 +163,12 @@ function Counter({ end, suffix, label }: { end: number; suffix?: string; label: 
     }, [end]);
 
     return (
-        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
-            <p className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
+        <div className="rounded-xl sm:rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-3 sm:p-5">
+            <p className="text-xl sm:text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
                 {value.toLocaleString()}
                 {suffix || ''}
             </p>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">{label}</p>
+            <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">{label}</p>
         </div>
     );
 }
@@ -256,10 +255,9 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
     });
 
     // Dynamic list fields
-    const [videoUrls, setVideoUrls] = useState<string[]>(['']);
-    const [screenshotUrls, setScreenshotUrls] = useState<string[]>(['']);
-    const [socialLinks, setSocialLinks] = useState<{ platform: string; url: string }[]>([{ platform: 'twitter', url: '' }]);
-
+    const [videoUrls, setVideoUrls] = useState<{ id: string; url: string }[]>([{ id: 'init-v', url: '' }]);
+    const [screenshotUrls, setScreenshotUrls] = useState<{ id: string; url: string }[]>([{ id: 'init-s', url: '' }]);
+    const [socialLinks, setSocialLinks] = useState<{ id: string; platform: string; url: string }[]>([{ id: 'init-so', platform: 'twitter', url: '' }]);
     const SOCIAL_PLATFORMS = [
         { value: 'twitter', label: 'Twitter/X' },
         { value: 'linkedin', label: 'LinkedIn' },
@@ -280,6 +278,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const [localLogoPreview, setLocalLogoPreview] = useState('');
     const [logoFileName, setLogoFileName] = useState('');
+    const [logoError, setLogoError] = useState(false);
     const [recentTools, setRecentTools] = useState<RecentTool[]>([]);
     const [toolsLoading, setToolsLoading] = useState(true);
     const [toolCount, setToolCount] = useState(0);
@@ -312,6 +311,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
         return () => {
             if (localLogoPreview) URL.revokeObjectURL(localLogoPreview);
         };
+
     }, [localLogoPreview]);
 
     const inputClass = useCallback(
@@ -333,6 +333,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
         const objectUrl = URL.createObjectURL(file);
         setLocalLogoPreview(objectUrl);
         setLogoFileName(file.name);
+        setLogoError(false);
         logoFileRef.current = file;
     }
 
@@ -398,9 +399,9 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
             }
 
             // Serialize dynamic lists
-            const filteredVideoUrls = videoUrls.filter(u => u.trim()).join('\n');
-            const filteredScreenshotUrls = screenshotUrls.filter(u => u.trim()).join('\n');
-            const filteredSocialLinks = socialLinks.filter(s => s.url.trim());
+            const filteredVideoUrls = videoUrls.map(v => v.url).filter(u => u.trim()).join('\n');
+            const filteredScreenshotUrls = screenshotUrls.map(s => s.url).filter(u => u.trim()).join('\n');
+            const filteredSocialLinks = socialLinks.map(({ id, ...rest }) => rest).filter(s => s.url.trim());
 
             const baseUrl = window.location.origin;
             const response = await fetch('/api/submit-tool', {
@@ -490,7 +491,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
 
                     <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 shadow-lg">
                         <p className="text-sm font-semibold text-[var(--text-primary)]">Launch Snapshot</p>
-                        <div className="mt-4 grid grid-cols-3 gap-3">
+                        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <Counter end={toolCount} suffix="+" label="Tools listed" />
                             <Counter end={categoryCount} suffix="" label="Categories" />
                             <Counter end={taskCount} suffix="+" label="Tasks covered" />
@@ -624,8 +625,8 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                     type="button"
                                     onClick={() => { setFormData((prev) => ({ ...prev, plan: plan.id })); setTimeout(() => document.getElementById('submit-form')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
                                     className={`group relative flex flex-col rounded-2xl border-2 p-6 text-left transition ${isSelected
-                                            ? 'border-[var(--accent-primary)] bg-[var(--accent-primary-bg)]'
-                                            : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-[var(--accent-primary)]/60'
+                                        ? 'border-[var(--accent-primary)] bg-[var(--accent-primary-bg)]'
+                                        : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-[var(--accent-primary)]/60'
                                         }`}
                                 >
                                     {plan.badge && (
@@ -706,17 +707,23 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                 <form onSubmit={handleSubmit} className="space-y-5">
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div>
-                                            <label htmlFor="toolName" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Tool Name *</label>
+                                            <label htmlFor="toolName" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+                                                Tool Name <span className="text-[var(--accent-red)]">*</span>
+                                            </label>
                                             <input id="toolName" name="toolName" value={formData.toolName} onChange={handleChange} className={inputClass('toolName')} placeholder="My AI Tool" />
                                         </div>
                                         <div>
-                                            <label htmlFor="toolUrl" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Website URL *</label>
+                                            <label htmlFor="toolUrl" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+                                                Website URL <span className="text-[var(--accent-red)]">*</span>
+                                            </label>
                                             <input id="toolUrl" name="toolUrl" value={formData.toolUrl} onChange={handleChange} className={inputClass('toolUrl')} placeholder="https://myaitool.com" />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label htmlFor="shortDescription" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Short Description *</label>
+                                        <label htmlFor="shortDescription" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+                                            Short Description <span className="text-[var(--accent-red)]">*</span>
+                                        </label>
                                         <textarea
                                             id="shortDescription"
                                             name="shortDescription"
@@ -732,7 +739,9 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
 
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div>
-                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Category *</label>
+                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+                                                Category <span className="text-[var(--accent-red)]">*</span>
+                                            </label>
                                             <SearchableSelect
                                                 value={formData.category}
                                                 onChange={(value) => {
@@ -747,7 +756,9 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                             />
                                         </div>
                                         <div>
-                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Pricing Model *</label>
+                                            <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+                                                Pricing Model <span className="text-[var(--accent-red)]">*</span>
+                                            </label>
                                             <SearchableSelect
                                                 value={formData.pricing}
                                                 onChange={(value) => {
@@ -765,7 +776,9 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
 
                                     {formData.category === 'other' && (
                                         <div>
-                                            <label htmlFor="customCategory" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Custom Category Name *</label>
+                                            <label htmlFor="customCategory" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+                                                Custom Category Name <span className="text-[var(--accent-red)]">*</span>
+                                            </label>
                                             <input
                                                 id="customCategory"
                                                 name="customCategory"
@@ -846,22 +859,22 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                     <div>
                                         <div className="flex items-center justify-between mb-2">
                                             <label className="text-sm font-medium text-[var(--text-secondary)]">Video URLs</label>
-                                            <button type="button" onClick={() => setVideoUrls(prev => [...prev, ''])} className="flex items-center gap-1 px-3 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] rounded-lg text-sm font-medium hover:bg-[var(--accent-green)]/20 transition-colors">
+                                            <button type="button" onClick={() => setVideoUrls(prev => [...prev, { id: crypto.randomUUID(), url: '' }])} className="flex items-center gap-1 px-3 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] rounded-lg text-sm font-medium hover:bg-[var(--accent-green)]/20 transition-colors">
                                                 <Plus className="w-4 h-4" /> Add Video
                                             </button>
                                         </div>
                                         <div className="space-y-2">
-                                            {videoUrls.map((url, idx) => (
-                                                <div key={idx} className="flex gap-2 items-center">
+                                            {videoUrls.map((item, idx) => (
+                                                <div key={item.id} className="flex gap-2 items-center">
                                                     <input
                                                         type="url"
-                                                        value={url}
-                                                        onChange={(e) => { const next = [...videoUrls]; next[idx] = e.target.value; setVideoUrls(next); }}
+                                                        value={item.url}
+                                                        onChange={(e) => { const next = [...videoUrls]; next[idx].url = e.target.value; setVideoUrls(next); }}
                                                         className="submit-input flex-1"
                                                         placeholder="https://youtube.com/watch?v=..."
                                                     />
                                                     {videoUrls.length > 1 && (
-                                                        <button type="button" onClick={() => setVideoUrls(prev => prev.filter((_, i) => i !== idx))} className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors">
+                                                        <button type="button" onClick={() => setVideoUrls(prev => prev.filter(v => v.id !== item.id))} className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors">
                                                             <X className="w-4 h-4" />
                                                         </button>
                                                     )}
@@ -874,22 +887,22 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                     <div>
                                         <div className="flex items-center justify-between mb-2">
                                             <label className="text-sm font-medium text-[var(--text-secondary)]">Screenshot URLs</label>
-                                            <button type="button" onClick={() => setScreenshotUrls(prev => [...prev, ''])} className="flex items-center gap-1 px-3 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] rounded-lg text-sm font-medium hover:bg-[var(--accent-green)]/20 transition-colors">
+                                            <button type="button" onClick={() => setScreenshotUrls(prev => [...prev, { id: crypto.randomUUID(), url: '' }])} className="flex items-center gap-1 px-3 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] rounded-lg text-sm font-medium hover:bg-[var(--accent-green)]/20 transition-colors">
                                                 <Plus className="w-4 h-4" /> Add Image
                                             </button>
                                         </div>
                                         <div className="space-y-2">
-                                            {screenshotUrls.map((url, idx) => (
-                                                <div key={idx} className="flex gap-2 items-center">
+                                            {screenshotUrls.map((item, idx) => (
+                                                <div key={item.id} className="flex gap-2 items-center">
                                                     <input
                                                         type="url"
-                                                        value={url}
-                                                        onChange={(e) => { const next = [...screenshotUrls]; next[idx] = e.target.value; setScreenshotUrls(next); }}
+                                                        value={item.url}
+                                                        onChange={(e) => { const next = [...screenshotUrls]; next[idx].url = e.target.value; setScreenshotUrls(next); }}
                                                         className="submit-input flex-1"
                                                         placeholder="https://example.com/screenshot.png"
                                                     />
                                                     {screenshotUrls.length > 1 && (
-                                                        <button type="button" onClick={() => setScreenshotUrls(prev => prev.filter((_, i) => i !== idx))} className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors">
+                                                        <button type="button" onClick={() => setScreenshotUrls(prev => prev.filter(s => s.id !== item.id))} className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors">
                                                             <X className="w-4 h-4" />
                                                         </button>
                                                     )}
@@ -928,14 +941,14 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                     <div>
                                         <div className="flex items-center justify-between mb-2">
                                             <label className="text-sm font-medium text-[var(--text-secondary)]">Social Media Links</label>
-                                            <button type="button" onClick={() => setSocialLinks(prev => [...prev, { platform: 'twitter', url: '' }])} className="flex items-center gap-1 px-3 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] rounded-lg text-sm font-medium hover:bg-[var(--accent-green)]/20 transition-colors">
+                                            <button type="button" onClick={() => setSocialLinks(prev => [...prev, { id: crypto.randomUUID(), platform: 'twitter', url: '' }])} className="flex items-center gap-1 px-3 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] rounded-lg text-sm font-medium hover:bg-[var(--accent-green)]/20 transition-colors">
                                                 <Plus className="w-4 h-4" /> Add Link
                                             </button>
                                         </div>
                                         <div className="space-y-2">
                                             {socialLinks.map((link, idx) => (
-                                                <div key={idx} className="flex gap-2 items-center">
-                                                    <div className="relative w-48">
+                                                <div key={link.id} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                                    <div className="relative w-full sm:w-48">
                                                         <SearchableSelect
                                                             value={link.platform}
                                                             onChange={(val) => { const next = [...socialLinks]; next[idx] = { ...next[idx], platform: val }; setSocialLinks(next); }}
@@ -944,18 +957,20 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                                             className="w-full"
                                                         />
                                                     </div>
-                                                    <input
-                                                        type="url"
-                                                        value={link.url}
-                                                        onChange={(e) => { const next = [...socialLinks]; next[idx] = { ...next[idx], url: e.target.value }; setSocialLinks(next); }}
-                                                        className="submit-input flex-1"
-                                                        placeholder="https://..."
-                                                    />
-                                                    {socialLinks.length > 1 && (
-                                                        <button type="button" onClick={() => setSocialLinks(prev => prev.filter((_, i) => i !== idx))} className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors">
-                                                            <X className="w-4 h-4" />
-                                                        </button>
-                                                    )}
+                                                    <div className="flex gap-2 w-full sm:w-auto flex-1">
+                                                        <input
+                                                            type="url"
+                                                            value={link.url}
+                                                            onChange={(e) => { const next = [...socialLinks]; next[idx] = { ...next[idx], url: e.target.value }; setSocialLinks(next); }}
+                                                            className="submit-input flex-1"
+                                                            placeholder="https://..."
+                                                        />
+                                                        {socialLinks.length > 1 && (
+                                                            <button type="button" onClick={() => setSocialLinks(prev => prev.filter(s => s.id !== link.id))} className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors">
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -988,6 +1003,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                                             logoFileRef.current = null;
                                                             setLocalLogoPreview('');
                                                             setLogoFileName('');
+                                                            setLogoError(false);
                                                         }}
                                                         className="rounded-full p-0.5 hover:bg-[var(--bg-secondary)]"
                                                     >
@@ -1066,16 +1082,12 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                 <div className="mt-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 max-w-full overflow-hidden">
                                     <div className="flex items-start gap-3 min-w-0">
                                         <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--bg-card)]">
-                                            {localLogoPreview ? (
+                                            {localLogoPreview && !logoError ? (
                                                 <img
                                                     src={localLogoPreview}
                                                     alt="Logo"
                                                     className="h-full w-full object-cover"
-                                                    onError={(e) => {
-                                                        e.currentTarget.style.display = 'none';
-                                                        e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
-                                                        e.currentTarget.parentElement?.insertAdjacentHTML('beforeend', '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="h-6 w-6 text-[var(--text-tertiary)]"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>');
-                                                    }}
+                                                    onError={() => setLogoError(true)}
                                                 />
                                             ) : (
                                                 <ImageIcon className="h-6 w-6 text-[var(--text-tertiary)]" />
@@ -1170,12 +1182,12 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
 
                                         <div className="flex items-center gap-2 text-xs">
                                             <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Videos</span>
-                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">{videoUrls.filter(u => u.trim()).length} video(s)</span>
+                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">{videoUrls.filter(u => u.url.trim()).length} video(s)</span>
                                         </div>
 
                                         <div className="flex items-center gap-2 text-xs">
                                             <span className="font-medium text-[var(--text-tertiary)] w-16 shrink-0">Images</span>
-                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">{screenshotUrls.filter(u => u.trim()).length} screenshot(s)</span>
+                                            <span className="truncate flex-1 min-w-0 text-[var(--text-primary)]">{screenshotUrls.filter(u => u.url.trim()).length} screenshot(s)</span>
                                         </div>
 
                                         {formData.hasAffiliateProgram && (

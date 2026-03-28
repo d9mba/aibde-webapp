@@ -12,8 +12,10 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Get pagination parameters
     const url = new URL(request.url);
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20', 10), 100);
-    const offset = Math.max(parseInt(url.searchParams.get('offset') || '0', 10), 0);
+    const parsedLimit = parseInt(url.searchParams.get('limit') || '1000', 10);
+    const parsedOffset = parseInt(url.searchParams.get('offset') || '0', 10);
+    const limit = Math.max(1, Math.min(Number.isNaN(parsedLimit) ? 1000 : parsedLimit, 1000));
+    const offset = Math.max(0, Number.isNaN(parsedOffset) ? 0 : parsedOffset);
 
     const { data, error, count } = await supabaseAdmin
         .from('tool_submissions')
@@ -47,7 +49,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
             return NextResponse.json({ error: 'Invalid id format. Must be a valid UUID.' }, { status: 400 });
         }
 
-        const validStatuses = ['pending', 'approved', 'rejected', 'published'];
+        const validStatuses = ['pending', 'draft', 'published', 'unpublished', 'scheduled'];
         if (!validStatuses.includes(review_status)) {
             return NextResponse.json({ error: 'Invalid review status' }, { status: 400 });
         }

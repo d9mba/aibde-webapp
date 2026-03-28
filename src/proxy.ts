@@ -171,19 +171,15 @@ export const proxy = clerkMiddleware(async (auth, req) => {
 
     // Allow Public APIs - but block direct browser access AND CLI access for non-admins
     if (isPublicApiRoute(req)) {
-        // Special case: Dodo webhook must allow unauthenticated, non-browser POSTs
-        if (path.startsWith('/api/dodo/webhook')) {
-            return NextResponse.next();
-        }
-
         // If user is logged in (admin), allow all access
         if (userId) {
             return NextResponse.next();
         }
 
-        // Block CLI/non-browser access (missing Sec-Fetch-Mode header)
+        // Exempt Dodo webhook from the strict fetch-mode check so it can receive server-to-server POSTs
+        const isWebhook = path.startsWith('/api/dodo/webhook');
         const fetchMode = req.headers.get('sec-fetch-mode');
-        if (!fetchMode) {
+        if (!isWebhook && !fetchMode) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 });
         }
 

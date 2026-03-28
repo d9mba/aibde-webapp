@@ -28,6 +28,13 @@ interface Submission {
     payment_status: string;
     review_status: string;
     created_at: string;
+    screenshot_urls?: string | null;
+    video_urls?: string | null;
+    tags?: string | null;
+    key_features?: string | null;
+    social_links?: any;
+    tool_id?: string | null;
+    app_username?: string | null;
 }
 
 const PAYMENT_STATUS_OPTIONS = [
@@ -38,35 +45,37 @@ const PAYMENT_STATUS_OPTIONS = [
 ];
 
 const REVIEW_STATUS_OPTIONS = [
-    { value: 'all', label: 'All Review' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
+    { value: 'all', label: 'All Status' },
     { value: 'published', label: 'Published' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'unpublished', label: 'Unpublished' },
+    { value: 'scheduled', label: 'Scheduled' },
 ];
 
 const EDITABLE_REVIEW_OPTIONS = [
-    { value: 'pending', label: 'Pending' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
     { value: 'published', label: 'Published' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'unpublished', label: 'Unpublished' },
+    { value: 'scheduled', label: 'Scheduled' },
 ];
 
 function getStatusBoxClass(status: string, type: 'payment' | 'review'): string {
     if (type === 'payment') {
         switch (status) {
-            case 'success': return 'bg-accent-primary/10 border-accent-primary/20 text-accent-primary';
-            case 'failed': return 'bg-accent-red/10 border-accent-red/20 text-accent-red';
-            case 'initiated': return 'bg-accent-orange/10 border-accent-orange/20 text-accent-orange';
-            default: return 'bg-bg-tertiary border-border text-text-tertiary';
+            case 'success': return 'bg-green-500/10 text-green-500';
+            case 'failed': return 'bg-red-500/10 text-red-500';
+            case 'initiated': return 'bg-yellow-500/10 text-yellow-500';
+            default: return 'bg-gray-500/10 text-gray-500';
         }
     } else {
         switch (status) {
-            case 'pending': return 'bg-accent-orange/10 border-accent-orange/20 text-accent-orange';
-            case 'approved': return 'bg-accent-primary/10 border-accent-primary/20 text-accent-primary';
-            case 'rejected': return 'bg-accent-red/10 border-accent-red/20 text-accent-red';
-            case 'published': return 'bg-accent-green/10 border-accent-green/20 text-accent-green';
-            default: return 'bg-bg-tertiary border-border text-text-tertiary';
+            case 'pending': return 'bg-blue-500/10 text-blue-500';
+            case 'approved': return 'bg-green-500/10 text-green-500';
+            case 'rejected': return 'bg-red-500/10 text-red-500';
+            case 'published': return 'bg-green-500/10 text-green-500';
+            default: return 'bg-gray-500/10 text-gray-500';
         }
     }
 }
@@ -94,6 +103,22 @@ function formatDate(dateStr: string): string {
     } catch {
         return dateStr;
     }
+}
+
+function getSelectButtonClasses(status: string) {
+    switch (status) {
+        case 'pending': return '[&>button]:!bg-blue-500/10 [&>button]:!text-blue-500';
+        case 'approved': return '[&>button]:!bg-green-500/10 [&>button]:!text-green-500';
+        case 'rejected': return '[&>button]:!bg-red-500/10 [&>button]:!text-red-500';
+        case 'published': return '[&>button]:!bg-green-500/10 [&>button]:!text-green-500';
+        default: return '[&>button]:!bg-gray-500/10 [&>button]:!text-gray-500';
+    }
+}
+
+function parseSocialLinks(links: any) {
+    if (!links) return [];
+    if (typeof links !== 'string') return Array.isArray(links) ? links : [];
+    try { return JSON.parse(links); } catch { return []; }
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -128,7 +153,13 @@ export default function SubmissionsDashboard() {
         }
     }
 
-    useEffect(() => { fetchSubmissions(); }, []);
+    useEffect(() => {
+        const initialSearch = new URLSearchParams(window.location.search).get('search');
+        if (initialSearch) {
+            setSearchQuery(initialSearch);
+        }
+        fetchSubmissions();
+    }, []);
 
     const handleStatusUpdate = async (id: string, newStatus: string, currentStatus: string) => {
         if (newStatus === currentStatus) return;
@@ -136,12 +167,17 @@ export default function SubmissionsDashboard() {
         const sub = submissions.find(s => s.id === id);
         const name = sub?.tool_name || 'this submission';
 
+        let displayRef = '';
+        if (sub?.submission_ref) displayRef = ` (${sub.submission_ref})`;
+        else if (sub?.tool_id) displayRef = ` (Tool ID: ${sub.tool_id.substring(0, 8)}...)`;
+        else if (sub?.id) displayRef = ` (Sub ID: ${sub.id.substring(0, 8)}...)`;
+
         const confirmed = await confirm({
             title: 'Change Review Status?',
-            message: `Change "${name}" from "${currentStatus}" to "${newStatus}"?`,
+            message: `Change "${name}${displayRef}" from "${currentStatus}" to "${newStatus}"?`,
             confirmText: 'Yes, Update',
             cancelText: 'Cancel',
-            danger: newStatus === 'rejected',
+            danger: newStatus === 'unpublished' || newStatus === 'rejected',
         });
 
         if (!confirmed) return;
@@ -291,7 +327,12 @@ export default function SubmissionsDashboard() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="font-medium text-text-primary truncate">{sub.tool_name || 'Untitled'}</div>
-                                            <div className="text-xs font-mono text-text-secondary">Ref: {sub.submission_ref || '-'}</div>
+                                            <div className="flex flex-col items-end">
+                                                <div className="text-xs font-mono text-text-secondary">Ref: {sub.submission_ref || '-'}</div>
+                                                {sub.tool_id && (
+                                                    <div className="text-[10px] font-mono text-accent-primary mt-0.5" title={sub.tool_id}>@{sub.app_username}</div>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="text-xs text-text-tertiary mt-0.5">{sub.submitter_name}</div>
                                         <div className="flex items-center gap-2 mt-2">
@@ -318,7 +359,7 @@ export default function SubmissionsDashboard() {
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Tool</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Submitter</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Ref</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Ref / Link</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Plan</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Payment</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Review</th>
@@ -342,7 +383,7 @@ export default function SubmissionsDashboard() {
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
                                                 {sub.logo_url ? (
-                                                    <img src={toFullUrl(sub.logo_url)} alt="" className="w-9 h-9 rounded-lg object-contain bg-white" />
+                                                    <img src={toFullUrl(sub.logo_url)} alt="" className="w-9 h-9 rounded-lg object-contain" />
                                                 ) : (
                                                     <div className="w-9 h-9 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm">
                                                         {(sub.tool_name || '?')[0]}
@@ -359,36 +400,56 @@ export default function SubmissionsDashboard() {
                                             <div className="text-xs text-text-tertiary">{sub.submitter_email || '-'}</div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className="text-xs font-mono text-text-secondary bg-bg-secondary px-2 py-1 rounded border border-border">
-                                                {sub.submission_ref || '-'}
-                                            </span>
+                                            <div className="flex flex-col gap-1.5 items-start">
+                                                {sub.submission_ref ? (
+                                                    <span className="text-xs font-mono text-text-secondary bg-bg-secondary px-2 py-1 rounded border border-border" title="Submission Ref">
+                                                        {sub.submission_ref}
+                                                    </span>
+                                                ) : sub.tool_id ? (
+                                                    <span className="text-xs font-mono text-text-secondary bg-bg-secondary px-2 py-1 rounded border border-border" title="Tool ID">
+                                                        tool_{sub.tool_id.substring(0, 8)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs font-mono text-text-secondary bg-bg-secondary px-2 py-1 rounded border border-border" title="Submission ID">
+                                                        sub_{sub.id.substring(0, 8)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-text-secondary capitalize">
                                             {sub.plan_selected || '-'}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium capitalize ${getStatusBoxClass(sub.payment_status, 'payment')}`}>
+                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusBoxClass(sub.payment_status, 'payment')}`}>
                                                 {getStatusIcon(sub.payment_status)}
                                                 {sub.payment_status || 'N/A'}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                             <div className="w-[130px] relative">
-                                                {updatingStatusId === sub.id && (
+                                                {updatingStatusId === sub.id && !sub.tool_id && (
                                                     <div className="absolute inset-x-0 bottom-full mb-1 flex justify-center z-10">
                                                         <Loader2 className="w-4 h-4 animate-spin text-accent-primary" />
                                                     </div>
                                                 )}
-                                                <SearchableSelect
-                                                    value={sub.review_status}
-                                                    onChange={(v) => handleStatusUpdate(sub.id, v, sub.review_status)}
-                                                    options={EDITABLE_REVIEW_OPTIONS}
-                                                    placeholder="Status"
-                                                    showSearch={false}
-                                                    className={`w-full text-xs font-medium capitalize [&>button]:!py-1 [&>button]:!px-2.5 ${getStatusBoxClass(sub.review_status, 'review')} ${
-                                                        updatingStatusId === sub.id ? 'opacity-50 pointer-events-none' : ''
-                                                    }`}
-                                                />
+                                                {sub.payment_status === 'failed' ? (
+                                                    <span className="text-text-tertiary px-2.5">-</span>
+                                                ) : sub.tool_id ? (
+                                                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusBoxClass(sub.review_status, 'review')}`}>
+                                                        {getStatusIcon(sub.review_status)}
+                                                        {sub.review_status || 'Pending'}
+                                                    </div>
+                                                ) : (
+                                                    <SearchableSelect
+                                                        value={sub.review_status || 'pending'}
+                                                        onChange={(v) => handleStatusUpdate(sub.id, v, sub.review_status)}
+                                                        options={EDITABLE_REVIEW_OPTIONS}
+                                                        placeholder={sub.review_status || 'Pending'}
+                                                        showSearch={false}
+                                                        className={`w-full text-xs font-medium capitalize border-0 transition-none [&>button]:!py-1 [&>button]:!px-2.5 [&>button]:!border-0 [&>button]:!rounded-full ${getSelectButtonClasses(sub.review_status)} ${updatingStatusId === sub.id ? 'opacity-50 pointer-events-none' : ''
+                                                            }`}
+                                                    />
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
@@ -456,7 +517,7 @@ export default function SubmissionsDashboard() {
                         <div className="p-6 border-b border-border">
                             <div className="flex items-start gap-4">
                                 {previewSub.logo_url ? (
-                                    <img src={toFullUrl(previewSub.logo_url)} alt="" className="w-16 h-16 rounded-xl object-contain bg-white" />
+                                    <img src={toFullUrl(previewSub.logo_url)} alt="" className="w-16 h-16 rounded-xl object-contain" />
                                 ) : (
                                     <div className="w-16 h-16 bg-accent-primary/20 rounded-xl flex items-center justify-center text-2xl font-bold text-accent-primary">
                                         {(previewSub.tool_name || '?')[0]}
@@ -469,16 +530,20 @@ export default function SubmissionsDashboard() {
                                     </div>
                                     <p className="text-sm text-text-secondary mt-0.5">{previewSub.submitter_name}</p>
                                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-semibold uppercase tracking-wide ${getStatusBoxClass(previewSub.payment_status, 'payment')}`}>
+                                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusBoxClass(previewSub.payment_status, 'payment')}`}>
                                             {getStatusIcon(previewSub.payment_status)}
                                             {previewSub.payment_status || 'N/A'}
                                         </div>
-                                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-semibold uppercase tracking-wide ${getStatusBoxClass(previewSub.review_status, 'review')}`}>
-                                            {getStatusIcon(previewSub.review_status)}
-                                            {previewSub.review_status || 'N/A'}
-                                        </div>
+                                        {previewSub.payment_status === 'failed' ? (
+                                            <span className="text-text-tertiary px-2.5">-</span>
+                                        ) : (
+                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusBoxClass(previewSub.review_status, 'review')}`}>
+                                                {getStatusIcon(previewSub.review_status)}
+                                                {previewSub.review_status || 'Pending'}
+                                            </div>
+                                        )}
                                         {previewSub.plan_selected && (
-                                            <span className="text-xs px-3 py-1.5 bg-accent-primary/10 text-accent-primary border border-accent-primary/20 rounded-md font-semibold tracking-wide uppercase">
+                                            <span className="text-xs px-3 py-1.5 bg-green-500/10 text-green-500 rounded-full font-semibold tracking-wide uppercase">
                                                 {previewSub.plan_selected}
                                             </span>
                                         )}
@@ -492,8 +557,16 @@ export default function SubmissionsDashboard() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <h3 className="text-xs font-medium text-text-tertiary mb-1">Submission Ref</h3>
-                                    <div className="inline-block px-2 py-1 bg-bg-secondary border border-border rounded text-sm font-mono text-text-primary">
-                                        {previewSub.submission_ref || '-'}
+                                    <div className="flex items-center gap-2">
+                                        <div className="inline-block px-2 py-1 bg-bg-secondary border border-border rounded text-sm font-mono text-text-primary">
+                                            {previewSub.submission_ref || '-'}
+                                        </div>
+                                        {previewSub.tool_id && (previewSub.review_status === 'approved' || previewSub.review_status === 'published') && (
+                                            <a href={`/app/${previewSub.app_username}`} target="_blank" rel="noopener noreferrer" className="text-[10px] whitespace-nowrap text-accent-primary hover:underline flex items-center gap-1 bg-accent-primary/10 px-2 py-1 rounded border border-accent-primary/20" title={`Tool ID: ${previewSub.tool_id}`}>
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                View Tool
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
                                 <div>
@@ -554,14 +627,75 @@ export default function SubmissionsDashboard() {
                                 </div>
                             )}
 
+                            {/* Missing Fields Render */}
+                            <div className="grid grid-cols-2 gap-4">
+                                {previewSub.screenshot_urls && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Screenshots</h3>
+                                        <div className="flex flex-col gap-1 items-start">
+                                            {previewSub.screenshot_urls.split('\n').filter(Boolean).map((url: string, i: number) => (
+                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline break-all">
+                                                    Link {i + 1}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {previewSub.video_urls && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Videos</h3>
+                                        <div className="flex flex-col gap-1 items-start">
+                                            {previewSub.video_urls.split('\n').filter(Boolean).map((url: string, i: number) => (
+                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline break-all">
+                                                    Video {i + 1}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {previewSub.tags && (
+                                    <div className="col-span-2">
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Tags</h3>
+                                        <p className="text-sm text-text-primary">{previewSub.tags}</p>
+                                    </div>
+                                )}
+                                {previewSub.key_features && (
+                                    <div className="col-span-2">
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Key Features</h3>
+                                        <p className="text-sm text-text-primary whitespace-pre-wrap">{previewSub.key_features}</p>
+                                    </div>
+                                )}
+                                {previewSub.social_links && (
+                                    <div className="col-span-2">
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Social Links</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {parseSocialLinks(previewSub.social_links).map((social: any, i: number) => (
+                                                <a key={i} href={social.url} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline capitalize shrink-0 bg-bg-secondary px-2 py-1 rounded border border-border">
+                                                    {social.platform}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Quick Links */}
-                            <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                                <Link
-                                    href={`/dashboard/tools/new?submissionId=${encodeURIComponent(previewSub.id)}`}
-                                    className="flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 transition-colors"
-                                >
-                                    <ArrowRight size={14} /> Create Tool from This
-                                </Link>
+                            <div className="flex flex-wrap gap-2 pt-2 mt-4 border-t border-border">
+                                {previewSub.tool_id ? (
+                                    <Link
+                                        href={`/dashboard/tools/${previewSub.tool_id}`}
+                                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+                                    >
+                                        <ExternalLink size={14} /> Edit Linked Tool
+                                    </Link>
+                                ) : (
+                                    <Link
+                                        href={`/dashboard/tools/new?submissionId=${encodeURIComponent(previewSub.id)}`}
+                                        className="flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 transition-colors"
+                                    >
+                                        <ArrowRight size={14} /> Create Tool from This
+                                    </Link>
+                                )}
                                 <a
                                     href={`/submit/result/${previewSub.id}`}
                                     target="_blank"
@@ -576,12 +710,21 @@ export default function SubmissionsDashboard() {
                                 >
                                     <CreditCard size={14} /> View Payments
                                 </Link>
-                                <a
-                                    href={`mailto:${previewSub.submitter_email}?subject=${encodeURIComponent(`Re: ${previewSub.tool_name} Submission`)}`}
-                                    className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border text-text-primary rounded-lg text-sm font-medium hover:bg-bg-tertiary transition-colors"
-                                >
-                                    <Mail size={14} /> Email
-                                </a>
+                                {previewSub.submitter_email ? (
+                                    <a
+                                        href={`mailto:${previewSub.submitter_email}?subject=${encodeURIComponent(`Re: ${previewSub.tool_name} Submission`)}`}
+                                        className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border text-text-primary rounded-lg text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                                    >
+                                        <Mail size={14} /> Email
+                                    </a>
+                                ) : (
+                                    <button
+                                        disabled
+                                        className="flex items-center gap-2 px-4 py-2 bg-bg-secondary/50 border border-border text-text-tertiary rounded-lg text-sm font-medium cursor-not-allowed"
+                                    >
+                                        <Mail size={14} /> Email
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

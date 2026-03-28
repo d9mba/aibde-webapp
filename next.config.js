@@ -29,7 +29,7 @@ const securityHeaders = [
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
             "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://*.upstash.io https://us.i.posthog.com https://us.posthog.com https://us-assets.i.posthog.com https://www.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com https://www.clarity.ms https://*.clarity.ms",
-            "frame-src https://challenges.cloudflare.com https://*.clerk.accounts.dev",
+            "frame-src https://challenges.cloudflare.com https://*.clerk.accounts.dev https://www.youtube.com https://drive.google.com",
             "worker-src 'self' blob:",
             "object-src 'none'",
             "base-uri 'self'",
@@ -104,6 +104,9 @@ const nextConfig = {
             { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
             { protocol: 'https', hostname: 'asset.brandfetch.io' },
             { protocol: 'https', hostname: 'img.clerk.com' },
+            { protocol: 'https', hostname: 'www.youtube.com' },
+            { protocol: 'https', hostname: 'drive.google.com' },
+
         ],
     },
     // Improve development stability

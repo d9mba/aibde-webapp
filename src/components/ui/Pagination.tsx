@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface PaginationProps {
     currentPage: number;
@@ -21,11 +21,18 @@ export default function Pagination({
 
     // Sync parent when currentPage is out of valid range
     // IMPORTANT: This useEffect must be called before the early return to comply with Rules of Hooks
+    const onPageChangeRef = useRef(onPageChange);
+
     useEffect(() => {
+        onPageChangeRef.current = onPageChange;
+    }, [onPageChange]);
+
+    useEffect(() => {
+
         if (currentPage !== validatedPage) {
-            onPageChange(validatedPage);
+            onPageChangeRef.current(validatedPage);
         }
-    }, [currentPage, validatedPage, onPageChange]);
+    }, [currentPage, validatedPage]);
 
     if (safeTotalPages <= 1) return null;
 

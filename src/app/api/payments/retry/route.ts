@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clerkClient } from '@clerk/nextjs/server';
+import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
-import { requireAuth, isAuthError } from '@/lib/auth-utils';
 
 const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
-const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || 'https://test.dodopayments.com';
+const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || (process.env.NODE_ENV === 'production' ? 'https://live.dodopayments.com' : 'https://test.dodopayments.com');
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
-const ALLOWED_ORIGINS = (process.env.ALLOWED_REDIRECT_ORIGINS || SITE_URL || 'https://www.aibde.tech').split(',').map(o => o.trim());
+const ALLOWED_ORIGINS = (process.env.ALLOWED_REDIRECT_ORIGINS || SITE_URL || 'https://www.aibde.tech')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
 
 function isAllowedRedirectOrigin(baseUrl: string): boolean {
     try {
         const url = new URL(baseUrl);
         return ALLOWED_ORIGINS.some(allowed => {
-            const allowedUrl = new URL(allowed);
-            return url.origin === allowedUrl.origin;
+            try {
+                const allowedUrl = new URL(allowed);
+                return url.origin === allowedUrl.origin;
+            } catch {
+                return false;
+            }
         });
     } catch {
         return false;
@@ -22,9 +28,13 @@ function isAllowedRedirectOrigin(baseUrl: string): boolean {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        const authResult = await requireAuth();
-        if (isAuthError(authResult)) {
-            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+        const identifier = getClientIp(request);
+        const rateLimitResult = await checkRateLimit(identifier, rateLimits.standard);
+        if (!rateLimitResult.success) {
+            return NextResponse.json(
+                { error: 'Too many requests. Please try again later.' },
+                { status: 429 },
+            );
         }
 
         if (!DODO_API_KEY) {
@@ -168,17 +178,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!response.ok) {
             const text = await response.text().catch(() => '');
             console.error('[Retry Payment] Failed to create Dodo checkout', response.status, text);
-            
+
             // Update payment status to failed on checkout failure
             const { error: updateError } = await supabaseAdmin
                 .from('payments')
                 .update({ status: 'failed' })
                 .eq('id', newPayment.id);
-            
+
             if (updateError) {
                 console.error('[Retry Payment] Failed to mark payment as failed', updateError);
             }
-            
+
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },

@@ -16,7 +16,7 @@ const MAX_LEN = {
 };
 
 const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
-const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || 'https://test.dodopayments.com';
+const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || (process.env.NODE_ENV === 'production' ? 'https://live.dodopayments.com' : 'https://test.dodopayments.com');
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 const ALLOWED_ORIGINS = (process.env.ALLOWED_REDIRECT_ORIGINS || SITE_URL || 'https://www.aibde.tech')
     .split(',')
@@ -116,7 +116,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        const body: ToolSubmissionData = await request.json();
+        let body: ToolSubmissionData;
+        try {
+            body = await request.json();
+        } catch {
+            return NextResponse.json({ error: 'Malformed JSON payload' }, { status: 400 });
+        }
 
         if (
             !body.submitterName ||
@@ -144,9 +149,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        if (!DODO_API_KEY) {
+        if (!DODO_API_KEY || (process.env.NODE_ENV === 'production' && !process.env.DODO_PAYMENTS_BASE_URL)) {
             return NextResponse.json(
-                { error: 'Payment provider is not configured' },
+                { error: 'Payment provider is not properly configured for production environments' },
                 { status: 500 },
             );
         }
@@ -254,22 +259,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         if (paymentError || !payment) {
             console.error('[Submit Tool API] Failed to insert payments', paymentError);
-            
+
             // Rollback: delete the submission that was just created
             const { error: deleteError } = await supabaseAdmin
                 .from('tool_submissions')
                 .delete()
                 .eq('id', submission.id);
-            
+
             if (deleteError) {
                 console.error('[Submit Tool API] Failed to rollback submission', deleteError);
             }
-            
+
             return NextResponse.json(
                 { error: 'Failed to create payment record. Please try again.' },
                 { status: 500 },
             );
         }
+
+        // Now that payment row securely exists, elevate the submission status to initiated.
+        await supabaseAdmin
+            .from('tool_submissions')
+            .update({ payment_status: 'initiated' })
+            .eq('id', submission.id);
 
         // 3) Create Dodo checkout session
         let baseUrl = SITE_URL || request.nextUrl.origin;
@@ -314,7 +325,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             });
         } catch (error: any) {
             if (error?.name === 'AbortError') {
-                await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+                const { error: abortErr } = await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+                if (abortErr) console.error('[Submit Tool API] Failed to update payment status on timeout', abortErr);
+
+                const { error: subAbortErr } = await supabaseAdmin.from('tool_submissions').update({ payment_status: 'failed' }).eq('id', payment.submission_id);
+                if (subAbortErr) console.error('[Submit Tool API] Failed to update submission payment status', subAbortErr);
+
                 return NextResponse.json(
                     { error: 'Payment provider timeout. Please try again.' },
                     { status: 504 },
@@ -328,34 +344,53 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!response.ok) {
             const text = await response.text().catch(() => '');
             console.error('[Submit Tool API] Failed to create Dodo checkout', response.status, text);
-            await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+            const { error: failErr } = await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+            if (failErr) console.error('[Submit Tool API] DB update failed on checkout error', failErr);
+            await supabaseAdmin.from('tool_submissions').update({ payment_status: 'failed' }).eq('id', payment.submission_id);
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },
             );
         }
 
-        const session = (await response.json()) as {
-            session_id: string;
-            checkout_url: string;
-        };
+        const session = (await response.json()) as any;
 
         if (!session.checkout_url) {
             console.error('[Submit Tool API] Missing checkout_url in Dodo response', session);
-            await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+            const { error: urlFailErr } = await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+            if (urlFailErr) console.error('[Submit Tool API] DB update failed on missing checkout_url', urlFailErr);
+            await supabaseAdmin.from('tool_submissions').update({ payment_status: 'failed' }).eq('id', payment.submission_id);
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
                 { status: 502 },
             );
         }
 
-        // Store the Dodo session_id for fallback status polling
-        if (session.session_id) {
+        const dodoPaymentId = session.payment_id || session.id || session.session_id;
+
+        // Store the Dodo session_id and accurate pricing for fallback status polling
+        if (dodoPaymentId) {
+            const updatePayload: any = { payment_id: dodoPaymentId };
+
+
+            if (typeof session.total_amount === 'number') {
+                let scale = 2; // Default minor units
+                if (session.currency) {
+                    const c = session.currency.toUpperCase();
+                    if (['JPY', 'KRW', 'VND', 'UGX'].includes(c)) scale = 0;
+                    else if (['BHD', 'KWD', 'OMR', 'JOD'].includes(c)) scale = 3;
+                }
+                updatePayload.amount = session.total_amount / Math.pow(10, scale);
+            }
+            if (session.currency) {
+                updatePayload.currency = session.currency;
+            }
+
             const { error: updateError } = await supabaseAdmin
                 .from('payments')
-                .update({ payment_id: session.session_id })
+                .update(updatePayload)
                 .eq('id', payment.id);
-            
+
             if (updateError) {
                 console.error('[Submit Tool API] Failed to update payment with session_id', updateError);
                 // Log but don't fail - polling won't work but submission was created

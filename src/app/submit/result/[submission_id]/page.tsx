@@ -27,7 +27,12 @@ function formatDateTime(dateString: string): string {
 function formatAmount(amount: number, currency: string): string {
     const symbols: Record<string, string> = { USD: '$', INR: '₹', EUR: '€', GBP: '£' };
     const symbol = symbols[currency] || `${currency} `;
-    return `${symbol}${Number(amount).toFixed(2)}`;
+
+    // CodeRabbit: Handle NaN or invalid amount safely
+    const numAmount = Number(amount);
+    if (Number.isNaN(numAmount)) return `${symbol}0.00`;
+
+    return `${symbol}${numAmount.toFixed(2)}`;
 }
 
 function sanitizeWebsiteUrl(urlString: string | null | undefined): string | null {
@@ -128,21 +133,37 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                             .update({ payment_status: 'success' })
                             .eq('id', payment.submission_id);
 
-                        // Send confirmation email (via Resend)
+                        // Send confirmation email (same as webhook)
                         if (payment.submitter_email && payment.email_status !== 'sent') {
-                            const emailId = await sendSubmissionEmail('success', {
-                                submitter_name: payment.submitter_name || 'there',
-                                submitter_email: payment.submitter_email,
-                                tool_name: payment.tool_name || 'Your tool',
-                                tool_url: payment.tool_url || null,
-                                plan: payment.plan || 'basic',
-                                submission_ref: submission?.submission_ref || null,
-                            });
-                            
-                            if (emailId) {
+                            const { data: emailClaim, error: emailClaimError } = await supabaseAdmin
+                                .from('payments')
+                                .update({ email_status: 'pending', updated_at: new Date().toISOString() })
+                                .eq('id', payment.id)
+                                .or('email_status.is.null,email_status.eq.not_sent,email_status.eq.failed')
+                                .select('id')
+                                .maybeSingle();
+
+                            if (emailClaimError) {
+                                console.error('[Submit Result] Failed to claim email send', emailClaimError);
+                            }
+
+                            if (emailClaim) {
+                                const emailId = await sendSubmissionEmail('success', {
+                                    submitter_name: payment.submitter_name || 'there',
+                                    submitter_email: payment.submitter_email,
+                                    tool_name: payment.tool_name || 'Your tool',
+                                    tool_url: payment.tool_url || null,
+                                    plan: payment.plan || 'basic',
+                                    submission_ref: submission?.submission_ref || null,
+                                });
+
                                 await supabaseAdmin
                                     .from('payments')
-                                    .update({ email_status: 'sent', email_sent_at: new Date().toISOString(), email_provider_id: emailId })
+                                    .update(
+                                        emailId
+                                            ? { email_status: 'sent', email_sent_at: new Date().toISOString(), email_provider_id: emailId }
+                                            : { email_status: 'failed' }
+                                    )
                                     .eq('id', payment.id);
                             }
                         }
@@ -240,8 +261,8 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
         status === 'success'
             ? 'receipt-header-success'
             : status === 'failed'
-            ? 'receipt-header-failed'
-            : 'receipt-header-processing';
+                ? 'receipt-header-failed'
+                : 'receipt-header-processing';
 
     // Receipt card shared across all states with payment
     const receiptCard = hasPayment ? (

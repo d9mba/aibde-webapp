@@ -122,12 +122,10 @@ export default function NotesPage() {
                     });
                 })
                 .catch((err) => {
-                    if (err.name === 'AbortError') {
-                        fetchedToolIdsRef.current.delete(id);
-                        return;
+                    if (err.name !== 'AbortError') {
+                        console.error(`[Notes] Failed to fetch tool ${id}:`, err);
                     }
-                    console.error(`[Notes] Failed to fetch tool ${id}:`, err);
-                    fetchedToolIdsRef.current.delete(id);
+                    // purposefully leaving id in fetchedToolIdsRef to prevent retry loop
                 });
         });
 

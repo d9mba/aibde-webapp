@@ -60,6 +60,15 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
         }
     }, []);
 
+    // Cleanup abort controller on unmount
+    useEffect(() => {
+        return () => {
+            if (abortRef.current) {
+                abortRef.current.abort();
+            }
+        };
+    }, []);
+
     // Debounced search
     useEffect(() => {
         if (searchTimeout.current) {
@@ -71,7 +80,9 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
                 fetchSuggestions(searchQuery);
             }, 350);
         } else {
+            abortRef.current?.abort();
             setSuggestions([]);
+            setIsLoading(false);
         }
 
         return () => {

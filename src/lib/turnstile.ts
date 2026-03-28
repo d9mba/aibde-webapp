@@ -10,7 +10,7 @@ interface TurnstileResponse {
 /**
  * Verify a Cloudflare Turnstile token.
  * In production, returns false if the secret key is missing.
- * In dev, skips verification if the key is not configured.
+ * In dev, skips verification if the secret key is missing AND TURNSTILE_SKIP_VERIFICATION=true.
  */
 export async function verifyTurnstile(token: string): Promise<boolean> {
     if (!token || token.trim() === '') {

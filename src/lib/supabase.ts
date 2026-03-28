@@ -477,7 +477,7 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
 
     for (const [key, value] of Object.entries(tool)) {
-        if (key === 'launchedAgo') continue; // Skip computed field
+        if (key === 'launchedAgo' || key === 'submissionId' || key === 'submissionRef') continue; // Skip computed/tracking fields
 
         const dbKey = mapping[key] || key;
 

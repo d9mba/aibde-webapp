@@ -238,7 +238,7 @@ export default function TasksPage() {
                             <div
                                 key={task.id}
                                 className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary"
-                                onClick={() => { const safeSlug = `${slugify(task.taskName) || 'task'}-${task.id.slice(-6)}`; router.push(`/dashboard/tasks/${safeSlug}`); }}
+                                onClick={() => { const safeSlug = `${slugify(task.taskName) || 'task'}-${task.id.split('-').pop()}`; router.push(`/dashboard/tasks/${safeSlug}`); }}
                             >
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex-1 min-w-0">
@@ -291,7 +291,7 @@ export default function TasksPage() {
                                 <tr><td colSpan={4} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tasks match your search' : 'No tasks found'}</td></tr>
                             ) : (
                                 tasks.map((task: Task) => (
-                                    <tr onClick={() => { const safeSlug = `${slugify(task.taskName) || 'task'}-${task.id.slice(-6)}`; router.push(`/dashboard/tasks/${safeSlug}`); }} key={task.id}>
+                                    <tr onClick={() => { const safeSlug = `${slugify(task.taskName) || 'task'}-${task.id.split('-').pop()}`; router.push(`/dashboard/tasks/${safeSlug}`); }} key={task.id}>
                                         <td className="px-4 py-3">
                                             {editingId === task.id ? (
                                                 <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(task.id); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />

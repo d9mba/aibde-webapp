@@ -31,8 +31,15 @@ export default function RetryPaymentButton({ submissionId }: RetryPaymentButtonP
             }
 
             if (json.checkoutUrl) {
-                window.location.href = json.checkoutUrl as string;
-                return;
+                try {
+                    const parsedUrl = new URL(json.checkoutUrl as string);
+                    if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+                        window.location.href = parsedUrl.href;
+                        return;
+                    }
+                } catch {
+                    // Invalid URL format, fall through to throw error
+                }
             }
 
             throw new Error('Missing checkout URL from payment provider. Please try again.');
@@ -57,7 +64,7 @@ export default function RetryPaymentButton({ submissionId }: RetryPaymentButtonP
                 {loading ? 'Redirecting to payment...' : 'Retry Payment'}
             </button>
             {error && (
-                <p className="mt-2 text-center text-xs text-[var(--accent-red)]">
+                <p role="alert" className="mt-2 text-center text-xs text-[var(--accent-red)]">
                     {error}
                 </p>
             )}

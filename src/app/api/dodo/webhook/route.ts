@@ -58,7 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const rawBody = await request.text();
         const signature = request.headers.get('x-dodo-signature') || request.headers.get('x-signature');
-        
+
         const isValid = verifyWebhookSignature(rawBody, signature, secret);
         if (!isValid) {
             console.error('[Dodo Webhook] Invalid signature');
@@ -104,14 +104,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!submissionId || !paymentIdFromMetadata) {
             console.error('[Dodo Webhook] Missing metadata identifiers', {
                 eventType,
-                metadata,
+                submissionId,
+                paymentIdFromMetadata,
+                // Redact full metadata to prevent PII leakage
             });
             return NextResponse.json({ received: true }, { status: 200 });
         }
 
         const dodoPaymentId: string | undefined =
             payment.id || payment.payment_id || payment.paymentId;
-        
+
         // Helper to determine decimal places per currency
         function getCurrencyMinorUnits(currency: string | undefined): number {
             if (!currency) return 2;
@@ -123,22 +125,53 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             // Default to 2
             return 2;
         }
-        
+
         const currency: string | undefined = payment.currency || payment.billing_currency;
         const decimals = getCurrencyMinorUnits(currency);
-        const amount: number | null =
-            typeof payment.amount === 'number'
-                ? payment.amount / Math.pow(10, decimals)
-                : typeof payment.amount === 'string'
-                ? Number(payment.amount) / Math.pow(10, decimals) || null
+
+        const parsedAmount = typeof payment.amount === 'number'
+            ? payment.amount
+            : typeof payment.amount === 'string'
+                ? Number(payment.amount)
+                : typeof payment.total_amount === 'number'
+                    ? payment.total_amount
+                    : typeof payment.total_amount === 'string'
+                        ? Number(payment.total_amount)
+                        : null;
+
+        const amount: number | null = parsedAmount !== null && !Number.isNaN(parsedAmount)
+            ? parsedAmount / Math.pow(10, decimals)
+            : null;
+        // Extract Tax
+        const parsedTax = typeof payment.tax === 'number'
+            ? payment.tax
+            : typeof payment.tax_amount === 'number'
+                ? payment.tax_amount
                 : null;
+
+        const tax: number | null = parsedTax !== null && !Number.isNaN(parsedTax)
+            ? parsedTax / Math.pow(10, decimals)
+            : 0;
+
+        // Extract Net Amount
+        const parsedNet = typeof payment.net_amount === 'number'
+            ? payment.net_amount
+            : typeof payment.amount_net === 'number'
+                ? payment.amount_net
+                : null;
+
+        const net_amount: number | null = parsedNet !== null && !Number.isNaN(parsedNet)
+            ? parsedNet / Math.pow(10, decimals)
+            : (amount !== null && tax !== null) ? amount - tax : null;
+
+        const invoice_url: string | null = payment.invoice_url || payment.receipt_url || payment.receipt_link || null;
 
         const statusFromEvent =
             eventType === 'payment.succeeded'
                 ? 'success'
                 : eventType === 'payment.failed'
-                ? 'failed'
-                : null;
+                    ? 'failed'
+                    : null;
 
         if (!statusFromEvent) {
             // Ignore other events
@@ -149,10 +182,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const failureReason: string | null =
             statusFromEvent === 'failed'
                 ? (payment.failure_reason as string) ||
-                  (payment.error_message as string) ||
-                  (payment.status_reason as string) ||
-                  (payment.decline_reason as string) ||
-                  'Payment was declined by the payment provider.'
+                (payment.error_message as string) ||
+                (payment.status_reason as string) ||
+                (payment.decline_reason as string) ||
+                'Payment was declined by the payment provider.'
                 : null;
 
         // Prevent duplicate processing: only update if not already in a terminal state
@@ -209,6 +242,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 payment_id: dodoPaymentId || existingPayment.payment_id,
                 amount: amount ?? existingPayment.amount,
                 currency: currency || existingPayment.currency,
+                tax: tax ?? existingPayment.tax ?? 0,
+                net_amount: net_amount ?? existingPayment.net_amount ?? 0,
+                invoice_url: invoice_url || existingPayment.invoice_url,
                 failure_reason: failureReason,
                 updated_at: new Date().toISOString(),
                 email_status: provisionalEmailStatus,

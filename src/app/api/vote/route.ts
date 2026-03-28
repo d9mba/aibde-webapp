@@ -8,15 +8,22 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     // Apply rate limiting
+    const cookieToken = request.cookies.get('aibde_voter_id')?.value;
+    let deviceToken = cookieToken;
+    let generatedNewToken = false;
+
     const ip = getClientIp(request);
-    const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-    const cfIp = request.headers.get('cf-connecting-ip')?.trim();
-    const identifier = ip && ip !== 'anonymous'
-        ? ip
-        : (forwarded || cfIp || `anon:${createHash('sha256')
-            .update(`${request.headers.get('user-agent') || ''}|${request.headers.get('accept-language') || ''}`)
-            .digest('hex')
-            .slice(0, 16)}`);
+
+    if (!deviceToken) {
+        deviceToken = createHash('sha256').update(crypto.randomUUID()).digest('hex').slice(0, 16);
+        generatedNewToken = true;
+        if (!ip || ip === 'anonymous') {
+            console.warn(`[Vote API] IP anonymous or absent. Using generated device token for rate limiting: ${deviceToken}`);
+        }
+    }
+
+    const identifier = ip && ip !== 'anonymous' ? ip : deviceToken;
+
     const rateLimit = await checkRateLimit(`vote:${identifier}`, rateLimits.standard);
     if (!rateLimit.success) {
         return NextResponse.json(
@@ -90,15 +97,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (slugError) {
         console.error('[Vote] Error fetching tool slug:', slugError);
     }
-    
+
     if (toolSlug?.app_username) {
         revalidatePath(`/app/${toolSlug.app_username}`);
     }
     revalidatePath('/');
 
-    return NextResponse.json({
+    const response = NextResponse.json({
         success: true,
         upvotes: result.upvotes ?? 0,
         downvotes: result.downvotes ?? 0,
     });
+
+    if (generatedNewToken) {
+        response.cookies.set('aibde_voter_id', deviceToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 60 * 60 * 24 * 365, // 1 year
+            path: '/',
+            sameSite: 'lax',
+        });
+    }
+
+    return response;
 }

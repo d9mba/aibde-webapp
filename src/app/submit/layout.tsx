@@ -12,11 +12,13 @@ export const metadata: Metadata = {
         type: 'website',
         siteName: 'AiBDE',
         url: `${SEO.siteUrl}/submit`,
+        images: [`${SEO.siteUrl}/twitter-image.png`],
     },
     twitter: {
         card: 'summary_large_image',
         title: 'Submit Your AI Tool | AiBDE',
         description: 'Submit your AI tool to AiBDE and reach developers, founders, and AI enthusiasts searching for innovative tools.',
+        images: [`${SEO.siteUrl}/twitter-image.png`],
     },
     alternates: {
         canonical: `${SEO.siteUrl}/submit`,

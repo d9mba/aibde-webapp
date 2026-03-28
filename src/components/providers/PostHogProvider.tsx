@@ -2,7 +2,7 @@
 
 import posthog from 'posthog-js';
 import { PostHogProvider as PHProvider } from 'posthog-js/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * PostHog Analytics Provider
@@ -10,7 +10,10 @@ import { useEffect } from 'react';
  * Initializes PostHog for client-side analytics tracking.
  * Requires NEXT_PUBLIC_POSTHOG_KEY and NEXT_PUBLIC_POSTHOG_HOST env vars.
  */
+
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
+    const [shouldRender, setShouldRender] = useState(false);
+
     useEffect(() => {
         // Only enable analytics on the production hostname (set NEXT_PUBLIC_SITE_HOSTNAME in .env)
         const prodHostname = process.env.NEXT_PUBLIC_SITE_HOSTNAME;
@@ -31,11 +34,12 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
                     events_burst_limit: 5,
                 },
             });
+            setShouldRender(true);
         }
     }, []);
 
-    // If no key, just render children without PostHog
-    if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+    // If no key or not initialized on correct hostname, just render children without PostHog wrapper
+    if (!process.env.NEXT_PUBLIC_POSTHOG_KEY || !shouldRender) {
         return <>{children}</>;
     }
 

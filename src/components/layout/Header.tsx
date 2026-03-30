@@ -298,7 +298,7 @@ export default function Header() {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search AI tools..."
-                                className="flex-1 bg-transparent border-none outline-none text-sm text-text-primary placeholder:text-text-tertiary"
+                                className="flex-1 bg-transparent border-none outline-none text-sm text-text-primary placeholder:text-text-tertiary focus:shadow-none"
                                 autoComplete="off"
                                 suppressHydrationWarning
                             />

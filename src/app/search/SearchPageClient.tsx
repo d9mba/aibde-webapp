@@ -42,6 +42,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     const [isSearching, setIsSearching] = useState(false);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
@@ -49,13 +50,14 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     // Ctrl+K keyboard shortcut to focus search
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k' && window.scrollY < 200) {
                 e.preventDefault();
+                e.stopPropagation();
                 inputRef.current?.focus();
             }
         };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
+        document.addEventListener('keydown', handleKeyDown, true);
+        return () => document.removeEventListener('keydown', handleKeyDown, true);
     }, []);
 
 
@@ -263,12 +265,12 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
 
                 {/* Search Input */}
                 <div className="relative w-full max-w-[500px] mt-1 py-1">
-                    <div className="bg-bg-card border border-border rounded-full shadow-lg hover:shadow-xl hover:border-text-tertiary focus-within:border-accent-primary/50 focus-within:shadow-[0_0_0_3px_rgba(52,178,123,0.25)] transition-all duration-200">
+                    <div className={`bg-bg-card border rounded-full shadow-lg hover:shadow-xl transition-all duration-200 ${isFocused ? 'border-emerald-500 shadow-[0_0_0_3px_rgba(52,178,123,0.25)]' : 'border-border hover:border-text-tertiary'}`}>
                         <div className="flex items-center gap-3 w-full px-5 py-3.5">
                             {(isSearching || isLoadingSuggestions) ? (
                                 <span className="w-[22px] h-[22px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
                             ) : (
-                                <svg className="text-text-tertiary flex-shrink-0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg className={`flex-shrink-0 transition-colors ${isFocused ? 'text-accent-primary' : 'text-text-tertiary'}`} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <circle cx="11" cy="11" r="8" />
                                     <path d="M21 21l-4.35-4.35" />
                                 </svg>
@@ -277,7 +279,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 ref={inputRef}
                                 type="text"
                                 autoComplete="off"
-                                className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50"
+                                className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50 focus:shadow-none"
                                 placeholder="Search AI tools... (press Enter to search)"
                                 value={query}
                                 onChange={(e) => {
@@ -286,12 +288,18 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 }}
                                 onKeyDown={handleKeyDown}
                                 onFocus={() => {
+                                    setIsFocused(true);
                                     if (query.length >= 2 && !searchCommittedRef.current) {
                                         setShowSuggestions(true);
                                         fetchSuggestions(query);
                                     }
                                 }}
-                                onBlur={() => setTimeout(() => setShowSuggestions(false), 300)}
+                                onBlur={() => {
+                                    setTimeout(() => {
+                                        setShowSuggestions(false);
+                                        setIsFocused(false);
+                                    }, 300);
+                                }}
                             />
                             {!query && (
                                 <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">

@@ -126,20 +126,22 @@ export default function TopHeader() {
     }, []);
 
     // Global keyboard shortcut: Ctrl+K or Cmd+K to focus search
-    // Only handle when TopHeader search is visible (scrolled past 200px)
+    // Only handle when TopHeader search is visible
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
-            // Ctrl+K or Cmd+K - only when scrolled down enough to see TopHeader search
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k' && window.scrollY >= 200) {
+            // Ctrl+K or Cmd+K — only fire if TopHeader search is actually shown
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k' && showHeaderSearch) {
                 e.preventDefault();
+                e.stopPropagation();
                 inputRef.current?.focus();
                 setIsFocused(true);
                 setShowRecommendations(true);
             }
         };
-        document.addEventListener('keydown', handleGlobalKeyDown);
-        return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-    }, []);
+        // Use capture phase to ensure header has a chance to catch it
+        document.addEventListener('keydown', handleGlobalKeyDown, true);
+        return () => document.removeEventListener('keydown', handleGlobalKeyDown, true);
+    }, [showHeaderSearch]);
 
     // Handle search submission
     const handleSearch = (e: React.FormEvent) => {
@@ -248,7 +250,7 @@ export default function TopHeader() {
                                         onKeyDown={handleKeyDown}
                                         autoComplete="off"
                                         placeholder={typingPlaceholder || 'Search AI tools...'}
-                                        className="flex-1 border-none outline-none bg-transparent text-sm text-text-primary placeholder:text-text-tertiary/50"
+                                        className="flex-1 border-none outline-none bg-transparent text-sm text-text-primary placeholder:text-text-tertiary/50 focus:shadow-none"
                                         suppressHydrationWarning
                                     />
                                     {!searchQuery && (

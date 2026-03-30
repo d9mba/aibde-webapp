@@ -102,7 +102,7 @@ export default function SearchResultsPage() {
                         </svg>
                         <input
                             type="text"
-                            className="flex-1 border-none outline-none bg-transparent text-base text-text-primary placeholder:text-text-tertiary"
+                            className="flex-1 border-none outline-none bg-transparent text-base text-text-primary placeholder:text-text-tertiary focus:shadow-none"
                             placeholder="Search"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}

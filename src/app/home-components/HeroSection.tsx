@@ -146,18 +146,18 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
             </p>
             <div className="relative w-full max-w-[500px] mt-1 py-1 z-50">
                 {/* Search Input */}
-                <div className={`bg-bg-card border rounded-full transition-all duration-200 ${isMainSearchFocused ? 'border-accent-primary/50 shadow-[0_0_0_3px_rgba(52,178,123,0.25)]' : 'border-border shadow-lg hover:shadow-xl hover:border-text-tertiary'}`}>
+                <div className={`bg-bg-card border rounded-full transition-all duration-200 ${isMainSearchFocused ? 'border-emerald-500 shadow-[0_0_0_3px_rgba(52,178,123,0.25)]' : 'border-border shadow-lg hover:shadow-xl hover:border-text-tertiary'}`}>
                     <div className="flex items-center gap-3 w-full px-5 py-3.5">
                         {isLoading ? (
                             <span className="w-[22px] h-[22px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
                         ) : (
-                            <SearchIcon className={`w-[22px] h-[22px] flex-shrink-0 transition-colors ${isMainSearchFocused ? 'text-text-secondary' : 'text-text-tertiary'}`} />
+                            <SearchIcon className={`w-[22px] h-[22px] flex-shrink-0 transition-colors ${isMainSearchFocused ? 'text-accent-primary' : 'text-text-tertiary'}`} />
                         )}
                         <input
                             ref={inputRef}
                             type="text"
                             autoComplete="off"
-                            className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50"
+                            className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50 focus:shadow-none"
                             placeholder={typingPlaceholder || 'Search AI tools...'}
                             value={searchQuery}
                             onChange={(e) => {

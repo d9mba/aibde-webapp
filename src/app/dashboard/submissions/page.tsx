@@ -322,8 +322,16 @@ export default function SubmissionsDashboard() {
                         paginated.map((sub) => (
                             <div
                                 key={sub.id}
-                                className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary transition-colors"
+                                className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary transition-colors cursor-pointer"
                                 onClick={() => setPreviewSub(sub)}
+                                tabIndex={0}
+                                role="button"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setPreviewSub(sub);
+                                    }
+                                }}
                             >
                                 <div className="flex items-start gap-3">
                                     {sub.logo_url ? (

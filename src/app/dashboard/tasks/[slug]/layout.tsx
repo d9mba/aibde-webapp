@@ -37,13 +37,17 @@ export async function generateMetadata({
         // First try matching by the full normalized slug (for backward compatibility)
         let task = tasks.find((t) => slugify(t.taskName) === normalizedSlug);
 
-        // If not found and slug has ID suffix, try finding by slug name prefix
+        // If not found and slug has ID suffix, try finding by slug name prefix + ID verification
         if (!task) {
             const idSuffix = extractTaskIdSuffix(slug);
             if (idSuffix) {
                 const slugWithoutId = normalizedSlug.slice(0, -(idSuffix.length + 1)); // Remove '-XXXXXX'
                 if (slugWithoutId) {
-                    task = tasks.find((t) => slugify(t.taskName) === slugWithoutId);
+                    // Find task matching the name prefix AND whose ID ends with the suffix
+                    task = tasks.find((t) =>
+                        slugify(t.taskName) === slugWithoutId &&
+                        t.id?.endsWith(idSuffix)
+                    );
                 }
             }
         }

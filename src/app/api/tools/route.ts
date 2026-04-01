@@ -277,38 +277,40 @@ export async function GET(request: NextRequest) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             : (data || []).map((tool: any) => dbToolToAdminTool(tool));
 
-        // Attempt to fetch and attach submission IDs/Refs reversed from tool_ids
-        try {
-            if (tools.length > 0) {
-                const toolIds = tools.map((t: any) => t.id);
-                // Batch lookups to avoid Supabase URL length limits on large lists
-                const BATCH_SIZE = 100;
-                const allSubs: Array<{ tool_id: string; id: string; submission_ref: string }> = [];
-                for (let i = 0; i < toolIds.length; i += BATCH_SIZE) {
-                    const batch = toolIds.slice(i, i + BATCH_SIZE);
-                    const { data: subs, error: subBatchErr } = await supabaseAdmin
-                        .from('tool_submissions')
-                        .select('tool_id, id, submission_ref')
-                        .in('tool_id', batch);
-                    if (subBatchErr) {
-                        console.warn('[Tools API] Submission ref batch lookup failed:', subBatchErr.message);
-                    }
-                    if (subs) allSubs.push(...subs);
-                }
-
-                if (allSubs.length > 0) {
-                    const subMap = new Map(allSubs.map((s) => [s.tool_id, s]));
-                    tools = tools.map((t: any) => {
-                        const sub = subMap.get(t.id);
-                        if (sub) {
-                            return { ...t, submissionId: sub.id, submissionRef: sub.submission_ref };
+        // PERF-06: Only fetch submission refs for full table views, not lightweight card views
+        if (fieldsParam !== 'card') {
+            try {
+                if (tools.length > 0) {
+                    const toolIds = tools.map((t: any) => t.id);
+                    // Batch lookups to avoid Supabase URL length limits on large lists
+                    const BATCH_SIZE = 100;
+                    const allSubs: Array<{ tool_id: string; id: string; submission_ref: string }> = [];
+                    for (let i = 0; i < toolIds.length; i += BATCH_SIZE) {
+                        const batch = toolIds.slice(i, i + BATCH_SIZE);
+                        const { data: subs, error: subBatchErr } = await supabaseAdmin
+                            .from('tool_submissions')
+                            .select('tool_id, id, submission_ref')
+                            .in('tool_id', batch);
+                        if (subBatchErr) {
+                            console.warn('[Tools API] Submission ref batch lookup failed:', subBatchErr.message);
                         }
-                        return t;
-                    });
+                        if (subs) allSubs.push(...subs);
+                    }
+
+                    if (allSubs.length > 0) {
+                        const subMap = new Map(allSubs.map((s) => [s.tool_id, s]));
+                        tools = tools.map((t: any) => {
+                            const sub = subMap.get(t.id);
+                            if (sub) {
+                                return { ...t, submissionId: sub.id, submissionRef: sub.submission_ref };
+                            }
+                            return t;
+                        });
+                    }
                 }
+            } catch (subErr) {
+                console.warn('[Tools API] Failed to fetch submission refs for bulk list:', subErr);
             }
-        } catch (subErr) {
-            console.warn('[Tools API] Failed to fetch submission refs for bulk list:', subErr);
         }
 
         // Return paginated response

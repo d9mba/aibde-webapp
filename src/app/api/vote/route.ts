@@ -22,9 +22,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
     }
 
-    const identifier = ip && ip !== 'anonymous' ? ip : deviceToken;
+    const hasReliableIdentifier = ip && ip !== 'anonymous';
+    const identifier = hasReliableIdentifier ? ip : deviceToken;
 
-    const rateLimit = await checkRateLimit(`vote:${identifier}`, rateLimits.standard);
+    // SEC-04: Use stricter rate limit for anonymous/unidentifiable users to prevent
+    // bypass via new device tokens. IP-identified users get the standard bucket.
+    const rateLimitPreset = hasReliableIdentifier ? rateLimits.standard : rateLimits.sensitive;
+    const rateLimit = await checkRateLimit(`vote:${identifier}`, rateLimitPreset);
     if (!rateLimit.success) {
         return NextResponse.json(
             { error: 'Too many votes. Please try again later.' },

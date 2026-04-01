@@ -46,6 +46,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
 
     const inputRef = useRef<HTMLInputElement>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
+    const blurTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     // Ctrl+K keyboard shortcut to focus search
     useEffect(() => {
@@ -57,7 +58,11 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             }
         };
         document.addEventListener('keydown', handleKeyDown, true);
-        return () => document.removeEventListener('keydown', handleKeyDown, true);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown, true);
+            // Clean up blur timeout on unmount to prevent leaked state updates
+            clearTimeout(blurTimeoutRef.current);
+        };
     }, []);
 
 
@@ -295,7 +300,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                     }
                                 }}
                                 onBlur={() => {
-                                    setTimeout(() => {
+                                    blurTimeoutRef.current = setTimeout(() => {
                                         setShowSuggestions(false);
                                         setIsFocused(false);
                                     }, 300);

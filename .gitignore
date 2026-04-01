@@ -63,8 +63,6 @@ next-env.d.ts
 
 docs/
 
-docs/coderabbit/
-
 #agents
 .agent/
 

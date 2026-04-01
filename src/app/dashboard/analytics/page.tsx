@@ -806,9 +806,9 @@ export default function AnalysisPage() {
                                     <div className="space-y-2">
                                         {topTools.slice(0, 6).map((tool, i) => (
                                             <div
-                                                key={tool.tool_slug}
-                                                onClick={() => router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
-                                                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-bg-secondary transition-colors cursor-pointer"
+                                                key={tool.tool_slug || i}
+                                                onClick={() => tool.tool_slug && router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
+                                                className={`flex items-center gap-2 p-1.5 rounded-lg hover:bg-bg-secondary transition-colors ${tool.tool_slug ? 'cursor-pointer' : 'cursor-default'}`}
                                             >
                                                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${i < 3 ? 'bg-accent-primary text-white' : 'bg-bg-tertiary text-text-tertiary'}`}>
                                                     {i + 1}

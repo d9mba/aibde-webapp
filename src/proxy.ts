@@ -191,7 +191,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     if (isProtectedRoute(req)) {
         if (!userId) {
             if (path.startsWith('/api/')) {
-                return NextResponse.json({ error: 'Access denied' }, { status: 401 });
+                return NextResponse.json({ error: 'Access denied' }, { status: 403 });
             }
             return NextResponse.redirect(new URL('/', req.url));
         }

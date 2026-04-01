@@ -203,6 +203,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         }
 
+        // BUG-01 FIX: Persist session_id so webhooks can reconcile this payment
+        if (session.session_id) {
+            const { error: sessionUpdateErr } = await supabaseAdmin
+                .from('payments')
+                .update({ payment_id: session.session_id })
+                .eq('id', newPayment.id);
+            if (sessionUpdateErr) {
+                console.error('[Retry Payment] Failed to persist session_id', sessionUpdateErr);
+            }
+        }
+
         return NextResponse.json({
             success: true,
             paymentId: newPayment.id,

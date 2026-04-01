@@ -15,7 +15,7 @@ const ZERO_DECIMAL = new Set([
 ]);
 
 /** Currencies that use 3 decimal places (1/1000). */
-const THREE_DECIMAL = new Set(['BHD', 'KWD', 'OMR', 'JOD']);
+const THREE_DECIMAL = new Set(['BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND']);
 
 /**
  * Return the number of minor-unit decimal places for a currency code.

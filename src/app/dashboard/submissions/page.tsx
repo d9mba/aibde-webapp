@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -125,14 +125,23 @@ function parseSocialLinks(links: any) {
     try { return JSON.parse(links); } catch { return []; }
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 25;
+
+interface PaginationMeta {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+}
 
 export default function SubmissionsDashboard() {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
+    const [pagination, setPagination] = useState<PaginationMeta | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [previewSub, setPreviewSub] = useState<Submission | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [paymentFilter, setPaymentFilter] = useState('all');
     const [reviewFilter, setReviewFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
@@ -140,35 +149,81 @@ export default function SubmissionsDashboard() {
     const { showToast, updateToast } = useToast();
     const { confirm } = useConfirm();
 
+    // Close preview modal on Escape — document-level so it works regardless of focus
+    useEffect(() => {
+        if (!previewSub) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setPreviewSub(null);
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [previewSub]);
+
     const searchParams = useSearchParams();
 
-    const fetchSubmissions = useCallback(async (signal?: AbortSignal): Promise<void> => {
+    // Debounce search input (500ms)
+    useEffect(() => {
+        const trimmed = searchQuery.trim();
+        if (trimmed === debouncedSearch) return;
+        const timer = setTimeout(() => {
+            setDebouncedSearch(trimmed);
+            setCurrentPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
+
+    // Build API URL with server-side pagination + filters
+    const apiUrl = (() => {
+        const params = new URLSearchParams();
+        params.set('page', String(currentPage));
+        params.set('limit', String(ITEMS_PER_PAGE));
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        if (paymentFilter !== 'all') params.set('payment_status', paymentFilter);
+        if (reviewFilter !== 'all') params.set('review_status', reviewFilter);
+        return `/api/dashboard/submissions?${params.toString()}`;
+    })();
+
+    const fetchSubmissions = useCallback(async (url: string, signal?: AbortSignal): Promise<void> => {
         setLoading(true);
         setError('');
         try {
-            const res = await fetch('/api/dashboard/submissions', { signal });
+            const res = await fetch(url, { signal });
+            if (!res.ok) {
+                const text = await res.text().catch(() => 'Unknown error');
+                throw new Error(text || `HTTP ${res.status}`);
+            }
             const json = await res.json();
-            if (!res.ok) throw new Error(json.error || 'Failed to fetch');
             setSubmissions(json.data || []);
+            setPagination(json.pagination || null);
+            setLoading(false);
         } catch (err) {
             if (err instanceof DOMException && err.name === 'AbortError') return;
             const msg = err instanceof Error ? err.message : 'Failed to load submissions';
             setError(msg);
             showToast(msg, 'error');
-        } finally {
             setLoading(false);
         }
     }, [showToast]);
 
+    // Fetch on mount + when URL/filters/page change
     useEffect(() => {
         const initialSearch = searchParams.get('search');
-        if (initialSearch) {
+        if (initialSearch && !searchQuery) {
             setSearchQuery(initialSearch);
+            setDebouncedSearch(initialSearch);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
         const controller = new AbortController();
-        fetchSubmissions(controller.signal);
+        fetchSubmissions(apiUrl, controller.signal);
         return () => controller.abort();
-    }, [searchParams, fetchSubmissions]);
+    }, [apiUrl, fetchSubmissions]);
+
+    // Reset page to 1 when filters change
+    useEffect(() => { setCurrentPage(1); }, [paymentFilter, reviewFilter]);
 
     const handleStatusUpdate = async (id: string, newStatus: string, currentStatus: string) => {
         if (newStatus === currentStatus) return;
@@ -215,46 +270,12 @@ export default function SubmissionsDashboard() {
         }
     };
 
-    const filtered = useMemo(() => submissions.filter(s => {
-        const matchesSearch = !searchQuery ||
-            (s.tool_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (s.submitter_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (s.submitter_email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (s.submission_ref && s.submission_ref.toLowerCase().includes(searchQuery.toLowerCase()));
-        const matchesPayment = paymentFilter === 'all' || s.payment_status === paymentFilter;
-        const matchesReview = reviewFilter === 'all' || s.review_status === reviewFilter;
-        return matchesSearch && matchesPayment && matchesReview;
-    }), [submissions, searchQuery, paymentFilter, reviewFilter]);
+    // Data is already paginated from server — use directly
+    const totalPages = pagination?.totalPages ?? 1;
+    const totalCount = pagination?.total ?? 0;
+    const isInitialLoad = loading && submissions.length === 0 && !pagination;
+    const isRefetching = loading && (submissions.length > 0 || !!pagination);
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-    useEffect(() => { setCurrentPage(1); }, [searchQuery, paymentFilter, reviewFilter]);
-
-    const stats = {
-        total: submissions.length,
-        pending: submissions.filter(s => s.review_status === 'pending').length,
-        approved: submissions.filter(s => s.review_status === 'approved').length,
-        published: submissions.filter(s => s.review_status === 'published').length,
-        paid: submissions.filter(s => s.payment_status === 'success').length,
-    };
-
-    if (loading) {
-        return (
-            <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
-                <div className="text-text-secondary">Loading submissions...</div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
-                <div className="text-accent-red">{error}</div>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen p-3 sm:p-6 bg-bg-primary">
@@ -264,18 +285,15 @@ export default function SubmissionsDashboard() {
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Tool Submissions</h1>
                         <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 sm:mt-1">
-                            {stats.total} total
-                            {stats.paid > 0 && <> · <span className="text-accent-primary">{stats.paid} paid</span></>}
-                            {stats.pending > 0 && <> · <span className="text-accent-orange">{stats.pending} pending</span></>}
-                            {stats.approved > 0 && <> · <span className="text-accent-primary">{stats.approved} approved</span></>}
-                            {stats.published > 0 && <> · <span className="text-accent-green">{stats.published} published</span></>}
+                            {totalCount} total
                         </p>
                     </div>
                     <button
-                        onClick={() => fetchSubmissions()}
-                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                        onClick={() => fetchSubmissions(apiUrl)}
+                        disabled={loading}
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary disabled:opacity-50 transition-colors"
                     >
-                        <RefreshCw size={16} />
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                         <span className="hidden sm:inline">Refresh</span>
                     </button>
                 </div>
@@ -312,14 +330,35 @@ export default function SubmissionsDashboard() {
                     </div>
                 </div>
 
+                {/* Error Banner */}
+                {error && (
+                    <div className="p-4 mb-4 bg-accent-red/10 border border-accent-red/30 rounded-xl text-sm text-accent-red">
+                        {error}
+                    </div>
+                )}
+
+                {/* Content area with loading overlay */}
+                <div className="relative">
+                    {/* Spinner overlay for re-fetches */}
+                    {isRefetching && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                            <Loader2 className="w-6 h-6 animate-spin text-accent-primary" />
+                        </div>
+                    )}
+
                 {/* Mobile Card View */}
-                <div className="sm:hidden space-y-3">
-                    {paginated.length === 0 ? (
+                <div className={`sm:hidden space-y-3 transition-opacity duration-200 ${isRefetching ? 'opacity-50' : ''}`}>
+                    {isInitialLoad ? (
+                        <div className="bg-bg-card border border-border rounded-xl p-12 text-center text-text-tertiary">
+                            <div className="w-10 h-10 mx-auto mb-3 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                            <div className="font-medium">Loading submissions...</div>
+                        </div>
+                    ) : submissions.length === 0 ? (
                         <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary">
                             No submissions found
                         </div>
                     ) : (
-                        paginated.map((sub) => (
+                        submissions.map((sub) => (
                             <div
                                 key={sub.id}
                                 className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary transition-colors cursor-pointer"
@@ -370,7 +409,7 @@ export default function SubmissionsDashboard() {
                 </div>
 
                 {/* Desktop Table */}
-                <div className="hidden sm:block bg-bg-card border border-border rounded-xl">
+                <div className={`hidden sm:block bg-bg-card border border-border rounded-xl overflow-hidden transition-opacity duration-200 ${isRefetching ? 'opacity-50' : ''}`}>
                     <table className="w-full">
                         <thead className="bg-bg-secondary border-b border-border">
                             <tr>
@@ -384,14 +423,22 @@ export default function SubmissionsDashboard() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {paginated.length === 0 ? (
+                            {isInitialLoad ? (
+                                <tr>
+                                    <td colSpan={7} className="px-4 py-12 text-center text-text-tertiary">
+                                        <div className="w-10 h-10 mx-auto mb-3 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                                        <div className="font-medium">Loading submissions...</div>
+                                        <p className="text-sm mt-1">Fetching data</p>
+                                    </td>
+                                </tr>
+                            ) : submissions.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-12 text-center text-text-tertiary">
                                         No submissions found
                                     </td>
                                 </tr>
                             ) : (
-                                paginated.map((sub) => (
+                                submissions.map((sub) => (
                                     <tr
                                         key={sub.id}
                                         className="hover:bg-bg-secondary cursor-pointer transition-colors"
@@ -502,12 +549,13 @@ export default function SubmissionsDashboard() {
                         </tbody>
                     </table>
                 </div>
+                </div>{/* end relative wrapper */}
 
                 {/* Pagination */}
-                {totalPages > 1 && (
+                {pagination && totalPages > 1 && (
                     <div className="flex items-center justify-between mt-4 p-3 sm:p-4 bg-bg-card border border-border rounded-xl">
-                        <div className="text-sm text-text-secondary">
-                            Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length}
+                        <div className="text-sm text-text-tertiary">
+                            Showing {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
                         </div>
                         <div className="flex items-center gap-2">
                             <button
@@ -536,7 +584,7 @@ export default function SubmissionsDashboard() {
 
             {/* Preview Modal */}
             {previewSub && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label={`Submission details for ${previewSub.tool_name || 'Untitled'}`} onClick={() => setPreviewSub(null)} onKeyDown={(e) => { if (e.key === 'Escape') setPreviewSub(null); }}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label={`Submission details for ${previewSub.tool_name || 'Untitled'}`} onClick={() => setPreviewSub(null)}>
                     <div className="bg-bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className="p-6 border-b border-border">

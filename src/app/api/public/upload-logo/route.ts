@@ -91,8 +91,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         await uploadFile(finalBuffer, `${folder}/${filename}`, finalMimeType);
 
-        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || process.env.R2_DEV_URL || '';
-        const normalizedCdn = cdnUrl.replace(/\/+$/, '');
+        const isProduction = process.env.NODE_ENV === 'production';
+        const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || '';
+        if (isProduction && !cdnUrl) {
+            console.error('[Public Upload Logo] NEXT_PUBLIC_CDN_URL is not configured in production');
+            return NextResponse.json({ error: 'Upload service misconfigured' }, { status: 500 });
+        }
+        const effectiveCdnUrl = cdnUrl || process.env.R2_DEV_URL || '';
+        if (!cdnUrl && effectiveCdnUrl) {
+            console.warn('[Public Upload Logo] Using R2_DEV_URL fallback — not suitable for production');
+        }
+        const normalizedCdn = effectiveCdnUrl.replace(/\/+$/, '');
         const fullUrl = normalizedCdn ? `${normalizedCdn}${relativePath}` : relativePath;
 
         return NextResponse.json({

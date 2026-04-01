@@ -286,20 +286,26 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
             failureReason = 'Payment was not completed within 15 minutes. The session has expired.';
 
             try {
-                await Promise.all([
-                    supabaseAdmin
-                        .from('payments')
-                        .update({
-                            status: 'failed',
-                            failure_reason: failureReason,
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq('id', payment.id),
-                    supabaseAdmin
-                        .from('tool_submissions')
-                        .update({ payment_status: 'failed' })
-                        .eq('id', payment.submission_id)
-                ]);
+                // BUG-02 FIX: Sequential updates to prevent partial state on failure
+                const { error: paymentUpdateErr } = await supabaseAdmin
+                    .from('payments')
+                    .update({
+                        status: 'failed',
+                        failure_reason: failureReason,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', payment.id);
+                if (paymentUpdateErr) {
+                    console.error('[Submit Result] Failed to update payment for timeout', paymentUpdateErr);
+                }
+
+                const { error: subUpdateErr } = await supabaseAdmin
+                    .from('tool_submissions')
+                    .update({ payment_status: 'failed' })
+                    .eq('id', payment.submission_id);
+                if (subUpdateErr) {
+                    console.error('[Submit Result] Failed to update submission for timeout', subUpdateErr);
+                }
             } catch (timeoutErr) {
                 console.error('[Submit Result] DB update for timeout failed', timeoutErr);
             }

@@ -46,7 +46,7 @@ export async function generateMetadata({
                     // Find task matching the name prefix AND whose ID ends with the suffix
                     task = tasks.find((t) =>
                         slugify(t.taskName) === slugWithoutId &&
-                        t.id?.endsWith(idSuffix)
+                        t.id?.toLowerCase().endsWith(idSuffix.toLowerCase())
                     );
                 }
             }

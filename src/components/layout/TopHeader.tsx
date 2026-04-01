@@ -42,6 +42,9 @@ export default function TopHeader() {
         const controller = new AbortController();
         abortRef.current = controller;
         try {
+            // NOTE: getSearchSuggestionsAction is a Server Action (RPC), not a fetch
+            // request — it cannot accept an AbortSignal. The controller is only used
+            // to discard stale results via signal.aborted checks below.
             const tools = await getSearchSuggestionsAction(query, 6);
             if (!controller.signal.aborted) {
                 setSuggestions(tools);

@@ -133,7 +133,10 @@ export default function FastListingsPage() {
     // Pagination for regular tools — adjust for tools hidden by pendingFastIds
     const clientVisibleTotal = Math.max(0, (availableTotal ?? 0) - pendingFastIds.length);
     const totalPages = Math.max(1, Math.ceil(clientVisibleTotal / ITEMS_PER_PAGE));
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    // Clamp currentPage when totalPages shrinks (e.g., after adding items to pendingFastIds)
+    const clampedPage = Math.min(currentPage, totalPages);
+    if (clampedPage !== currentPage) setCurrentPage(clampedPage);
+    const startIndex = (clampedPage - 1) * ITEMS_PER_PAGE;
     // Backend already applies limit/page
     const paginatedTools = filteredRegularTools;
 

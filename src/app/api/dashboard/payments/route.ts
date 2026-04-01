@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
 const MAX_LIMIT = 200;
-const DEFAULT_LIMIT = 50;
+const DEFAULT_LIMIT = 25;
 const BATCH_SIZE = 500;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -12,30 +12,67 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
-    // PERF-02: Add pagination with safe defaults and caps
     const { searchParams } = new URL(request.url);
+
+    // Pagination
     const rawPage = parseInt(searchParams.get('page') || '1', 10);
     const rawLimit = parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10);
     const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
     const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, MAX_LIMIT)) : DEFAULT_LIMIT;
     const offset = (page - 1) * limit;
 
-    // Get total count for pagination metadata
-    const { count: totalCount, error: countError } = await supabaseAdmin
+    // Server-side filters
+    const search = searchParams.get('search')?.trim() || '';
+    const statusFilter = searchParams.get('status') || '';
+
+    // Build queries with filters
+    let countQuery = supabaseAdmin
         .from('payments')
         .select('*', { count: 'exact', head: true });
 
-    if (countError) {
-        console.error('[Dashboard Payments] Failed to count payments', countError);
-        return NextResponse.json({ error: 'An internal server error occurred' }, { status: 500 });
-    }
-
-    const { data: payments, error: paymentsError } = await supabaseAdmin
+    let dataQuery = supabaseAdmin
         .from('payments')
         .select('*')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
+    // Apply status filter
+    if (statusFilter && statusFilter !== 'all') {
+        countQuery = countQuery.eq('status', statusFilter);
+        dataQuery = dataQuery.eq('status', statusFilter);
+    }
+
+    // Apply search filter
+    if (search) {
+        // Search text columns in payments table
+        const textFilter = `tool_name.ilike.%${search}%,submitter_name.ilike.%${search}%,submitter_email.ilike.%${search}%`;
+
+        // Check if search matches any submission_refs (e.g. A280326VERUA733)
+        const { data: matchedSubs } = await supabaseAdmin
+            .from('tool_submissions')
+            .select('id')
+            .ilike('submission_ref', `%${search}%`)
+            .limit(50);
+
+        const matchedSubIds = (matchedSubs || []).map(s => s.id);
+
+        if (matchedSubIds.length > 0) {
+            // Filter by text columns OR by matched submission IDs
+            countQuery = countQuery.or(`${textFilter},submission_id.in.(${matchedSubIds.join(',')})`);
+            dataQuery = dataQuery.or(`${textFilter},submission_id.in.(${matchedSubIds.join(',')})`);
+        } else {
+            countQuery = countQuery.or(textFilter);
+            dataQuery = dataQuery.or(textFilter);
+        }
+    }
+
+    const { count: totalCount, error: countError } = await countQuery;
+    if (countError) {
+        console.error('[Dashboard Payments] Failed to count payments', countError);
+        return NextResponse.json({ error: 'An internal server error occurred' }, { status: 500 });
+    }
+
+    const { data: payments, error: paymentsError } = await dataQuery;
     if (paymentsError) {
         console.error('[Dashboard Payments] Failed to fetch payments', paymentsError);
         return NextResponse.json({ error: 'An internal server error occurred' }, { status: 500 });

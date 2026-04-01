@@ -30,15 +30,7 @@ interface ContactFormData {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        if (isProduction && !GOOGLE_APPS_SCRIPT_URL) {
-            console.error('[Contact API] GOOGLE_APPS_SCRIPT_CONTACT_URL is not configured in production');
-            return NextResponse.json(
-                { error: 'Contact form backend is not configured' },
-                { status: 500 }
-            );
-        }
-
-        // Rate limiting
+        // Rate limiting — runs first so config probes are also rate-limited
         const ip = getClientIp(request);
         let identifier: string;
         if (ip !== 'anonymous') {
@@ -61,6 +53,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json(
                 { error: 'Too many requests. Try again later.' },
                 { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rateLimit.resetTime - Date.now()) / 1000))) } }
+            );
+        }
+
+        // SEC: Config check runs after rate limiting to prevent unlimited probing
+        if (isProduction && !GOOGLE_APPS_SCRIPT_URL) {
+            console.error('[Contact API] Required backend configuration missing');
+            return NextResponse.json(
+                { error: 'Service temporarily unavailable' },
+                { status: 500 }
             );
         }
 

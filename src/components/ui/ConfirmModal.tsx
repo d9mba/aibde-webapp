@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, createContext, useContext, ReactNode, useCallback } from 'react';
+import { useState, createContext, useContext, ReactNode, useCallback, useEffect } from 'react';
 
 interface ConfirmOptions {
     title?: string;
@@ -40,10 +40,20 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         resolveRef?.(true);
     };
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
         setIsOpen(false);
         resolveRef?.(false);
-    };
+    }, [resolveRef]);
+
+    // Document-level Escape listener — works regardless of focus
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') handleCancel();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, handleCancel]);
 
     return (
         <ConfirmContext.Provider value={{ confirm }}>
@@ -56,7 +66,6 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="confirm-modal-title"
-                    onKeyDown={(e) => { if (e.key === 'Escape') handleCancel(); }}
                 >
                     {/* Backdrop */}
                     <div

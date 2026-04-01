@@ -61,6 +61,12 @@ export async function sendSubmissionEmail(
 
     const { submitter_name, submitter_email, tool_name, tool_url, plan, submission_ref } = data;
 
+    // Validate email before attempting to send
+    if (!submitter_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submitter_email)) {
+        console.error('[Emails] Invalid submitter_email, skipping send:', submitter_email);
+        return null;
+    }
+
     // Escape user inputs to prevent HTML injection
     const safeName = escapeHtml(submitter_name || 'there');
     const safeToolName = escapeHtml(tool_name || 'Your tool');

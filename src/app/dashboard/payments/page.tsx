@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
     Clock, RefreshCw, Loader2, Search,
@@ -10,6 +10,12 @@ import {
 } from 'lucide-react';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useToast } from '@/components/ui/Toast';
+
+/** Returns true only for http:// or https:// URLs (prevents javascript: XSS) */
+function isSafeHttpUrl(url: string | undefined | null): boolean {
+    if (!url || typeof url !== 'string') return false;
+    return /^https?:\/\//i.test(url.trim());
+}
 
 interface Payment {
     id: string;
@@ -137,61 +143,98 @@ function groupBySubmission(payments: Payment[]): GroupedPayments[] {
     return Array.from(map.values());
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 25;
+
+interface PaginationMeta {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+}
 
 export default function PaymentsDashboard() {
     const [payments, setPayments] = useState<Payment[]>([]);
+    const [pagination, setPagination] = useState<PaginationMeta | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [previewGroup, setPreviewGroup] = useState<GroupedPayments | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const { showToast } = useToast();
 
-    // Initial check for 'search' query param from router url search params
+    // Debounce search input (500ms)
+    useEffect(() => {
+        const trimmed = searchQuery.trim();
+        if (trimmed === debouncedSearch) return;
+        const timer = setTimeout(() => {
+            setDebouncedSearch(trimmed);
+            setCurrentPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
+
+    // Build API URL with server-side pagination + filters
+    const apiUrl = (() => {
+        const params = new URLSearchParams();
+        params.set('page', String(currentPage));
+        params.set('limit', String(ITEMS_PER_PAGE));
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        if (statusFilter !== 'all') params.set('status', statusFilter);
+        return `/api/dashboard/payments?${params.toString()}`;
+    })();
+
+    // Initial check for 'search' query param
     useEffect(() => {
         const initialSearch = new URLSearchParams(window.location.search).get('search');
         if (initialSearch) {
             setSearchQuery(initialSearch);
+            setDebouncedSearch(initialSearch);
         }
-        fetchPayments();
     }, []);
 
-    async function fetchPayments(): Promise<void> {
+    const fetchPayments = useCallback(async (url: string, signal?: AbortSignal): Promise<void> => {
         setLoading(true);
         setError('');
         try {
-            const res = await fetch('/api/dashboard/payments');
+            const res = await fetch(url, { signal });
+            if (!res.ok) {
+                const text = await res.text().catch(() => 'Unknown error');
+                throw new Error(text || `HTTP ${res.status}`);
+            }
             const json = await res.json();
-            if (!res.ok) throw new Error(json.error || 'Failed to fetch');
             setPayments(json.data || []);
+            setPagination(json.pagination || null);
+            setLoading(false);
         } catch (err) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
             const msg = err instanceof Error ? err.message : 'Failed to load payments';
             setError(msg);
             showToast(msg, 'error');
-        } finally {
             setLoading(false);
         }
-    }
+    }, [showToast]);
 
+    // Fetch when apiUrl changes
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchPayments(apiUrl, controller.signal);
+        return () => controller.abort();
+    }, [apiUrl, fetchPayments]);
+
+    // Reset page to 1 when status filter changes
+    useEffect(() => { setCurrentPage(1); }, [statusFilter]);
+
+    // Group payments by submission for display (client-side, on current page data)
     const grouped = useMemo(() => groupBySubmission(payments), [payments]);
 
-    const filtered = useMemo(() => grouped.filter(g => {
-        const matchesSearch = !searchQuery ||
-            g.tool_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            g.submitter_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            g.submitter_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            g.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (g.submission_ref?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
-        const matchesStatus = statusFilter === 'all' || g.latest_status === statusFilter;
-        return matchesSearch && matchesStatus;
-    }), [grouped, searchQuery, statusFilter]);
-
-    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-    useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter]);
+    // Pagination comes from server
+    const totalPages = pagination?.totalPages ?? 1;
+    const totalCount = pagination?.total ?? 0;
+    const isInitialLoad = loading && grouped.length === 0 && !pagination;
+    const isRefetching = loading && (grouped.length > 0 || !!pagination);
 
     // Close preview modal on Escape
     useEffect(() => {
@@ -204,28 +247,7 @@ export default function PaymentsDashboard() {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [previewGroup]);
 
-    const stats = {
-        total: payments.length,
-        success: payments.filter(p => p.status === 'success').length,
-        failed: payments.filter(p => p.status === 'failed').length,
-        initiated: payments.filter(p => p.status === 'initiated').length,
-    };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
-                <div className="text-text-secondary">Loading payments...</div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen p-8 bg-bg-primary flex items-center justify-center">
-                <div className="text-accent-red">{error}</div>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen p-3 sm:p-6 bg-bg-primary">
@@ -235,17 +257,15 @@ export default function PaymentsDashboard() {
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Payments</h1>
                         <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 sm:mt-1">
-                            {grouped.length} submissions · {stats.total} total payments
-                            {stats.success > 0 && <> · <span className="text-accent-primary">{stats.success} success</span></>}
-                            {stats.failed > 0 && <> · <span className="text-accent-red">{stats.failed} failed</span></>}
-                            {stats.initiated > 0 && <> · <span className="text-accent-orange">{stats.initiated} initiated</span></>}
+                            {totalCount} total payments
                         </p>
                     </div>
                     <button
-                        onClick={fetchPayments}
-                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                        onClick={() => fetchPayments(apiUrl)}
+                        disabled={loading}
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary disabled:opacity-50 transition-colors"
                     >
-                        <RefreshCw size={16} />
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                         <span className="hidden sm:inline">Refresh</span>
                     </button>
                 </div>
@@ -274,14 +294,35 @@ export default function PaymentsDashboard() {
                     </div>
                 </div>
 
+                {/* Error Banner */}
+                {error && (
+                    <div className="p-4 mb-4 bg-accent-red/10 border border-accent-red/30 rounded-xl text-sm text-accent-red">
+                        {error}
+                    </div>
+                )}
+
+                {/* Content area with loading overlay */}
+                <div className="relative">
+                    {/* Spinner overlay for re-fetches */}
+                    {isRefetching && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                            <Loader2 className="w-6 h-6 animate-spin text-accent-primary" />
+                        </div>
+                    )}
+
                 {/* Mobile Card View */}
-                <div className="sm:hidden space-y-3">
-                    {paginated.length === 0 ? (
+                <div className={`sm:hidden space-y-3 transition-opacity duration-200 ${isRefetching ? 'opacity-50' : ''}`}>
+                    {isInitialLoad ? (
+                        <div className="bg-bg-card border border-border rounded-xl p-12 text-center text-text-tertiary">
+                            <div className="w-10 h-10 mx-auto mb-3 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                            <div className="font-medium">Loading payments...</div>
+                        </div>
+                    ) : grouped.length === 0 ? (
                         <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary">
                             No payments found
                         </div>
                     ) : (
-                        paginated.map((group) => (
+                        grouped.map((group) => (
                             <div
                                 key={group.submission_id}
                                 className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-primary focus:bg-bg-secondary"
@@ -328,7 +369,7 @@ export default function PaymentsDashboard() {
                 </div>
 
                 {/* Desktop Table */}
-                <div className="hidden sm:block bg-bg-card border border-border rounded-xl overflow-hidden">
+                <div className={`hidden sm:block bg-bg-card border border-border rounded-xl overflow-hidden transition-opacity duration-200 ${isRefetching ? 'opacity-50' : ''}`}>
                     <table className="w-full">
                         <thead className="bg-bg-secondary border-b border-border">
                             <tr>
@@ -343,14 +384,22 @@ export default function PaymentsDashboard() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {paginated.length === 0 ? (
+                            {isInitialLoad ? (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-12 text-center text-text-tertiary">
+                                        <div className="w-10 h-10 mx-auto mb-3 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                                        <div className="font-medium">Loading payments...</div>
+                                        <p className="text-sm mt-1">Fetching data</p>
+                                    </td>
+                                </tr>
+                            ) : grouped.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className="px-4 py-12 text-center text-text-tertiary">
                                         No payments found
                                     </td>
                                 </tr>
                             ) : (
-                                paginated.map((group) => (
+                                grouped.map((group) => (
                                     <tr
                                         key={group.submission_id}
                                         className="hover:bg-bg-secondary cursor-pointer transition-colors"
@@ -421,12 +470,13 @@ export default function PaymentsDashboard() {
                         </tbody>
                     </table>
                 </div>
+                </div>{/* end relative wrapper */}
 
                 {/* Pagination */}
-                {totalPages > 1 && (
+                {pagination && totalPages > 1 && (
                     <div className="flex items-center justify-between mt-4 p-3 sm:p-4 bg-bg-card border border-border rounded-xl">
-                        <div className="text-sm text-text-secondary">
-                            Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length}
+                        <div className="text-sm text-text-tertiary">
+                            Showing {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
                         </div>
                         <div className="flex items-center gap-2">
                             <button
@@ -455,7 +505,7 @@ export default function PaymentsDashboard() {
 
             {/* Preview Modal */}
             {previewGroup && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label={`Payment details for ${previewGroup.tool_name}`} onClick={() => setPreviewGroup(null)} onKeyDown={(e) => { if (e.key === 'Escape') setPreviewGroup(null); }}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label={`Payment details for ${previewGroup.tool_name}`} onClick={() => setPreviewGroup(null)}>
                     <div className="bg-bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className="p-6 border-b border-border">
@@ -501,7 +551,7 @@ export default function PaymentsDashboard() {
                                         <span className="text-sm text-text-tertiary">—</span>
                                     )}
                                 </div>
-                                {previewGroup.tool_url && (
+                                {isSafeHttpUrl(previewGroup.tool_url) && (
                                     <div>
                                         <h3 className="text-xs font-medium text-text-tertiary mb-1">Website</h3>
                                         <a href={previewGroup.tool_url} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline flex items-center gap-1">
@@ -571,7 +621,7 @@ export default function PaymentsDashboard() {
                                                         </span>
                                                     </div>
                                                 )}
-                                                {p.invoice_url && (
+                                                {isSafeHttpUrl(p.invoice_url) && (
                                                     <div className="col-span-2 pt-1">
                                                         <a href={p.invoice_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase text-accent-primary hover:text-accent-primary/80 transition-colors">
                                                             <ExternalLink size={12} /> View Official Invoice

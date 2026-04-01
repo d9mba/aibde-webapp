@@ -378,16 +378,31 @@ export async function POST(request: NextRequest) {
 
         // Check for linked tool submission to resolve
         if (parseResult.data.submissionId) {
-            const updatePayload: any = {
-                tool_id: data.id,
-                app_username: data.app_username,
-            };
+            const submissionId = parseResult.data.submissionId;
 
-            // Mirror the tool's status back into the submissions list precisely
-            updatePayload.review_status = data.status;
+            // Validate submission exists and isn't linked to a different tool
+            const { data: existingSub, error: subFetchErr } = await supabaseAdmin
+                .from('tool_submissions')
+                .select('id, tool_id')
+                .eq('id', submissionId)
+                .maybeSingle();
 
-            const { error: subErr } = await supabaseAdmin.from('tool_submissions').update(updatePayload).eq('id', parseResult.data.submissionId);
-            if (subErr) console.error('[Tools API] Failed to update linked submission:', subErr);
+            if (subFetchErr) {
+                console.error('[Tools API] Failed to fetch submission for validation:', subFetchErr);
+            } else if (!existingSub) {
+                console.warn('[Tools API] Submission not found:', submissionId);
+            } else if (existingSub.tool_id && existingSub.tool_id !== data.id) {
+                console.error('[Tools API] Submission already linked to a different tool:', { submissionId, existingToolId: existingSub.tool_id, newToolId: data.id });
+            } else {
+                const updatePayload: any = {
+                    tool_id: data.id,
+                    app_username: data.app_username,
+                    review_status: data.status,
+                };
+
+                const { error: subErr } = await supabaseAdmin.from('tool_submissions').update(updatePayload).eq('id', submissionId);
+                if (subErr) console.error('[Tools API] Failed to update linked submission:', subErr);
+            }
         }
 
         // Bust ISR cache so new tool appears instantly

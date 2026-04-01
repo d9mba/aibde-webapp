@@ -157,9 +157,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                         ? Number(payment.amount_net)
                         : null;
 
+        // Use integer arithmetic for the fallback to avoid floating-point precision errors
         const net_amount: number | null = parsedNet !== null && !Number.isNaN(parsedNet)
             ? parsedNet / Math.pow(10, decimals)
-            : (amount !== null && tax !== null) ? amount - tax : null;
+            : (parsedAmount !== null && parsedTax !== null && !Number.isNaN(parsedAmount) && !Number.isNaN(parsedTax))
+                ? (Math.round(parsedAmount) - Math.round(parsedTax)) / Math.pow(10, decimals)
+                : null;
 
         const invoice_url: string | null = payment.invoice_url || payment.receipt_url || payment.receipt_link || null;
 
@@ -279,20 +282,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         let emailProviderId: string | null = null;
 
         if (submitterEmail && provisionalEmailStatus !== 'sent') {
-            const emailId = await sendSubmissionEmail(emailType, {
-                submitter_name: submitterName,
-                submitter_email: submitterEmail,
-                tool_name: toolName,
-                tool_url: toolUrl,
-                plan,
-                submission_ref: submissionRef,
-            });
+            try {
+                const emailId = await sendSubmissionEmail(emailType, {
+                    submitter_name: submitterName,
+                    submitter_email: submitterEmail,
+                    tool_name: toolName,
+                    tool_url: toolUrl,
+                    plan,
+                    submission_ref: submissionRef,
+                });
 
-            if (emailId) {
-                emailStatus = 'sent';
-                emailSentAt = new Date().toISOString();
-                emailProviderId = emailId;
-            } else {
+                if (emailId) {
+                    emailStatus = 'sent';
+                    emailSentAt = new Date().toISOString();
+                    emailProviderId = emailId;
+                } else {
+                    emailStatus = 'failed';
+                }
+            } catch (emailErr) {
+                console.error('[Dodo Webhook] sendSubmissionEmail threw:', emailErr);
                 emailStatus = 'failed';
             }
 

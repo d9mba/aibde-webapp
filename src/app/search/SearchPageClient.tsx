@@ -83,6 +83,9 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         const controller = new AbortController();
         abortRef.current = controller;
         try {
+            // NOTE: getSearchSuggestionsAction is a Next.js Server Action (RPC call),
+            // not a fetch request, so it cannot accept an AbortSignal. The controller
+            // is only used to discard stale results via signal.aborted checks below.
             const tools = await getSearchSuggestionsAction(q, 6);
             if (!controller.signal.aborted) {
                 setSuggestions(tools);

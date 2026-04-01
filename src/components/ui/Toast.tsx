@@ -119,7 +119,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {children}
 
             {/* Toast Container - more top spacing on mobile for dashboard header */}
-            <div className="fixed top-14 sm:top-4 right-2 sm:right-4 z-[500] flex flex-col gap-2 sm:gap-3">
+            <div className="fixed top-14 sm:top-4 right-2 sm:right-4 z-[500] flex flex-col gap-2 sm:gap-3" aria-live="assertive" aria-atomic="true">
                 {toasts.map(toast => {
                     const styles = getStyles(toast.type);
                     return (
@@ -127,8 +127,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                             key={toast.id}
                             onClick={() => hideToast(toast.id)}
                             role="alert"
-                            aria-live="assertive"
-                            aria-atomic="true"
                             className={`
                                 cursor-pointer bg-bg-card rounded-lg shadow-lg border-l-4 ${styles.border} border border-border
                                 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 min-w-[240px] sm:min-w-[300px] max-w-[calc(100vw-1rem)] sm:max-w-[400px]

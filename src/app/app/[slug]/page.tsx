@@ -41,7 +41,9 @@ export async function generateMetadata({
     const prefix = `${displayName} – `;
     const maxSummaryLen = Math.max(10, 60 - prefix.length - suffix.length);
     const shortSummary = tool.summary
-        ? tool.summary.slice(0, maxSummaryLen - 1) + (tool.summary.length > maxSummaryLen ? '…' : '')
+        ? (tool.summary.length > maxSummaryLen
+            ? tool.summary.slice(0, maxSummaryLen - 1) + '…'
+            : tool.summary)
         : categoryLabel;
 
     // Title format: "[Tool Name] – [Summary] | AiBDE"

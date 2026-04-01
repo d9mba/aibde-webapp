@@ -9,6 +9,9 @@ CREATE OR REPLACE FUNCTION public.update_votes(
   p_previous_vote TEXT DEFAULT NULL  -- required for 'change' action
 )
 RETURNS TABLE(upvotes INT, downvotes INT) AS $$
+DECLARE
+  result_upvotes INT;
+  result_downvotes INT;
 BEGIN
   -- Validate inputs
   IF p_action NOT IN ('add', 'remove', 'change') THEN
@@ -23,16 +26,20 @@ BEGIN
 
   IF p_action = 'add' THEN
     IF p_vote_type = 'up' THEN
-      UPDATE public.tools SET upvotes = GREATEST(0, COALESCE(public.tools.upvotes, 0) + 1) WHERE id = p_tool_id;
+      UPDATE public.tools SET upvotes = GREATEST(0, COALESCE(public.tools.upvotes, 0) + 1) WHERE id = p_tool_id
+        RETURNING public.tools.upvotes, public.tools.downvotes INTO result_upvotes, result_downvotes;
     ELSE
-      UPDATE public.tools SET downvotes = GREATEST(0, COALESCE(public.tools.downvotes, 0) + 1) WHERE id = p_tool_id;
+      UPDATE public.tools SET downvotes = GREATEST(0, COALESCE(public.tools.downvotes, 0) + 1) WHERE id = p_tool_id
+        RETURNING public.tools.upvotes, public.tools.downvotes INTO result_upvotes, result_downvotes;
     END IF;
 
   ELSIF p_action = 'remove' THEN
     IF p_vote_type = 'up' THEN
-      UPDATE public.tools SET upvotes = GREATEST(0, COALESCE(public.tools.upvotes, 0) - 1) WHERE id = p_tool_id;
+      UPDATE public.tools SET upvotes = GREATEST(0, COALESCE(public.tools.upvotes, 0) - 1) WHERE id = p_tool_id
+        RETURNING public.tools.upvotes, public.tools.downvotes INTO result_upvotes, result_downvotes;
     ELSE
-      UPDATE public.tools SET downvotes = GREATEST(0, COALESCE(public.tools.downvotes, 0) - 1) WHERE id = p_tool_id;
+      UPDATE public.tools SET downvotes = GREATEST(0, COALESCE(public.tools.downvotes, 0) - 1) WHERE id = p_tool_id
+        RETURNING public.tools.upvotes, public.tools.downvotes INTO result_upvotes, result_downvotes;
     END IF;
 
   ELSIF p_action = 'change' THEN
@@ -43,12 +50,14 @@ BEGIN
       UPDATE public.tools SET
         upvotes = GREATEST(0, COALESCE(public.tools.upvotes, 0) - 1),
         downvotes = GREATEST(0, COALESCE(public.tools.downvotes, 0) + 1)
-      WHERE id = p_tool_id;
+      WHERE id = p_tool_id
+        RETURNING public.tools.upvotes, public.tools.downvotes INTO result_upvotes, result_downvotes;
     ELSIF p_previous_vote = 'down' THEN
       UPDATE public.tools SET
         upvotes = GREATEST(0, COALESCE(public.tools.upvotes, 0) + 1),
         downvotes = GREATEST(0, COALESCE(public.tools.downvotes, 0) - 1)
-      WHERE id = p_tool_id;
+      WHERE id = p_tool_id
+        RETURNING public.tools.upvotes, public.tools.downvotes INTO result_upvotes, result_downvotes;
     END IF;
   END IF;
 
@@ -56,6 +65,9 @@ BEGIN
     RAISE EXCEPTION 'Tool with id % not found.', p_tool_id;
   END IF;
 
-  RETURN QUERY SELECT public.tools.upvotes, public.tools.downvotes FROM public.tools WHERE id = p_tool_id;
+  upvotes := result_upvotes;
+  downvotes := result_downvotes;
+  RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+

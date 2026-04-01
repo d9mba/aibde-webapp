@@ -7,9 +7,10 @@ import { escapeLike } from '@/lib/utils';
 import { syncToolCounts } from '@/lib/sync-counts';
 import { getFullUrl } from '@/lib/url';
 
-// Lightweight card-level mapper: avoids full dbToolToAdminTool for dashboard card views
+// Lightweight card-level mapper for dashboard management views (trending, spotlight, etc.)
+// NOTE: Different from supabase.ts:dbToolToCardTool which maps for public ToolCard display
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function dbToolToCardTool(t: any) {
+function dbToolToDashboardCard(t: any) {
     return {
         id: t.id, name: t.name, appUsername: t.app_username,
         logoUrl: getFullUrl(t.logo_url || ''), categoryName: t.category_name, status: t.status,
@@ -215,11 +216,12 @@ export async function GET(request: NextRequest) {
             // Fetch all tools using pagination (Supabase has max ~1000 per query)
             // OPTIMIZATION: Only select essential fields for dropdown/export
             const PAGE_SIZE = 1000;
+            const MAX_ALL_ROWS = 10_000; // PERF-05: Hard cap to prevent runaway memory usage
             let allTools: any[] = [];
             let pageNum = 0;
             let hasMore = true;
 
-            while (hasMore) {
+            while (hasMore && allTools.length < MAX_ALL_ROWS) {
                 let query = supabaseAdmin
                     .from('tools')
                     // NOTE: allData uses LIST_FIELDS (includes version_history, alternative_tools, etc.)
@@ -271,7 +273,7 @@ export async function GET(request: NextRequest) {
         // When fields=card, skip the heavy dbToolToAdminTool and map directly from DB rows
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let tools = fieldsParam === 'card'
-            ? (data || []).map(dbToolToCardTool)
+            ? (data || []).map(dbToolToDashboardCard)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             : (data || []).map((tool: any) => dbToolToAdminTool(tool));
 
@@ -284,10 +286,13 @@ export async function GET(request: NextRequest) {
                 const allSubs: Array<{ tool_id: string; id: string; submission_ref: string }> = [];
                 for (let i = 0; i < toolIds.length; i += BATCH_SIZE) {
                     const batch = toolIds.slice(i, i + BATCH_SIZE);
-                    const { data: subs } = await supabaseAdmin
+                    const { data: subs, error: subBatchErr } = await supabaseAdmin
                         .from('tool_submissions')
                         .select('tool_id, id, submission_ref')
                         .in('tool_id', batch);
+                    if (subBatchErr) {
+                        console.warn('[Tools API] Submission ref batch lookup failed:', subBatchErr.message);
+                    }
                     if (subs) allSubs.push(...subs);
                 }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
@@ -15,10 +15,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const ip = getClientIp(request);
 
     if (!deviceToken) {
-        deviceToken = createHash('sha256').update(crypto.randomUUID()).digest('hex').slice(0, 16);
+        deviceToken = createHash('sha256').update(randomUUID()).digest('hex').slice(0, 16);
         generatedNewToken = true;
         if (!ip || ip === 'anonymous') {
-            console.warn(`[Vote API] IP anonymous or absent. Using generated device token for rate limiting: ${deviceToken}`);
+            console.warn('[Vote API] IP anonymous or absent. Using generated device token for rate limiting.');
         }
     }
 

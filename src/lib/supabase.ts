@@ -18,14 +18,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Server-side Supabase Admin client (uses service role key, bypasses RLS)
 // Used by API routes for admin operations
-if (!supabaseServiceRoleKey && process.env.NODE_ENV === 'production') {
-    console.error('[CRITICAL] SUPABASE_SERVICE_ROLE_KEY not set — admin operations will fail due to RLS');
-}
 export const supabaseAdmin = supabaseServiceRoleKey
     ? createClient(supabaseUrl, supabaseServiceRoleKey, {
         auth: { autoRefreshToken: false, persistSession: false }
     })
-    : supabase;
+    : (() => {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('[FATAL] SUPABASE_SERVICE_ROLE_KEY is required in production');
+        }
+        console.warn('[Supabase] No service role key — using anon client (dev only)');
+        return supabase;
+    })();
 
 // Database types matching our schema
 export interface DbTool {

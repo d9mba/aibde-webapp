@@ -862,7 +862,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                                     <input
                                                         type="url"
                                                         value={item.url}
-                                                        onChange={(e) => { const next = [...videoUrls]; next[idx].url = e.target.value; setVideoUrls(next); }}
+                                                        onChange={(e) => { const next = [...videoUrls]; next[idx] = { ...next[idx], url: e.target.value }; setVideoUrls(next); }}
                                                         className="submit-input flex-1"
                                                         placeholder="https://youtube.com/watch?v=..."
                                                     />
@@ -890,7 +890,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                                     <input
                                                         type="url"
                                                         value={item.url}
-                                                        onChange={(e) => { const next = [...screenshotUrls]; next[idx].url = e.target.value; setScreenshotUrls(next); }}
+                                                        onChange={(e) => { const next = [...screenshotUrls]; next[idx] = { ...next[idx], url: e.target.value }; setScreenshotUrls(next); }}
                                                         className="submit-input flex-1"
                                                         placeholder="https://example.com/screenshot.png"
                                                     />

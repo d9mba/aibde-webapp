@@ -42,6 +42,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const buffer = Buffer.from(await file.arrayBuffer());
 
+        // SEC-05: Defense-in-depth — validate actual buffer size (file.size is client-controlled)
+        if (buffer.length > MAX_SIZE) {
+            return NextResponse.json({ error: 'File too large. Maximum size: 5MB' }, { status: 400 });
+        }
+
         // Validate real file bytes (not only client-provided MIME type).
         const detectedType = await fileTypeFromBuffer(buffer);
         if (!detectedType || !ALLOWED_TYPES.includes(detectedType.mime)) {

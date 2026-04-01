@@ -23,8 +23,8 @@ const securityHeaders = [
         value: [
             "default-src 'self'",
             // 'unsafe-inline': Required by Next.js for inline scripts during page hydration
-            // 'unsafe-eval': Required by Clerk auth SDK and Next.js dev mode HMR
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://us-assets.i.posthog.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://www.clarity.ms https://*.clarity.ms",
+            // 'unsafe-eval': Only needed in development for Next.js HMR; Clerk SDK works without it in production
+            `script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV !== 'production' ? "'unsafe-eval' " : ''}https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://us-assets.i.posthog.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://www.clarity.ms https://*.clarity.ms`,
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",

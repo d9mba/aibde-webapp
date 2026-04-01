@@ -19,11 +19,9 @@ export function generateSubmissionRef(plan?: string): string {
     const dd = String(now.getUTCDate()).padStart(2, '0');
     const planCode = PLAN_CODES[(plan || '').toLowerCase()] || 'SUB';
 
-    // Generate exactly 5 uppercase alphanumeric characters
-    let seq = '';
-    for (let i = 0; i < 5; i++) {
-        seq += ALPHANUMERIC[Math.floor(Math.random() * ALPHANUMERIC.length)];
-    }
+    // Generate exactly 5 uppercase alphanumeric characters using crypto-safe random
+    const bytes = crypto.getRandomValues(new Uint8Array(5));
+    const seq = Array.from(bytes, b => ALPHANUMERIC[b % ALPHANUMERIC.length]).join('');
 
     return `A${dd}${mm}${yy}${planCode}${seq}`;
 }

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { getMinorUnitDecimals } from '@/lib/currency';
 import { sendSubmissionEmail } from '@/lib/emails/submission';
 import Link from 'next/link';
 import RetryPaymentButton from '../RetryPaymentButton';
@@ -136,11 +137,9 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                             );
                         }
 
-                        // Dynamically calculate explicit billing values
                         const dodoCurrency = dodoPayment.currency || payment.currency || 'USD';
-                        const isZeroDecimal = ['JPY', 'KRW', 'VND', 'ISK', 'TWD'].includes(dodoCurrency.toUpperCase());
-                        const isThreeDecimal = ['KWD', 'BHD', 'JOD', 'OMR', 'TND'].includes(dodoCurrency.toUpperCase());
-                        const basePow = Math.pow(10, isZeroDecimal ? 0 : isThreeDecimal ? 3 : 2);
+                        const decimals = getMinorUnitDecimals(dodoCurrency);
+                        const basePow = Math.pow(10, decimals);
 
                         const grossAmount = typeof dodoPayment.total_amount === 'number' ? dodoPayment.total_amount / basePow : payment.amount;
                         const taxAmount = typeof dodoPayment.tax === 'number' ? dodoPayment.tax / basePow : (typeof dodoPayment.tax_amount === 'number' ? dodoPayment.tax_amount / basePow : null);
@@ -149,25 +148,35 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
 
                         if (dodoStatus === 'succeeded') {
                             try {
-                                await Promise.all([
-                                    supabaseAdmin
-                                        .from('payments')
-                                        .update({
-                                            status: 'success',
-                                            payment_id: dodoPaymentId,
-                                            amount: grossAmount,
-                                            tax: taxAmount,
-                                            net_amount: netAmount,
-                                            currency: dodoCurrency,
-                                            invoice_url: dodoPayment.invoice_url || dodoPayment.receipt_url || dodoPayment.receipt_link || null,
-                                            updated_at: new Date().toISOString(),
-                                        })
-                                        .eq('id', payment.id),
-                                    supabaseAdmin
+                                // BUG-02 FIX: Sequential updates instead of Promise.all
+                                // Payment update first (primary record of truth)
+                                const { error: paymentErr } = await supabaseAdmin
+                                    .from('payments')
+                                    .update({
+                                        status: 'success',
+                                        payment_id: dodoPaymentId,
+                                        amount: grossAmount,
+                                        tax: taxAmount,
+                                        net_amount: netAmount,
+                                        currency: dodoCurrency,
+                                        invoice_url: dodoPayment.invoice_url || dodoPayment.receipt_url || dodoPayment.receipt_link || null,
+                                        updated_at: new Date().toISOString(),
+                                    })
+                                    .eq('id', payment.id);
+
+                                if (paymentErr) {
+                                    console.error('[Submit Result] Failed to update payment', paymentErr);
+                                } else {
+                                    // Only update submission if payment update succeeded
+                                    const { error: subErr } = await supabaseAdmin
                                         .from('tool_submissions')
                                         .update({ payment_status: 'success' })
-                                        .eq('id', payment.submission_id)
-                                ]);
+                                        .eq('id', payment.submission_id);
+
+                                    if (subErr) {
+                                        console.error('[Submit Result] Payment updated but submission sync failed', subErr);
+                                    }
+                                }
                             } catch (updateErr) {
                                 console.error('[Submit Result] DB update for success failed', updateErr);
                             }
@@ -204,7 +213,12 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                                     }
                                 } catch (emailErr) {
                                     console.error('[Submit Result] Email sending or tracking failed', emailErr);
-                                    // Don't clear email_provider_id — the lock prevents duplicate sends
+                                    // BUG-03 FIX: Clear lock so retries aren't permanently blocked
+                                    await supabaseAdmin
+                                        .from('payments')
+                                        .update({ email_provider_id: null, email_status: 'failed' })
+                                        .eq('id', payment.id)
+                                        .eq('email_provider_id', 'sending_lock');
                                 }
                             }
 
@@ -219,23 +233,31 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                             failureReason = dodoPayment.error_message || dodoPayment.failure_reason || 'Payment was declined or cancelled.';
 
                             try {
-                                await Promise.all([
-                                    supabaseAdmin
-                                        .from('payments')
-                                        .update({
-                                            status: 'failed',
-                                            payment_id: dodoPaymentId,
-                                            amount: grossAmount,
-                                            currency: dodoCurrency,
-                                            failure_reason: failureReason,
-                                            updated_at: new Date().toISOString(),
-                                        })
-                                        .eq('id', payment.id),
-                                    supabaseAdmin
+                                // BUG-02 FIX: Sequential updates for failure path too
+                                const { error: paymentErr } = await supabaseAdmin
+                                    .from('payments')
+                                    .update({
+                                        status: 'failed',
+                                        payment_id: dodoPaymentId,
+                                        amount: grossAmount,
+                                        currency: dodoCurrency,
+                                        failure_reason: failureReason,
+                                        updated_at: new Date().toISOString(),
+                                    })
+                                    .eq('id', payment.id);
+
+                                if (paymentErr) {
+                                    console.error('[Submit Result] Failed to update payment as failed', paymentErr);
+                                } else {
+                                    const { error: subErr } = await supabaseAdmin
                                         .from('tool_submissions')
                                         .update({ payment_status: 'failed' })
-                                        .eq('id', payment.submission_id)
-                                ]);
+                                        .eq('id', payment.submission_id);
+
+                                    if (subErr) {
+                                        console.error('[Submit Result] Payment updated but submission sync failed', subErr);
+                                    }
+                                }
                             } catch (updateErr) {
                                 console.error('[Submit Result] DB update for failure failed', updateErr);
                             }

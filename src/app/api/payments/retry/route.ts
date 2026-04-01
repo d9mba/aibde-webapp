@@ -1,30 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isAllowedRedirectOrigin } from '@/lib/redirect';
 
 const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
 const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || (process.env.NODE_ENV === 'production' ? 'https://live.dodopayments.com' : 'https://test.dodopayments.com');
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
-const ALLOWED_ORIGINS = (process.env.ALLOWED_REDIRECT_ORIGINS || SITE_URL || 'https://www.aibde.tech')
-    .split(',')
-    .map(o => o.trim())
-    .filter(Boolean);
-
-function isAllowedRedirectOrigin(baseUrl: string): boolean {
-    try {
-        const url = new URL(baseUrl);
-        return ALLOWED_ORIGINS.some(allowed => {
-            try {
-                const allowedUrl = new URL(allowed);
-                return url.origin === allowedUrl.origin;
-            } catch {
-                return false;
-            }
-        });
-    } catch {
-        return false;
-    }
-}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     let newPayment: any = null;
@@ -45,11 +26,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        const { submissionId, baseUrl: clientBaseUrl } =
+        const { submissionId, baseUrl: clientBaseUrl, email: callerEmail } =
             (await request.json().catch(() => null)) || {};
 
         if (!submissionId || typeof submissionId !== 'string') {
             return NextResponse.json({ error: 'submissionId is required' }, { status: 400 });
+        }
+
+        if (!callerEmail || typeof callerEmail !== 'string') {
+            return NextResponse.json({ error: 'email is required for ownership verification' }, { status: 400 });
         }
 
         // Load the latest payment for this submission to get context
@@ -73,6 +58,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json(
                 { error: 'No payment found for this submission' },
                 { status: 404 },
+            );
+        }
+
+        // SEC-01: Ownership verification — caller must prove they own this submission
+        if (
+            !latestPayment.submitter_email ||
+            callerEmail.toLowerCase().trim() !== latestPayment.submitter_email.toLowerCase().trim()
+        ) {
+            return NextResponse.json(
+                { error: 'Ownership verification failed' },
+                { status: 403 },
             );
         }
 
@@ -149,7 +145,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                         submission_id: submissionId,
                         payment_id: newPayment.id,
                         tool_name: latestPayment.tool_name,
-                        email: latestPayment.submitter_email,
                         plan: latestPayment.plan,
                     },
                 }),

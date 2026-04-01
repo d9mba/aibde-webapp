@@ -78,17 +78,35 @@ export async function POST() {
             })
         );
 
-        // Only reset stale categories (ones no longer referenced) AFTER upserts succeed
+        // Reset stale categories: fetch all, diff against active, batch-update the stale ones
         if (categoryErrors.length === 0) {
-            const activeNames = categoryRows.map(r => r.category_name);
-            if (activeNames.length > 0) {
-                const { error: resetError } = await supabaseAdmin
-                    .from('categories')
-                    .update({ count: 0 })
-                    .not('category_name', 'in', `(${activeNames.map(n => `"${n.replace(/"/g, '\\"')}"`).join(',')})`);
-                if (resetError) {
-                    console.error('[Sync Counts] Category stale reset failed:', resetError.message);
-                    categoryErrors.push(resetError.message);
+            const activeNames = new Set(categoryRows.map(r => r.category_name));
+            const { data: allCats, error: fetchErr } = await supabaseAdmin
+                .from('categories')
+                .select('category_name')
+                .gt('count', 0);
+
+            if (fetchErr) {
+                console.error('[Sync Counts] Failed to fetch categories for stale reset:', fetchErr.message);
+                categoryErrors.push(fetchErr.message);
+            } else if (allCats) {
+                const staleNames = allCats
+                    .map(c => c.category_name)
+                    .filter(name => !activeNames.has(name));
+
+                if (staleNames.length > 0) {
+                    await Promise.all(
+                        chunk(staleNames, BATCH_SIZE).map(async (batch) => {
+                            const { error: resetErr } = await supabaseAdmin
+                                .from('categories')
+                                .update({ count: 0 })
+                                .in('category_name', batch);
+                            if (resetErr) {
+                                console.error('[Sync Counts] Category stale reset failed:', resetErr.message);
+                                categoryErrors.push(resetErr.message);
+                            }
+                        })
+                    );
                 }
             }
         }
@@ -111,17 +129,35 @@ export async function POST() {
             })
         );
 
-        // Only reset stale tasks AFTER upserts succeed
+        // Reset stale tasks using the same safe pattern
         if (taskErrors.length === 0) {
-            const activeTaskNames = taskRows.map(r => r.task_name);
-            if (activeTaskNames.length > 0) {
-                const { error: resetError } = await supabaseAdmin
-                    .from('tasks')
-                    .update({ count: 0 })
-                    .not('task_name', 'in', `(${activeTaskNames.map(n => `"${n.replace(/"/g, '\\"')}"`).join(',')})`);
-                if (resetError) {
-                    console.error('[Sync Counts] Task stale reset failed:', resetError.message);
-                    taskErrors.push(resetError.message);
+            const activeTaskNames = new Set(taskRows.map(r => r.task_name));
+            const { data: allTasks, error: fetchErr } = await supabaseAdmin
+                .from('tasks')
+                .select('task_name')
+                .gt('count', 0);
+
+            if (fetchErr) {
+                console.error('[Sync Counts] Failed to fetch tasks for stale reset:', fetchErr.message);
+                taskErrors.push(fetchErr.message);
+            } else if (allTasks) {
+                const staleTaskNames = allTasks
+                    .map(t => t.task_name)
+                    .filter(name => !activeTaskNames.has(name));
+
+                if (staleTaskNames.length > 0) {
+                    await Promise.all(
+                        chunk(staleTaskNames, BATCH_SIZE).map(async (batch) => {
+                            const { error: resetErr } = await supabaseAdmin
+                                .from('tasks')
+                                .update({ count: 0 })
+                                .in('task_name', batch);
+                            if (resetErr) {
+                                console.error('[Sync Counts] Task stale reset failed:', resetErr.message);
+                                taskErrors.push(resetErr.message);
+                            }
+                        })
+                    );
                 }
             }
         }

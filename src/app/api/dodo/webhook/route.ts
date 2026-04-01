@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendSubmissionEmail } from '@/lib/emails/submission';
+import { getMinorUnitDecimals } from '@/lib/currency';
 
 /**
  * Dodo Payments webhook handler
@@ -114,20 +115,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const dodoPaymentId: string | undefined =
             payment.id || payment.payment_id || payment.paymentId;
 
-        // Helper to determine decimal places per currency
-        function getCurrencyMinorUnits(currency: string | undefined): number {
-            if (!currency) return 2;
-            const currencyUpper = currency.toUpperCase();
-            // Common currencies with 0 decimal places (JPY, KRW, etc.)
-            if (['JPY', 'KRW', 'VND', 'ISK', 'TWD'].includes(currencyUpper)) return 0;
-            // Common currencies with 3 decimal places (KWD, BHD, JOD, OMR, TND)
-            if (['KWD', 'BHD', 'JOD', 'OMR', 'TND'].includes(currencyUpper)) return 3;
-            // Default to 2
-            return 2;
-        }
-
         const currency: string | undefined = payment.currency || payment.billing_currency;
-        const decimals = getCurrencyMinorUnits(currency);
+        const decimals = getMinorUnitDecimals(currency || 'USD');
 
         const parsedAmount = typeof payment.amount === 'number'
             ? payment.amount
@@ -145,9 +134,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Extract Tax
         const parsedTax = typeof payment.tax === 'number'
             ? payment.tax
-            : typeof payment.tax_amount === 'number'
-                ? payment.tax_amount
-                : null;
+            : typeof payment.tax === 'string'
+                ? Number(payment.tax)
+                : typeof payment.tax_amount === 'number'
+                    ? payment.tax_amount
+                    : typeof payment.tax_amount === 'string'
+                        ? Number(payment.tax_amount)
+                        : null;
 
         const tax: number | null = parsedTax !== null && !Number.isNaN(parsedTax)
             ? parsedTax / Math.pow(10, decimals)
@@ -156,9 +149,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Extract Net Amount
         const parsedNet = typeof payment.net_amount === 'number'
             ? payment.net_amount
-            : typeof payment.amount_net === 'number'
-                ? payment.amount_net
-                : null;
+            : typeof payment.net_amount === 'string'
+                ? Number(payment.net_amount)
+                : typeof payment.amount_net === 'number'
+                    ? payment.amount_net
+                    : typeof payment.amount_net === 'string'
+                        ? Number(payment.amount_net)
+                        : null;
 
         const net_amount: number | null = parsedNet !== null && !Number.isNaN(parsedNet)
             ? parsedNet / Math.pow(10, decimals)
@@ -230,6 +227,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const toolUrl = existingPayment.tool_url || metadata.tool_url || metadata.toolUrl || null;
         const plan = existingPayment.plan || metadata.plan || 'basic';
 
+        // BUG-04 FIX: Update submission BEFORE claiming the payment to prevent
+        // a state where payment is terminal but submission status is stale
+        // (if this fails, the webhook returns 500 and Dodo retries safely)
+        const { error: submissionUpdateError } = await supabaseAdmin
+            .from('tool_submissions')
+            .update({ payment_status: statusFromEvent })
+            .eq('id', existingPayment.submission_id);
+
+        if (submissionUpdateError) {
+            console.error('[Dodo Webhook] Failed to update tool_submissions payment_status', submissionUpdateError);
+            return NextResponse.json({ received: false }, { status: 500 });
+        }
+
         // First claim/update record before email send for idempotency.
         const provisionalEmailStatus = submitterEmail
             ? ((existingPayment.email_status === 'sent' ? 'sent' : 'pending') as 'sent' | 'pending')
@@ -299,17 +309,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             if (emailUpdateError) {
                 console.error('[Dodo Webhook] Failed to update email metadata', emailUpdateError);
             }
-        }
-
-        // Also mirror payment status on the related tool submission for easier admin filtering
-        const { error: submissionUpdateError } = await supabaseAdmin
-            .from('tool_submissions')
-            .update({ payment_status: statusFromEvent })
-            .eq('id', existingPayment.submission_id);
-
-        if (submissionUpdateError) {
-            console.error('[Dodo Webhook] Failed to update tool_submissions payment_status', submissionUpdateError);
-            return NextResponse.json({ received: false }, { status: 500 });
         }
 
         return NextResponse.json({ received: true }, { status: 200 });

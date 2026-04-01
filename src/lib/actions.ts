@@ -58,6 +58,8 @@ export async function searchCountAction(params: SearchParams): Promise<number> {
  * For real-time search suggestions in header/hero
  */
 export async function getSearchSuggestionsAction(query: string, limit: number = 6): Promise<AdminTool[]> {
+    // M1: Clamp limit to safe bounds to prevent unbounded DB queries
+    const safeLimit = Math.max(1, Math.min(20, Number.isFinite(limit) ? limit : 6));
     const q = query.trim();
     if (!q || q.length < 2) {
         return [];
@@ -74,7 +76,7 @@ export async function getSearchSuggestionsAction(query: string, limit: number = 
         .order('spotlight_enabled', { ascending: false, nullsFirst: false })
         .order('is_featured', { ascending: false, nullsFirst: false })
         .order('view_count', { ascending: false, nullsFirst: false })
-        .limit(limit);
+        .limit(safeLimit);
 
     if (error) {
         console.error('Suggestion query error:', error);

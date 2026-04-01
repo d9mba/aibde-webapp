@@ -4,9 +4,27 @@ import { z } from 'zod';
  * Zod validation schemas for API input validation
  * Ensures all API inputs are properly validated before processing
  * 
- * NOTE: HTML sanitization is done client-side via SafeHtml component
- * using DOMPurify. Server-side sanitization removed to avoid Edge conflicts.
+ * NOTE: Full HTML sanitization is done client-side via SafeHtml component
+ * using DOMPurify. Server-side we strip the most dangerous XSS vectors
+ * (script tags, event handlers, javascript: URLs) as defense-in-depth.
  */
+
+/**
+ * Lightweight server-side HTML sanitizer.
+ * Strips <script> tags, on* event handlers, and javascript: URLs.
+ * Does NOT replace DOMPurify — only catches the most critical vectors.
+ */
+function stripDangerousHtml(html: string): string {
+    return html
+        // Remove <script>...</script> blocks (including multi-line)
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        // Remove standalone <script> tags that might be unclosed
+        .replace(/<script\b[^>]*>/gi, '')
+        // Remove on* event handler attributes (onclick, onerror, etc.)
+        .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+        // Remove javascript: URLs in href/src/action attributes
+        .replace(/(href|src|action)\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*')/gi, '$1=""');
+}
 
 // Tool creation/update schema - validates tool data
 export const toolSchema = z.object({
@@ -16,9 +34,10 @@ export const toolSchema = z.object({
         .max(100)
         .optional(),
     summary: z.string().max(500, 'Summary too long').optional().nullable(),
-    // HTML sanitization handled client-side via SafeHtml/DOMPurify
+    // SEC-07: Server-side sanitization strips <script>, on* handlers, javascript: URLs
     description: z.string()
         .max(10000, 'Description too long')
+        .transform(val => val ? stripDangerousHtml(val) : val)
         .optional()
         .nullable(),
     categoryName: z.array(z.string()).optional().nullable(),

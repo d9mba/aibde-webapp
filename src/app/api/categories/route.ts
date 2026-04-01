@@ -17,8 +17,10 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '25');
+        const rawPage = parseInt(searchParams.get('page') || '1', 10);
+        const rawLimit = parseInt(searchParams.get('limit') || '25', 10);
+        const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+        const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 200)) : 25;
         const all = searchParams.get('all') === 'true';
         const MAX_SEARCH_LENGTH = 100;
         const search = (searchParams.get('search') || '').trim().slice(0, MAX_SEARCH_LENGTH);

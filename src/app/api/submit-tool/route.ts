@@ -3,6 +3,8 @@ import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateSubmissionRef } from '@/lib/submission-ref';
+import { isAllowedRedirectOrigin } from '@/lib/redirect';
+import { getMinorUnitDecimals } from '@/lib/currency';
 
 const MAX_LEN = {
     name: 100,
@@ -18,10 +20,7 @@ const MAX_LEN = {
 const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
 const DODO_BASE_URL = process.env.DODO_PAYMENTS_BASE_URL || (process.env.NODE_ENV === 'production' ? 'https://live.dodopayments.com' : 'https://test.dodopayments.com');
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
-const ALLOWED_ORIGINS = (process.env.ALLOWED_REDIRECT_ORIGINS || SITE_URL || 'https://www.aibde.tech')
-    .split(',')
-    .map(o => o.trim())
-    .filter(Boolean);
+
 
 const BASIC_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_BASIC_PRODUCT_ID;
 const VERIFIED_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_VERIFIED_PRODUCT_ID;
@@ -70,21 +69,6 @@ interface ToolSubmissionData {
     turnstileToken: string;
 }
 
-function isAllowedRedirectOrigin(baseUrl: string): boolean {
-    try {
-        const url = new URL(baseUrl);
-        return ALLOWED_ORIGINS.some(allowed => {
-            try {
-                const allowedUrl = new URL(allowed);
-                return url.origin === allowedUrl.origin;
-            } catch {
-                return false;
-            }
-        });
-    } catch {
-        return false;
-    }
-}
 
 function getProductIdForPlan(plan: PlanType): string | null {
     switch (plan) {
@@ -325,7 +309,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                         submission_id: submission.id,
                         payment_id: payment.id,
                         tool_name: formData.toolName,
-                        email: formData.submitterEmail,
                         plan: formData.plan,
                     },
                 }),
@@ -386,13 +369,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 
             if (typeof session.total_amount === 'number') {
-                let scale = 2; // Default minor units
-                if (session.currency) {
-                    const c = session.currency.toUpperCase();
-                    if (['JPY', 'KRW', 'VND', 'UGX'].includes(c)) scale = 0;
-                    else if (['BHD', 'KWD', 'OMR', 'JOD'].includes(c)) scale = 3;
-                }
-                updatePayload.amount = session.total_amount / Math.pow(10, scale);
+                const decimals = session.currency ? getMinorUnitDecimals(session.currency) : 2;
+                updatePayload.amount = session.total_amount / Math.pow(10, decimals);
             }
             if (session.currency) {
                 updatePayload.currency = session.currency;

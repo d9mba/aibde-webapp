@@ -3,10 +3,17 @@ import { createHash, randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
+import { isAllowedRedirectOrigin } from '@/lib/redirect';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+    // SEC-03: Verify Origin header to prevent CSRF on unauthenticated endpoint
+    const origin = request.headers.get('origin');
+    if (!origin || !isAllowedRedirectOrigin(origin)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Apply rate limiting
     const cookieToken = request.cookies.get('aibde_voter_id')?.value;
     let deviceToken = cookieToken;

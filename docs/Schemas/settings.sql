@@ -1,10 +1,19 @@
-create table public.tags (
-  id uuid not null default gen_random_uuid (),
-  tag_name text not null,
-  count integer null default 0,
-  created_at timestamp with time zone null default now(),
-  constraint tags_pkey primary key (id),
-  constraint tags_name_key unique (tag_name)
-) TABLESPACE pg_default;
+-- Schema for `settings` table
+-- Last updated: 2026-04-02 — synced with DbSettings interface
+-- Single-row config table for app-wide feature flags
 
-create index IF not exists idx_tags_tag_name on public.tags using btree (tag_name) TABLESPACE pg_default;
+create table public.settings (
+  id integer primary key default 1,
+  spotlight_count integer not null default 6,
+  show_spotlight_on_home boolean not null default true,
+  show_categories_on_home boolean not null default true,
+  show_tasks_on_home boolean not null default true,
+  show_top10_on_home boolean null default false,
+  updated_at timestamp with time zone null default now(),
+
+  -- Enforce single-row
+  constraint settings_single_row check (id = 1)
+);
+
+-- Seed default row
+INSERT INTO public.settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;

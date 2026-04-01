@@ -230,20 +230,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const toolUrl = existingPayment.tool_url || metadata.tool_url || metadata.toolUrl || null;
         const plan = existingPayment.plan || metadata.plan || 'basic';
 
-        // BUG-04 FIX: Update submission BEFORE claiming the payment to prevent
-        // a state where payment is terminal but submission status is stale
-        // (if this fails, the webhook returns 500 and Dodo retries safely)
-        const { error: submissionUpdateError } = await supabaseAdmin
-            .from('tool_submissions')
-            .update({ payment_status: statusFromEvent })
-            .eq('id', existingPayment.submission_id);
-
-        if (submissionUpdateError) {
-            console.error('[Dodo Webhook] Failed to update tool_submissions payment_status', submissionUpdateError);
-            return NextResponse.json({ received: false }, { status: 500 });
-        }
-
-        // First claim/update record before email send for idempotency.
+        // PHASE-2: Atomic claim — update payment row FIRST. The `.eq('status', ...)`
+        // guard guarantees only one concurrent handler wins. If this returns no rows,
+        // a concurrent webhook already claimed the transition.
         const provisionalEmailStatus = submitterEmail
             ? ((existingPayment.email_status === 'sent' ? 'sent' : 'pending') as 'sent' | 'pending')
             : 'not_sent';
@@ -272,9 +261,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ received: false }, { status: 500 });
         }
 
-        // Concurrent event already claimed this transition.
+        // Concurrent event already claimed this transition — bail safely.
         if (!claimedPayment) {
             return NextResponse.json({ received: true }, { status: 200 });
+        }
+
+        // PHASE-2: Only the winning handler updates the submission status.
+        // This prevents duplicate side-effects from concurrent webhook deliveries.
+        const { error: submissionUpdateError } = await supabaseAdmin
+            .from('tool_submissions')
+            .update({ payment_status: statusFromEvent })
+            .eq('id', existingPayment.submission_id);
+
+        if (submissionUpdateError) {
+            console.error('[Dodo Webhook] Failed to update tool_submissions payment_status', submissionUpdateError);
+            // Payment is already claimed — log but don't return 500 (Dodo would retry and hit the "already claimed" guard)
         }
 
         let emailStatus: 'pending' | 'not_sent' | 'sent' | 'failed' = provisionalEmailStatus;

@@ -878,3 +878,24 @@ select option:checked {
         scroll-behavior: auto !important;
     }
 }
+
+/* PHASE-4: ToolCard tag hover states (replaces inline JS style mutations) */
+.tool-tag--category {
+    color: #10b981;
+    background-color: rgba(16, 185, 129, 0.08);
+}
+
+.tool-tag--category:hover {
+    background-color: #10b981;
+    color: white;
+}
+
+.tool-tag--task {
+    color: #f59e0b;
+    background-color: rgba(245, 158, 11, 0.08);
+}
+
+.tool-tag--task:hover {
+    background-color: #f59e0b;
+    color: white;
+}

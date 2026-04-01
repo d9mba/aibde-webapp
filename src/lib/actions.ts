@@ -9,6 +9,7 @@ import { searchTools, searchToolsCount } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
 import { toFullUrl } from '@/lib/url';
 import { AdminTool } from '@/types';
+import { unstable_cache } from 'next/cache';
 
 export interface SearchParams {
     query?: string;
@@ -110,10 +111,9 @@ export async function getSearchSuggestionsAction(query: string, limit: number = 
 const POSTHOG_API_HOST = process.env.POSTHOG_API_HOST || 'https://app.posthog.com';
 
 /**
- * Server Action: Get tool impression counts from PostHog
- * Hidden from browser Network tab
+ * Fetch impression counts from PostHog (internal — wrapped with cache below).
  */
-export async function getImpressionsAction(): Promise<Record<string, number>> {
+async function fetchImpressionsFromPostHog(): Promise<Record<string, number>> {
     const apiKey = process.env.POSTHOG_PERSONAL_API_KEY;
     const projectId = process.env.POSTHOG_PROJECT_ID;
 
@@ -175,3 +175,14 @@ export async function getImpressionsAction(): Promise<Record<string, number>> {
         return {};
     }
 }
+
+/**
+ * Server Action: Get tool impression counts from PostHog
+ * PHASE-3: Cached for 1 hour to prevent rate-limit pressure and reduce latency.
+ */
+export const getImpressionsAction = unstable_cache(
+    fetchImpressionsFromPostHog,
+    ['posthog-impressions-v1'],
+    { revalidate: 3600 }
+);
+

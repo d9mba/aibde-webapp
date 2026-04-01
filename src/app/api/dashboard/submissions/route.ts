@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
+import { escapeFilterValue } from '@/lib/sanitize';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_LIMIT = 200;
@@ -47,8 +48,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         dataQuery = dataQuery.eq('review_status', reviewStatus);
     }
     if (search) {
-        // Search across tool_name, submitter_name, submitter_email, submission_ref
-        const searchFilter = `tool_name.ilike.%${search}%,submitter_name.ilike.%${search}%,submitter_email.ilike.%${search}%,submission_ref.ilike.%${search}%`;
+        // SEC-01: Escape PostgREST filter meta-characters before interpolation
+        const safe = escapeFilterValue(search);
+        const searchFilter = `tool_name.ilike.%${safe}%,submitter_name.ilike.%${safe}%,submitter_email.ilike.%${safe}%,submission_ref.ilike.%${safe}%`;
         countQuery = countQuery.or(searchFilter);
         dataQuery = dataQuery.or(searchFilter);
     }

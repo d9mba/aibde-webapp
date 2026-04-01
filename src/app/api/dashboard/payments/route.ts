@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
+import { escapeFilterValue } from '@/lib/sanitize';
 
 const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 25;
@@ -44,14 +45,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Apply search filter
     if (search) {
-        // Search text columns in payments table
-        const textFilter = `tool_name.ilike.%${search}%,submitter_name.ilike.%${search}%,submitter_email.ilike.%${search}%`;
+        // SEC-01: Escape PostgREST filter meta-characters before interpolation
+        const safe = escapeFilterValue(search);
+        const textFilter = `tool_name.ilike.%${safe}%,submitter_name.ilike.%${safe}%,submitter_email.ilike.%${safe}%`;
 
         // Check if search matches any submission_refs (e.g. A280326VERUA733)
         const { data: matchedSubs } = await supabaseAdmin
             .from('tool_submissions')
             .select('id')
-            .ilike('submission_ref', `%${search}%`)
+            .ilike('submission_ref', `%${safe}%`)
             .limit(50);
 
         const matchedSubIds = (matchedSubs || []).map(s => s.id);

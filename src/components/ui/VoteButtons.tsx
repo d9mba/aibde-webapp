@@ -27,9 +27,14 @@ export default function VoteButtons({ toolId, initialUpvotes, initialDownvotes }
         try {
             const stored = localStorage.getItem(VOTE_STORAGE_KEY);
             if (stored) {
-                const votes: VoteRecord = JSON.parse(stored);
-                if (votes[toolId]) {
-                    setUserVote(votes[toolId]);
+                const parsed: unknown = JSON.parse(stored);
+                // PHASE-4: Validate shape — localStorage may contain corrupted data
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    const votes = parsed as Record<string, unknown>;
+                    const vote = votes[toolId];
+                    if (vote === 'up' || vote === 'down') {
+                        setUserVote(vote);
+                    }
                 }
             }
         } catch {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { uploadFile, generateUniqueFilename } from '@/services/storage.service';
+import { secureRandomSuffix } from '@/lib/sanitize';
 import sharp from 'sharp';
 
 // Compress image while maintaining quality - converts to WebP for best compression
@@ -211,8 +212,8 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
             }
 
-            // Add short random suffix to ensure uniqueness
-            const suffix = Math.random().toString(36).slice(2, 6);
+            // SEC-02: Use crypto-secure suffix to prevent collisions and guessability
+            const suffix = secureRandomSuffix(4);
             filename = `${slug}-${suffix}.${ext}`;
         } else {
             filename = generateUniqueFilename(file.name);

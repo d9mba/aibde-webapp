@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import crypto from 'crypto';
 
 // Validate R2 configuration
 const r2AccountId = process.env.R2_ACCOUNT_ID;
@@ -97,6 +98,7 @@ export function getPathFromUrl(url: string): string | null {
 export function generateUniqueFilename(originalName: string): string {
     const ext = originalName.split('.').pop() || 'bin';
     const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
+    // SEC-02: Use crypto-secure random bytes instead of Math.random()
+    const random = crypto.randomBytes(6).toString('hex');
     return `${timestamp}-${random}.${ext}`;
 }

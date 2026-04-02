@@ -91,10 +91,10 @@ function generateFallbackFAQ(tool: AdminTool): ExtendedInfo['faq'] {
                     ? `Yes, ${name} is open source and free to use. You can also contribute to its development.`
                     : `${name} offers a free tier with basic features. Premium plans are available for advanced functionality.`,
         });
-    } else if (pricing === 'paid' || pricing === 'free_trial') {
+    } else if (pricing === 'paid') {
         faqs.push({
             question: `Does ${name} offer a free trial?`,
-            answer: pricing === 'free_trial'
+            answer: tool.hasFreeTrial
                 ? `Yes, ${name} offers a free trial so you can explore its features before committing to a paid plan.`
                 : `${name} is a paid tool. Visit the official website to view current pricing and plan options.`,
         });

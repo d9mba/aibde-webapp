@@ -6,6 +6,7 @@ import { Mail, MessageSquare, HelpCircle, ChevronDown, Send, Loader2, CheckCircl
 import Link from 'next/link';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { useTheme } from '@/context/ThemeContext';
 
 const REASON_OPTIONS = [
     { value: '', label: 'Select a reason...' },
@@ -64,6 +65,7 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
     const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const turnstileRef = useRef<TurnstileInstance>(null);
+    const { theme } = useTheme();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -224,7 +226,7 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
                                 }}
                                 onError={() => setError('Security check failed. Please try again.')}
                                 onExpire={() => setTurnstileToken(null)}
-                                options={{ theme: 'auto', size: 'normal' }}
+                                options={{ theme, size: 'normal' }}
                             />
                         </div>
 

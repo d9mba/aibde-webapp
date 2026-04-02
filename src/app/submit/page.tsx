@@ -27,6 +27,7 @@ import {
     X,
 } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { useTheme } from '@/context/ThemeContext';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { VerifiedBadge, FeaturedBadge, ToolBadge, CloseIcon } from '@/components/icons';
 
@@ -286,6 +287,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
 
     const turnstileRef = useRef<TurnstileInstance>(null);
     const logoFileRef = useRef<File | null>(null);
+    const { theme } = useTheme();
 
     useEffect(() => {
         setToolsLoading(true);
@@ -1032,6 +1034,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                             onSuccess={(token) => setTurnstileToken(token)}
                                             onError={() => setTurnstileToken(null)}
                                             onExpire={() => setTurnstileToken(null)}
+                                            options={{ theme }}
                                         />
                                     </div>
 

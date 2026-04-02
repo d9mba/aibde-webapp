@@ -291,7 +291,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
 
     useEffect(() => {
         setToolsLoading(true);
-        fetch('/api/public/tools?limit=8')
+        fetch('/api/public/tools?limit=12&sort=recent')
             .then((r) => r.json())
             .then((d) => setRecentTools(d.data || []))
             .catch(() => { })
@@ -1170,7 +1170,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                 <div className="mx-auto max-w-3xl rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] px-6 md:px-8">
                     <h2 className="pt-6 text-2xl font-bold tracking-tight text-[var(--text-primary)]">Frequently Asked Questions</h2>
                     <div className="mt-3">
-                        <FAQItem question="How long does approval take?">Most submissions are reviewed within 24–48 hours for paid plans. Free listings may take longer. We&apos;ll notify you by email once your tool is live.</FAQItem>
+                        <FAQItem question="How long does approval take?">Most submissions are manually reviewed and published within 24–48 hours. We&apos;ll notify you by email once your tool is live in the directory.</FAQItem>
                         <FAQItem question="Can I edit my listing later?">Yes. Email support@aibde.tech with your tool name and the changes you&apos;d like. We&apos;ll update the listing within 24–48 hours.</FAQItem>
                         <FAQItem question="Do you offer featured placements?">Yes! Our Featured plan ($249) gives you homepage visibility and priority category ranking for maximum exposure.</FAQItem>
                         <FAQItem question="Is there a free listing option?">We currently offer three paid plans starting at $49. Each plan ensures manual review and a permanent listing in our directory.</FAQItem>

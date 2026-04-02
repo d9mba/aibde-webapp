@@ -53,12 +53,14 @@ export async function GET(request: NextRequest) {
         const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
         const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
         const offset = (page - 1) * limit;
+        const sort = searchParams.get('sort');
 
         // Get total count for pagination
         let countQuery = supabase
             .from('tools')
             .select('id', { count: 'exact', head: true })
             .eq('status', 'published');
+
 
         if (category) {
             countQuery = countQuery.contains('category_name', [category]);
@@ -73,9 +75,16 @@ export async function GET(request: NextRequest) {
         let query = supabase
             .from('tools')
             .select(PUBLIC_LIST_FIELDS)
-            .eq('status', 'published') // Only published tools
-            .order('is_featured', { ascending: false }) // Featured first
-            .order('created_at', { ascending: false });
+            .eq('status', 'published');
+
+        // Sort: 'recent' = recently submitted tools only, default = featured first then date
+        if (sort === 'recent') {
+            query = query.order('created_at', { ascending: false });
+        } else {
+            query = query
+                .order('is_featured', { ascending: false })
+                .order('created_at', { ascending: false });
+        }
 
         // Optional filters
         if (category) {

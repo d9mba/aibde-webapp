@@ -263,7 +263,7 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
                 </FAQItem>
 
                 <FAQItem question="How can I feature my tool on AiBDE?">
-                    We offer featured placements and spotlight promotions for AI tools. Contact us at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a> with &quot;Featured Listing&quot; in the subject line for pricing and availability.
+                    You can feature your tool by selecting the "Featured" plan ($249) on our <Link href="/submit" className="text-accent-primary hover:underline">Submit Tool</Link> page. This gives you homepage visibility and priority category ranking for maximum exposure.
                 </FAQItem>
 
                 <FAQItem question="How can I advertise on AiBDE?">
@@ -274,8 +274,8 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
                     Email us at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a> with your tool name and the changes you&apos;d like to make. We&apos;ll update the listing within 24-48 hours.
                 </FAQItem>
 
-                <FAQItem question="Is it free to list my AI tool on AiBDE?">
-                    Yes! Basic listings are completely free. You can submit your AI tool and it will be reviewed and added to our directory at no cost. Premium features like featured placements are available for a fee.
+                <FAQItem question="Is there a free listing option for my AI tool?">
+                    We currently offer three paid entry plans starting at $49. Each plan ensures a manual editorial review and a permanent listing in our directory with great SEO benefits. You can see all plans on our <Link href="/submit" className="text-accent-primary hover:underline">Submit Tool</Link> page.
                 </FAQItem>
 
                 <FAQItem question="How long does the review process take?">
@@ -287,7 +287,7 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
                 </FAQItem>
 
                 <FAQItem question="Do you accept guest posts or sponsored content?">
-                    We currently don&apos;t accept guest posts. However, we do offer sponsored content opportunities. Contact us at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a> to discuss options.
+                    Yes, we do accept guest posts and sponsored content that are highly relevant to our AI audience. Contact us via the form above or at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a> to discuss options and guidelines.
                 </FAQItem>
 
                 <FAQItem question="What is the typical response time for inquiries?">

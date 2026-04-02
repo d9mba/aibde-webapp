@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getToolByAppUsername, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings, getToolNamesBySlugs } from '@/lib/data';
-import { getToolJsonLd, safeJsonLdStringify, SEO } from '@/lib/seo';
+import { getToolJsonLd, getFaqJsonLd, safeJsonLdStringify, SEO } from '@/lib/seo';
+import { getExtendedInfo } from './components/utils';
 import ToolDetailClient from './ToolDetailClient';
 
 // PERFORMANCE: ISR - regenerate page every 24 hours
@@ -132,6 +133,10 @@ export default async function ToolDetailPage({
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(getToolJsonLd(tool)) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(getFaqJsonLd(getExtendedInfo(tool).faq)) }}
             />
             <ToolDetailClient
                 tool={tool}

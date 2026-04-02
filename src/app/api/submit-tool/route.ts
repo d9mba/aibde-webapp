@@ -342,7 +342,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             if (subFailErr) console.error('[Submit Tool API] Submission update failed on checkout error', subFailErr);
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
-                { status: 502 },
+                { status: 500 },
             );
         }
 
@@ -357,7 +357,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             if (subUrlFailErr) console.error('[Submit Tool API] Submission update failed on missing checkout_url', subUrlFailErr);
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
-                { status: 502 },
+                { status: 500 },
             );
         }
 

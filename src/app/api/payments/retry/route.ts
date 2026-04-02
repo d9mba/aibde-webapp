@@ -179,7 +179,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
-                { status: 502 },
+                { status: 500 },
             );
         }
 
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             }
             return NextResponse.json(
                 { error: 'Failed to start checkout. Please try again.' },
-                { status: 502 },
+                { status: 500 },
             );
         }
 

@@ -137,7 +137,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        if (!DODO_API_KEY || (process.env.NODE_ENV === 'production' && !process.env.DODO_PAYMENTS_BASE_URL)) {
+        if (!DODO_API_KEY || !DODO_BASE_URL) {
             return NextResponse.json(
                 { error: 'Payment provider is not properly configured for production environments' },
                 { status: 500 },

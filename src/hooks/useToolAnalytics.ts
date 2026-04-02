@@ -8,7 +8,7 @@ function isDevOrPreview(): boolean {
     if (typeof window === 'undefined') return true;
     const prodHostname = process.env.NEXT_PUBLIC_SITE_HOSTNAME;
     if (!prodHostname) return true;
-    return window.location.hostname !== prodHostname;
+    return window.location.hostname !== prodHostname && window.location.hostname !== `www.${prodHostname}`;
 }
 const isDevelopment = isDevOrPreview();
 

@@ -17,7 +17,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         // Only enable analytics on the production hostname (set NEXT_PUBLIC_SITE_HOSTNAME in .env)
         const prodHostname = process.env.NEXT_PUBLIC_SITE_HOSTNAME;
-        const isProduction = prodHostname && window.location.hostname === prodHostname;
+        const isProduction = prodHostname && (window.location.hostname === prodHostname || window.location.hostname === `www.${prodHostname}`);
 
         if (process.env.NEXT_PUBLIC_POSTHOG_KEY && isProduction) {
             posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {

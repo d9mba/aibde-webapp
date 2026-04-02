@@ -26,8 +26,8 @@ export default function NewPageClient({ tools }: NewPageClientProps) {
 
     const newTools = useMemo(() =>
         [...tools].sort((a, b) => {
-            const dateA = a.createdAt ? new Date(a.createdAt).getTime() || 0 : 0;
-            const dateB = b.createdAt ? new Date(b.createdAt).getTime() || 0 : 0;
+            const dateA = new Date(a.createdAt ?? 0).getTime() || 0;
+            const dateB = new Date(b.createdAt ?? 0).getTime() || 0;
             return dateB - dateA;
         }),
         [tools]
@@ -70,7 +70,7 @@ export default function NewPageClient({ tools }: NewPageClientProps) {
 
             {/* Auto-loading sentinel */}
             {hasMore && (
-                <div ref={loadMoreRef} className="flex items-center justify-center gap-2.5 py-6 text-text-tertiary text-sm">
+                <div ref={loadMoreRef} role="status" aria-live="polite" className="flex items-center justify-center gap-2.5 py-6 text-text-tertiary text-sm">
                     <span className="w-[18px] h-[18px] border-2 border-border border-t-accent-primary rounded-full animate-spin"></span>
                     <span>Loading more tools...</span>
                 </div>

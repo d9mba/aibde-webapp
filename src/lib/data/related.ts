@@ -56,6 +56,7 @@ export async function getRelatedTools(tool: AdminTool, limit: number = 6): Promi
     const manual = tools.filter(t => manualSlugs.includes(t.appUsername));
     const auto = tools
         .filter(t => !manualSlugs.includes(t.appUsername))
+        .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0) // numeric-safe deterministic tie-breaker
         .slice(0, limit - manual.length);
 
     return [...manual, ...auto].slice(0, limit);
@@ -70,68 +71,62 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
     const tags = tool.tags || [];
     const alternativeSlugs = tool.alternativeTools || [];
 
-    const queries: Promise<any[]>[] = [];
+    const queries: PromiseLike<any[]>[] = [];
 
     if (categories.length > 0) {
         queries.push(
-            Promise.resolve(
-                supabase
-                    .from('tools')
-                    .select(RELATED_TOOL_FIELDS)
-                    .in('status', ['published', 'approved'])
-                    .neq('app_username', tool.appUsername)
-                    .overlaps('category_name', categories)
-                    .limit(limit * 2)
-                    .then(r => {
-                        if (r.error) {
-                            console.error('Error fetching suggested tools by category:', r.error);
-                            return [];
-                        }
-                        return (r.data || []).map(t => ({ ...t, _matchType: 'category' }));
-                    })
-            )
+            supabase
+                .from('tools')
+                .select(RELATED_TOOL_FIELDS)
+                .in('status', ['published', 'approved'])
+                .neq('app_username', tool.appUsername)
+                .overlaps('category_name', categories)
+                .limit(limit * 2)
+                .then(r => {
+                    if (r.error) {
+                        console.error('Error fetching suggested tools by category:', r.error);
+                        return [];
+                    }
+                    return (r.data || []).map(t => ({ ...t, _matchType: 'category' }));
+                })
         );
     }
 
     if (tasks.length > 0) {
         queries.push(
-            Promise.resolve(
-                supabase
-                    .from('tools')
-                    .select(RELATED_TOOL_FIELDS)
-                    .in('status', ['published', 'approved'])
-                    .neq('app_username', tool.appUsername)
-                    .overlaps('task_name', tasks)
-                    .limit(limit * 2)
-                    .then(r => {
-                        if (r.error) {
-                            console.error('Error fetching suggested tools by task:', r.error);
-                            return [];
-                        }
-                        return (r.data || []).map(t => ({ ...t, _matchType: 'task' }));
-                    })
-            )
+            supabase
+                .from('tools')
+                .select(RELATED_TOOL_FIELDS)
+                .in('status', ['published', 'approved'])
+                .neq('app_username', tool.appUsername)
+                .overlaps('task_name', tasks)
+                .limit(limit * 2)
+                .then(r => {
+                    if (r.error) {
+                        console.error('Error fetching suggested tools by task:', r.error);
+                        return [];
+                    }
+                    return (r.data || []).map(t => ({ ...t, _matchType: 'task' }));
+                })
         );
     }
 
     if (tags.length > 0) {
         queries.push(
-            Promise.resolve(
-                supabase
-                    .from('tools')
-                    .select(RELATED_TOOL_FIELDS)
-                    .in('status', ['published', 'approved'])
-                    .neq('app_username', tool.appUsername)
-                    .overlaps('tags', tags)
-                    .limit(limit * 2)
-                    .then(r => {
-                        if (r.error) {
-                            console.error('Error fetching suggested tools by tag:', r.error);
-                            return [];
-                        }
-                        return (r.data || []).map(t => ({ ...t, _matchType: 'tag' }));
-                    })
-            )
+            supabase
+                .from('tools')
+                .select(RELATED_TOOL_FIELDS)
+                .in('status', ['published', 'approved'])
+                .neq('app_username', tool.appUsername)
+                .overlaps('tags', tags)
+                .limit(limit * 2)
+                .then(r => {
+                    if (r.error) {
+                        console.error('Error fetching suggested tools by tag:', r.error);
+                        return [];
+                    }
+                    return (r.data || []).map(t => ({ ...t, _matchType: 'tag' }));
+                })
         );
     }
 
@@ -140,10 +135,13 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
     }
 
     const results = await Promise.all(queries);
-    const allMatches = results.flat().map(t => ({
-        ...dbToolToAdminTool(t),
-        _matchType: t._matchType as string,
-    }));
+    const allMatches = results.flat().map(t => {
+        const { _matchType, ...dbRow } = t;
+        return {
+            tool: dbToolToAdminTool(dbRow) as AdminTool,
+            matchType: _matchType as string,
+        };
+    });
 
     const toolMap = new Map<string, { tool: AdminTool, score: number }>();
 
@@ -156,23 +154,23 @@ export async function getSuggestedTools(tool: AdminTool, limit: number = 6): Pro
         }
     }
 
-    allMatches.forEach(t => {
-        const existing = toolMap.get(t.appUsername);
-        const matchScore = getMatchScore(t._matchType);
+    allMatches.forEach(({ tool, matchType }) => {
+        const existing = toolMap.get(tool.appUsername);
+        const matchScore = getMatchScore(matchType);
 
         if (existing) {
             existing.score += matchScore;
         } else {
-            toolMap.set(t.appUsername, { tool: t, score: matchScore });
+            toolMap.set(tool.appUsername, { tool, score: matchScore });
         }
     });
 
     const scored = Array.from(toolMap.values())
         .filter(s => !alternativeSlugs.includes(s.tool.appUsername))
-        .map(s => ({ ...s, random: Math.random() }))
         .sort((a, b) => {
             if (b.score !== a.score) return b.score - a.score;
-            return a.random - b.random;
+            // Deterministic tiebreaker by id for reproducible results
+            return a.tool.id < b.tool.id ? -1 : a.tool.id > b.tool.id ? 1 : 0;
         });
 
     return scored.slice(0, limit).map(s => s.tool);

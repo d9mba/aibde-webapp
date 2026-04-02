@@ -3,8 +3,14 @@
 import { useCallback, useEffect, useRef } from 'react';
 import posthog from 'posthog-js';
 
-// Skip analytics in development
-const isDevelopment = process.env.NODE_ENV !== 'production';
+// Skip analytics unless on the production hostname (NEXT_PUBLIC_SITE_HOSTNAME in .env)
+function isDevOrPreview(): boolean {
+    if (typeof window === 'undefined') return true;
+    const prodHostname = process.env.NEXT_PUBLIC_SITE_HOSTNAME;
+    if (!prodHostname) return true;
+    return window.location.hostname !== prodHostname;
+}
+const isDevelopment = isDevOrPreview();
 
 /**
  * Custom hook for tracking tool analytics in PostHog

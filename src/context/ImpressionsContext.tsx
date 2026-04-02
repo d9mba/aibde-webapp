@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
 import { getImpressionsAction } from '@/lib/actions';
 
 interface ToolImpressions {
@@ -26,33 +26,33 @@ export function useImpressions() {
 export function ImpressionsProvider({ children }: { children: ReactNode }) {
     const [impressions, setImpressions] = useState<ToolImpressions>({});
     const [loading, setLoading] = useState(true);
-    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    useEffect(() => {
-        if (!mounted) return;
+        let cancelled = false;
 
         const fetchImpressions = async () => {
             try {
                 const data = await getImpressionsAction();
-                setImpressions(data);
-            } catch {
-                // Silently fail - impressions will default to 0
+                if (!cancelled) setImpressions(data);
+            } catch (err) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('Failed to fetch impressions:', err);
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
         fetchImpressions();
-    }, [mounted]);
+        return () => { cancelled = true; };
+    }, []);
 
-    const getImpressions = (slug: string) => impressions[slug] || 0;
+    const getImpressions = useCallback((slug: string) => impressions[slug] || 0, [impressions]);
+
+    const value = useMemo(() => ({ impressions, loading, getImpressions }), [impressions, loading, getImpressions]);
 
     return (
-        <ImpressionsContext.Provider value={{ impressions, loading, getImpressions }}>
+        <ImpressionsContext.Provider value={value}>
             {children}
         </ImpressionsContext.Provider>
     );

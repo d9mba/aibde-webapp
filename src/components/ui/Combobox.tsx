@@ -69,7 +69,6 @@ export default function Combobox(props: Props) {
         !allOptions.some(o => (o.label || '').toLowerCase() === search.trim().toLowerCase());
 
     const visibleCount = Math.min(filteredOptions.length, displayLimit);
-    const totalItems = filteredOptions.length + (canAddNew ? 1 : 0);
 
     // Selected items for multi-select
     const selectedItems = multiple
@@ -109,8 +108,9 @@ export default function Combobox(props: Props) {
 
     // Scroll focused item into view
     useEffect(() => {
-        if (focusedIdx >= 0 && listRef.current?.children[focusedIdx]) {
-            (listRef.current.children[focusedIdx] as HTMLElement).scrollIntoView({ block: 'nearest' });
+        if (focusedIdx >= 0 && listRef.current) {
+            const el = listRef.current.querySelector(`[data-index="${focusedIdx}"]`) as HTMLElement;
+            if (el) el.scrollIntoView({ block: 'nearest' });
         }
     }, [focusedIdx]);
 
@@ -167,21 +167,23 @@ export default function Combobox(props: Props) {
 
         if (!isOpen) return;
 
+        // Use visible items count for wrapping so focusedIdx never targets non-rendered options
+        const visibleTotalItems = visibleCount + (canAddNew ? 1 : 0);
+
         switch (e.key) {
-            case 'ArrowDown':
+            case 'ArrowDown': {
                 e.preventDefault();
-                setFocusedIdx(prev => {
-                    const next = (prev + 1) % totalItems;
-                    // Auto-expand displayLimit if arrowing past visible items (but not for Create item)
-                    if (next >= visibleCount && next < filteredOptions.length && !(canAddNew && next === visibleCount)) {
-                        setDisplayLimit(dl => dl + 20);
-                    }
-                    return next;
-                });
+                const rawNext = focusedIdx + 1;
+                setFocusedIdx(Math.min(rawNext, visibleTotalItems - 1));
+                // Expand displayLimit when reaching last visible option and more exist
+                if (!canAddNew && rawNext >= visibleCount && filteredOptions.length > displayLimit) {
+                    setDisplayLimit(dl => dl + 20);
+                }
                 break;
+            }
             case 'ArrowUp':
                 e.preventDefault();
-                setFocusedIdx(prev => prev <= 0 ? totalItems - 1 : prev - 1);
+                setFocusedIdx(prev => prev <= 0 ? visibleTotalItems - 1 : prev - 1);
                 break;
             case 'Enter':
                 e.preventDefault();
@@ -226,6 +228,7 @@ export default function Combobox(props: Props) {
                         return (
                             <div
                                 key={`${idx}-${option.value}`}
+                                data-index={idx}
                                 onClick={() => selectOption(option.value)}
                                 className={`px-3 py-2.5 text-sm cursor-pointer transition-colors text-text-primary flex items-center gap-2
                                     ${isHighlighted ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'}
@@ -254,11 +257,17 @@ export default function Combobox(props: Props) {
                     )}
                     {canAddNew && (
                         <div
+                            data-index={visibleCount}
                             onClick={createAndSelect}
-                            className={`px-3 py-2.5 text-sm cursor-pointer text-accent-primary border-t border-border ${focusedIdx === filteredOptions.length ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'
+                            className={`px-3 py-2.5 text-sm cursor-pointer text-accent-primary border-t border-border ${focusedIdx === visibleCount ? 'bg-bg-tertiary' : 'hover:bg-bg-secondary'
                                 }`}
                         >
                             + Create "{search}"
+                        </div>
+                    )}
+                    {allowCreate && !canAddNew && !search.trim() && !loading && (
+                        <div className="px-3 py-2 text-xs text-text-tertiary text-center border-t border-border">
+                            Type to search or add new
                         </div>
                     )}
                 </div>

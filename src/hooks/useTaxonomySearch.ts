@@ -27,7 +27,7 @@ export function useTaxonomySearch(
 ) {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
-    const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     // Debounce search input (300ms)
     useEffect(() => {
@@ -47,15 +47,15 @@ export function useTaxonomySearch(
 
     // Map API response to ComboboxOption format
     const items: TaxonomyItem[] = (data?.data || (Array.isArray(data) ? data : []))
-        .map((item: Record<string, string>) => ({
-            value: item[nameField] || '',
-            label: item[nameField] || '',
+        .map((item: Record<string, unknown>) => ({
+            value: String((nameField in item ? item[nameField] : '') ?? ''),
+            label: String((nameField in item ? item[nameField] : '') ?? ''),
         }))
-        .filter((item: TaxonomyItem) => item.value);
+        .filter((item: TaxonomyItem) => item.value !== '' && item.value != null);
 
     return {
         options: items,
-        loading: isLoading || isValidating,
+        loading: isValidating || (!data && isLoading),
         error,
         onSearchChange: setSearch,
     };

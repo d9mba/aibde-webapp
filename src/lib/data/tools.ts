@@ -15,7 +15,7 @@ import { AdminTool } from '@/types';
 const TOOL_CARD_FIELDS = `
     id, name, app_username, logo_url, summary,
     category_name, task_name, tags,
-    pricing, pricing_label, save_count, view_count, rating,
+    pricing, pricing_label, save_count, view_count, upvotes, downvotes, rating,
     is_featured, listing_type, status,
     spotlight_enabled, spotlight_position, trending_position,
     created_at, updated_at, launched_on

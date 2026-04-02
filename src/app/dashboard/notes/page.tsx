@@ -80,6 +80,7 @@ export default function NotesPage() {
                 return r.json();
             })
             .then(json => {
+                if (controller.signal.aborted) return;
                 const tools = json.data || [];
                 setKnownTools(prev => {
                     const next = new Map(prev);
@@ -107,19 +108,35 @@ export default function NotesPage() {
         const uniqueIds = [...new Set(unknownIds)];
         // Mark as fetching to prevent re-requests
         uniqueIds.forEach(id => fetchedToolIdsRef.current.add(id));
+
+        const controller = new AbortController();
         // Fetch details for unknown tool IDs
         uniqueIds.forEach(id => {
-            fetch(`/api/tools/${id}`)
-                .then(r => r.ok ? r.json() : null)
+            fetch(`/api/tools/${id}`, { signal: controller.signal })
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.json();
+                })
                 .then(tool => {
-                    if (tool) setKnownTools(prev => {
+                    if (tool && !controller.signal.aborted) setKnownTools(prev => {
                         const next = new Map(prev);
                         next.set(tool.id, tool);
                         return next;
                     });
                 })
-                .catch(() => { });
+                .catch((err) => {
+                    // Remove from tracked set so transient failures can retry
+                    fetchedToolIdsRef.current.delete(id);
+                    if (err.name !== 'AbortError') {
+                        console.error(`[Notes] Failed to fetch tool ${id}:`, err);
+                    }
+                });
         });
+
+        return () => {
+            controller.abort();
+            // Aborted fetches will be removed from fetchedToolIdsRef by the catch above
+        };
     }, [notes]);
 
     // Fetch tools for filter dropdown
@@ -134,11 +151,11 @@ export default function NotesPage() {
 
     // Filtered tools for dropdowns
     const toolFilterOptions = useMemo(() => {
-        return [{ id: '', name: 'All Tools', logoUrl: null }, ...filterResults] as AdminTool[];
+        return [{ id: '', name: 'All Tools', logoUrl: undefined } as Pick<AdminTool, 'id' | 'name' | 'logoUrl'>, ...filterResults];
     }, [filterResults]);
 
     const linkOptions = useMemo(() => {
-        return [{ id: '', name: 'No tool linked', logoUrl: null }, ...linkResults] as AdminTool[];
+        return [{ id: '', name: 'No tool linked', logoUrl: undefined } as Pick<AdminTool, 'id' | 'name' | 'logoUrl'>, ...linkResults];
     }, [linkResults]);
 
     useEffect(() => { setToolFilterIndex(0); }, [toolFilterSearch]);

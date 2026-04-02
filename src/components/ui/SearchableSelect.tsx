@@ -18,6 +18,7 @@ interface SearchableSelectProps {
     searchPlaceholder?: string;
     className?: string;
     showSearch?: boolean;
+    error?: boolean;
 }
 
 export function SearchableSelect({
@@ -28,6 +29,7 @@ export function SearchableSelect({
     searchPlaceholder = 'Search...',
     className = '',
     showSearch = true,
+    error = false,
 }: SearchableSelectProps) {
     const instanceId = useId();
     const [isOpen, setIsOpen] = useState(false);
@@ -122,7 +124,7 @@ export function SearchableSelect({
                     w-full flex items-center justify-between px-3 py-2.5 
                     bg-bg-secondary border rounded-xl text-sm transition-all
                     focus:outline-none
-                    ${isOpen ? 'border-text-tertiary' : 'border-border hover:border-text-tertiary'}
+                    ${error ? 'border-[var(--accent-red)] shadow-[0_0_0_3px_rgba(220,38,38,0.15)]' : isOpen ? 'border-text-tertiary' : 'border-border hover:border-text-tertiary'}
                 `}
             >
                 <span className="flex items-center gap-2 truncate">
@@ -198,7 +200,7 @@ export function SearchableSelect({
                                 {/* Loading indicator for infinite scroll */}
                                 {filteredOptions.length > displayLimit && (
                                     <div className="px-3 py-2 text-xs text-text-tertiary text-center">
-                                        {search ? 'Scroll for more...' : showSearch ? `Type to filter ${filteredOptions.length - displayLimit} more` : 'Scroll for more...'}
+                                        {search ? 'Scroll for more...' : showSearch ? `Type to filter ${filteredOptions.length - displayLimit} more item${filteredOptions.length - displayLimit === 1 ? '' : 's'}` : 'Scroll for more...'}
                                     </div>
                                 )}
                             </>

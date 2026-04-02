@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
+import { AdminTool } from '@/types';
 import { useTheme } from '@/context/ThemeContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { trackToolClick } from '@/hooks/useToolAnalytics';
+import { getSearchSuggestionsAction } from '@/lib/actions';
 import {
     Home,
     Search,
@@ -70,9 +72,10 @@ export default function Header() {
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     // API-based search suggestions (instead of sharedTools)
-    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const abortRef = useRef<AbortController | null>(null);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = async (query: string) => {
@@ -82,14 +85,22 @@ export default function Header() {
         }
 
         setIsLoading(true);
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         try {
-            const { getSearchSuggestionsAction } = await import('@/lib/actions');
             const tools = await getSearchSuggestionsAction(query, 8);
-            setSuggestions(tools);
+            if (!controller.signal.aborted) {
+                setSuggestions(tools);
+            }
         } catch (error) {
-            console.error('Search suggestions failed:', error);
+            if (!controller.signal.aborted) {
+                console.error('Search suggestions failed:', error);
+            }
         } finally {
-            setIsLoading(false);
+            if (!controller.signal.aborted) {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -102,7 +113,7 @@ export default function Header() {
         if (searchQuery.length >= 2 && searchOpen) {
             searchTimeout.current = setTimeout(() => {
                 fetchSuggestions(searchQuery);
-            }, 200);
+            }, 350);
         } else {
             setSuggestions([]);
         }
@@ -287,7 +298,7 @@ export default function Header() {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search AI tools..."
-                                className="flex-1 bg-transparent border-none outline-none text-sm text-text-primary placeholder:text-text-tertiary"
+                                className="flex-1 bg-transparent border-none outline-none text-sm text-text-primary placeholder:text-text-tertiary focus:shadow-none"
                                 autoComplete="off"
                                 suppressHydrationWarning
                             />
@@ -629,6 +640,7 @@ export default function Header() {
                             )}
                             onClick={() => setThemeMode(getNextThemeMode(themeMode as ThemeMode))}
                             title={`Current: ${themeMode}`}
+                            suppressHydrationWarning
                         >
                             {getThemeIcon(themeMode as ThemeMode)}
                         </button>
@@ -645,6 +657,7 @@ export default function Header() {
                                 )}
                                 onClick={() => setThemeMode('light')}
                                 title="Light mode"
+                                suppressHydrationWarning
                             >
                                 <Sun size={16} strokeWidth={1.5} />
                             </button>
@@ -655,6 +668,7 @@ export default function Header() {
                                 )}
                                 onClick={() => setThemeMode('dark')}
                                 title="Dark mode"
+                                suppressHydrationWarning
                             >
                                 <Moon size={16} strokeWidth={1.5} />
                             </button>
@@ -665,6 +679,7 @@ export default function Header() {
                                 )}
                                 onClick={() => setThemeMode('system')}
                                 title="System preference"
+                                suppressHydrationWarning
                             >
                                 <Monitor size={16} strokeWidth={1.5} />
                             </button>
@@ -681,6 +696,7 @@ export default function Header() {
                             (sidebarOpen || isPinned) ? "flex" : "hidden lg:group-hover:flex"
                         )}
                         title={isPinned ? "Unpin sidebar" : "Pin sidebar"}
+                        suppressHydrationWarning
                     >
                         <Pin size={18} strokeWidth={1.5} className={cn(isPinned && "rotate-45")} fill={isPinned ? "currentColor" : "none"} />
                     </button>

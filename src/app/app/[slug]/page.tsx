@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getToolByAppUsername, getRelatedTools, getSuggestedTools, getFeaturedTools, getRecentlyAddedTools, getCategories, getTasks, getHomeSettings, getToolNamesBySlugs } from '@/lib/data';
-import { getToolJsonLd, safeJsonLdStringify, SEO } from '@/lib/seo';
+import { getToolJsonLd, getFaqJsonLd, safeJsonLdStringify, SEO } from '@/lib/seo';
+import { getExtendedInfo } from './components/utils';
 import ToolDetailClient from './ToolDetailClient';
 
 // PERFORMANCE: ISR - regenerate page every 24 hours
@@ -32,10 +33,22 @@ export async function generateMetadata({
     const categoryLabel = tool.categoryName?.[0] || 'AI Tool';
     const taskLabels = tool.taskName?.slice(0, 3) || [];
     const year = new Date().getFullYear();
-    const shortSummary = tool.summary?.slice(0, 60) || categoryLabel;
+    const suffix = ` | AiBDE`;
+    // Cap name to prevent titles exceeding ~60 chars
+    const maxNameLen = 30;
+    const displayName = tool.name.length > maxNameLen
+        ? tool.name.slice(0, maxNameLen - 1) + '…'
+        : tool.name;
+    const prefix = `${displayName} – `;
+    const maxSummaryLen = Math.max(10, 60 - prefix.length - suffix.length);
+    const shortSummary = tool.summary
+        ? (tool.summary.length > maxSummaryLen
+            ? tool.summary.slice(0, maxSummaryLen - 1) + '…'
+            : tool.summary)
+        : categoryLabel;
 
-    // Title format: "ToolName: Summary (Reviews, Prices & Alternatives) | Year | AiBDE"
-    const title = `${tool.name}: ${shortSummary} (Reviews, Pricing & Alternatives) | ${year} | AiBDE`;
+    // Title format: "[Tool Name] – [Summary] | AiBDE"
+    const title = `${prefix}${shortSummary}${suffix}`;
 
     // Description: mentions competitors and use cases for SERP visibility
     const baseSummary = tool.summary || tool.description?.slice(0, 100) || `Discover ${tool.name}`;
@@ -120,6 +133,10 @@ export default async function ToolDetailPage({
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(getToolJsonLd(tool)) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(getFaqJsonLd(getExtendedInfo(tool).faq)) }}
             />
             <ToolDetailClient
                 tool={tool}

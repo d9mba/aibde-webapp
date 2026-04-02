@@ -17,10 +17,13 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '25');
+        const rawPage = parseInt(searchParams.get('page') || '1', 10);
+        const rawLimit = parseInt(searchParams.get('limit') || '25', 10);
+        const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+        const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 200)) : 25;
         const all = searchParams.get('all') === 'true';
-        const allSearch = searchParams.get('search') || '';
+        const MAX_SEARCH_LENGTH = 100;
+        const search = (searchParams.get('search') || '').trim().slice(0, MAX_SEARCH_LENGTH);
 
         // If all=true, fetch all records (for dashboard stats, etc.)
         if (all) {
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
                     .select('*')
                     .order('category_name', { ascending: true })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
-                if (allSearch) query = query.ilike('category_name', `%${escapeLikePattern(allSearch)}%`);
+                if (search) query = query.ilike('category_name', `%${escapeLikePattern(search)}%`);
                 const { data, error } = await query;
 
                 if (error) {
@@ -62,7 +65,6 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(mappedData);
         }
 
-        const search = searchParams.get('search') || '';
 
         // Build base query with optional search filter
         let countQuery = supabaseAdmin.from('categories').select('*', { count: 'exact', head: true });

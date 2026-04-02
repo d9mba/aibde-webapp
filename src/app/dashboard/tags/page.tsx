@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { Tag } from '@/context/AdminContext';
+import { useDebounce } from '@/hooks/useDebounce';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
@@ -19,14 +20,6 @@ const fetcher = async (url: string) => {
     return res.json();
 };
 
-function useDebounce(value: string, delay: number): string {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    useEffect(() => {
-        const timer = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(timer);
-    }, [value, delay]);
-    return debouncedValue;
-}
 
 interface PaginatedResponse {
     data: Tag[];
@@ -65,7 +58,10 @@ export default function TagsPage() {
             revalidateOnFocus: false,
             keepPreviousData: true,
             onSuccess: () => setPageLoading(false),
-            onError: () => setPageLoading(false),
+            onError: (err: Error) => {
+                setPageLoading(false);
+                showToast(`Failed to load tags: ${err.message}`, 'error');
+            },
         }
     );
 
@@ -79,9 +75,10 @@ export default function TagsPage() {
     }, []);
 
     const handleSearch = useCallback((value: string) => {
+        if (value === search) return;
         setSearch(value);
         setCurrentPage(1);
-        if (value !== search) setPageLoading(true);
+        setPageLoading(true);
     }, [search]);
 
     const handleAdd = async () => {
@@ -94,8 +91,10 @@ export default function TagsPage() {
                 body: JSON.stringify({ tagName: newName.trim() }),
             });
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to create tag');
+                const body = await res.text();
+                let message = 'Failed to create tag';
+                try { const err = JSON.parse(body); message = err.error || message; } catch { message = body || message; }
+                throw new Error(message);
             }
             updateToast(toastId, `Tag "#${newName}" created!`, 'success');
             setNewName('');
@@ -122,8 +121,9 @@ export default function TagsPage() {
                 body: JSON.stringify({ id, tagName: editName.trim() }),
             });
             if (!res.ok) {
+                const body = await res.text();
                 let message = 'Failed to update tag';
-                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                try { const err = JSON.parse(body); message = err.error || message; } catch { message = body || message; }
                 throw new Error(message);
             }
             updateToast(toastId, 'Tag updated!', 'success');
@@ -149,8 +149,9 @@ export default function TagsPage() {
         try {
             const res = await fetch(`/api/tags?id=${encodeURIComponent(tag.id)}`, { method: 'DELETE' });
             if (!res.ok) {
+                const body = await res.text();
                 let message = 'Failed to delete tag';
-                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                try { const err = JSON.parse(body); message = err.error || message; } catch { message = body || message; }
                 throw new Error(message);
             }
             updateToast(toastId, `Tag "#${tag.tagName}" deleted!`, 'success');
@@ -164,7 +165,10 @@ export default function TagsPage() {
     if (swrError && !response) {
         return (
             <div className="p-6 text-center py-16">
-                <p className="text-text-secondary">Failed to load tags. Please try again.</p>
+                <p className="text-text-secondary mb-4">Failed to load tags. Please try again.</p>
+                <button onClick={() => mutate()} className="px-4 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+                    Retry
+                </button>
             </div>
         );
     }
@@ -234,9 +238,9 @@ export default function TagsPage() {
                             ) : (
                                 tags.map((tag: Tag) => (
                                     <tr key={tag.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer"
-                                        role="button" tabIndex={0} aria-disabled={pageLoading}
-                                        onClick={() => { if (!pageLoading) router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); }}
-                                        onKeyDown={(e) => { if (!pageLoading && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); } }}
+                                        role="button" tabIndex={pageLoading || editingId === tag.id ? -1 : 0} aria-disabled={pageLoading || editingId === tag.id}
+                                        onClick={() => { if (!pageLoading && editingId !== tag.id) router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); }}
+                                        onKeyDown={(e) => { if (!pageLoading && editingId !== tag.id && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); router.push(`/dashboard/tags/${encodeURIComponent(tag.tagName)}`); } }}
                                     >
                                         <td className="px-4 py-3">
                                             {editingId === tag.id ? (

@@ -57,8 +57,8 @@ export default function ModerationPage() {
     const [activeTab, setActiveTab] = useState<TabType>('pending');
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
-    const [previewCategories, setPreviewCategories] = useState<{ categoryName: string }[]>([]);
-    const [previewTasks, setPreviewTasks] = useState<{ taskName: string }[]>([]);
+    const [previewCategories, setPreviewCategories] = useState<{ categoryName: string }[] | null>(null);
+    const [previewTasks, setPreviewTasks] = useState<{ taskName: string }[] | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -480,25 +480,41 @@ export default function ModerationPage() {
     // Fetch full tool data + categories/tasks on-demand for preview
     const handlePreview = async (toolId: string) => {
         setPreviewLoading(true);
+        setPreviewTool(null); // Clear stale preview while loading
         try {
             const [toolRes, catRes, taskRes] = await Promise.all([
                 fetch(`/api/tools/${toolId}`),
-                previewCategories.length === 0 ? fetch('/api/categories?limit=50') : null,
-                previewTasks.length === 0 ? fetch('/api/tasks?limit=50') : null,
+                previewCategories == null ? fetch('/api/categories?limit=50') : null,
+                previewTasks == null ? fetch('/api/tasks?limit=50') : null,
             ]);
-            if (!toolRes.ok) throw new Error('Failed to fetch');
+            if (!toolRes.ok) {
+                setPreviewTool(null);
+                throw new Error('Failed to fetch');
+            }
             const fullTool = await toolRes.json();
             setPreviewTool(fullTool);
-            if (catRes?.ok) {
+            if (catRes && !catRes.ok) {
+                console.warn(`[Moderation] Failed to load categories: ${catRes.status} ${catRes.statusText}`);
+                showToast('Failed to load categories for preview', 'error');
+                setPreviewCategories(null); // null so next call retries
+            } else if (catRes?.ok) {
                 const catData = await catRes.json();
-                setPreviewCategories((catData.data || catData).map((c: any) => ({ categoryName: c.categoryName || c.name })));
+                const catItems = Array.isArray(catData.data) ? catData.data : Array.isArray(catData) ? catData : [];
+                setPreviewCategories(catItems.map((c: any) => ({ categoryName: c.categoryName || c.name })));
             }
-            if (taskRes?.ok) {
+            if (taskRes && !taskRes.ok) {
+                console.warn(`[Moderation] Failed to load tasks: ${taskRes.status} ${taskRes.statusText}`);
+                showToast('Failed to load tasks for preview', 'error');
+                setPreviewTasks(null); // null so next call retries
+            } else if (taskRes?.ok) {
                 const taskData = await taskRes.json();
-                setPreviewTasks((taskData.data || taskData).map((t: any) => ({ taskName: t.taskName || t.name })));
+                const taskItems = Array.isArray(taskData.data) ? taskData.data : Array.isArray(taskData) ? taskData : [];
+                setPreviewTasks(taskItems.map((t: any) => ({ taskName: t.taskName || t.name })));
             }
-        } catch {
+        } catch (err) {
             showToast('Failed to load preview', 'error');
+            console.error('[Moderation] handlePreview error:', err);
+            setPreviewTool(null);
         } finally {
             setPreviewLoading(false);
         }
@@ -900,8 +916,8 @@ export default function ModerationPage() {
                                 Object.entries(previewTool.socialLinks).filter(([_, v]) => v != null)
                             ) as Record<string, string> : undefined,
                         }}
-                        categories={previewCategories}
-                        tasks={previewTasks}
+                        categories={previewCategories ?? []}
+                        tasks={previewTasks ?? []}
                         onClose={() => setPreviewTool(null)}
                     />
                 )

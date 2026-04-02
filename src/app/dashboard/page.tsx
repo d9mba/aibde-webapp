@@ -279,7 +279,7 @@ export default function DashboardHome() {
                                     No published tools yet.
                                 </div>
                             ) : (
-                                recentPublished.map((tool) => (
+                                recentPublished.filter(tool => tool.appUsername).map((tool) => (
                                     <Link
                                         key={tool.id}
                                         href={`/app/${tool.appUsername}`}

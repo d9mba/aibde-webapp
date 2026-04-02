@@ -156,7 +156,7 @@ getSearchSuggestionsAction(query)   // Quick suggestions
 
 ---
 
-## 🔐 Security (proxy.ts)
+## 🔐 Security & Infrastructure
 
 Auth and route protection live in `src/proxy.ts`. For Next.js to run it on every request, add `src/middleware.ts` that re-exports it: `export { default } from './proxy';`
 
@@ -166,10 +166,16 @@ Auth and route protection live in `src/proxy.ts`. For Next.js to run it on every
 3. Redirect to `/login` → Clerk sign-in form shown
 4. Invalid secret → Silent redirect to homepage
 
-### API Protection
-- **Public APIs**: Blocked for direct document navigation and non-browser (e.g. CLI) access; admins bypass
-- **Protected APIs**: Require Clerk authentication
-- **Rate Limiting**: Per-IP limits via Upstash Redis on public endpoints
+### API & Endpoint Protection
+- **Public APIs**: Blocked for direct document navigation and non-browser (e.g. CLI) access; admins bypass.
+- **Protected APIs**: Require Clerk authentication and validate admin-level access before execution.
+- **Rate Limiting**: Per-IP limits using sliding-window tracking via Upstash Redis.
+- **Strict Data Integrity**: Concurrent updates (e.g., payments, webhook handlers) are processed sequentially or with condition-based selection to prevent race conditions and Time-of-Check-to-Time-of-Use (TOCTOU) issues.
+
+### Reliability & Resilience 
+- **Idempotent Webhooks**: Payment gateways employ robust signature verification, strict payload parsing, and integer arithmetic scaling for currencies to mitigate floating-point precision errors.
+- **Graceful Fallbacks**: Features like payment processing employ polling fallbacks when async webhooks are delayed.
+- **Input Sanitization**: Defense-in-depth HTML sanitization. User input is validated strictly using Zod, safely processed on the server via dedicated regex-sanitizers, and securely rendered with restricted `isSafeHttpUrl` parsers.
 
 ### Environment Variable
 ```env
@@ -371,16 +377,40 @@ ADMIN_LOGIN_SECRET=your-secret-string
 | `message` | text | Message content |
 | `created_at` | timestamp | Submission date |
 
-### Table: `submissions`
+### Table: `tool_submissions`
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | uuid | Primary key |
+| `submission_ref` | text | Human-readable reference ID |
 | `tool_name` | text | Submitted tool name |
 | `website_url` | text | Tool website |
-| `description` | text | Tool description |
+| `category` | text | Selected category |
+| `short_description` | text | Short summary |
+| `full_description` | text | Detailed description |
+| `logo_url` | text | URL to uploaded logo |
+| `submitter_name` | text | Submitter name |
 | `submitter_email` | text | Submitter email |
-| `status` | text | pending/approved/rejected |
+| `plan_selected` | text | basic/verified/featured |
+| `payment_status` | text | pending/initiated/completed/failed |
+| `review_status` | text | pending/approved/rejected/published |
 | `created_at` | timestamp | Submission date |
+
+### Table: `payments`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `submission_id` | uuid | Foreign key to `tool_submissions` |
+| `submitter_name` | text | Name of buyer |
+| `submitter_email` | text | Email of buyer |
+| `tool_name` | text | Tool name |
+| `plan` | text | basic/verified/featured |
+| `product_id` | text | Dodo Payments Product ID |
+| `payment_provider` | text | Payment gateway (e.g., dodo) |
+| `payment_id` | text | Gateway session or payment ID |
+| `status` | text | initiated/completed/failed |
+| `amount` | numeric | Captured payment amount |
+| `currency` | text | Payment currency (e.g., USD) |
+| `created_at` | timestamp | Payment start date |
 
 ### Key Fields Mapping (snake_case → camelCase)
 ```
@@ -430,9 +460,16 @@ UPSTASH_REDIS_REST_TOKEN="xxx"
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x4xxx
 TURNSTILE_SECRET_KEY=0x4xxx
 
+# Dodo Payments (Monetization)
+DODO_PAYMENTS_API_KEY=xxx
+DODO_PAYMENTS_BASE_URL=https://test.dodopayments.com
+NEXT_PUBLIC_DODO_BASIC_PRODUCT_ID=xxx
+NEXT_PUBLIC_DODO_VERIFIED_PRODUCT_ID=xxx
+NEXT_PUBLIC_DODO_FEATURED_PRODUCT_ID=xxx
+
 # Google Apps Script Integrations
-GOOGLE_APPS_SCRIPT_URL=https://script.google.com/macros/s/xxx/exec
-GOOGLE_APPS_SCRIPT_TOOL_SUBMISSIONS_URL=https://script.google.com/macros/s/xxx/exec
+GOOGLE_APPS_SCRIPT_CONTACT_URL=https://script.google.com/macros/s/.../exec
+GOOGLE_APPS_SCRIPT_TOOL_SUBMISSIONS_URL=https://script.google.com/macros/s/.../exec
 
 # Admin Configuration
 ADMIN_LOGIN_SECRET=your-secret-string

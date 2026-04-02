@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { Category } from '@/context/AdminContext';
+import { useDebounce } from '@/hooks/useDebounce';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmModal';
@@ -19,17 +20,11 @@ const fetcher = async (url: string) => {
     return res.json();
 };
 
-// Helper to slugify category name for URLs
-const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
-function useDebounce(value: string, delay: number): string {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    useEffect(() => {
-        const timer = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(timer);
-    }, [value, delay]);
-    return debouncedValue;
-}
+// Helper to slugify category name for URLs (Unicode-aware)
+const slugify = (str: string) => {
+    const slug = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || (str ? encodeURIComponent(str.toLowerCase()) : 'untitled-category');
+};
 
 interface PaginatedResponse {
     data: Category[];
@@ -74,7 +69,7 @@ export default function CategoriesPage() {
             onSuccess: () => setPageLoading(false),
             onError: (err: Error) => {
                 setPageLoading(false);
-                if (response) showToast(`Background refresh failed: ${err.message}`, 'error');
+                showToast(`Failed to load: ${err.message}`, 'error');
             },
         }
     );
@@ -89,12 +84,14 @@ export default function CategoriesPage() {
         setCurrentPage(newPage);
     }, []);
 
-    // Search change handler - sets loading immediately
     const handleSearchChange = useCallback((value: string) => {
+        if (value === search) return;
         setSearch(value);
         setCurrentPage(1);
-        if (value !== search) setPageLoading(true);
+        setPageLoading(true);
     }, [search]);
+
+
 
     const handleAdd = async () => {
         if (!newName.trim()) return;
@@ -106,8 +103,9 @@ export default function CategoriesPage() {
                 body: JSON.stringify({ categoryName: newName.trim(), count: 0, description: newDesc.trim() }),
             });
             if (!res.ok) {
+                const body = await res.text();
                 let message = 'Failed to create category';
-                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                try { const err = JSON.parse(body); message = err.error || message; } catch { message = body || message; }
                 throw new Error(message);
             }
             updateToast(toastId, `Category "${newName}" created!`, 'success');
@@ -135,8 +133,9 @@ export default function CategoriesPage() {
                 body: JSON.stringify({ id, categoryName: editName.trim(), description: editDesc.trim() }),
             });
             if (!res.ok) {
+                const body = await res.text();
                 let message = 'Failed to update category';
-                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                try { const err = JSON.parse(body); message = err.error || message; } catch { message = body || message; }
                 throw new Error(message);
             }
             updateToast(toastId, 'Category updated!', 'success');
@@ -162,11 +161,14 @@ export default function CategoriesPage() {
         try {
             const res = await fetch(`/api/categories?id=${cat.id}`, { method: 'DELETE' });
             if (!res.ok) {
+                const body = await res.text();
                 let message = 'Failed to delete category';
-                try { const err = await res.json(); message = err.error || message; } catch { message = await res.text().catch(() => message); }
+                try { const err = JSON.parse(body); message = err.error || message; } catch { message = body || message; }
                 throw new Error(message);
             }
             updateToast(toastId, `Category "${cat.categoryName}" deleted!`, 'success');
+            // Clear editing state if the deleted category was being edited
+            if (editingId === cat.id) setEditingId(null);
             // Navigate to previous page if this was the last item on this page
             if (currentPage > 1 && categories.length === 1) {
                 setCurrentPage(prev => prev - 1);
@@ -251,12 +253,12 @@ export default function CategoriesPage() {
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex-1 min-w-0">
                                         {editingId === cat.id ? (
-                                            <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full mb-1" />
+                                            <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(cat.id, e); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full mb-1" />
                                         ) : (
                                             <div className="font-medium text-text-primary truncate">{cat.categoryName}</div>
                                         )}
                                         {editingId === cat.id ? (
-                                            <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" placeholder="Description..." />
+                                            <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(cat.id, e); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" placeholder="Description..." />
                                         ) : (
                                             <div className="text-xs text-text-tertiary line-clamp-1 mt-0.5">{cat.description || 'No description'}</div>
                                         )}
@@ -299,7 +301,11 @@ export default function CategoriesPage() {
                                 <tr><td colSpan={4} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No categories match your search' : 'No categories found'}</td></tr>
                             ) : (
                                 categories.map((cat: Category) => (
-                                    <tr key={cat.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/categories/${slugify(cat.categoryName)}`)}>
+                                    <tr key={cat.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" 
+                                        role="button" tabIndex={(pageLoading || !!editingId) ? -1 : 0} aria-disabled={pageLoading || !!editingId}
+                                        onClick={() => { if (!pageLoading && !editingId) router.push(`/dashboard/categories/${slugify(cat.categoryName)}`); }}
+                                        onKeyDown={(e) => { if (!pageLoading && !editingId && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); router.push(`/dashboard/categories/${slugify(cat.categoryName)}`); } }}
+                                    >
                                         <td className="px-4 py-3">
                                             {editingId === cat.id ? (
                                                 <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(cat.id, e); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />

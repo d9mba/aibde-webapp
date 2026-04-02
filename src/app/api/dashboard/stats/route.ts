@@ -54,7 +54,7 @@ export async function GET() {
                 .from('tools')
                 .select(RECENT_FIELDS)
                 .eq('status', 'published')
-                .order('launched_on', { ascending: false })
+                .order('launched_on', { ascending: false, nullsFirst: false })
                 .limit(5),
         ]);
 
@@ -74,9 +74,14 @@ export async function GET() {
             { name: 'recentUpdated', result: recentUpdatedResult },
             { name: 'recentPublished', result: recentPublishedResult },
         ];
+        const warnings: string[] = [];
         for (const { name, result } of queryResults) {
             if (result.error) {
                 console.error(`[Stats API] Query "${name}" failed:`, result.error.message);
+                const msg = process.env.NODE_ENV === 'development'
+                    ? `Query "${name}" failed: ${result.error.message}`
+                    : `Query "${name}" failed`;
+                warnings.push(msg);
             }
         }
 
@@ -99,6 +104,7 @@ export async function GET() {
             },
             recentUpdated,
             recentPublished,
+            ...(warnings.length > 0 ? { warnings } : {}),
         });
     } catch (err) {
         console.error('[Stats API] Error:', err);

@@ -35,15 +35,15 @@ export default function SpotlightPage() {
     const isLoaded = !spotLoading;
 
     // Capture initial total so "Available" stat stays constant during search
-    const initialTotalRef = useRef<number>(0);
+    const initialTotalRef = useRef<number | null>(null);
     useEffect(() => {
-        if (availableTotal != null && initialTotalRef.current === 0) {
+        if (availableTotal != null && initialTotalRef.current === null) {
             initialTotalRef.current = availableTotal;
         }
     }, [availableTotal]);
     // Reset initial total when tools are mutated so it refreshes
     useEffect(() => {
-        initialTotalRef.current = 0;
+        initialTotalRef.current = null;
     }, [toolsMutated]);
 
     // Local state for pending changes
@@ -76,10 +76,11 @@ export default function SpotlightPage() {
         return [...spotlightToolsRaw, ...availableToolsRaw];
     }, [spotlightToolsRaw, availableToolsRaw]);
 
-    // Populate cache in an effect to avoid side effects in useMemo
+    // Keep cache populated when allTools changes (separate from useMemo to keep memo pure)
     useEffect(() => {
         allTools.forEach(t => pendingToolsCacheRef.current.set(t.id, t));
     }, [allTools]);
+
     const spotlightTools = useMemo(() => {
         return pendingSpotlightIds
             .map(id => pendingToolsCacheRef.current.get(id) || allTools.find(t => t.id === id))
@@ -90,6 +91,8 @@ export default function SpotlightPage() {
     const availableTools = useMemo(() => {
         return availableToolsRaw.filter(t => !pendingSpotlightIds.includes(t.id));
     }, [availableToolsRaw, pendingSpotlightIds]);
+
+    const availableCount = Math.max(0, (initialTotalRef.current ?? availableTotal ?? 0) - spotlightTools.length);
 
     // Filter available tools by search
     const filteredAvailableTools = useMemo(() => {
@@ -263,7 +266,7 @@ export default function SpotlightPage() {
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Display</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{Math.max(0, (initialTotalRef.current || availableTotal) - spotlightTools.length)}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-accent-green">{availableCount}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>

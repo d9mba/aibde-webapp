@@ -40,9 +40,11 @@ export default function TaskDetailPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [previewTool, setPreviewTool] = useState<AdminTool | null>(null);
 
-    // Fetch task by slug via SWR
+    // NOTE: We search by name and match slugs client-side. Using limit=500 to ensure
+    // we don't miss tasks with similar names. A dedicated /api/tasks/lookup?slug= endpoint
+    // would be more precise but this covers all realistic cases.
     const { data: taskData, error: taskError, isLoading: taskLoading } = useSWR<{ data: Task[] }>(
-        `/api/tasks?search=${encodeURIComponent(slug)}&limit=100`,
+        `/api/tasks?search=${encodeURIComponent(slug.replace(/-/g, ' '))}&limit=500`,
         fetcher,
         { revalidateOnFocus: false }
     );
@@ -52,13 +54,11 @@ export default function TaskDetailPage() {
     // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (debouncedSearch !== search) {
-                setDebouncedSearch(search);
-                setCurrentPage(1);
-            }
+            setDebouncedSearch(search);
+            setCurrentPage(1);
         }, 300);
         return () => clearTimeout(timer);
-    }, [search, debouncedSearch]);
+    }, [search]);
 
     // Build API URL with server-side pagination
     const apiUrl = useMemo(() => {
@@ -82,9 +82,7 @@ export default function TaskDetailPage() {
     const pagination = toolsData?.pagination;
     const totalPages = pagination?.totalPages || 0;
 
-    function handleSearchChange(value: string): void {
-        setSearch(value);
-    }
+
 
     if (taskLoading) {
         return (
@@ -166,7 +164,7 @@ export default function TaskDetailPage() {
                 </span>
                 <div className="relative w-64">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">{renderIcon('search', 16)}</span>
-                    <input value={search} onChange={e => handleSearchChange(e.target.value)} placeholder="Search tools..."
+                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tools..."
                         className="w-full pl-9 pr-3 py-2 bg-bg-secondary border border-border rounded-xl text-sm text-text-primary" />
                 </div>
             </div>
@@ -333,8 +331,10 @@ export default function TaskDetailPage() {
 
                         {/* Actions */}
                         <div className="border-t border-border p-4 flex gap-3">
-                            <button onClick={() => { setPreviewTool(null); router.push(`/app/${previewTool.appUsername}`); }}
-                                className="flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2">
+                            <button
+                                onClick={() => { setPreviewTool(null); if (previewTool.appUsername) router.push(`/app/${previewTool.appUsername}`); }}
+                                disabled={!previewTool.appUsername}
+                                className={`flex-1 px-4 py-2.5 bg-accent-primary text-white rounded-xl text-sm font-medium hover:bg-accent-primary/90 flex items-center justify-center gap-2 ${!previewTool.appUsername ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 <span className="inline-flex">{renderIcon('link', 16)}</span> Open Tool Page
                             </button>
                             <button onClick={() => { setPreviewTool(null); router.push(`/dashboard/tools/${previewTool.id}`); }}

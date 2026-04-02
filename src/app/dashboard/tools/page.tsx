@@ -16,7 +16,14 @@ import ExportToolsModal from './components/ExportToolsModal';
 import { SafeHtml } from '@/components/ui/SafeHtml';
 
 // SWR fetcher
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Fetch error ${res.status}: ${res.statusText} ${body}`);
+    }
+    return res.json();
+};
 
 // Pagination response type
 interface PaginatedToolsResponse {
@@ -134,7 +141,7 @@ export default function ToolsListPage() {
     // Fetch categories for filter dropdown
     const { data: catResponse } = useSWR<{ data: { id: string; categoryName: string }[] }>(
         '/api/categories?limit=500',
-        (url: string) => fetch(url).then(r => r.json()),
+        fetcher,
         { revalidateOnFocus: false }
     );
     const categoryOptions = [
@@ -573,8 +580,15 @@ export default function ToolsListPage() {
                                             <span className={`text-xs px-2 py-1 rounded-full ${getStatusClass(previewTool.status || 'draft')}`}>
                                                 {previewTool.status}
                                             </span>
-                                            <span className="text-xs px-2 py-1 bg-accent-primary/10 text-accent-primary rounded-full">{previewTool.pricingLabel}</span>
+                                            {previewTool.pricingLabel && (
+                                                <span className="text-xs px-2 py-1 bg-green-500/10 text-green-500 rounded-full">{previewTool.pricingLabel}</span>
+                                            )}
                                             {previewTool.isFeatured && <span className="text-xs px-2 py-1 bg-yellow-500/10 text-yellow-600 rounded-full">Featured</span>}
+                                            {(previewTool as any).submissionRef && (
+                                                <span className="text-[10px] px-2 py-1 bg-green-500/10 text-green-500 uppercase tracking-wider font-bold rounded-full flex items-center gap-1.5" title="Original Submission Link">
+                                                    Linked Submission <span className="text-text-secondary font-mono tracking-normal font-normal">{(previewTool as any).submissionRef}</span>
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <button onClick={() => setPreviewTool(null)} className="text-text-tertiary hover:text-text-primary">

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { AITool } from '@/types';
 import ShareModal from '@/components/ui/ShareModal';
 import { trackToolClick, useToolImpression, trackFilterUsed } from '@/hooks/useToolAnalytics';
@@ -48,8 +49,17 @@ function getRankingDisplay(ranking: number): string {
     }
 }
 
+// PHASE-4: Stable count formatter — avoids per-render closures
+function formatCount(count: number): string {
+    if (count >= 1000) return `${Math.round(count / 1000)}k`;
+    return count.toLocaleString();
+}
+
 export default function AIToolCard({ tool, variant = 'default', ranking }: AIToolCardProps) {
     const [showShareModal, setShowShareModal] = useState(false);
+    // Share URL - computed lazily on the client when the share modal opens
+    const [shareUrl, setShareUrl] = useState(`/app/${tool.appUsername}`);
+    const router = useRouter();
     const { getImpressions } = useImpressions();
     const colorIndex = tool.name.charCodeAt(0) % logoColors.length;
     const logoColor = logoColors[colorIndex];
@@ -61,49 +71,68 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
     // Get live impressions from PostHog context
     const liveImpressions = getImpressions(tool.appUsername);
 
+    // PHASE-4: Pre-compute display values
+    const displayCount = formatCount(liveImpressions || tool.viewCount || 0);
+    const firstCategory = useMemo(() => (tool.categoryName || [])[0], [tool.categoryName]);
+    const firstTask = useMemo(() => (tool.taskName || [])[0], [tool.taskName]);
+
     // Analytics: Track impressions when card is visible
     const impressionRef = useToolImpression(
-        { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+        { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: firstCategory, pricing: tool.pricing },
         isFeatured ? 'featured' : 'list'
     );
 
-    const handleViewClick = (e: React.MouseEvent) => {
+    // PHASE-4: Stable callbacks via useCallback
+    const handleViewClick = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
-        // For backLinks-enabled tools, link directly to website for SEO value
         const url = tool.backLinks && tool.websiteUrl ? tool.websiteUrl : `/go/${tool.appUsername}`;
-        // Track outbound click for backLinks (non-redirect) tools since they bypass /go/
         if (tool.backLinks && tool.websiteUrl) {
             import('@/hooks/useToolAnalytics').then(({ trackToolVisit }) => {
                 trackToolVisit(
-                    { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+                    { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: firstCategory, pricing: tool.pricing },
                     tool.websiteUrl || ''
                 );
             });
         }
         window.open(url, '_blank', tool.backLinks ? 'noopener' : 'noopener,noreferrer');
-    };
+    }, [tool.id, tool.name, tool.appUsername, tool.backLinks, tool.websiteUrl, tool.pricing, firstCategory]);
 
-    const handleShareClick = (e: React.MouseEvent) => {
+    const handleShareClick = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
+        setShareUrl(`${window.location.origin}/app/${tool.appUsername}`);
         setShowShareModal(true);
-    };
+    }, [tool.appUsername]);
 
-    const handleTaskClick = (e: React.MouseEvent) => {
+    const handleTaskClick = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
-        const firstTask = (tool.taskName || [])[0];
         if (firstTask) {
-            window.location.href = `/task/${slugify(firstTask)}`;
+            router.push(`/task/${slugify(firstTask)}`);
         }
-    };
+    }, [firstTask, router]);
 
-    const handleCardClick = () => {
-        // Analytics: Track tool click
+    const handleCategoryClick = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (firstCategory) {
+            trackFilterUsed('category', firstCategory);
+            router.push(`/category/${slugify(firstCategory)}`);
+        }
+    }, [firstCategory, router]);
+
+    const handlePricingClick = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        trackFilterUsed('pricing', tool.pricing || 'unknown');
+        router.push(`/search?pricing=${encodeURIComponent(tool.pricing || 'unknown')}`);
+    }, [tool.pricing, router]);
+
+    const handleCardClick = useCallback(() => {
         trackToolClick(
-            { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing },
+            { id: tool.id, name: tool.name, appUsername: tool.appUsername, category: firstCategory, pricing: tool.pricing },
             isFeatured ? 'featured' : 'card'
         );
-        window.location.href = `/app/${tool.appUsername}`;
-    };
+        router.push(`/app/${tool.appUsername}`);
+    }, [tool.id, tool.name, tool.appUsername, tool.pricing, firstCategory, isFeatured, router]);
+
+    const handleCloseShareModal = useCallback(() => setShowShareModal(false), []);
 
     return (
         <div
@@ -177,50 +206,24 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                                 Recently Updated
                             </span>
                         )}
-                        {/* Category tag - Light green color */}
-                        {(tool.categoryName || [])[0] && (
+                        {/* PHASE-4: Category tag — hover state via CSS class instead of inline style mutation */}
+                        {firstCategory && (
                             <span
-                                className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full cursor-pointer transition-all duration-fast"
-                                style={{ color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.08)' }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    trackFilterUsed('category', (tool.categoryName || [])[0]);
-                                    window.location.href = `/category/${slugify((tool.categoryName || [])[0])}`;
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#10b981';
-                                    e.currentTarget.style.color = 'white';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.08)';
-                                    e.currentTarget.style.color = '#10b981';
-                                }}
+                                className="tool-tag tool-tag--category inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full cursor-pointer transition-all duration-fast"
+                                onClick={handleCategoryClick}
                             >
                                 <GridIcon className="w-3 h-3 opacity-70" />
-                                {(tool.categoryName || [])[0]}
+                                {firstCategory}
                             </span>
                         )}
-                        {/* Task tag - Amber color */}
-                        {(tool.taskName || [])[0] && (
+                        {/* PHASE-4: Task tag — hover state via CSS class instead of inline style mutation */}
+                        {firstTask && (
                             <span
-                                className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full cursor-pointer transition-all duration-fast"
-                                style={{ color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.08)' }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    trackFilterUsed('task', (tool.taskName || [])[0]);
-                                    window.location.href = `/task/${slugify((tool.taskName || [])[0])}`;
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#f59e0b';
-                                    e.currentTarget.style.color = 'white';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.08)';
-                                    e.currentTarget.style.color = '#f59e0b';
-                                }}
+                                className="tool-tag tool-tag--task inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-medium rounded-full cursor-pointer transition-all duration-fast"
+                                onClick={handleTaskClick}
                             >
                                 <TaskIcon className="w-3 h-3 opacity-70" />
-                                {(tool.taskName || [])[0]}
+                                {firstTask}
                             </span>
                         )}
                     </div>
@@ -234,10 +237,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                     {/* Impressions indicator */}
                     <span className="inline-flex items-center gap-0.5 text-[0.625rem] text-text-tertiary leading-none">
                         <BarChartIcon className="w-3 h-3 opacity-70 flex-shrink-0" />
-                        <span>{(() => {
-                            const count = liveImpressions || tool.viewCount || 0;
-                            return count >= 1000 ? `${Math.round(count / 1000)}k` : count.toLocaleString();
-                        })()}</span>
+                        <span>{displayCount}</span>
                     </span>
                     {/* Upvotes + Star Rating */}
                     <span className="inline-flex items-center gap-0.5 text-[0.625rem] text-text-secondary leading-none">
@@ -255,11 +255,7 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
                 <span
                     className="text-[0.625rem] font-medium cursor-pointer transition-opacity hover:opacity-70 flex-shrink-0"
                     style={{ color: getPricingColor(tool.pricing || '') }}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        trackFilterUsed('pricing', tool.pricing || 'unknown');
-                        window.location.href = `/search?pricing=${tool.pricing}`;
-                    }}
+                    onClick={handlePricingClick}
                 >
                     {tool.pricingLabel || getPricingLabel(tool.pricing || '')}
                 </span>
@@ -289,11 +285,12 @@ export default function AIToolCard({ tool, variant = 'default', ranking }: AIToo
             {/* Share Modal */}
             <ShareModal
                 isOpen={showShareModal}
-                onClose={() => setShowShareModal(false)}
-                url={typeof window !== 'undefined' ? `${window.location.origin}/app/${tool.appUsername}` : ''}
+                onClose={handleCloseShareModal}
+                url={shareUrl}
                 title={tool.name}
                 description={tool.summary || tool.description}
             />
         </div>
     );
 }
+

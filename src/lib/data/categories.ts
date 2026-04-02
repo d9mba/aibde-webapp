@@ -9,7 +9,7 @@ import 'server-only';
  */
 
 // Deliberate: supabaseAdmin bypasses RLS so all categories/tasks are visible on public pages
-import { supabaseAdmin as supabase } from '../supabase';
+import { supabaseAdmin } from '../supabase';
 import { Category, Task } from '@/types';
 
 /**
@@ -18,7 +18,7 @@ import { Category, Task } from '@/types';
  * Sorted by popularity (count)
  */
 export async function getCategories(): Promise<Category[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('categories')
         .select('*')
         .gt('count', 0) // Only categories with linked tools
@@ -42,7 +42,7 @@ export async function getCategories(): Promise<Category[]> {
  * Fetch a page of categories (for sitemap pagination). Order by category_name for stable paging.
  */
 export async function getCategoriesRange(offset: number, limit: number): Promise<Category[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('categories')
         .select('*')
         .order('category_name', { ascending: true })
@@ -74,7 +74,7 @@ export async function getTasks(): Promise<Task[]> {
     let hasMore = true;
 
     while (hasMore) {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('tasks')
             .select('*')
             .gt('count', 0) // Only tasks with linked tools
@@ -107,7 +107,7 @@ export async function getTasks(): Promise<Task[]> {
  * Fetch a page of tasks (for sitemap pagination). Order by task_name for stable paging.
  */
 export async function getTasksRange(offset: number, limit: number): Promise<Task[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('tasks')
         .select('*')
         .order('task_name', { ascending: true })
@@ -129,7 +129,7 @@ export async function getTasksRange(offset: number, limit: number): Promise<Task
  * Fetch tags for SSR pages
  */
 export async function getTags() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('tags')
         .select('*')
         .order('tag_name', { ascending: true });

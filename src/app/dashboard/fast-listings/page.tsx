@@ -18,7 +18,7 @@ export default function FastListingsPage() {
     const [saving, setSaving] = useState(false);
 
     // Fetch fast tools (small set) and available tools (paginated)
-    const { tools: fastToolsRaw, loading: fastLoading, refetch: refetchFast } = useTools({
+    const { tools: fastToolsRaw, loading: fastLoading } = useTools({
         listing: 'fast', status: 'published', all: true, deps: toolsMutated, fields: 'card',
     });
     const { tools: availableToolsRaw, loading: availLoading, totalCount: availableTotal } = useTools({
@@ -37,8 +37,9 @@ export default function FastListingsPage() {
         listing: 'verified', status: 'published', limit: 1, deps: toolsMutated, fields: 'card',
     });
     // NOTE: autoFastCount is approximate — tools matching multiple flags (e.g., both
-    // spotlight and featured) are counted twice. The overlap is typically small and
-    // acceptable for a dashboard stat display.
+    // spotlight and featured) are counted twice. We only fetch counts (limit:1), not
+    // IDs, to keep the dashboard lightweight. The overlap is typically small.
+    // The Available calc uses Math.max(0, ...) to prevent negative display values.
     const autoFastCount = (spotlightCount || 0) + (featuredCount || 0) + (verifiedCount || 0);
 
     // Only block the full page on initial fast tools load, not on available tools search
@@ -67,17 +68,14 @@ export default function FastListingsPage() {
     // Cache full AdminTool objects so they persist when paginating away
     const pendingToolsCacheRef = useRef<Map<string, AdminTool>>(new Map());
 
-    // Initialize from current data (one-time, wait for load)
-    const fastInitializedRef = useRef(false);
+    // Initialize from current data (refreshes when fast tools change)
     useEffect(() => {
-        if (fastInitializedRef.current || fastLoading) return;
-        fastInitializedRef.current = true;
+        if (fastLoading || hasChanges) return;
         const currentFast = fastToolsRaw.filter((t: AdminTool) => t.listingType === 'fast');
         const ids = currentFast.map(t => t.id);
         currentFast.forEach(t => pendingToolsCacheRef.current.set(t.id, t));
-
-        if (ids.length > 0) setPendingFastIds(ids);
-    }, [fastToolsRaw, fastLoading]);
+        setPendingFastIds(ids);
+    }, [fastToolsRaw, fastLoading, hasChanges]);
 
     // Current fast tools based on pending changes
     const allFastTools = useMemo(() => {
@@ -132,10 +130,15 @@ export default function FastListingsPage() {
     const fastStartIndex = (fastPage - 1) * ITEMS_PER_PAGE;
     const paginatedFastTools = filteredFastTools.slice(fastStartIndex, fastStartIndex + ITEMS_PER_PAGE);
 
-    // Pagination for regular tools
-    const totalPages = Math.ceil(filteredRegularTools.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedTools = filteredRegularTools.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    // Pagination for regular tools — adjust for tools hidden by pendingFastIds
+    const clientVisibleTotal = Math.max(0, (availableTotal ?? 0) - pendingFastIds.length);
+    const totalPages = Math.max(1, Math.ceil(clientVisibleTotal / ITEMS_PER_PAGE));
+    // Clamp currentPage when totalPages shrinks (e.g., after adding items to pendingFastIds)
+    const clampedPage = Math.min(currentPage, totalPages);
+    if (clampedPage !== currentPage) setCurrentPage(clampedPage);
+    const startIndex = (clampedPage - 1) * ITEMS_PER_PAGE;
+    // Backend already applies limit/page
+    const paginatedTools = filteredRegularTools;
 
     const handleSearch = (value: string) => {
         setSearch(value);
@@ -249,7 +252,7 @@ export default function FastListingsPage() {
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Auto (Higher Tiers)</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-text-tertiary">{Math.max(0, (initialTotal ?? availableTotal) - allFastTools.length - autoFastCount)}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-text-tertiary">{Math.max(0, (initialTotal ?? availableTotal ?? 0) - allFastTools.length - autoFastCount)}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>
@@ -325,7 +328,7 @@ export default function FastListingsPage() {
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
                                 <span className="text-sm text-text-tertiary">
-                                    {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredRegularTools.length)} of {filteredRegularTools.length}
+                                    {paginatedTools.length === 0 ? '0' : `${startIndex + 1}-${startIndex + paginatedTools.length}`} of {availableTotal ?? 0}
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button
@@ -413,7 +416,7 @@ export default function FastListingsPage() {
                         {fastTotalPages > 1 && (
                             <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-t border-border">
                                 <span className="text-sm text-text-tertiary">
-                                    {fastStartIndex + 1}-{Math.min(fastStartIndex + ITEMS_PER_PAGE, filteredFastTools.length)} of {filteredFastTools.length}
+                                    {filteredFastTools.length === 0 ? 0 : fastStartIndex + 1}-{Math.min(fastStartIndex + ITEMS_PER_PAGE, filteredFastTools.length)} of {filteredFastTools.length}
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button

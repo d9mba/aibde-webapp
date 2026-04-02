@@ -76,16 +76,23 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid or empty request body' }, { status: 400 });
         }
 
-        const { type, toolSlug, days = 7, startDate, endDate } = body;
+        const { type, toolSlug, days: rawDays = 7, startDate, endDate } = body;
 
         if (!type) {
             return NextResponse.json({ error: 'Missing required field: type' }, { status: 400 });
         }
 
+        // Sanitize user inputs to prevent HogQL injection
+        const days = Math.max(1, Math.min(365, Number(rawDays) || 7));
+        const safeToolSlug = toolSlug ? toolSlug.replace(/[^a-zA-Z0-9_-]/g, '') : '';
+        const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+        const safeStartDate = startDate && datePattern.test(startDate) ? startDate : null;
+        const safeEndDate = endDate && datePattern.test(endDate) ? endDate : null;
+
         // Build time filter - support both days (relative) and startDate/endDate (absolute)
         let timeFilter: string;
-        if (startDate && endDate) {
-            timeFilter = `timestamp >= toDateTime('${startDate} 00:00:00') AND timestamp <= toDateTime('${endDate} 23:59:59')`;
+        if (safeStartDate && safeEndDate) {
+            timeFilter = `timestamp >= toDateTime('${safeStartDate} 00:00:00') AND timestamp <= toDateTime('${safeEndDate} 23:59:59')`;
         } else {
             timeFilter = `timestamp >= now() - interval ${days} day`;
         }
@@ -103,7 +110,7 @@ export async function POST(request: NextRequest) {
                     FROM events
                     WHERE 
                         ${timeFilter}
-                        AND properties.tool_slug = '${toolSlug}'
+                        AND properties.tool_slug = '${safeToolSlug}'
                         AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed', 'tool_website_visited')
                     GROUP BY properties.tool_slug, event
                     ORDER BY count DESC
@@ -299,7 +306,7 @@ export async function POST(request: NextRequest) {
 
             case 'tool_daily_trend':
                 // Get daily trend for a specific tool
-                if (!toolSlug) {
+                if (!safeToolSlug) {
                     return NextResponse.json({ error: 'toolSlug required for tool_daily_trend' }, { status: 400 });
                 }
                 hogqlQuery = `
@@ -313,7 +320,7 @@ export async function POST(request: NextRequest) {
                     FROM events
                     WHERE 
                         ${timeFilter}
-                        AND properties.tool_slug = '${toolSlug}'
+                        AND properties.tool_slug = '${safeToolSlug}'
                         AND event IN ('tool_impression', 'tool_clicked', 'tool_page_viewed', 'tool_website_visited', 'outbound_redirect', 'tool_page_left')
                     GROUP BY date
                     ORDER BY date ASC
@@ -324,8 +331,11 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Invalid query type' }, { status: 400 });
         }
 
-        // Check cache first
-        const cacheKey = getCacheKey(type, { toolSlug, days, startDate, endDate });
+        // Check cache first (normalize params: hourly_activity/realtime ignore toolSlug and days)
+        const cacheParams = type === 'hourly_activity' || type === 'realtime'
+            ? {}
+            : { toolSlug: safeToolSlug, days, startDate: safeStartDate, endDate: safeEndDate };
+        const cacheKey = getCacheKey(type, cacheParams);
         const cached = getCached(cacheKey);
         if (cached) {
             return NextResponse.json(cached);

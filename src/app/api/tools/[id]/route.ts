@@ -9,7 +9,7 @@ import { syncToolCounts } from '@/lib/sync-counts';
 // GET /api/tools/:id - Get single tool
 // SECURITY: Only admins can view non-published (draft/pending) tools
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -38,7 +38,23 @@ export async function GET(
             return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
         }
 
-        return NextResponse.json(dbToolToAdminTool(data));
+        const adminData = dbToolToAdminTool(data) as any;
+
+        // Fetch associated submission reference for Admins performing edits/previews
+        if (isAdmin) {
+            const { data: sub } = await supabaseAdmin
+                .from('tool_submissions')
+                .select('id, submission_ref')
+                .eq('tool_id', id)
+                .maybeSingle();
+
+            if (sub) {
+                adminData.submissionId = sub.id;
+                adminData.submissionRef = sub.submission_ref;
+            }
+        }
+
+        return NextResponse.json(adminData);
     } catch (err) {
         return NextResponse.json({ error: 'Failed to fetch tool' }, { status: 500 });
     }
@@ -60,11 +76,15 @@ export async function PUT(
         const body = await request.json();
 
         // Fetch old categories/tasks before update (for count syncing)
-        const { data: oldTool } = await supabaseAdmin
+        const { data: oldTool, error: oldToolError } = await supabaseAdmin
             .from('tools')
             .select('category_name, task_name')
             .eq('id', id)
             .single();
+
+        if (oldToolError && oldToolError.code !== 'PGRST116') {
+            console.warn('[PUT API] Failed to fetch old tool for count sync:', oldToolError.message);
+        }
 
         // Validate input with Zod schema (partial for updates)
         const parseResult = toolUpdateSchema.safeParse(body);
@@ -144,6 +164,18 @@ export async function PUT(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // Cascade tool status changes backward onto the submission state
+        if (body.status && data.status) {
+            const { error: cascadeError } = await supabaseAdmin
+                .from('tool_submissions')
+                .update({ review_status: data.status })
+                .eq('tool_id', id);
+
+            if (cascadeError) {
+                console.warn('[PUT API] Failed to cascade state backward to submissions table:', cascadeError.message);
+            }
+        }
+
         // Bust ISR cache so updated tool appears instantly
         if (data.app_username) {
             revalidatePath(`/app/${data.app_username}`);
@@ -153,11 +185,15 @@ export async function PUT(
         revalidatePath('/trending');
 
         // Sync category/task counts — merge old + new (use DB response for accuracy)
-        const oldCats = Array.isArray(oldTool?.category_name) ? oldTool.category_name : [];
-        const newCats = Array.isArray(data.category_name) ? data.category_name : [];
-        const oldTasks = Array.isArray(oldTool?.task_name) ? oldTool.task_name : [];
-        const newTasks = Array.isArray(data.task_name) ? data.task_name : [];
-        void syncToolCounts([...oldCats, ...newCats], [...oldTasks, ...newTasks]).catch(err => console.error('[Tools] syncToolCounts failed:', err));
+        if (!oldToolError || oldToolError.code === 'PGRST116') {
+            const oldCats = Array.isArray(oldTool?.category_name) ? oldTool.category_name : [];
+            const newCats = Array.isArray(data.category_name) ? data.category_name : [];
+            const oldTasks = Array.isArray(oldTool?.task_name) ? oldTool.task_name : [];
+            const newTasks = Array.isArray(data.task_name) ? data.task_name : [];
+            void syncToolCounts([...oldCats, ...newCats], [...oldTasks, ...newTasks]).catch(err => console.error('[Tools] syncToolCounts failed:', err));
+        } else {
+            console.warn('[PUT API] Skipping count sync — oldTool fetch failed:', oldToolError.message);
+        }
 
         return NextResponse.json(dbToolToAdminTool(data));
     } catch (err) {
@@ -168,7 +204,7 @@ export async function PUT(
 
 // DELETE /api/tools/:id - Delete tool (ADMIN ONLY)
 export async function DELETE(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {

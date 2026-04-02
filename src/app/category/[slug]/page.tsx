@@ -14,7 +14,7 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { slug } = await params;
     const categories = await getCategories();
-    const category = categories.find(c => slugify(c.categoryName) === slug);
+    const category = categories.find(c => c.categoryName && slugify(c.categoryName) === slug);
 
     if (!category) {
         return {
@@ -67,7 +67,7 @@ export default async function CategoryPage({ params }: PageProps) {
     const categories = await getCategories();
 
     // Find category by matching against slugified version of category name
-    const category = categories.find(c => slugify(c.categoryName) === slug) || null;
+    const category = categories.find(c => c.categoryName && slugify(c.categoryName) === slug) || null;
 
     // Fetch initial tools (1 page) and total count
     const [tools, totalCount] = await Promise.all([

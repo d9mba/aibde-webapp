@@ -6,7 +6,10 @@
  */
 
 import { searchTools, searchToolsCount } from '@/lib/data';
+import { supabase } from '@/lib/supabase';
+import { toFullUrl } from '@/lib/url';
 import { AdminTool } from '@/types';
+import { unstable_cache } from 'next/cache';
 
 export interface SearchParams {
     query?: string;
@@ -56,36 +59,61 @@ export async function searchCountAction(params: SearchParams): Promise<number> {
  * For real-time search suggestions in header/hero
  */
 export async function getSearchSuggestionsAction(query: string, limit: number = 6): Promise<AdminTool[]> {
-    if (!query || query.length < 2) {
+    // M1: Clamp limit to safe bounds to prevent unbounded DB queries
+    const safeLimit = Math.max(1, Math.min(20, Number.isFinite(limit) ? limit : 6));
+    const q = query.trim();
+    if (!q || q.length < 2) {
         return [];
     }
-    // Over-fetch so server-side nameRelevance re-sort can surface exact matches
-    const overFetch = Math.max(limit, 30);
-    const results = await searchTools({ query, limit: overFetch });
-    const q = query.toLowerCase();
-    results.sort((a, b) => {
-        const aName = (a.name || '').toLowerCase();
-        const bName = (b.name || '').toLowerCase();
-        // Score: exact=100, startsWith=80, includes=60, prefix-of-query=50
-        const score = (n: string) => {
-            if (n === q) return 100;
-            if (n.startsWith(q)) return 80;
-            if (n.includes(q)) return 60;
-            if (q.startsWith(n)) return 50;
-            return 0;
-        };
-        return score(bName) - score(aName);
-    });
-    return results.slice(0, limit);
+
+    const escapedQ = q.replace(/[\\%_]/g, '\\$&');
+
+    // Lightweight query — only fetch the fields needed for the suggestion dropdown
+    const { data, error } = await supabase
+        .from('tools')
+        .select('id, name, app_username, logo_url, summary, listing_type, is_featured, spotlight_enabled, pricing, view_count')
+        .eq('status', 'published')
+        .ilike('name', `%${escapedQ}%`)
+        .order('spotlight_enabled', { ascending: false, nullsFirst: false })
+        .order('is_featured', { ascending: false, nullsFirst: false })
+        .order('view_count', { ascending: false, nullsFirst: false })
+        .limit(safeLimit);
+
+    if (error) {
+        console.error('Suggestion query error:', error);
+        return [];
+    }
+
+    const qLower = q.toLowerCase();
+    // Map to the minimal AdminTool shape the dropdown expects
+    return (data || [])
+        .map(t => ({
+            id: t.id,
+            name: t.name,
+            appUsername: t.app_username,
+            logoUrl: toFullUrl(t.logo_url),
+            summary: t.summary || '',
+            listingType: t.listing_type,
+            isFeatured: t.is_featured,
+            spotlightEnabled: t.spotlight_enabled,
+            pricing: t.pricing || 'freemium',
+        } as AdminTool))
+        .sort((a, b) => {
+            // Prioritize exact/prefix name matches
+            const aName = a.name.toLowerCase();
+            const bName = b.name.toLowerCase();
+            const aExact = aName === qLower ? 2 : aName.startsWith(qLower) ? 1 : 0;
+            const bExact = bName === qLower ? 2 : bName.startsWith(qLower) ? 1 : 0;
+            return bExact - aExact;
+        });
 }
 
-const POSTHOG_API_HOST = 'https://app.posthog.com';
+const POSTHOG_API_HOST = process.env.POSTHOG_API_HOST || 'https://app.posthog.com';
 
 /**
- * Server Action: Get tool impression counts from PostHog
- * Hidden from browser Network tab
+ * Fetch impression counts from PostHog (internal — wrapped with cache below).
  */
-export async function getImpressionsAction(): Promise<Record<string, number>> {
+async function fetchImpressionsFromPostHog(): Promise<Record<string, number>> {
     const apiKey = process.env.POSTHOG_PERSONAL_API_KEY;
     const projectId = process.env.POSTHOG_PROJECT_ID;
 
@@ -107,7 +135,7 @@ export async function getImpressionsAction(): Promise<Record<string, number>> {
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
             const response = await fetch(`${POSTHOG_API_HOST}/api/projects/${projectId}/query/`, {
@@ -122,10 +150,16 @@ export async function getImpressionsAction(): Promise<Record<string, number>> {
                 signal: controller.signal,
             });
 
-            if (!response.ok) return {};
+            if (!response.ok) {
+                console.error(`[getImpressionsAction] PostHog API error: HTTP ${response.status} ${response.url}`);
+                return {};
+            }
 
             const data = await response.json();
-            if (data.error) return {};
+            if (data.error) {
+                console.error('[getImpressionsAction] PostHog query error:', data.error);
+                return {};
+            }
 
             const impressions: Record<string, number> = {};
             for (const row of data.results || []) {
@@ -136,7 +170,19 @@ export async function getImpressionsAction(): Promise<Record<string, number>> {
         } finally {
             clearTimeout(timeoutId);
         }
-    } catch {
+    } catch (err) {
+        console.error('[getImpressionsAction] PostHog fetch failed:', err instanceof Error ? err.message : err);
         return {};
     }
 }
+
+/**
+ * Server Action: Get tool impression counts from PostHog
+ * PHASE-3: Cached for 1 hour to prevent rate-limit pressure and reduce latency.
+ */
+export const getImpressionsAction = unstable_cache(
+    fetchImpressionsFromPostHog,
+    ['posthog-impressions-v1'],
+    { revalidate: 3600 }
+);
+

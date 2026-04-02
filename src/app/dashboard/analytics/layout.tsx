@@ -1,10 +1,11 @@
-import { Metadata } from 'next';
+import type { ReactNode } from 'react';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Analytics - Dashboard | AIBDE',
-    description: 'AIBDE Traffic and Analytics',
+    title: 'Analytics - Dashboard | AiBDE',
+    description: 'AiBDE Traffic and Analytics',
 };
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children: ReactNode }) {
     return <>{children}</>;
 }

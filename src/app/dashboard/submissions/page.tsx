@@ -1,0 +1,808 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import {
+    Clock, RefreshCw, Loader2, Search,
+    ChevronLeft, ChevronRight, ExternalLink,
+    Mail, Eye, Globe, CreditCard, ArrowRight, CheckCircle2, XCircle
+} from 'lucide-react';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmModal';
+import { toFullUrl } from '@/lib/url';
+
+interface Submission {
+    id: string;
+    submission_ref: string;
+    tool_name: string;
+    website_url: string;
+    category: string;
+    pricing_model: string;
+    short_description: string;
+    full_description: string;
+    logo_url: string;
+    submitter_name: string;
+    submitter_email: string;
+    plan_selected: string;
+    payment_status: string;
+    review_status: string;
+    created_at: string;
+    screenshot_urls?: string | null;
+    video_urls?: string | null;
+    tags?: string | null;
+    key_features?: string | null;
+    social_links?: any;
+    tool_id?: string | null;
+    app_username?: string | null;
+}
+
+const PAYMENT_STATUS_OPTIONS = [
+    { value: 'all', label: 'All Payment' },
+    { value: 'success', label: 'Success' },
+    { value: 'failed', label: 'Failed' },
+    { value: 'initiated', label: 'Initiated' },
+];
+
+const REVIEW_STATUS_OPTIONS = [
+    { value: 'all', label: 'All Status' },
+    { value: 'published', label: 'Published' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'unpublished', label: 'Unpublished' },
+    { value: 'scheduled', label: 'Scheduled' },
+];
+
+const EDITABLE_REVIEW_OPTIONS = [
+    { value: 'published', label: 'Published' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'unpublished', label: 'Unpublished' },
+    { value: 'scheduled', label: 'Scheduled' },
+];
+
+function getStatusBoxClass(status: string, type: 'payment' | 'review'): string {
+    if (type === 'payment') {
+        switch (status) {
+            case 'success': return 'bg-green-500/10 text-green-500';
+            case 'failed': return 'bg-red-500/10 text-red-500';
+            case 'initiated': return 'bg-yellow-500/10 text-yellow-500';
+            default: return 'bg-gray-500/10 text-gray-500';
+        }
+    } else {
+        switch (status) {
+            case 'pending': return 'bg-blue-500/10 text-blue-500';
+            case 'approved': return 'bg-green-500/10 text-green-500';
+            case 'rejected': return 'bg-red-500/10 text-red-500';
+            case 'published': return 'bg-green-500/10 text-green-500';
+            default: return 'bg-gray-500/10 text-gray-500';
+        }
+    }
+}
+
+function getStatusIcon(status: string) {
+    if (status === 'success' || status === 'approved' || status === 'published') {
+        return <CheckCircle2 className="w-3.5 h-3.5" />;
+    }
+    if (status === 'failed' || status === 'rejected') {
+        return <XCircle className="w-3.5 h-3.5" />;
+    }
+    if (status === 'initiated' || status === 'pending') {
+        return <RefreshCw className="w-3.5 h-3.5" />;
+    }
+    return <Clock className="w-3.5 h-3.5" />;
+}
+
+function formatDate(dateStr: string): string {
+    if (!dateStr) return 'N/A';
+    try {
+        return new Date(dateStr).toLocaleDateString('en-IN', {
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        });
+    } catch {
+        return dateStr;
+    }
+}
+
+function getSelectButtonClasses(status: string) {
+    switch (status) {
+        case 'pending': return '[&>button]:!bg-blue-500/10 [&>button]:!text-blue-500';
+        case 'approved': return '[&>button]:!bg-green-500/10 [&>button]:!text-green-500';
+        case 'rejected': return '[&>button]:!bg-red-500/10 [&>button]:!text-red-500';
+        case 'published': return '[&>button]:!bg-green-500/10 [&>button]:!text-green-500';
+        case 'draft': return '[&>button]:!bg-yellow-500/10 [&>button]:!text-yellow-500';
+        case 'unpublished': return '[&>button]:!bg-orange-500/10 [&>button]:!text-orange-500';
+        case 'scheduled': return '[&>button]:!bg-purple-500/10 [&>button]:!text-purple-500';
+        default: return '[&>button]:!bg-gray-500/10 [&>button]:!text-gray-500';
+    }
+}
+
+function parseSocialLinks(links: any) {
+    if (!links) return [];
+    if (typeof links !== 'string') return Array.isArray(links) ? links : [];
+    try { return JSON.parse(links); } catch { return []; }
+}
+
+const ITEMS_PER_PAGE = 25;
+
+interface PaginationMeta {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+}
+
+export default function SubmissionsDashboard() {
+    const [submissions, setSubmissions] = useState<Submission[]>([]);
+    const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [previewSub, setPreviewSub] = useState<Submission | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [paymentFilter, setPaymentFilter] = useState('all');
+    const [reviewFilter, setReviewFilter] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
+    const { showToast, updateToast } = useToast();
+    const { confirm } = useConfirm();
+
+    // Close preview modal on Escape — document-level so it works regardless of focus
+    useEffect(() => {
+        if (!previewSub) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setPreviewSub(null);
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [previewSub]);
+
+    const searchParams = useSearchParams();
+
+    // Debounce search input (500ms)
+    useEffect(() => {
+        const trimmed = searchQuery.trim();
+        if (trimmed === debouncedSearch) return;
+        const timer = setTimeout(() => {
+            setDebouncedSearch(trimmed);
+            setCurrentPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
+
+    // Build API URL with server-side pagination + filters
+    const apiUrl = (() => {
+        const params = new URLSearchParams();
+        params.set('page', String(currentPage));
+        params.set('limit', String(ITEMS_PER_PAGE));
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        if (paymentFilter !== 'all') params.set('payment_status', paymentFilter);
+        if (reviewFilter !== 'all') params.set('review_status', reviewFilter);
+        return `/api/dashboard/submissions?${params.toString()}`;
+    })();
+
+    const fetchSubmissions = useCallback(async (url: string, signal?: AbortSignal): Promise<void> => {
+        setLoading(true);
+        setError('');
+        try {
+            const res = await fetch(url, { signal });
+            if (!res.ok) {
+                const text = await res.text().catch(() => 'Unknown error');
+                throw new Error(text || `HTTP ${res.status}`);
+            }
+            const json = await res.json();
+            setSubmissions(json.data || []);
+            setPagination(json.pagination || null);
+            setLoading(false);
+        } catch (err) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
+            const msg = err instanceof Error ? err.message : 'Failed to load submissions';
+            setError(msg);
+            showToast(msg, 'error');
+            setLoading(false);
+        }
+    }, [showToast]);
+
+    // Fetch on mount + when URL/filters/page change
+    useEffect(() => {
+        const initialSearch = searchParams.get('search');
+        if (initialSearch && !searchQuery) {
+            setSearchQuery(initialSearch);
+            setDebouncedSearch(initialSearch);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchSubmissions(apiUrl, controller.signal);
+        return () => controller.abort();
+    }, [apiUrl, fetchSubmissions]);
+
+    // Reset page to 1 when filters change
+    useEffect(() => { setCurrentPage(1); }, [paymentFilter, reviewFilter]);
+
+    const handleStatusUpdate = async (id: string, newStatus: string, currentStatus: string) => {
+        if (newStatus === currentStatus) return;
+
+        const sub = submissions.find(s => s.id === id);
+        const name = sub?.tool_name || 'this submission';
+
+        let displayRef = '';
+        if (sub?.submission_ref) displayRef = ` (${sub.submission_ref})`;
+        else if (sub?.tool_id) displayRef = ` (Tool ID: ${sub.tool_id.substring(0, 8)}...)`;
+        else if (sub?.id) displayRef = ` (Sub ID: ${sub.id.substring(0, 8)}...)`;
+
+        const confirmed = await confirm({
+            title: 'Change Review Status?',
+            message: `Change "${name}${displayRef}" from "${currentStatus}" to "${newStatus}"?`,
+            confirmText: 'Yes, Update',
+            cancelText: 'Cancel',
+            danger: newStatus === 'unpublished' || newStatus === 'rejected',
+        });
+
+        if (!confirmed) return;
+
+        setUpdatingStatusId(id);
+        const toastId = showToast(`Updating status to "${newStatus}"...`, 'loading');
+        try {
+            const res = await fetch('/api/dashboard/submissions', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, review_status: newStatus }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to update status');
+
+            setSubmissions(prev => prev.map(s => s.id === id ? { ...s, review_status: newStatus } : s));
+            if (previewSub?.id === id) {
+                setPreviewSub(prev => prev ? { ...prev, review_status: newStatus } : null);
+            }
+            updateToast(toastId, `Status updated to "${newStatus}"`, 'success');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to update status';
+            updateToast(toastId, msg, 'error');
+        } finally {
+            setUpdatingStatusId(null);
+        }
+    };
+
+    // Data is already paginated from server — use directly
+    const totalPages = pagination?.totalPages ?? 1;
+    const totalCount = pagination?.total ?? 0;
+    const isInitialLoad = loading && submissions.length === 0 && !pagination;
+    const isRefetching = loading && (submissions.length > 0 || !!pagination);
+
+
+    return (
+        <div className="min-h-screen p-3 sm:p-6 bg-bg-primary">
+            <div className="max-w-[1400px] mx-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Tool Submissions</h1>
+                        <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 sm:mt-1">
+                            {totalCount} total
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => fetchSubmissions(apiUrl)}
+                        disabled={loading}
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border border-border text-text-primary rounded-lg text-xs sm:text-sm font-medium hover:bg-bg-tertiary disabled:opacity-50 transition-colors"
+                    >
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                        <span className="hidden sm:inline">Refresh</span>
+                    </button>
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 mb-4 p-3 sm:p-4 bg-bg-card border border-border rounded-xl">
+                    <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search by tool, name, email, ref or ID..."
+                            className="w-full pl-9 pr-4 py-2 sm:py-2.5 text-sm bg-bg-secondary border border-border rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/30"
+                        />
+                    </div>
+                    <div className="flex flex-wrap gap-2 sm:gap-3">
+                        <SearchableSelect
+                            value={paymentFilter}
+                            onChange={(v) => setPaymentFilter(v)}
+                            options={PAYMENT_STATUS_OPTIONS}
+                            placeholder="Payment"
+                            showSearch={false}
+                            className="flex-1 sm:min-w-[130px]"
+                        />
+                        <SearchableSelect
+                            value={reviewFilter}
+                            onChange={(v) => setReviewFilter(v)}
+                            options={REVIEW_STATUS_OPTIONS}
+                            placeholder="Review"
+                            showSearch={false}
+                            className="flex-1 sm:min-w-[130px]"
+                        />
+                    </div>
+                </div>
+
+                {/* Error Banner */}
+                {error && (
+                    <div className="p-4 mb-4 bg-accent-red/10 border border-accent-red/30 rounded-xl text-sm text-accent-red">
+                        {error}
+                    </div>
+                )}
+
+                {/* Content area with loading overlay */}
+                <div className="relative">
+                    {/* Spinner overlay for re-fetches */}
+                    {isRefetching && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                            <Loader2 className="w-6 h-6 animate-spin text-accent-primary" />
+                        </div>
+                    )}
+
+                {/* Mobile Card View */}
+                <div className={`sm:hidden space-y-3 transition-opacity duration-200 ${isRefetching ? 'opacity-50' : ''}`}>
+                    {isInitialLoad ? (
+                        <div className="bg-bg-card border border-border rounded-xl p-12 text-center text-text-tertiary">
+                            <div className="w-10 h-10 mx-auto mb-3 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                            <div className="font-medium">Loading submissions...</div>
+                        </div>
+                    ) : submissions.length === 0 ? (
+                        <div className="bg-bg-card border border-border rounded-xl p-6 text-center text-text-tertiary">
+                            No submissions found
+                        </div>
+                    ) : (
+                        submissions.map((sub) => (
+                            <div
+                                key={sub.id}
+                                className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary transition-colors cursor-pointer"
+                                onClick={() => setPreviewSub(sub)}
+                                tabIndex={0}
+                                role="button"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setPreviewSub(sub);
+                                    }
+                                }}
+                            >
+                                <div className="flex items-start gap-3">
+                                    {sub.logo_url ? (
+                                        <img src={toFullUrl(sub.logo_url)} alt="" className="w-10 h-10 rounded-lg object-contain flex-shrink-0 bg-white" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm flex-shrink-0">
+                                            {(sub.tool_name || '?')[0]}
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="font-medium text-text-primary truncate">{sub.tool_name || 'Untitled'}</div>
+                                            <div className="flex flex-col items-end">
+                                                <div className="text-xs font-mono text-text-secondary">Ref: {sub.submission_ref || '-'}</div>
+                                                {sub.tool_id && (
+                                                    <div className="text-[10px] font-mono text-accent-primary mt-0.5" title={sub.tool_id}>@{sub.app_username}</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-text-tertiary mt-0.5">{sub.submitter_name}</div>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium capitalize ${getStatusBoxClass(sub.payment_status, 'payment')}`}>
+                                                {getStatusIcon(sub.payment_status)}
+                                                {sub.payment_status || 'N/A'}
+                                            </div>
+                                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium capitalize ${getStatusBoxClass(sub.review_status, 'review')}`}>
+                                                {getStatusIcon(sub.review_status)}
+                                                {sub.review_status || 'N/A'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* Desktop Table */}
+                <div className={`hidden sm:block bg-bg-card border border-border rounded-xl overflow-hidden transition-opacity duration-200 ${isRefetching ? 'opacity-50' : ''}`}>
+                    <table className="w-full">
+                        <thead className="bg-bg-secondary border-b border-border">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Tool</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Submitter</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Ref / Link</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Plan</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Payment</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Review</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                            {isInitialLoad ? (
+                                <tr>
+                                    <td colSpan={7} className="px-4 py-12 text-center text-text-tertiary">
+                                        <div className="w-10 h-10 mx-auto mb-3 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                                        <div className="font-medium">Loading submissions...</div>
+                                        <p className="text-sm mt-1">Fetching data</p>
+                                    </td>
+                                </tr>
+                            ) : submissions.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="px-4 py-12 text-center text-text-tertiary">
+                                        No submissions found
+                                    </td>
+                                </tr>
+                            ) : (
+                                submissions.map((sub) => (
+                                    <tr
+                                        key={sub.id}
+                                        className="hover:bg-bg-secondary cursor-pointer transition-colors"
+                                        onClick={() => setPreviewSub(sub)}
+                                        tabIndex={0}
+                                        role="button"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setPreviewSub(sub);
+                                            }
+                                        }}
+                                    >
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-3">
+                                                {sub.logo_url ? (
+                                                    <img src={toFullUrl(sub.logo_url)} alt="" className="w-9 h-9 rounded-lg object-contain" />
+                                                ) : (
+                                                    <div className="w-9 h-9 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary font-bold text-sm">
+                                                        {(sub.tool_name || '?')[0]}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <div className="font-medium text-text-primary">{sub.tool_name || 'Untitled'}</div>
+                                                    <div className="text-xs text-text-tertiary">{formatDate(sub.created_at)}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="text-sm text-text-primary">{sub.submitter_name || '-'}</div>
+                                            <div className="text-xs text-text-tertiary">{sub.submitter_email || '-'}</div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex flex-col gap-1.5 items-start">
+                                                {sub.submission_ref ? (
+                                                    <span className="text-xs font-mono text-text-secondary bg-bg-secondary px-2 py-1 rounded border border-border" title="Submission Ref">
+                                                        {sub.submission_ref}
+                                                    </span>
+                                                ) : sub.tool_id ? (
+                                                    <span className="text-xs font-mono text-text-secondary bg-bg-secondary px-2 py-1 rounded border border-border" title="Tool ID">
+                                                        tool_{sub.tool_id.substring(0, 8)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs font-mono text-text-secondary bg-bg-secondary px-2 py-1 rounded border border-border" title="Submission ID">
+                                                        sub_{sub.id.substring(0, 8)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-text-secondary capitalize">
+                                            {sub.plan_selected || '-'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusBoxClass(sub.payment_status, 'payment')}`}>
+                                                {getStatusIcon(sub.payment_status)}
+                                                {sub.payment_status || 'N/A'}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                            <div className="w-[130px] relative">
+                                                {updatingStatusId === sub.id && !sub.tool_id && (
+                                                    <div className="absolute inset-x-0 bottom-full mb-1 flex justify-center z-10">
+                                                        <Loader2 className="w-4 h-4 animate-spin text-accent-primary" />
+                                                    </div>
+                                                )}
+                                                {sub.payment_status === 'failed' ? (
+                                                    <span className="text-text-tertiary px-2.5">-</span>
+                                                ) : sub.tool_id ? (
+                                                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusBoxClass(sub.review_status, 'review')}`}>
+                                                        {getStatusIcon(sub.review_status)}
+                                                        {sub.review_status || 'Pending'}
+                                                    </div>
+                                                ) : (
+                                                    <SearchableSelect
+                                                        value={sub.review_status || 'pending'}
+                                                        onChange={(v) => handleStatusUpdate(sub.id, v, sub.review_status)}
+                                                        options={EDITABLE_REVIEW_OPTIONS}
+                                                        placeholder={sub.review_status || 'Pending'}
+                                                        showSearch={false}
+                                                        className={`w-full text-xs font-medium capitalize border-0 transition-none [&>button]:!py-1 [&>button]:!px-2.5 [&>button]:!border-0 [&>button]:!rounded-full ${getSelectButtonClasses(sub.review_status)} ${updatingStatusId === sub.id ? 'opacity-50 pointer-events-none' : ''
+                                                            }`}
+                                                    />
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex items-center justify-end gap-1">
+                                                <button
+                                                    onClick={() => setPreviewSub(sub)}
+                                                    className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
+                                                    title="View Details"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </button>
+                                                <Link
+                                                    href={`/dashboard/tools/new?submissionId=${encodeURIComponent(sub.id)}`}
+                                                    prefetch={false}
+                                                    className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
+                                                    title="Create Tool from Submission"
+                                                >
+                                                    <ArrowRight className="w-4 h-4" />
+                                                </Link>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                </div>{/* end relative wrapper */}
+
+                {/* Pagination */}
+                {pagination && totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 p-3 sm:p-4 bg-bg-card border border-border rounded-xl">
+                        <div className="text-sm text-text-tertiary">
+                            Showing {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-text-secondary bg-bg-secondary border border-border rounded-lg hover:bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                            </button>
+                            <span className="px-3 py-2 text-sm font-medium text-text-primary bg-accent-primary/10 rounded-lg">
+                                {currentPage} / {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-text-secondary bg-bg-secondary border border-border rounded-lg hover:bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Preview Modal */}
+            {previewSub && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label={`Submission details for ${previewSub.tool_name || 'Untitled'}`} onClick={() => setPreviewSub(null)}>
+                    <div className="bg-bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-6 border-b border-border">
+                            <div className="flex items-start gap-4">
+                                {previewSub.logo_url ? (
+                                    <img src={toFullUrl(previewSub.logo_url)} alt="" className="w-16 h-16 rounded-xl object-contain" />
+                                ) : (
+                                    <div className="w-16 h-16 bg-accent-primary/20 rounded-xl flex items-center justify-center text-2xl font-bold text-accent-primary">
+                                        {(previewSub.tool_name || '?')[0]}
+                                    </div>
+                                )}
+                                <div className="flex-1">
+                                    <div className="flex items-start justify-between">
+                                        <h2 className="text-2xl font-bold text-text-primary">{previewSub.tool_name || 'Untitled'}</h2>
+                                        <button onClick={() => setPreviewSub(null)} className="text-text-tertiary hover:text-text-primary text-xl leading-none" aria-label="Close submission details">&times;</button>
+                                    </div>
+                                    <p className="text-sm text-text-secondary mt-0.5">{previewSub.submitter_name}</p>
+                                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusBoxClass(previewSub.payment_status, 'payment')}`}>
+                                            {getStatusIcon(previewSub.payment_status)}
+                                            {previewSub.payment_status || 'N/A'}
+                                        </div>
+                                        {previewSub.payment_status === 'failed' ? (
+                                            <span className="text-text-tertiary px-2.5">-</span>
+                                        ) : (
+                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusBoxClass(previewSub.review_status, 'review')}`}>
+                                                {getStatusIcon(previewSub.review_status)}
+                                                {previewSub.review_status || 'Pending'}
+                                            </div>
+                                        )}
+                                        {previewSub.plan_selected && (
+                                            <span className="text-xs px-3 py-1.5 bg-green-500/10 text-green-500 rounded-full font-semibold tracking-wide uppercase">
+                                                {previewSub.plan_selected}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-5">
+                            {/* Details Grid */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Submission Ref</h3>
+                                    <div className="flex items-center gap-2">
+                                        <div className="inline-block px-2 py-1 bg-bg-secondary border border-border rounded text-sm font-mono text-text-primary">
+                                            {previewSub.submission_ref || '-'}
+                                        </div>
+                                        {previewSub.tool_id && (previewSub.review_status === 'approved' || previewSub.review_status === 'published') && (
+                                            <a href={`/app/${previewSub.app_username}`} target="_blank" rel="noopener noreferrer" className="text-[10px] whitespace-nowrap text-accent-primary hover:underline flex items-center gap-1 bg-accent-primary/10 px-2 py-1 rounded border border-accent-primary/20" title={`Tool ID: ${previewSub.tool_id}`}>
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                View Tool
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Full Submission ID</h3>
+                                    <p className="text-sm text-text-primary font-mono break-all">{previewSub.id}</p>
+                                </div>
+                                <div>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Email</h3>
+                                    {previewSub.submitter_email ? (
+                                        <a href={`mailto:${previewSub.submitter_email}`} className="text-sm text-accent-primary hover:underline flex items-center gap-1">
+                                            <Mail size={14} /> {previewSub.submitter_email}
+                                        </a>
+                                    ) : (
+                                        <span className="text-sm text-text-tertiary">—</span>
+                                    )}
+                                </div>
+                                {previewSub.website_url && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Website</h3>
+                                        <a href={previewSub.website_url} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline flex items-center gap-1">
+                                            <Globe size={14} /> {previewSub.website_url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                        </a>
+                                    </div>
+                                )}
+                                {previewSub.category && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Category</h3>
+                                        <p className="text-sm text-text-primary capitalize">{previewSub.category}</p>
+                                    </div>
+                                )}
+                                {previewSub.pricing_model && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Pricing Model</h3>
+                                        <p className="text-sm text-text-primary capitalize">{previewSub.pricing_model}</p>
+                                    </div>
+                                )}
+                                <div>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Submitted Date</h3>
+                                    <p className="text-sm text-text-primary">{formatDate(previewSub.created_at)}</p>
+                                </div>
+                            </div>
+
+                            {/* Descriptions */}
+                            {previewSub.short_description && (
+                                <div>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Short Description</h3>
+                                    <div className="p-3 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary">
+                                        {previewSub.short_description}
+                                    </div>
+                                </div>
+                            )}
+                            {previewSub.full_description && (
+                                <div>
+                                    <h3 className="text-xs font-medium text-text-tertiary mb-1">Full Description</h3>
+                                    <div className="p-3 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                        {previewSub.full_description}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Missing Fields Render */}
+                            <div className="grid grid-cols-2 gap-4">
+                                {previewSub.screenshot_urls && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Screenshots</h3>
+                                        <div className="flex flex-col gap-1 items-start">
+                                            {previewSub.screenshot_urls.split('\n').filter(Boolean).map((url: string, i: number) => (
+                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline break-all">
+                                                    Link {i + 1}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {previewSub.video_urls && (
+                                    <div>
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Videos</h3>
+                                        <div className="flex flex-col gap-1 items-start">
+                                            {previewSub.video_urls.split('\n').filter(Boolean).map((url: string, i: number) => (
+                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline break-all">
+                                                    Video {i + 1}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {previewSub.tags && (
+                                    <div className="col-span-2">
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Tags</h3>
+                                        <p className="text-sm text-text-primary">{previewSub.tags}</p>
+                                    </div>
+                                )}
+                                {previewSub.key_features && (
+                                    <div className="col-span-2">
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Key Features</h3>
+                                        <p className="text-sm text-text-primary whitespace-pre-wrap">{previewSub.key_features}</p>
+                                    </div>
+                                )}
+                                {previewSub.social_links && (
+                                    <div className="col-span-2">
+                                        <h3 className="text-xs font-medium text-text-tertiary mb-1">Social Links</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {parseSocialLinks(previewSub.social_links).map((social: any, i: number) => (
+                                                <a key={i} href={social.url} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-primary hover:underline capitalize shrink-0 bg-bg-secondary px-2 py-1 rounded border border-border">
+                                                    {social.platform}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Quick Links */}
+                            <div className="flex flex-wrap gap-2 pt-2 mt-4 border-t border-border">
+                                {previewSub.tool_id ? (
+                                    <Link
+                                        href={`/dashboard/tools/${previewSub.tool_id}`}
+                                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+                                    >
+                                        <ExternalLink size={14} /> Edit Linked Tool
+                                    </Link>
+                                ) : (
+                                    <Link
+                                        href={`/dashboard/tools/new?submissionId=${encodeURIComponent(previewSub.id)}`}
+                                        className="flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 transition-colors"
+                                    >
+                                        <ArrowRight size={14} /> Create Tool from This
+                                    </Link>
+                                )}
+                                <a
+                                    href={`/submit/result/${previewSub.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border text-text-primary rounded-lg text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                                >
+                                    <ExternalLink size={14} /> Result Page
+                                </a>
+                                <Link
+                                    href={`/dashboard/payments?search=${encodeURIComponent(previewSub.id)}`}
+                                    className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border text-text-primary rounded-lg text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                                >
+                                    <CreditCard size={14} /> View Payments
+                                </Link>
+                                {previewSub.submitter_email ? (
+                                    <a
+                                        href={`mailto:${previewSub.submitter_email}?subject=${encodeURIComponent(`Re: ${previewSub.tool_name} Submission`)}`}
+                                        className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border text-text-primary rounded-lg text-sm font-medium hover:bg-bg-tertiary transition-colors"
+                                    >
+                                        <Mail size={14} /> Email
+                                    </a>
+                                ) : (
+                                    <button
+                                        disabled
+                                        className="flex items-center gap-2 px-4 py-2 bg-bg-secondary/50 border border-border text-text-tertiary rounded-lg text-sm font-medium cursor-not-allowed"
+                                    >
+                                        <Mail size={14} /> Email
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

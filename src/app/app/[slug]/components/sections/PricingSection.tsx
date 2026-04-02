@@ -13,8 +13,8 @@ export default function PricingSection({ plans }: PricingSectionProps) {
     if (plans.length === 0) return null;
 
     return (
-        <section id="pricing" className="py-6 border-b border-border">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Pricing Plans</h2>
+        <section id="pricing" className="py-6 border-b border-border" aria-labelledby="pricing-heading">
+            <h2 id="pricing-heading" className="text-xl font-bold text-text-primary mb-4">Pricing Plans</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {plans.map((plan, idx) => (
                     <div

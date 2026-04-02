@@ -8,7 +8,9 @@ import { cn } from '@/lib/utils';
 import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
 import { trackToolClick } from '@/hooks/useToolAnalytics';
+import { getSearchSuggestionsAction } from '@/lib/actions';
 import { AdminTool } from '@/types';
+import { ToolBadge } from '@/components/icons/ToolBadge';
 
 export default function TopHeader() {
     const router = useRouter();
@@ -25,7 +27,8 @@ export default function TopHeader() {
     // API-based search suggestions
     const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const abortRef = useRef<AbortController | null>(null);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = useCallback(async (query: string) => {
@@ -35,14 +38,25 @@ export default function TopHeader() {
         }
 
         setIsLoading(true);
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         try {
-            const { getSearchSuggestionsAction } = await import('@/lib/actions');
+            // NOTE: getSearchSuggestionsAction is a Server Action (RPC), not a fetch
+            // request — it cannot accept an AbortSignal. The controller is only used
+            // to discard stale results via signal.aborted checks below.
             const tools = await getSearchSuggestionsAction(query, 6);
-            setSuggestions(tools);
+            if (!controller.signal.aborted) {
+                setSuggestions(tools);
+            }
         } catch (error) {
-            console.error('Search suggestions failed:', error);
+            if (!controller.signal.aborted) {
+                console.error('Search suggestions failed:', error);
+            }
         } finally {
-            setIsLoading(false);
+            if (!controller.signal.aborted) {
+                setIsLoading(false);
+            }
         }
     }, []);
 
@@ -52,10 +66,10 @@ export default function TopHeader() {
             clearTimeout(searchTimeout.current);
         }
 
-        if (searchQuery.length >= 2 && showRecommendations) {
+        if (searchQuery.length >= 2 && showRecommendations && !isMainSearchFocused) {
             searchTimeout.current = setTimeout(() => {
                 fetchSuggestions(searchQuery);
-            }, 200);
+            }, 350);
         } else {
             setSuggestions([]);
         }
@@ -115,20 +129,22 @@ export default function TopHeader() {
     }, []);
 
     // Global keyboard shortcut: Ctrl+K or Cmd+K to focus search
-    // Only handle when TopHeader search is visible (scrolled past 200px)
+    // Only handle when TopHeader search is visible
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
-            // Ctrl+K or Cmd+K - only when scrolled down enough to see TopHeader search
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k' && window.scrollY >= 200) {
+            // Ctrl+K or Cmd+K — only fire if TopHeader search is actually shown
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k' && showHeaderSearch) {
                 e.preventDefault();
+                e.stopPropagation();
                 inputRef.current?.focus();
                 setIsFocused(true);
                 setShowRecommendations(true);
             }
         };
-        document.addEventListener('keydown', handleGlobalKeyDown);
-        return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-    }, []);
+        // Use capture phase to ensure header has a chance to catch it
+        document.addEventListener('keydown', handleGlobalKeyDown, true);
+        return () => document.removeEventListener('keydown', handleGlobalKeyDown, true);
+    }, [showHeaderSearch]);
 
     // Handle search submission
     const handleSearch = (e: React.FormEvent) => {
@@ -157,7 +173,7 @@ export default function TopHeader() {
                 // Selected a tool - track the click
                 const tool = suggestions[selectedIndex];
                 trackToolClick({ id: tool.id, name: tool.name, appUsername: tool.appUsername, category: (tool.categoryName || [])[0], pricing: tool.pricing }, 'search');
-                router.push(`/app/${suggestions[selectedIndex].appUsername}`);
+                router.push(`/app/${tool.appUsername}`);
                 setShowRecommendations(false);
                 setSearchQuery('');
             } else {
@@ -237,7 +253,7 @@ export default function TopHeader() {
                                         onKeyDown={handleKeyDown}
                                         autoComplete="off"
                                         placeholder={typingPlaceholder || 'Search AI tools...'}
-                                        className="flex-1 border-none outline-none bg-transparent text-sm text-text-primary placeholder:text-text-tertiary/50"
+                                        className="flex-1 border-none outline-none bg-transparent text-sm text-text-primary placeholder:text-text-tertiary/50 focus:shadow-none"
                                         suppressHydrationWarning
                                     />
                                     {!searchQuery && (
@@ -296,16 +312,7 @@ export default function TopHeader() {
                                         )}
                                         <span className="text-sm text-text-primary truncate flex items-center gap-1">
                                             {tool.name}
-                                            {tool.listingType === 'verified' && (
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="#1d9bf0" className="flex-shrink-0">
-                                                    <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" />
-                                                </svg>
-                                            )}
-                                            {(tool.listingType === 'featured' || tool.listingType === 'spotlight' || tool.spotlightEnabled || tool.isFeatured) && tool.listingType !== 'verified' && (
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b" className="flex-shrink-0">
-                                                    <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" />
-                                                </svg>
-                                            )}
+                                            <ToolBadge listingType={tool.listingType} spotlightEnabled={tool.spotlightEnabled} isFeatured={tool.isFeatured} />
                                         </span>
                                     </button>
                                 ))}

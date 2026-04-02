@@ -3,17 +3,19 @@ import { NextResponse } from 'next/server';
 /**
  * Catch-All API Route
  * 
- * Returns 403 Forbidden for any unknown /api/* path.
+ * Returns 404 Not Found for any unknown /api/* path.
+ * Using 404 instead of 403 to avoid revealing endpoint existence.
  */
-function unauthorizedResponse(): NextResponse {
+function notFoundResponse(): NextResponse {
     return NextResponse.json(
-        { error: 'Access denied', message: 'You don\'t have authorization to access this endpoint.' },
-        { status: 403 }
+        { error: 'Not found', message: 'The requested endpoint does not exist.' },
+        { status: 404 }
     );
 }
 
-export function GET(): NextResponse { return unauthorizedResponse(); }
-export function POST(): NextResponse { return unauthorizedResponse(); }
-export function PUT(): NextResponse { return unauthorizedResponse(); }
-export function DELETE(): NextResponse { return unauthorizedResponse(); }
-export function PATCH(): NextResponse { return unauthorizedResponse(); }
+export function GET(): NextResponse { return notFoundResponse(); }
+export function POST(): NextResponse { return notFoundResponse(); }
+export function PUT(): NextResponse { return notFoundResponse(); }
+export function DELETE(): NextResponse { return notFoundResponse(); }
+export function PATCH(): NextResponse { return notFoundResponse(); }
+export function OPTIONS(): NextResponse { return notFoundResponse(); }

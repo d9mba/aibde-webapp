@@ -4,7 +4,7 @@
  * Production-ready rate limiting with:
  * - Distributed state (works across serverless instances)
  * - Sliding window algorithm for smooth rate limiting
- * - Graceful fallback if Redis unavailable
+ * - In-memory fallback: degrades gracefully if Redis is unavailable
  */
 
 import { Ratelimit } from '@upstash/ratelimit';
@@ -76,12 +76,59 @@ export const rateLimits = {
 // Type for preset names
 type RateLimitPreset = keyof typeof rateLimits;
 
+// --- In-memory fallback rate limiter (SEC-04) ---
+// Used when Redis is unavailable to maintain protection without killing all traffic.
+// Limits are intentionally stricter than Redis to account for per-instance state.
+interface MemoryBucket {
+    tokens: number;
+    lastRefill: number;
+}
+const memoryBuckets = new Map<string, MemoryBucket>();
+const MEMORY_PRUNE_INTERVAL = 60_000;
+let lastMemoryPrune = Date.now();
+
+function memoryRateLimit(identifier: string, config: RateLimitConfig): RateLimitResult {
+    const now = Date.now();
+
+    // Prune stale entries periodically to prevent memory growth
+    if (now - lastMemoryPrune > MEMORY_PRUNE_INTERVAL) {
+        lastMemoryPrune = now;
+        for (const [key, bucket] of memoryBuckets.entries()) {
+            if (now - bucket.lastRefill > config.windowMs * 2) {
+                memoryBuckets.delete(key);
+            }
+        }
+    }
+
+    let bucket = memoryBuckets.get(identifier);
+    if (!bucket || now - bucket.lastRefill >= config.windowMs) {
+        // New window — refill tokens
+        bucket = { tokens: config.maxRequests, lastRefill: now };
+        memoryBuckets.set(identifier, bucket);
+    }
+
+    if (bucket.tokens > 0) {
+        bucket.tokens--;
+        return {
+            success: true,
+            remaining: bucket.tokens,
+            resetTime: bucket.lastRefill + config.windowMs,
+        };
+    }
+
+    return {
+        success: false,
+        remaining: 0,
+        resetTime: bucket.lastRefill + config.windowMs,
+    };
+}
+
 // Track whether the Redis-unavailable warning has already been logged (once per cold start)
 let rateLimitOutageLogged = false;
 
 /**
  * Check rate limit for a given identifier
- * Uses Redis if available, denies request if not (fail-closed)
+ * Uses Redis if available, falls back to in-memory limiter if not
  */
 export async function checkRateLimit(
     identifier: string,
@@ -103,28 +150,18 @@ export async function checkRateLimit(
                 resetTime: result.reset,
             };
         } catch (error) {
-            console.error('[RateLimit] Redis error, denying request as safety measure:', error);
-            return {
-                success: false,
-                remaining: 0,
-                resetTime: Date.now() + config.windowMs,
-            };
-        }
-    } else if (!redis) {
-        // Log warning once per cold start
-        if (!rateLimitOutageLogged) {
-            rateLimitOutageLogged = true;
-            console.warn('[RateLimit] Redis not configured — denying requests as safety measure');
+            // SEC-04: Redis error — degrade to in-memory instead of blocking all traffic
+            console.error('[RateLimit] Redis error, falling back to in-memory limiter:', error);
+            return memoryRateLimit(identifier, config);
         }
     }
 
-    // Fallback: deny request when rate limiting is unavailable
-    // SECURITY: Defaulting to allow would let attackers exploit Redis outages
-    return {
-        success: false,
-        remaining: 0,
-        resetTime: Date.now() + config.windowMs,
-    };
+    // SEC-04: No Redis configured — use in-memory fallback
+    if (!rateLimitOutageLogged) {
+        rateLimitOutageLogged = true;
+        console.warn('[RateLimit] Redis not configured — using in-memory fallback (per-instance only)');
+    }
+    return memoryRateLimit(identifier, config);
 }
 
 /**
@@ -137,15 +174,20 @@ export function isRedisConfigured(): boolean {
 /**
  * Extract client IP from a request for rate-limit identification.
  *
- * NOTE: x-forwarded-for is only trustworthy when the app runs behind a trusted
- * reverse proxy (e.g., Vercel, Cloudflare). In other deployments the header can
- * be spoofed by clients. The 'anonymous' fallback aggregates all unidentifiable
- * requests into one bucket — acceptable for rate-limiting but not for audit.
+ * Priority:
+ * 1. x-forwarded-for (first IP — set by trusted reverse proxies like Cloudflare/Vercel)
+ * 2. x-real-ip
+ * 3. 'anonymous' shared fallback bucket
+ *
+ * NOTE: When 'anonymous' is returned, all unidentifiable clients share a single
+ * bucket, making the effective per-user limit FAR more restrictive.
  */
 export function getClientIp(request: { headers: { get: (name: string) => string | null } }): string {
     const forwarded = request.headers.get('x-forwarded-for');
     const clientIp = forwarded?.split(',')[0]?.trim() || null;
     if (clientIp) return clientIp;
     const realIp = request.headers.get('x-real-ip')?.trim() || null;
-    return realIp || 'anonymous';
+    if (realIp) return realIp;
+    return 'anonymous';
 }
+

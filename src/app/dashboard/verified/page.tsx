@@ -18,7 +18,7 @@ export default function VerifiedPage() {
     const [saving, setSaving] = useState(false);
 
     // Fetch verified tools (small set) and available tools (paginated)
-    const { tools: verifiedToolsRaw, loading: verLoading, refetch: refetchVerified } = useTools({
+    const { tools: verifiedToolsRaw, loading: verLoading } = useTools({
         listing: 'verified', status: 'published', all: true, deps: toolsMutated, fields: 'card',
     });
     const { tools: availableToolsRaw, loading: availLoading, totalCount: availableTotal } = useTools({
@@ -34,8 +34,9 @@ export default function VerifiedPage() {
         featured: true, status: 'published', limit: 1, deps: toolsMutated, fields: 'card',
     });
     // NOTE: autoVerifiedCount is approximate — tools that are both spotlight and
-    // featured are counted twice. The overlap is typically small and acceptable
-    // for a dashboard stat display.
+    // featured are counted twice. We only fetch counts (limit:1), not IDs, to keep
+    // the dashboard lightweight. The overlap is typically small and acceptable.
+    // The Available calc uses Math.max(0, ...) to prevent negative display values.
     const autoVerifiedCount = (spotlightCount || 0) + (featuredCount || 0);
 
     // Only block the full page on initial verified tools load, not on available tools search
@@ -61,6 +62,8 @@ export default function VerifiedPage() {
     // Local state for pending changes
     const [pendingVerifiedIds, setPendingVerifiedIds] = useState<string[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
+    // Cache tool data when added to pending — prevents data loss on pagination
+    const pendingToolsRef = useRef<Map<string, AdminTool>>(new Map());
 
     // Initialize from current data (one-time)
     const verifiedInitializedRef = useRef(false);
@@ -76,7 +79,7 @@ export default function VerifiedPage() {
     // Current verified tools based on pending changes
     const allVerifiedTools = useMemo(() => {
         return pendingVerifiedIds
-            .map(id => allTools.find(t => t.id === id))
+            .map(id => allTools.find(t => t.id === id) || pendingToolsRef.current.get(id))
             .filter((t): t is AdminTool => t !== undefined);
     }, [allTools, pendingVerifiedIds]);
 
@@ -143,13 +146,20 @@ export default function VerifiedPage() {
 
     const handleAddToVerified = (toolId: string) => {
         const tool = allTools.find((t: AdminTool) => t.id === toolId);
+
+        if (!tool) {
+            showToast('Tool not found', 'error');
+            return;
+        }
+        pendingToolsRef.current.set(toolId, tool);
         setPendingVerifiedIds(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
         setHasChanges(true);
-        showToast(`Added "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
+        showToast(`Added "${tool.name || 'Tool'}" - Click Save to apply`, 'info');
     };
 
     const handleRemoveFromVerified = (toolId: string) => {
-        const tool = allTools.find((t: AdminTool) => t.id === toolId);
+        const tool = allTools.find((t: AdminTool) => t.id === toolId) || pendingToolsRef.current.get(toolId);
+        pendingToolsRef.current.delete(toolId);
         setPendingVerifiedIds(prev => prev.filter(id => id !== toolId));
         setHasChanges(true);
         showToast(`Removed "${tool?.name || 'Tool'}" - Click Save to apply`, 'info');
@@ -247,7 +257,7 @@ export default function VerifiedPage() {
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Auto (Spotlight + Featured)</div>
                     </div>
                     <div className="bg-bg-card border border-border rounded-xl p-3 sm:p-4 text-center">
-                        <div className="text-xl sm:text-2xl font-bold text-text-tertiary">{Math.max(0, (initialTotal ?? availableTotal) - allVerifiedTools.length - autoVerifiedCount)}</div>
+                        <div className="text-xl sm:text-2xl font-bold text-text-tertiary">{Math.max(0, (initialTotal ?? availableTotal ?? 0) - allVerifiedTools.length - autoVerifiedCount)}</div>
                         <div className="text-[10px] sm:text-xs text-text-tertiary">Available</div>
                     </div>
                 </div>

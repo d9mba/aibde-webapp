@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { uploadFile, generateUniqueFilename } from '@/services/storage.service';
+import { secureRandomSuffix } from '@/lib/sanitize';
 import sharp from 'sharp';
 
 // Compress image while maintaining quality - converts to WebP for best compression
@@ -162,6 +163,11 @@ export async function POST(request: NextRequest) {
                     ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|data:image\/(?:png|jpe?g|gif|webp);[^,]*,|#[a-zA-Z0-9_:.\-]*)/i,
                 });
                 safeBuffer = Buffer.from(new TextEncoder().encode(sanitized));
+
+                // Validate that the sanitized output still contains a valid SVG root element
+                if (!/<svg[\s>]/i.test(sanitized)) {
+                    return NextResponse.json({ error: 'SVG sanitization removed essential content' }, { status: 400 });
+                }
             } catch (err) {
                 console.error('[Upload] SVG sanitization failed, rejecting file:', err);
                 return NextResponse.json({ error: 'Failed to sanitize SVG file' }, { status: 400 });
@@ -206,8 +212,8 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
             }
 
-            // Add short random suffix to ensure uniqueness
-            const suffix = Math.random().toString(36).slice(2, 6);
+            // SEC-02: Use crypto-secure suffix to prevent collisions and guessability
+            const suffix = secureRandomSuffix(4);
             filename = `${slug}-${suffix}.${ext}`;
         } else {
             filename = generateUniqueFilename(file.name);

@@ -3,7 +3,8 @@ import { createHmac } from 'crypto';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 
-const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || '';
+const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_CONTACT_URL || '';
+const isProduction = process.env.NODE_ENV === 'production';
 const effectiveFingerprintSecret = (() => {
     if (process.env.CONTACT_FINGERPRINT_SECRET) return process.env.CONTACT_FINGERPRINT_SECRET;
     if (process.env.ADMIN_LOGIN_SECRET) return process.env.ADMIN_LOGIN_SECRET;
@@ -29,13 +30,13 @@ interface ContactFormData {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        // Rate limiting
+        // Rate limiting — runs first so config probes are also rate-limited
         const ip = getClientIp(request);
         let identifier: string;
         if (ip !== 'anonymous') {
             identifier = ip;
         } else {
-            // Build a fingerprint from stable request headers + time-bucketed salt
+            // Build a fingerprint from stable request headers
             // to reduce spoofing via client-controlled headers alone
             const ua = request.headers.get('user-agent') || '';
             const lang = request.headers.get('accept-language') || '';
@@ -43,9 +44,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             const chUa = request.headers.get('sec-ch-ua') || '';
             const chPlatform = request.headers.get('sec-ch-ua-platform') || '';
             const chMobile = request.headers.get('sec-ch-ua-mobile') || '';
-            // Hourly time bucket prevents replay across time windows
-            const hourBucket = Math.floor(Date.now() / 3_600_000);
-            const raw = `${ip}|${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}|${hourBucket}`;
+            const raw = `${ua}|${lang}|${accept}|${chUa}|${chPlatform}|${chMobile}`;
             const digest = createHmac('sha256', effectiveFingerprintSecret).update(raw).digest('hex').slice(0, 16);
             identifier = `anon:${digest}`;
         }
@@ -54,6 +53,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json(
                 { error: 'Too many requests. Try again later.' },
                 { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rateLimit.resetTime - Date.now()) / 1000))) } }
+            );
+        }
+
+        // SEC: Config check runs after rate limiting to prevent unlimited probing
+        if (isProduction && !GOOGLE_APPS_SCRIPT_URL) {
+            console.error('[Contact API] Required backend configuration missing');
+            return NextResponse.json(
+                { error: 'Service temporarily unavailable' },
+                { status: 500 }
             );
         }
 
@@ -103,6 +111,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const { turnstileToken: _, ...formData } = body;
 
+        let sheetsError = false;
         if (GOOGLE_APPS_SCRIPT_URL) {
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -117,19 +126,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
                 if (!response.ok) {
                     console.error('[Contact API] Google Apps Script error:', response.status);
+                    sheetsError = true;
                 }
             } catch (err) {
                 console.error('[Contact API] Failed to send to Google Apps Script:', err);
+                sheetsError = true;
             }
         } else {
-            // No Google Apps Script URL configured - form submission is lost
-            // Consider adding database storage as a fallback
+            sheetsError = true;
         }
 
         return NextResponse.json({
-            success: true,
-            message: 'Thank you for contacting us! We\'ll get back to you soon.',
-        });
+            success: !sheetsError,
+            sheetsError,
+            message: sheetsError
+                ? 'We encountered a problem saving your message. Please try again.'
+                : 'Thank you for contacting us! We\'ll get back to you soon.',
+        }, { status: sheetsError ? 502 : 200 });
 
     } catch (err) {
         console.error('[Contact API] Error:', err);

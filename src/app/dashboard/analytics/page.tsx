@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAdmin } from '@/context/AdminContext';
 import { renderIcon } from '@/components/features/admin/AdminLayout';
 import {
     Search, Eye, MousePointer, Clock, ExternalLink, TrendingUp, BarChart3, X,
@@ -67,7 +66,7 @@ interface RealtimeEvent {
 export default function AnalysisPage() {
     const router = useRouter();
 
-    const [publishedCount, setPublishedCount] = useState(0);
+    const [publishedCount, setPublishedCount] = useState<number | null>(null);
     const [categoryCount, setCategoryCount] = useState<number | null>(null);
     const [taskCount, setTaskCount] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -167,21 +166,29 @@ export default function AnalysisPage() {
             throw new Error(data.error || 'API Error');
         }
         return (await res.json()).results;
-    }, [timeRange]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [timeRange, customStartDate, customEndDate]);
 
-    // Load data based on active tab
-    const loadData = useCallback(async () => {
+    // Track whether we have any data loaded (ref to avoid useCallback dependency cycle)
+    const hasDataRef = useRef(false);
+
+    // Load data based on active tab — retries on PostHog API failures
+    const loadData = useCallback(async (retryCount = 0) => {
+        const MAX_RETRIES = 2;
+        const RETRY_DELAY = 2000;
         setLoading(true);
-        setError(null);
+        // Only clear error when we still have retries left or this is the first attempt
+        if (retryCount === 0) setError(null);
         try {
             if (selectedTab === 'overview') {
-                const [summaryData, topToolsData, dailyData, hourlyData, referrerData, pageData] = await Promise.all([
+                const [summaryData, topToolsData, dailyData, hourlyData, referrerData, pageData, searchData] = await Promise.all([
                     fetchData('summary'),
                     fetchData('top_tools'),
                     fetchData('daily_activity'),
                     fetchData('hourly_activity'),
                     fetchData('referrer_stats'),
                     fetchData('page_urls'),
+                    fetchData('search_queries'),
                 ]);
                 if (summaryData?.[0]) setSummary(summaryData[0]);
                 if (topToolsData) setTopTools(topToolsData);
@@ -189,6 +196,7 @@ export default function AnalysisPage() {
                 if (hourlyData) setHourlyActivity(hourlyData);
                 if (referrerData) setReferrerStats(referrerData);
                 if (pageData) setPageUrls(pageData);
+                if (searchData) setSearchQueries(searchData);
             } else if (selectedTab === 'tools') {
                 const topToolsData = await fetchData('top_tools');
                 if (topToolsData) setTopTools(topToolsData);
@@ -200,10 +208,20 @@ export default function AnalysisPage() {
                 if (filterData) setFilterStats(filterData);
                 if (searchData) setSearchQueries(searchData);
             }
+            hasDataRef.current = true;
+            setError(null);
             setLastRefresh(new Date());
+            setLoading(false);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load');
-        } finally {
+            // Retry silently — keep showing loading skeleton instead of error
+            if (retryCount < MAX_RETRIES) {
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                return loadData(retryCount + 1);
+            }
+            // All retries exhausted — only show error if we have no data at all
+            if (!hasDataRef.current) {
+                setError(err instanceof Error ? err.message : 'Failed to load');
+            }
             setLoading(false);
         }
     }, [fetchData, selectedTab]);
@@ -308,10 +326,11 @@ export default function AnalysisPage() {
         const merged = [...topTools, ...(toolsSearchDebounced ? dbSearchResults : [])];
         const seen = new Set<string>();
         return merged
-            .filter(t => {
-                if (seen.has(t.tool_slug)) return false;
-                seen.add(t.tool_slug);
-                return !toolsSearchDebounced || (t.tool_name || t.tool_slug).toLowerCase().includes(toolsSearchDebounced.toLowerCase());
+            .filter((t) => {
+                const key = t.tool_slug || t.tool_name;
+                if (!key || seen.has(key)) return false;
+                seen.add(key);
+                return !toolsSearchDebounced || key.toLowerCase().includes(toolsSearchDebounced.toLowerCase());
             })
             .sort((a, b) => {
                 if (toolsSortBy === 'ctr') {
@@ -478,7 +497,7 @@ export default function AnalysisPage() {
                         Auto
                     </label>
                     <button
-                        onClick={loadData}
+                        onClick={() => loadData()}
                         disabled={loading}
                         className="px-3 sm:px-4 py-2 bg-bg-secondary border border-border rounded-lg text-xs sm:text-sm flex items-center gap-2 hover:bg-bg-tertiary transition-colors disabled:opacity-50"
                     >
@@ -787,9 +806,9 @@ export default function AnalysisPage() {
                                     <div className="space-y-2">
                                         {topTools.slice(0, 6).map((tool, i) => (
                                             <div
-                                                key={tool.tool_slug}
-                                                onClick={() => router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
-                                                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-bg-secondary transition-colors cursor-pointer"
+                                                key={tool.tool_slug || i}
+                                                onClick={() => tool.tool_slug && router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
+                                                className={`flex items-center gap-2 p-1.5 rounded-lg hover:bg-bg-secondary transition-colors ${tool.tool_slug ? 'cursor-pointer' : 'cursor-default'}`}
                                             >
                                                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${i < 3 ? 'bg-accent-primary text-white' : 'bg-bg-tertiary text-text-tertiary'}`}>
                                                     {i + 1}
@@ -858,7 +877,7 @@ export default function AnalysisPage() {
                                     <div className="space-y-2">
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Tools</span>
-                                            <span className="font-bold text-accent-green">{publishedCount}</span>
+                                            <span className="font-bold text-accent-green">{publishedCount ?? '—'}</span>
                                         </div>
                                         <div className="flex justify-between p-2 bg-bg-secondary rounded-lg">
                                             <span className="text-sm text-text-secondary">Categories</span>
@@ -1077,7 +1096,7 @@ export default function AnalysisPage() {
                                                 <tbody>
                                                     {paginatedTools.map((tool, i) => (
                                                         <tr
-                                                            key={tool.tool_slug || `row-${i}`}
+                                                            key={tool.tool_slug || `${tool.tool_name}-${i}`}
                                                             onClick={() => router.push(`/dashboard/analytics/tool/${tool.tool_slug}`)}
                                                             className="border-t border-border cursor-pointer transition-colors hover:bg-bg-secondary/50"
                                                         >

@@ -69,8 +69,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
+    const counterRef = useRef(0);
+
     const showToast = useCallback((message: string, type: Toast['type'] = 'info', title?: string) => {
-        const id = Date.now().toString();
+        const id = `${Date.now()}-${++counterRef.current}`;
         setToasts(prev => [...prev, { id, message, type, title }]);
 
         if (type !== 'loading') {
@@ -117,14 +119,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {children}
 
             {/* Toast Container - more top spacing on mobile for dashboard header */}
-            <div className="fixed top-14 sm:top-4 right-2 sm:right-4 z-[500] flex flex-col gap-2 sm:gap-3">
+            <div className="fixed top-14 sm:top-4 right-2 sm:right-4 z-[500] flex flex-col gap-2 sm:gap-3" aria-live="assertive" aria-atomic="true">
                 {toasts.map(toast => {
                     const styles = getStyles(toast.type);
                     return (
                         <div
                             key={toast.id}
+                            onClick={() => hideToast(toast.id)}
+                            role="alert"
                             className={`
-                                bg-bg-card rounded-lg shadow-lg border-l-4 ${styles.border} border border-border
+                                cursor-pointer bg-bg-card rounded-lg shadow-lg border-l-4 ${styles.border} border border-border
                                 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 min-w-[240px] sm:min-w-[300px] max-w-[calc(100vw-1rem)] sm:max-w-[400px]
                                 animate-slide-in
                             `}
@@ -143,14 +147,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                                 <div className="font-semibold text-text-primary text-sm">
                                     {toast.title || defaultTitles[toast.type]}
                                 </div>
-                                <div className="text-text-secondary text-xs mt-0.5 break-words">
+                                <div className="text-text-secondary text-xs mt-0.5 break-words line-clamp-3">
                                     {toast.message}
                                 </div>
                             </div>
 
                             {/* Close Button */}
                             <button
-                                onClick={() => hideToast(toast.id)}
+                                aria-label="Close notification"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    hideToast(toast.id);
+                                }}
                                 className="text-text-tertiary hover:text-text-primary flex-shrink-0 text-lg"
                             >
                                 ×

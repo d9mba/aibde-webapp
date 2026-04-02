@@ -17,10 +17,12 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '25');
+        const rawPage = parseInt(searchParams.get('page') || '1');
+        const rawLimit = parseInt(searchParams.get('limit') || '25');
+        const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+        const limit = Number.isFinite(rawLimit) && rawLimit >= 1 ? Math.min(rawLimit, 100) : 25;
         const all = searchParams.get('all') === 'true';
-        const allSearch = searchParams.get('search') || '';
+        const search = searchParams.get('search') || '';
 
         // If all=true, fetch all records (for dashboard stats, etc.)
         if (all) {
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
                     .select('*')
                     .order('tag_name', { ascending: true })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
-                if (allSearch) query = query.ilike('tag_name', `%${escapeLikePattern(allSearch)}%`);
+                if (search) query = query.ilike('tag_name', `%${escapeLikePattern(search)}%`);
                 const { data, error } = await query;
 
                 if (error) {
@@ -60,7 +62,6 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(mappedData);
         }
 
-        const search = searchParams.get('search') || '';
 
         // Build base query with optional search filter
         let countQuery = supabaseAdmin.from('tags').select('*', { count: 'exact', head: true });

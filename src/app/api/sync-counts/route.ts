@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 
+const BATCH_SIZE = 50;
+
+/**
+ * Chunk an array into batches of a given size.
+ */
+function chunk<T>(arr: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < arr.length; i += size) {
+        chunks.push(arr.slice(i, i + size));
+    }
+    return chunks;
+}
+
 /**
  * POST /api/sync-counts
  * Recalculates and syncs category and task counts based on published tools
@@ -29,7 +42,6 @@ export async function POST() {
         const taskCounts = new Map<string, number>();
 
         (allTools || []).forEach(tool => {
-            // Count categories
             const categories = Array.isArray(tool.category_name)
                 ? tool.category_name
                 : (tool.category_name ? [tool.category_name] : []);
@@ -37,7 +49,6 @@ export async function POST() {
                 categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
             });
 
-            // Count tasks
             const tasks = Array.isArray(tool.task_name)
                 ? tool.task_name
                 : (tool.task_name ? [tool.task_name] : []);
@@ -46,82 +57,118 @@ export async function POST() {
             });
         });
 
-        // First, reset all counts to 0
-        await supabaseAdmin.from('categories').update({ count: 0 }).neq('id', '');
-        await supabaseAdmin.from('tasks').update({ count: 0 }).neq('id', '');
+        // Batch upsert categories in parallel chunks
+        // NOTE: Supabase JS client doesn't support multi-table transactions.
+        // Each upsert is individually atomic. On partial failure, the response
+        // includes per-table errors so the caller can decide to retry.
+        const categoryRows = Array.from(categoryCounts.entries()).map(([category_name, count]) => ({
+            category_name,
+            count,
+        }));
+        const categoryErrors: string[] = [];
 
-        // Get existing categories and tasks for matching
-        const { data: existingCategories } = await supabaseAdmin.from('categories').select('category_name');
-        const { data: existingTasks } = await supabaseAdmin.from('tasks').select('task_name');
-
-        // Build maps from lowercase to original-cased names
-        const categoryNameMap = new Map<string, string>();
-        (existingCategories || []).forEach(c => {
-            categoryNameMap.set(c.category_name.toLowerCase(), c.category_name);
-        });
-
-        const taskNameMap = new Map<string, string>();
-        (existingTasks || []).forEach(t => {
-            taskNameMap.set(t.task_name.toLowerCase(), t.task_name);
-        });
-
-        // Create missing categories
-        let categoriesCreated = 0;
-        for (const [categoryName, count] of categoryCounts) {
-            const lowerName = categoryName.toLowerCase();
-            const originalName = categoryNameMap.get(lowerName);
-
-            if (!originalName) {
-                // Create new category
-                const { error } = await supabaseAdmin
-                    .from('categories')
-                    .insert({ category_name: categoryName, count });
-                if (!error) {
-                    categoriesCreated++;
-                    categoryNameMap.set(lowerName, categoryName);
+        // Upsert new counts first (safe — no data loss on failure)
+        await Promise.all(
+            chunk(categoryRows, BATCH_SIZE).map(async (batch) => {
+                const { error } = await supabaseAdmin.from('categories').upsert(batch, { onConflict: 'category_name' });
+                if (error) {
+                    console.error('[Sync Counts] Category upsert failed:', error.message);
+                    categoryErrors.push(error.message);
                 }
-            } else {
-                // Update existing category count using original-cased name
-                const { error: updateError } = await supabaseAdmin
-                    .from('categories')
-                    .update({ count })
-                    .eq('category_name', originalName);
-                if (updateError) {
-                    console.error(`[sync-counts] Failed to update category "${originalName}":`, updateError.message);
-                }
-            }
-        }
+            })
+        );
 
-        // Create missing tasks
-        let tasksCreated = 0;
-        for (const [taskName, count] of taskCounts) {
-            const lowerName = taskName.toLowerCase();
-            const originalName = taskNameMap.get(lowerName);
+        // Reset stale categories: fetch all, diff against active, batch-update the stale ones
+        if (categoryErrors.length === 0) {
+            const activeNames = new Set(categoryRows.map(r => r.category_name));
+            const { data: allCats, error: fetchErr } = await supabaseAdmin
+                .from('categories')
+                .select('category_name')
+                .gt('count', 0);
 
-            if (!originalName) {
-                // Create new task
-                const { error } = await supabaseAdmin
-                    .from('tasks')
-                    .insert({ task_name: taskName, count });
-                if (!error) {
-                    tasksCreated++;
-                    taskNameMap.set(lowerName, taskName);
-                }
-            } else {
-                // Update existing task count using original-cased name
-                const { error: updateError } = await supabaseAdmin
-                    .from('tasks')
-                    .update({ count })
-                    .eq('task_name', originalName);
-                if (updateError) {
-                    console.error(`[sync-counts] Failed to update task "${originalName}":`, updateError.message);
+            if (fetchErr) {
+                console.error('[Sync Counts] Failed to fetch categories for stale reset:', fetchErr.message);
+                categoryErrors.push(fetchErr.message);
+            } else if (allCats) {
+                const staleNames = allCats
+                    .map(c => c.category_name)
+                    .filter(name => !activeNames.has(name));
+
+                if (staleNames.length > 0) {
+                    await Promise.all(
+                        chunk(staleNames, BATCH_SIZE).map(async (batch) => {
+                            const { error: resetErr } = await supabaseAdmin
+                                .from('categories')
+                                .update({ count: 0 })
+                                .in('category_name', batch);
+                            if (resetErr) {
+                                console.error('[Sync Counts] Category stale reset failed:', resetErr.message);
+                                categoryErrors.push(resetErr.message);
+                            }
+                        })
+                    );
                 }
             }
         }
 
-        // Count how many were just updated (not created)
-        const categoriesUpdated = categoryCounts.size - categoriesCreated;
-        const tasksUpdated = taskCounts.size - tasksCreated;
+        // Batch upsert tasks in parallel chunks
+        const taskRows = Array.from(taskCounts.entries()).map(([task_name, count]) => ({
+            task_name,
+            count,
+        }));
+        const taskErrors: string[] = [];
+
+        // Upsert new counts first (safe — no data loss on failure)
+        await Promise.all(
+            chunk(taskRows, BATCH_SIZE).map(async (batch) => {
+                const { error } = await supabaseAdmin.from('tasks').upsert(batch, { onConflict: 'task_name' });
+                if (error) {
+                    console.error('[Sync Counts] Task upsert failed:', error.message);
+                    taskErrors.push(error.message);
+                }
+            })
+        );
+
+        // Reset stale tasks using the same safe pattern
+        if (taskErrors.length === 0) {
+            const activeTaskNames = new Set(taskRows.map(r => r.task_name));
+            const { data: allTasks, error: fetchErr } = await supabaseAdmin
+                .from('tasks')
+                .select('task_name')
+                .gt('count', 0);
+
+            if (fetchErr) {
+                console.error('[Sync Counts] Failed to fetch tasks for stale reset:', fetchErr.message);
+                taskErrors.push(fetchErr.message);
+            } else if (allTasks) {
+                const staleTaskNames = allTasks
+                    .map(t => t.task_name)
+                    .filter(name => !activeTaskNames.has(name));
+
+                if (staleTaskNames.length > 0) {
+                    await Promise.all(
+                        chunk(staleTaskNames, BATCH_SIZE).map(async (batch) => {
+                            const { error: resetErr } = await supabaseAdmin
+                                .from('tasks')
+                                .update({ count: 0 })
+                                .in('task_name', batch);
+                            if (resetErr) {
+                                console.error('[Sync Counts] Task stale reset failed:', resetErr.message);
+                                taskErrors.push(resetErr.message);
+                            }
+                        })
+                    );
+                }
+            }
+        }
+
+        if (categoryErrors.length > 0 || taskErrors.length > 0) {
+            return NextResponse.json({
+                error: 'Some upserts failed during sync',
+                categoryErrors,
+                taskErrors,
+            }, { status: 500 });
+        }
 
         return NextResponse.json({
             success: true,
@@ -130,10 +177,6 @@ export async function POST() {
                 publishedTools: allTools?.length || 0,
                 uniqueCategories: categoryCounts.size,
                 uniqueTasks: taskCounts.size,
-                categoriesCreated,
-                categoriesUpdated,
-                tasksCreated,
-                tasksUpdated
             }
         });
 
@@ -142,3 +185,4 @@ export async function POST() {
         return NextResponse.json({ error: error.message || 'Failed to sync counts' }, { status: 500 });
     }
 }
+

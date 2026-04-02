@@ -29,8 +29,22 @@ export function getFullUrl(path: string): string {
 }
 
 /**
+ * Check whether a URL belongs to our CDN origin.
+ * Returns false for relative paths (they're already ours but aren't absolute CDN URLs).
+ */
+export function isCdnUrl(url: string): boolean {
+    if (!CDN_URL || !url) return false;
+    try {
+        return new URL(url).origin === new URL(CDN_URL).origin;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Convert a full URL to a relative path for database storage.
- * Strips the CDN domain and returns just the path.
+ * Strips the CDN domain (and any CDN base path prefix) and returns
+ * the pathname, preserving query strings and hash fragments.
  * External (non-CDN) URLs are returned as-is.
  */
 export function toRelativePath(url: string | undefined | null): string {
@@ -39,9 +53,16 @@ export function toRelativePath(url: string | undefined | null): string {
     if (CDN_URL) {
         try {
             const parsedUrl = new URL(url);
-            const cdnOrigin = new URL(CDN_URL).origin;
-            if (parsedUrl.origin === cdnOrigin) {
-                return parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+            const cdnParsed = new URL(CDN_URL);
+            if (parsedUrl.origin === cdnParsed.origin) {
+                let pathname = parsedUrl.pathname;
+                // Strip the CDN base path prefix to avoid duplication
+                const cdnPath = cdnParsed.pathname.replace(/\/+$/, '');
+                if (cdnPath && (pathname === cdnPath || pathname.startsWith(cdnPath + '/'))) {
+                    const stripped = pathname.slice(cdnPath.length);
+                    pathname = stripped.startsWith('/') ? stripped : '/' + stripped;
+                }
+                return pathname + parsedUrl.search + parsedUrl.hash;
             }
         } catch { /* invalid URL, return as-is */ }
     }

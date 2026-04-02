@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, createContext, useContext, ReactNode, useCallback } from 'react';
+import { useState, createContext, useContext, ReactNode, useCallback, useEffect } from 'react';
 
 interface ConfirmOptions {
     title?: string;
@@ -40,10 +40,20 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         resolveRef?.(true);
     };
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
         setIsOpen(false);
         resolveRef?.(false);
-    };
+    }, [resolveRef]);
+
+    // Document-level Escape listener — works regardless of focus
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') handleCancel();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, handleCancel]);
 
     return (
         <ConfirmContext.Provider value={{ confirm }}>
@@ -51,7 +61,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
             {/* Modal Overlay */}
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="confirm-modal-title"
+                >
                     {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -61,7 +76,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                     {/* Modal */}
                     <div className="relative bg-bg-secondary border border-border rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl animate-modal-in">
                         {/* Title */}
-                        <h3 className="text-lg font-semibold text-text-primary mb-2">
+                        <h3 id="confirm-modal-title" className="text-lg font-semibold text-text-primary mb-2">
                             {options?.title || 'Confirm Action'}
                         </h3>
 
@@ -74,6 +89,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                         <div className="flex gap-3 justify-end">
                             <button
                                 onClick={handleCancel}
+                                autoFocus
                                 className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary border border-border rounded-lg hover:bg-bg-tertiary transition-colors"
                             >
                                 {options?.cancelText || 'Cancel'}

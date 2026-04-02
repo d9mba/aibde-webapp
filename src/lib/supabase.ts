@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { CDN_URL, toFullUrl, toArray, toRelativePath } from './url';
+import { toFullUrl, toArray, toRelativePath } from './url';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -18,14 +18,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Server-side Supabase Admin client (uses service role key, bypasses RLS)
 // Used by API routes for admin operations
-if (!supabaseServiceRoleKey && process.env.NODE_ENV === 'production') {
-    console.error('[CRITICAL] SUPABASE_SERVICE_ROLE_KEY not set — admin operations will fail due to RLS');
-}
 export const supabaseAdmin = supabaseServiceRoleKey
     ? createClient(supabaseUrl, supabaseServiceRoleKey, {
         auth: { autoRefreshToken: false, persistSession: false }
     })
-    : supabase;
+    : (() => {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('[FATAL] SUPABASE_SERVICE_ROLE_KEY is required in production');
+        }
+        console.warn('[Supabase] No service role key — using anon client (dev only)');
+        return supabase;
+    })();
 
 // Database types matching our schema
 export interface DbTool {
@@ -399,8 +402,8 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
         viewCount: 'view_count',
         upvotes: 'upvotes',
         downvotes: 'downvotes',
-
-
+        rating: 'rating',
+        discount: 'discount',
         launchedOn: 'launched_on',
         isFeatured: 'is_featured',
         listingType: 'listing_type',
@@ -477,8 +480,7 @@ export function adminToolToDbTool(tool: Record<string, unknown>): Partial<DbTool
 
 
     for (const [key, value] of Object.entries(tool)) {
-        if (key === 'launchedAgo') continue; // Skip computed field
-        if (key === 'references') continue; // Skip - doesn't exist in DB
+        if (key === 'launchedAgo' || key === 'submissionId' || key === 'submissionRef') continue; // Skip computed/tracking fields
 
         const dbKey = mapping[key] || key;
 

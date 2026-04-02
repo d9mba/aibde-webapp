@@ -20,10 +20,15 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '25');
         const all = searchParams.get('all') === 'true';
+        const MAX_SEARCH_LENGTH = 100;
+        const rawSearch = (searchParams.get('search') || '').trim();
+        if (rawSearch.length > MAX_SEARCH_LENGTH) {
+            return NextResponse.json({ error: `Search query exceeds max length of ${MAX_SEARCH_LENGTH}` }, { status: 400 });
+        }
+        const search = rawSearch;
 
         // If all=true, fetch all records (for dashboard stats, etc.)
         if (all) {
-            const allSearch = searchParams.get('search') || '';
             const PAGE_SIZE = 1000;
             let allData: Array<{ id: string; task_name: string; description: string; count: number }> = [];
             let pageNum = 0;
@@ -35,7 +40,7 @@ export async function GET(request: NextRequest) {
                     .select('*')
                     .order('task_name', { ascending: true })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
-                if (allSearch) query = query.ilike('task_name', `%${escapeLikePattern(allSearch)}%`);
+                if (search) query = query.ilike('task_name', `%${escapeLikePattern(search)}%`);
                 const { data, error } = await query;
 
                 if (error) {
@@ -61,7 +66,6 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(mappedData);
         }
 
-        const search = searchParams.get('search') || '';
 
         // Build base query with optional search filter
         let countQuery = supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true });

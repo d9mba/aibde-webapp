@@ -129,12 +129,12 @@ async function trackOutboundClick(data: {
 function addUtmParams(url: string): string {
     try {
         const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
-        urlObj.searchParams.set('ref', 'aibde');
-        urlObj.searchParams.set('utm_source', 'aibde');
+        urlObj.searchParams.set('ref', 'aibde.tech');
+        urlObj.searchParams.set('utm_source', 'aibde.tech');
         urlObj.searchParams.set('utm_medium', 'referral');
         return urlObj.toString();
     } catch {
         const separator = url.includes('?') ? '&' : '?';
-        return `${url}${separator}ref=aibde&utm_source=aibde&utm_medium=referral`;
+        return `${url}${separator}ref=aibde.tech&utm_source=aibde.tech&utm_medium=referral`;
     }
 }

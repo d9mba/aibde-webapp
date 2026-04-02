@@ -29,6 +29,30 @@ export async function requireAuth(): Promise<AuthResult | AuthError> {
     return { userId, role: 'user' };
 }
 
+// Short-lived cache for Clerk user lookups to prevent 429 rate limiting
+// when multiple API routes call requireAdmin() concurrently (e.g. analytics page fires 7 parallel calls)
+const userCache = new Map<string, { result: AuthResult | AuthError; expires: number }>();
+const inflightRequests = new Map<string, Promise<AuthResult | AuthError>>();
+const CACHE_TTL_MS = 10_000; // 10 seconds
+const MAX_CACHE_ENTRIES = 1000;
+
+function pruneCaches(): void {
+    const now = Date.now();
+    for (const [key, entry] of userCache.entries()) {
+        if (entry.expires < now) userCache.delete(key);
+    }
+
+    if (userCache.size > MAX_CACHE_ENTRIES) {
+        const overflow = userCache.size - MAX_CACHE_ENTRIES;
+        let removed = 0;
+        for (const key of userCache.keys()) {
+            userCache.delete(key);
+            removed++;
+            if (removed >= overflow) break;
+        }
+    }
+}
+
 /**
  * Require admin role - returns userId/role or error
  * 
@@ -37,30 +61,51 @@ export async function requireAuth(): Promise<AuthResult | AuthError> {
  * 2. Add to Public Metadata: { "role": "admin" }
  */
 export async function requireAdmin(): Promise<AuthResult | AuthError> {
+    pruneCaches();
     const { userId } = await auth();
 
     if (!userId) {
         return { error: 'Unauthorized', status: 401 };
     }
 
-    try {
-        // Fetch user from Clerk to get public metadata
-        const client = await clerkClient();
-        const user = await client.users.getUser(userId);
-        const publicMetadata = user.publicMetadata as { role?: string } | undefined;
-        const role = publicMetadata?.role || 'user';
-
-        // SECURITY: Enforce admin role check
-        if (role !== 'admin') {
-            console.error(`[Security] Unauthorized admin access attempt by userId: ${userId}`);
-            return { error: 'Forbidden - Admin access required', status: 403 };
-        }
-
-        return { userId, role: 'admin' };
-    } catch (err) {
-        console.error('[Auth] Error fetching user:', err);
-        return { error: 'Auth service error', status: 500 };
+    // Check cache first
+    const cached = userCache.get(userId);
+    if (cached && Date.now() < cached.expires) {
+        return cached.result;
     }
+
+    // Deduplicate in-flight requests for the same user
+    const inflight = inflightRequests.get(userId);
+    if (inflight) return inflight;
+
+    const fetchPromise = (async (): Promise<AuthResult | AuthError> => {
+        try {
+            const client = await clerkClient();
+            const user = await client.users.getUser(userId);
+            const publicMetadata = user.publicMetadata as { role?: string } | undefined;
+            const role = publicMetadata?.role || 'user';
+
+            if (role !== 'admin') {
+                console.error(`[Security] Unauthorized admin access attempt by userId: ${userId}`);
+                const result: AuthError = { error: 'Forbidden - Admin access required', status: 403 };
+                userCache.set(userId, { result, expires: Date.now() + CACHE_TTL_MS });
+                return result;
+            }
+
+            const result: AuthResult = { userId, role: 'admin' };
+            userCache.set(userId, { result, expires: Date.now() + CACHE_TTL_MS });
+            return result;
+        } catch (err) {
+            console.error('[Auth] Error fetching user:', err);
+            // Don't cache errors — allow retry
+            return { error: 'Auth service error', status: 500 };
+        } finally {
+            inflightRequests.delete(userId);
+        }
+    })();
+
+    inflightRequests.set(userId, fetchPromise);
+    return fetchPromise;
 }
 
 /**

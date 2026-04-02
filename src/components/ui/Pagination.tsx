@@ -1,21 +1,46 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
+
 interface PaginationProps {
     currentPage: number;
     totalPages: number;
     onPageChange: (page: number) => void;
+    scrollToTop?: boolean;
 }
 
 export default function Pagination({
     currentPage,
     totalPages,
     onPageChange,
+    scrollToTop = true,
 }: PaginationProps) {
-    if (totalPages <= 1) return null;
+    // Clamp currentPage to valid range
+    const safeTotalPages = Math.max(1, totalPages);
+    const validatedPage = Math.min(Math.max(1, currentPage), safeTotalPages);
+
+    // Sync parent when currentPage is out of valid range
+    // IMPORTANT: This useEffect must be called before the early return to comply with Rules of Hooks
+    const onPageChangeRef = useRef(onPageChange);
+
+    useEffect(() => {
+        onPageChangeRef.current = onPageChange;
+    }, [onPageChange]);
+
+    useEffect(() => {
+
+        if (currentPage !== validatedPage) {
+            onPageChangeRef.current(validatedPage);
+        }
+    }, [currentPage, validatedPage]);
+
+    if (safeTotalPages <= 1) return null;
 
     function handlePageChange(page: number) {
         onPageChange(page);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (scrollToTop) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     }
 
     function getPageNumbers(): (number | 'ellipsis')[] {
@@ -28,16 +53,16 @@ export default function Pagination({
 
         pages.push(1);
 
-        if (currentPage > 4) {
+        if (validatedPage > 4) {
             pages.push('ellipsis');
         }
 
-        const rangeStart = Math.max(2, currentPage - 2);
-        const rangeEnd = Math.min(totalPages - 1, currentPage + 2);
+        const rangeStart = Math.max(2, validatedPage - 2);
+        const rangeEnd = Math.min(totalPages - 1, validatedPage + 2);
 
         for (let i = rangeStart; i <= rangeEnd; i++) pages.push(i);
 
-        if (currentPage < totalPages - 3) {
+        if (validatedPage < totalPages - 3) {
             pages.push('ellipsis');
         }
 
@@ -52,8 +77,8 @@ export default function Pagination({
         <div className="flex flex-col items-center gap-3 py-6">
             <nav aria-label="Pagination" className="flex items-center justify-center gap-1">
                 <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
+                    onClick={() => handlePageChange(validatedPage - 1)}
+                    disabled={validatedPage === 1}
                     aria-label="Previous page"
                     className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-bg-card text-text-secondary transition-all duration-200 hover:border-accent-primary hover:text-accent-primary disabled:opacity-40 disabled:pointer-events-none"
                 >
@@ -69,8 +94,8 @@ export default function Pagination({
                         <button
                             key={page}
                             onClick={() => handlePageChange(page)}
-                            aria-current={currentPage === page ? 'page' : undefined}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition-all duration-200 ${currentPage === page
+                            aria-current={validatedPage === page ? 'page' : undefined}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition-all duration-200 ${validatedPage === page
                                 ? 'bg-accent-primary text-white border border-accent-primary shadow-sm'
                                 : 'border border-border bg-bg-card text-text-secondary hover:border-accent-primary hover:text-accent-primary'
                                 }`}
@@ -81,8 +106,8 @@ export default function Pagination({
                 )}
 
                 <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
+                    onClick={() => handlePageChange(validatedPage + 1)}
+                    disabled={validatedPage === safeTotalPages}
                     aria-label="Next page"
                     className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-bg-card text-text-secondary transition-all duration-200 hover:border-accent-primary hover:text-accent-primary disabled:opacity-40 disabled:pointer-events-none"
                 >

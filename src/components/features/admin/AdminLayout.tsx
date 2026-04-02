@@ -25,6 +25,8 @@ import {
     Plus,
     Mail,
     TrendingUp,
+    CreditCard,
+    FileInput,
     LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -49,6 +51,8 @@ const iconMap: Record<string, LucideIcon> = {
     plus: Plus,
     mail: Mail,
     trending: TrendingUp,
+    'credit-card': CreditCard,
+    'file-input': FileInput,
 };
 
 // Render icon helper - replaces the old icons.tsx
@@ -96,6 +100,13 @@ const navGroups: NavGroup[] = [
             { href: '/dashboard/featured', label: 'Featured', icon: 'rocket' },
             { href: '/dashboard/verified', label: 'Verified', icon: 'shield' },
             { href: '/dashboard/fast-listings', label: 'Fast Listings', icon: 'trending' },
+        ]
+    },
+    {
+        label: 'Submissions',
+        items: [
+            { href: '/dashboard/payments', label: 'Payments', icon: 'credit-card' },
+            { href: '/dashboard/submissions', label: 'Submissions', icon: 'file-input' },
         ]
     },
     {
@@ -151,17 +162,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     )}>
                         <div className="px-3 py-3.5 border-b border-border flex items-center justify-between">
                             <Link href="/dashboard" prefetch={false} className="flex items-center gap-2.5 no-underline">
-                                <span className="flex items-center justify-center w-8 h-8 text-accent-primary flex-shrink-0">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                                        <path d="M9 9h6M9 15h6M9 12h6" />
-                                    </svg>
+                                <span className="flex items-center justify-center w-8 h-8 flex-shrink-0 rounded-lg overflow-hidden">
+                                    <img src="/logo.png" alt="AIBDE" className="w-full h-full object-contain" />
                                 </span>
                                 <span className={cn(
                                     "text-[0.9375rem] font-semibold text-text-primary tracking-tight whitespace-nowrap transition-opacity duration-150",
                                     isExpanded ? 'opacity-100' : 'opacity-0 lg:group-hover:opacity-100'
                                 )}>
-                                    Admin
+                                    Hey!
                                 </span>
                             </Link>
                             <button

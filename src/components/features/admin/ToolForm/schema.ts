@@ -101,12 +101,13 @@ export const toolSchema = z.object({
     // Stats
     saveCount: z.number().default(0),
 
+    // Tracking
+    submissionId: z.string().optional(),
+    submissionRef: z.string().optional(),
+
     // Rating (0-5 scale, e.g., 4.5)
-    rating: z.number().min(0).max(5).optional().nullable().default(null),
-}).refine(
-    (data) => !data.spotlightEnabled || data.listingType === 'spotlight',
-    { message: 'Spotlight must be enabled only when listing type is "spotlight"', path: ['spotlightEnabled'] },
-);
+    rating: z.coerce.number().min(0).max(5).default(0),
+});
 
 // Use z.input for form data (allows undefined for defaulted fields)
 export type ToolFormData = z.input<typeof toolSchema>;
@@ -161,5 +162,7 @@ export const defaultToolValues: ToolFormData = {
     listingType: 'free',
     backLinks: false,
     saveCount: 0,
-    rating: null,
+    rating: 0,
+    submissionId: undefined,
+    submissionRef: undefined,
 };

@@ -8,38 +8,54 @@
 
 import { supabaseAdmin } from './supabase';
 
-const PUBLISHED_STATUSES = ['published', 'approved'];
+const PUBLISHED_STATUSES = ['published', 'approved'] as const;
+
+interface SyncConfig {
+    toolColumn: string;
+    targetTable: string;
+    targetColumn: string;
+    logPrefix: string;
+}
+
+async function syncEntityCounts(names: string[], config: SyncConfig): Promise<void> {
+    if (!names?.length) return;
+
+    const unique = [...new Set(names)];
+
+    for (const name of unique) {
+        const { count, error: selectError } = await supabaseAdmin
+            .from('tools')
+            .select('*', { count: 'exact', head: true })
+            .contains(config.toolColumn, [name])
+            .in('status', PUBLISHED_STATUSES as unknown as string[]);
+
+        if (selectError) {
+            console.error(`[${config.logPrefix}] Failed to count tools for "${name}":`, selectError);
+            continue;
+        }
+
+        const { error: updateError } = await supabaseAdmin
+            .from(config.targetTable)
+            .update({ count: count ?? 0 })
+            .eq(config.targetColumn, name);
+
+        if (updateError) {
+            console.error(`[${config.logPrefix}] Failed to update count for "${name}":`, updateError);
+        }
+    }
+}
 
 /**
  * Sync counts for specific category names.
  * Counts how many published tools reference each category.
  */
 export async function syncCategoryCounts(categoryNames: string[]): Promise<void> {
-    if (!categoryNames?.length) return;
-
-    const unique = [...new Set(categoryNames)];
-
-    for (const name of unique) {
-        const { count, error: selectError } = await supabaseAdmin
-            .from('tools')
-            .select('*', { count: 'exact', head: true })
-            .contains('category_name', [name])
-            .in('status', PUBLISHED_STATUSES);
-
-        if (selectError) {
-            console.error(`[syncCategoryCounts] Failed to count tools for "${name}":`, selectError);
-            continue;
-        }
-
-        const { error: updateError } = await supabaseAdmin
-            .from('categories')
-            .update({ count: count ?? 0 })
-            .eq('category_name', name);
-
-        if (updateError) {
-            console.error(`[syncCategoryCounts] Failed to update count for "${name}":`, updateError);
-        }
-    }
+    return syncEntityCounts(categoryNames, {
+        toolColumn: 'category_name',
+        targetTable: 'categories',
+        targetColumn: 'category_name',
+        logPrefix: 'syncCategoryCounts',
+    });
 }
 
 /**
@@ -47,37 +63,23 @@ export async function syncCategoryCounts(categoryNames: string[]): Promise<void>
  * Counts how many published tools reference each task.
  */
 export async function syncTaskCounts(taskNames: string[]): Promise<void> {
-    if (!taskNames?.length) return;
-
-    const unique = [...new Set(taskNames)];
-
-    for (const name of unique) {
-        const { count, error: selectError } = await supabaseAdmin
-            .from('tools')
-            .select('*', { count: 'exact', head: true })
-            .contains('task_name', [name])
-            .in('status', PUBLISHED_STATUSES);
-
-        if (selectError) {
-            console.error(`[syncTaskCounts] Failed to count tools for "${name}":`, selectError);
-            continue;
-        }
-
-        const { error: updateError } = await supabaseAdmin
-            .from('tasks')
-            .update({ count: count ?? 0 })
-            .eq('task_name', name);
-
-        if (updateError) {
-            console.error(`[syncTaskCounts] Failed to update count for "${name}":`, updateError);
-        }
-    }
+    return syncEntityCounts(taskNames, {
+        toolColumn: 'task_name',
+        targetTable: 'tasks',
+        targetColumn: 'task_name',
+        logPrefix: 'syncTaskCounts',
+    });
 }
 
 /**
  * Sync both category and task counts for the given arrays.
  * Call this after tool create/update/delete.
- * Runs in the background — errors are logged but don't throw.
+ *
+ * This is an async function — it runs synchronously when awaited.
+ * It only runs "in the background" if callers intentionally do not await it
+ * (fire-and-forget). Errors are logged inside and do not propagate.
+ *
+ * Internally calls syncCategoryCounts and syncTaskCounts in parallel.
  */
 export async function syncToolCounts(
     categories: string[],

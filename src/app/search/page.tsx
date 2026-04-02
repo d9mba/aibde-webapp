@@ -1,8 +1,6 @@
-import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { getToolsCount, getCategoriesCount, getTasksCount, getCategories, getTasks } from '@/lib/data';
 import { SEO } from '@/lib/seo';
-import { SearchPageSkeleton } from '@/components/ui/Skeleton';
 import SearchPageClient from './SearchPageClient';
 
 // Generate dynamic metadata with tool count (uses fast count query)
@@ -51,8 +49,13 @@ export async function generateMetadata(): Promise<Metadata> {
  * Search Page - Optimized Server Component
  * Fetches categories, tasks for filters - tools load on search
  */
-export default async function SearchPage() {
-    const [categories, tasks, toolCount, categoryCount, taskCount] = await Promise.all([
+interface SearchPageProps {
+    searchParams: Promise<{ q?: string; category?: string; task?: string; pricing?: string }>;
+}
+
+export default async function SearchPage({ searchParams }: SearchPageProps) {
+    const [resolvedParams, categories, tasks, toolCount, categoryCount, taskCount] = await Promise.all([
+        searchParams,
         getCategories(),
         getTasks(),
         getToolsCount(['published', 'approved']),
@@ -61,14 +64,16 @@ export default async function SearchPage() {
     ]);
 
     return (
-        <Suspense fallback={<div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10"><SearchPageSkeleton /></div>}>
-            <SearchPageClient
-                categories={categories}
-                tasks={tasks}
-                toolCount={toolCount}
-                taskCount={taskCount}
-                categoryCount={categoryCount}
-            />
-        </Suspense>
+        <SearchPageClient
+            categories={categories}
+            tasks={tasks}
+            toolCount={toolCount}
+            taskCount={taskCount}
+            categoryCount={categoryCount}
+            initialQuery={resolvedParams.q || ''}
+            initialCategory={resolvedParams.category || null}
+            initialTask={resolvedParams.task || null}
+            initialPricing={resolvedParams.pricing || null}
+        />
     );
 }

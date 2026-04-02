@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Metadata } from 'next';
 import { getCategories } from '@/lib/data';
 
@@ -10,8 +11,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
     const p = await params;
     const slug = p.slug;
+    const normalizedSlug = slugify(slug);
 
-    if (slug === 'new') {
+    if (normalizedSlug === 'new') {
         return {
             title: 'Add New Category - Dashboard | AIBDE',
         };
@@ -19,7 +21,7 @@ export async function generateMetadata({
 
     try {
         const categories = await getCategories();
-        const category = categories.find((c) => slugify(c.categoryName) === slug);
+        const category = categories.find((c) => slugify(c.categoryName) === normalizedSlug);
 
         if (category?.categoryName) {
             return {
@@ -38,7 +40,7 @@ export async function generateMetadata({
 export default function EditCategoryLayout({
     children,
 }: {
-    children: React.ReactNode;
+    children: ReactNode;
 }) {
-    return <>{children}</>;
+    return children;
 }

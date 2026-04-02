@@ -50,16 +50,13 @@ export default function CategoryDetailPage() {
     // Find category by matching slug
     const category = catData?.data?.find((c: Category) => slugify(c.categoryName) === slug);
 
-    // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (debouncedSearch !== search) {
-                setDebouncedSearch(search);
-                setCurrentPage(1);
-            }
+            setDebouncedSearch(search);
+            setCurrentPage(1);
         }, 300);
         return () => clearTimeout(timer);
-    }, [search, debouncedSearch]);
+    }, [search]);
 
     // Build API URL with server-side pagination
     const apiUrl = useMemo(() => {
@@ -83,9 +80,7 @@ export default function CategoryDetailPage() {
     const pagination = toolsData?.pagination;
     const totalPages = pagination?.totalPages || 0;
 
-    function handleSearchChange(value: string): void {
-        setSearch(value);
-    }
+
 
 
     if (catLoading) {
@@ -167,7 +162,7 @@ export default function CategoryDetailPage() {
                 </span>
                 <div className="relative w-64">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">{renderIcon('search', 16)}</span>
-                    <input value={search} onChange={e => handleSearchChange(e.target.value)} placeholder="Search tools..."
+                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tools..."
                         className="w-full pl-9 pr-3 py-2 bg-bg-secondary border border-border rounded-xl text-sm text-text-primary" />
                 </div>
             </div>
@@ -193,7 +188,7 @@ export default function CategoryDetailPage() {
                                 className="bg-bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-accent-primary/50 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-accent-primary/50">
                                 <div className="flex items-center gap-3 mb-3">
                                     {tool.logoUrl ? (
-                                        <img src={tool.logoUrl} alt="" className="w-12 h-12 rounded-xl object-contain" />
+                                        <img src={tool.logoUrl} alt="" width={48} height={48} className="w-12 h-12 rounded-xl object-contain" />
                                     ) : (
                                         <div className="w-12 h-12 bg-accent-primary/20 rounded-xl flex items-center justify-center text-xl font-bold text-accent-primary">
                                             {tool.name?.[0] ?? '?'}

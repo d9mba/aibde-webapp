@@ -45,7 +45,19 @@ async function verifyCookieValue(cookieValue: string, secret: string): Promise<b
 // 1. Define Routes
 const isSecretEntry = createRouteMatcher(['/login/:secret']) // Matches /login/super-secret
 const isLoginPage = createRouteMatcher(['/login(.*)', '/sign-in(.*)']) // Matches /login, /login/factor-one
-const isPublicApiRoute = createRouteMatcher(['/api/public(.*)', '/api/cron(.*)', '/api/vote', '/api/submit-tool', '/api/contact', '/api/search', '/api/tools/by-category', '/api/tools/by-task'])
+const isPublicApiRoute = createRouteMatcher([
+    '/api/public(.*)',
+    '/api/vote',
+    '/api/submit-tool',
+    '/api/contact',
+    '/api/search',
+    '/api/tools/by-category',
+    '/api/tools/by-task',
+    // Payment retry must be publicly accessible for submitters
+    '/api/payments/retry',
+    // Dodo webhooks must be publicly accessible for the payment provider
+    '/api/dodo/webhook(.*)',
+])
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api(.*)'])
 
 export const proxy = clerkMiddleware(async (auth, req) => {
@@ -133,7 +145,9 @@ export const proxy = clerkMiddleware(async (auth, req) => {
         }
         const adminSecret = process.env.ADMIN_LOGIN_SECRET;
         if (!adminSecret || !(await verifyCookieValue(hasAccess.value, adminSecret))) {
-            return NextResponse.redirect(new URL('/', req.url));
+            const res = NextResponse.redirect(new URL('/', req.url));
+            res.cookies.delete('admin_access');
+            return res;
         }
     }
 
@@ -151,7 +165,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
 
         // Admins can still browse API routes directly
         if (!userId && fetchDest === 'document' && fetchMode === 'navigate') {
-            return new NextResponse(null, { status: 403 });
+            return NextResponse.json({ error: 'Access denied' }, { status: 403 });
         }
     }
 
@@ -162,10 +176,11 @@ export const proxy = clerkMiddleware(async (auth, req) => {
             return NextResponse.next();
         }
 
-        // Block CLI/non-browser access (missing Sec-Fetch-Mode header)
+        // Exempt Dodo webhook from the strict fetch-mode check so it can receive server-to-server POSTs
+        const isWebhook = path.startsWith('/api/dodo/webhook');
         const fetchMode = req.headers.get('sec-fetch-mode');
-        if (!fetchMode) {
-            return NextResponse.json({ error: 'access denied' }, { status: 403 });
+        if (!isWebhook && !fetchMode) {
+            return NextResponse.json({ error: 'Access denied' }, { status: 403 });
         }
 
         // Direct browser navigation is already blocked by the /api check above
@@ -176,7 +191,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     if (isProtectedRoute(req)) {
         if (!userId) {
             if (path.startsWith('/api/')) {
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+                return NextResponse.json({ error: 'Access denied' }, { status: 403 });
             }
             return NextResponse.redirect(new URL('/', req.url));
         }

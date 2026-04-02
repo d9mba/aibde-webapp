@@ -116,7 +116,7 @@ export default function ToolsGridSection({ tools, trendingTools }: ToolsGridSect
             )}
 
             {/* Manual fallback button */}
-            {hasMore && !reachedMax && (
+            {hasMore && (
                 <div className="flex justify-center">
                     <button
                         onClick={handleLoadMore}

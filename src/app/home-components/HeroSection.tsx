@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearch } from '@/context/SearchContext';
 import { useTypingPlaceholder } from '@/hooks/useTypingPlaceholder';
+import { getSearchSuggestionsAction } from '@/lib/actions';
 import { AdminTool } from '@/types';
 import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
 import SearchIcon from '@/assets/svg/ui/search.svg';
@@ -26,7 +27,8 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
     const [suggestions, setSuggestions] = useState<AdminTool[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [isLoading, setIsLoading] = useState(false);
-    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const abortRef = useRef<AbortController | null>(null);
 
     // Fetch suggestions using Server Action (hidden from Network tab)
     const fetchSuggestions = useCallback(async (query: string) => {
@@ -36,15 +38,35 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
         }
 
         setIsLoading(true);
+        // Cancel any in-flight suggestion request
+        // NOTE: AbortController is only used to guard against stale state updates;
+        // server actions (getSearchSuggestionsAction) don't accept AbortSignal.
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         try {
-            const { getSearchSuggestionsAction } = await import('@/lib/actions');
             const tools = await getSearchSuggestionsAction(query, 5);
-            setSuggestions(tools);
+            if (!controller.signal.aborted) {
+                setSuggestions(tools);
+            }
         } catch (error) {
-            console.error('Search suggestions failed:', error);
+            if (!controller.signal.aborted) {
+                console.error('Search suggestions failed:', error);
+            }
         } finally {
-            setIsLoading(false);
+            if (!controller.signal.aborted) {
+                setIsLoading(false);
+            }
         }
+    }, []);
+
+    // Cleanup abort controller on unmount
+    useEffect(() => {
+        return () => {
+            if (abortRef.current) {
+                abortRef.current.abort();
+            }
+        };
     }, []);
 
     // Debounced search
@@ -56,9 +78,11 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
         if (searchQuery.length >= 2) {
             searchTimeout.current = setTimeout(() => {
                 fetchSuggestions(searchQuery);
-            }, 200);
+            }, 350);
         } else {
+            abortRef.current?.abort();
             setSuggestions([]);
+            setIsLoading(false);
         }
 
         return () => {
@@ -122,18 +146,18 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
             </p>
             <div className="relative w-full max-w-[500px] mt-1 py-1 z-50">
                 {/* Search Input */}
-                <div className={`bg-bg-card border rounded-full transition-all duration-200 ${isMainSearchFocused ? 'border-accent-primary/50 shadow-[0_0_0_3px_rgba(52,178,123,0.25)]' : 'border-border shadow-lg hover:shadow-xl hover:border-text-tertiary'}`}>
+                <div className={`bg-bg-card border rounded-full transition-all duration-200 ${isMainSearchFocused ? 'border-emerald-500 shadow-[0_0_0_3px_rgba(52,178,123,0.25)]' : 'border-border shadow-lg hover:shadow-xl hover:border-text-tertiary'}`}>
                     <div className="flex items-center gap-3 w-full px-5 py-3.5">
                         {isLoading ? (
                             <span className="w-[22px] h-[22px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
                         ) : (
-                            <SearchIcon className={`w-[22px] h-[22px] flex-shrink-0 transition-colors ${isMainSearchFocused ? 'text-text-secondary' : 'text-text-tertiary'}`} />
+                            <SearchIcon className={`w-[22px] h-[22px] flex-shrink-0 transition-colors ${isMainSearchFocused ? 'text-accent-primary' : 'text-text-tertiary'}`} />
                         )}
                         <input
                             ref={inputRef}
                             type="text"
                             autoComplete="off"
-                            className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50"
+                            className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50 focus:shadow-none"
                             placeholder={typingPlaceholder || 'Search AI tools...'}
                             value={searchQuery}
                             onChange={(e) => {

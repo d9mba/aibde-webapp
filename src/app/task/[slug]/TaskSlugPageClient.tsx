@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import AIToolCard from '@/components/features/tools/ToolCard';
 import Pagination from '@/components/ui/Pagination';
@@ -33,9 +33,19 @@ export default function TaskSlugPageClient({
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
     const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, totalCount);
 
+    const pageFetchControllerRef = useRef<AbortController | null>(null);
+
+    // Abort inflight fetch on unmount
+    useEffect(() => {
+        return () => { pageFetchControllerRef.current?.abort(); };
+    }, []);
+
     // Fetch a specific page of tools
     const goToPage = useCallback(async (page: number) => {
         if (!task) return;
+
+        // Abort previous fetch
+        pageFetchControllerRef.current?.abort();
 
         // Page 1 uses SSR data
         if (page === 1) {
@@ -45,16 +55,20 @@ export default function TaskSlugPageClient({
             return;
         }
 
+        const controller = new AbortController();
+        pageFetchControllerRef.current = controller;
+
         setIsLoading(true);
         try {
             const offset = (page - 1) * ITEMS_PER_PAGE;
             const response = await fetch(
-                `/api/tools/by-task?task=${encodeURIComponent(task.taskName)}&offset=${offset}&limit=${ITEMS_PER_PAGE}`
+                `/api/tools/by-task?task=${encodeURIComponent(task.taskName)}&offset=${offset}&limit=${ITEMS_PER_PAGE}`,
+                { signal: controller.signal }
             );
             if (!response.ok) {
                 const text = await response.text().catch(() => response.statusText);
                 console.error(`Failed to load tools: ${response.status} ${text}`);
-                setTools([]);
+                setTools(initialTools);
                 setCurrentPage(1);
                 return;
             }
@@ -63,11 +77,15 @@ export default function TaskSlugPageClient({
             setCurrentPage(page);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (error) {
-            console.error('Failed to load tools:', error);
-            setTools([]);
+            if (error instanceof Error && error.name === 'AbortError') return;
+            const msg = error instanceof Error ? error.message : 'Failed to load tools';
+            console.error('Failed to load tools:', msg);
+            setTools(initialTools);
             setCurrentPage(1);
         } finally {
-            setIsLoading(false);
+            if (pageFetchControllerRef.current === controller) {
+                setIsLoading(false);
+            }
         }
     }, [task, initialTools]);
 

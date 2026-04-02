@@ -5,6 +5,20 @@ import { toolSchema } from '@/lib/validations';
 import { requireAdmin, isAuthError } from '@/lib/auth-utils';
 import { escapeLike } from '@/lib/utils';
 import { syncToolCounts } from '@/lib/sync-counts';
+import { getFullUrl } from '@/lib/url';
+
+// Lightweight card-level mapper for dashboard management views (trending, spotlight, etc.)
+// NOTE: Different from supabase.ts:dbToolToCardTool which maps for public ToolCard display
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dbToolToDashboardCard(t: any) {
+    return {
+        id: t.id, name: t.name, appUsername: t.app_username,
+        logoUrl: getFullUrl(t.logo_url || ''), categoryName: t.category_name, status: t.status,
+        isFeatured: t.is_featured, listingType: t.listing_type,
+        spotlightEnabled: t.spotlight_enabled, spotlightPosition: t.spotlight_position,
+        trendingPosition: t.trending_position,
+    };
+}
 
 // All fields for tools - needed for edit form to work correctly
 // WARNING: Contains sensitive fields - use only for single-tool detail view
@@ -136,7 +150,7 @@ function applyFilters(query: any, filters: {
     if (filters.spotlight === 'true') {
         query = query.eq('spotlight_enabled', true);
     }
-    if (filters.listing) {
+    if (filters.listing && filters.listing !== 'all') {
         query = query.eq('listing_type', filters.listing);
     }
     if (filters.trending === 'true') {
@@ -202,13 +216,16 @@ export async function GET(request: NextRequest) {
             // Fetch all tools using pagination (Supabase has max ~1000 per query)
             // OPTIMIZATION: Only select essential fields for dropdown/export
             const PAGE_SIZE = 1000;
+            const MAX_ALL_ROWS = 10_000; // PERF-05: Hard cap to prevent runaway memory usage
             let allTools: any[] = [];
             let pageNum = 0;
             let hasMore = true;
 
-            while (hasMore) {
+            while (hasMore && allTools.length < MAX_ALL_ROWS) {
                 let query = supabaseAdmin
                     .from('tools')
+                    // NOTE: allData uses LIST_FIELDS (includes version_history, alternative_tools, etc.)
+                    // while paginated uses TABLE_FIELDS (subset) — intentional for export vs dashboard views
                     .select(fieldsParam === 'card' ? CARD_FIELDS : LIST_FIELDS) // Use CARD_FIELDS for management pages, LIST_FIELDS for full data
                     .order('created_at', { ascending: false })
                     .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
@@ -253,19 +270,48 @@ export async function GET(request: NextRequest) {
         }
 
         // Map to frontend-friendly format
+        // When fields=card, skip the heavy dbToolToAdminTool and map directly from DB rows
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mapped = (data || []).map((tool: any) => dbToolToAdminTool(tool));
+        let tools = fieldsParam === 'card'
+            ? (data || []).map(dbToolToDashboardCard)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            : (data || []).map((tool: any) => dbToolToAdminTool(tool));
 
-        // Strip to card fields when requested (avoids sending 40+ fields for management UIs)
-        const tools = fieldsParam === 'card'
-            ? mapped.map(t => ({
-                id: t.id, name: t.name, appUsername: t.appUsername,
-                logoUrl: t.logoUrl, categoryName: t.categoryName, status: t.status,
-                isFeatured: t.isFeatured, listingType: t.listingType,
-                spotlightEnabled: t.spotlightEnabled, spotlightPosition: t.spotlightPosition,
-                trendingPosition: t.trendingPosition,
-            }))
-            : mapped;
+        // PERF-06: Only fetch submission refs for full table views, not lightweight card views
+        if (fieldsParam !== 'card') {
+            try {
+                if (tools.length > 0) {
+                    const toolIds = tools.map((t: any) => t.id);
+                    // Batch lookups to avoid Supabase URL length limits on large lists
+                    const BATCH_SIZE = 100;
+                    const allSubs: Array<{ tool_id: string; id: string; submission_ref: string }> = [];
+                    for (let i = 0; i < toolIds.length; i += BATCH_SIZE) {
+                        const batch = toolIds.slice(i, i + BATCH_SIZE);
+                        const { data: subs, error: subBatchErr } = await supabaseAdmin
+                            .from('tool_submissions')
+                            .select('tool_id, id, submission_ref')
+                            .in('tool_id', batch);
+                        if (subBatchErr) {
+                            console.warn('[Tools API] Submission ref batch lookup failed:', subBatchErr.message);
+                        }
+                        if (subs) allSubs.push(...subs);
+                    }
+
+                    if (allSubs.length > 0) {
+                        const subMap = new Map(allSubs.map((s) => [s.tool_id, s]));
+                        tools = tools.map((t: any) => {
+                            const sub = subMap.get(t.id);
+                            if (sub) {
+                                return { ...t, submissionId: sub.id, submissionRef: sub.submission_ref };
+                            }
+                            return t;
+                        });
+                    }
+                }
+            } catch (subErr) {
+                console.warn('[Tools API] Failed to fetch submission refs for bulk list:', subErr);
+            }
+        }
 
         // Return paginated response
         if (allData) {
@@ -328,6 +374,35 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Tool already exists with this username' }, { status: 409 });
             }
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Check for linked tool submission to resolve
+        if (parseResult.data.submissionId) {
+            const submissionId = parseResult.data.submissionId;
+
+            // Validate submission exists and isn't linked to a different tool
+            const { data: existingSub, error: subFetchErr } = await supabaseAdmin
+                .from('tool_submissions')
+                .select('id, tool_id')
+                .eq('id', submissionId)
+                .maybeSingle();
+
+            if (subFetchErr) {
+                console.error('[Tools API] Failed to fetch submission for validation:', subFetchErr);
+            } else if (!existingSub) {
+                console.warn('[Tools API] Submission not found:', submissionId);
+            } else if (existingSub.tool_id && existingSub.tool_id !== data.id) {
+                console.error('[Tools API] Submission already linked to a different tool:', { submissionId, existingToolId: existingSub.tool_id, newToolId: data.id });
+            } else {
+                const updatePayload: any = {
+                    tool_id: data.id,
+                    app_username: data.app_username,
+                    review_status: data.status,
+                };
+
+                const { error: subErr } = await supabaseAdmin.from('tool_submissions').update(updatePayload).eq('id', submissionId);
+                if (subErr) console.error('[Tools API] Failed to update linked submission:', subErr);
+            }
         }
 
         // Bust ISR cache so new tool appears instantly

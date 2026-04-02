@@ -23,16 +23,19 @@ const securityHeaders = [
         value: [
             "default-src 'self'",
             // 'unsafe-inline': Required by Next.js for inline scripts during page hydration
-            // 'unsafe-eval': Required by Clerk auth SDK and Next.js dev mode HMR
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://us-assets.i.posthog.com",
+            // 'unsafe-eval': Only needed in development for Next.js HMR; Clerk SDK works without it in production
+            `script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV !== 'production' ? "'unsafe-eval' " : ''}https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://us-assets.i.posthog.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://www.clarity.ms https://*.clarity.ms`,
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
-            "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://*.upstash.io https://us.i.posthog.com https://us.posthog.com",
-            "frame-src https://challenges.cloudflare.com https://*.clerk.accounts.dev",
+            "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.aibde.tech https://*.upstash.io https://us.i.posthog.com https://us.posthog.com https://us-assets.i.posthog.com https://www.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com https://www.clarity.ms https://*.clarity.ms",
+            "frame-src https://challenges.cloudflare.com https://*.clerk.accounts.dev https://www.youtube.com https://drive.google.com",
             "worker-src 'self' blob:",
             "object-src 'none'",
             "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'none'",
+            "upgrade-insecure-requests",
         ].join('; '),
     },
 ];
@@ -85,6 +88,12 @@ const nextConfig = {
         'isomorphic-dompurify',
         'dompurify',
         'jsdom',
+        // Packages that use Node.js native streams (kState/TransformStream internals)
+        // must run natively — bundling them causes "transformAlgorithm is not a function"
+        'file-type',
+        'sharp',
+        '@aws-sdk/client-s3',
+        'csv-parse',
     ],
     images: {
         domains: [],
@@ -95,6 +104,9 @@ const nextConfig = {
             { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
             { protocol: 'https', hostname: 'asset.brandfetch.io' },
             { protocol: 'https', hostname: 'img.clerk.com' },
+            { protocol: 'https', hostname: 'www.youtube.com' },
+            { protocol: 'https', hostname: 'drive.google.com' },
+
         ],
     },
     // Improve development stability

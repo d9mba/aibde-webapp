@@ -13,7 +13,7 @@ import FullPreview from './ToolForm/FullPreview';
 import { getPricingClass, getPricingLabel } from '@/lib/formatters';
 import { getFullUrl } from '@/lib/url';
 
-interface ToolFormProps { toolId?: string; }
+interface ToolFormProps { toolId?: string; submissionId?: string; }
 
 // Slugify helper
 const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -268,7 +268,7 @@ const LivePreview = ({ control, categories, onExpand }: { control: any; categori
     );
 };
 
-export default function ToolForm({ toolId }: ToolFormProps) {
+export default function ToolForm({ toolId, submissionId }: ToolFormProps) {
     const router = useRouter();
     const { addTool, updateTool, addTag, addCategory, addTask, isLoaded } = useAdmin();
 
@@ -281,6 +281,8 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
     // Fetch existing tool from API instead of context
     const [existingTool, setExistingTool] = useState<AdminTool | null>(null);
+    const showToastRef = useRef(showToast);
+    useEffect(() => { showToastRef.current = showToast; }, [showToast]);
     useEffect(() => {
         if (!isEdit) return;
         const controller = new AbortController();
@@ -293,11 +295,13 @@ export default function ToolForm({ toolId }: ToolFormProps) {
             .catch((err) => {
                 if (err.name !== 'AbortError') {
                     console.error(err);
-                    showToast(err.message || 'Failed to load tool details', 'error');
+                    showToastRef.current(err.message || 'Failed to load tool details', 'error');
                 }
             });
         return () => controller.abort();
-    }, [toolId, isEdit, showToast]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [toolId, isEdit]);
+
 
     const [showFullPreview, setShowFullPreview] = useState(false);
     const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -305,6 +309,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     const [jsonInput, setJsonInput] = useState('');
     const [jsonError, setJsonError] = useState('');
     const [parsedJsonData, setParsedJsonData] = useState<Record<string, any> | null>(null);
+    const [slugLocked, setSlugLocked] = useState(isEdit); // locked by default in edit mode
     const isRepostUpdate = useRef(false);
 
     // Search-as-you-type for alternative tools combobox
@@ -356,7 +361,14 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
         const sanitized = { ...defaultToolValues };
 
+        // AdminTool uses camelCase `appUsername` but the form schema uses snake_case `app_username`
+        // Remap explicitly so the field is populated when editing an existing tool
+        if (tool.appUsername) {
+            sanitized.app_username = tool.appUsername;
+        }
+
         for (const key in tool) {
+            if (key === 'appUsername') continue; // already mapped above
             const value = (tool as any)[key];
 
             if (value === null || value === undefined) {
@@ -380,26 +392,80 @@ export default function ToolForm({ toolId }: ToolFormProps) {
         return sanitized as ToolFormData;
     };
 
+
     useEffect(() => { if (existingTool) reset(sanitizeToolData(existingTool)); }, [existingTool, reset]);
+
+    useEffect(() => {
+        if (!submissionId || isEdit) return;
+        const controller = new AbortController();
+        fetch(`/api/dashboard/submissions/${submissionId}`, { signal: controller.signal })
+            .then(r => {
+                if (!r.ok) throw new Error(`Failed to load submission: ${r.status} ${r.statusText}`);
+                return r.json();
+            })
+            .then(json => {
+                const sub = json?.data;
+                if (sub) {
+                    const sanitized: ToolFormData = {
+                        ...defaultToolValues,
+                        submissionId: sub.id,
+                        submissionRef: sub.submission_ref,
+                        name: sub.tool_name || '',
+                        app_username: slugify(sub.tool_name || ''),
+                        summary: sub.short_description || '',
+                        description: sub.full_description || '',
+                        logoUrl: sub.logo_url || '',
+                        websiteUrl: sub.website_url || '',
+                        pricing: sub.pricing_model || 'freemium',
+                        categoryName: sub.category ? [sub.category] : [],
+                        tags: typeof sub.tags === 'string' ? sub.tags.split(/[,\n]/).map((t: string) => t.trim()).filter(Boolean) : [],
+                        coreFeatures: typeof sub.key_features === 'string' ? sub.key_features.split(/[,\n]/).map((f: string) => f.trim()).filter(Boolean) : [],
+                        images: typeof sub.screenshot_urls === 'string' ? sub.screenshot_urls.split('\n').filter(Boolean) : [],
+                        videos: typeof sub.video_urls === 'string' ? sub.video_urls.split('\n').filter(Boolean) : [],
+                        contactName: sub.submitter_name || '',
+                        contactEmail: sub.submitter_email || '',
+                    };
+                    reset(sanitized);
+                    showToastRef.current('Loaded data from submission', 'success');
+                }
+            })
+            .catch((err) => {
+                if (err.name !== 'AbortError') {
+                    console.error('[ToolForm] Failed to load submission:', err);
+                    showToastRef.current('Failed to load submission', 'error');
+                }
+            });
+        return () => controller.abort();
+    }, [submissionId, isEdit, reset]);
 
     const watchName = watch('name');
     useEffect(() => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let controller: AbortController | undefined;
+
         if (!isEdit && watchName) {
             setValue('app_username', slugify(watchName || ''));
-            // Debounce the duplicate check API call
-            const timer = setTimeout(() => {
-                const controller = new AbortController();
-                fetch(`/api/tools?search=${encodeURIComponent(watchName)}&limit=1&status=published`, { signal: controller.signal })
+            controller = new AbortController();
+            timer = setTimeout(() => {
+                fetch(`/api/tools?search=${encodeURIComponent(watchName)}&limit=1&status=published`, { signal: controller!.signal })
                     .then(r => r.ok ? r.json() : { data: [] })
                     .then(json => {
                         const match = (json.data || []).find((t: AdminTool) => (t.name || '').toLowerCase() === watchName.toLowerCase());
                         setShowDuplicateWarning(!!match);
                     })
-                    .catch(() => { });
+                    .catch((err) => {
+                        if (err.name !== 'AbortError') console.error('[ToolForm] Duplicate check failed:', err);
+                    });
             }, 300);
-            return () => clearTimeout(timer);
+        } else if (!isEdit) {
+            setValue('app_username', slugify(watchName || ''));
+            setShowDuplicateWarning(false);
         }
-        if (!isEdit) setValue('app_username', slugify(watchName || ''));
+
+        return () => {
+            if (timer) clearTimeout(timer);
+            controller?.abort();
+        };
     }, [watchName, isEdit, setValue]);
 
     // Track and cleanup unsaved uploads
@@ -489,7 +555,7 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                 const updateData = wasRepost
                     ? { ...data, isReposted: true }
                     : data;
-                await updateTool(toolId, updateData);
+                await updateTool(toolId, updateData as any);
             }
             else await addTool(data as any);
             // Clear pending uploads on success - they're now saved
@@ -515,30 +581,40 @@ export default function ToolForm({ toolId }: ToolFormProps) {
 
     if (!isLoaded) return <div className="p-8 text-center text-text-secondary">Loading...</div>;
 
+    // Common form error handler - shows which fields are missing/invalid
+    const onFormError = (errors: any) => {
+        isRepostUpdate.current = false;
+
+        // Get all field names with errors
+        const errorFields = Object.keys(errors);
+
+        if (errorFields.length > 0) {
+            const errorMessages = Object.entries(errors).map(([field, error]: [string, any]) =>
+                `${field}: ${error?.message || 'Invalid'}`
+            );
+            const fieldList = errorFields.join(', ');
+            console.error('Form validation errors:', errors);
+            showToast(`Missing/invalid fields: ${fieldList}`, 'error');
+            console.log('Detailed errors:', errorMessages);
+        } else {
+            // Root-level refinement errors produce an empty field map
+            console.warn('Form validation failed with no field-level errors (possible .refine() issue)');
+            showToast('Please fill in required fields', 'error');
+        }
+    };
+
     const handleSaveAsDraft = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         setValue('status', 'draft', { shouldDirty: true });
-        // Use handleSubmit with onError callback to show validation errors
-        const onError = (errors: any) => {
-            console.error('Validation errors:', errors);
-            const firstError = Object.values(errors)[0] as any;
-            showToast(firstError?.message || 'Please fill in required fields', 'error');
-        };
-        await handleSubmit(onSubmit, onError)();
+        await handleSubmit(onSubmit, onFormError)();
     };
 
     const handleReadyForReview = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         setValue('status', 'pending', { shouldDirty: true });
-        // Use handleSubmit with onError callback to show validation errors
-        const onError = (errors: any) => {
-            console.error('Validation errors:', errors);
-            const firstError = Object.values(errors)[0] as any;
-            showToast(firstError?.message || 'Please fill in required fields', 'error');
-        };
-        await handleSubmit(onSubmit, onError)();
+        await handleSubmit(onSubmit, onFormError)();
     };
 
     const handleUpdateAndPost = async (e: React.MouseEvent) => {
@@ -546,27 +622,6 @@ export default function ToolForm({ toolId }: ToolFormProps) {
         e.stopPropagation();
         isRepostUpdate.current = true;
         await handleSubmit(onSubmit, onFormError)();
-    };
-
-    // Common form error handler - shows which fields are missing/invalid
-    const onFormError = (errors: any) => {
-        isRepostUpdate.current = false;
-        console.error('Form validation errors:', errors);
-
-        // Get all field names with errors
-        const errorFields = Object.keys(errors);
-        const errorMessages = Object.entries(errors).map(([field, error]: [string, any]) => {
-            return `${field}: ${error?.message || 'Invalid'}`;
-        });
-
-        // Show detailed error message
-        if (errorFields.length > 0) {
-            const fieldList = errorFields.join(', ');
-            showToast(`Missing/invalid fields: ${fieldList}`, 'error');
-            console.log('Detailed errors:', errorMessages);
-        } else {
-            showToast('Please fill in required fields', 'error');
-        }
     };
 
 
@@ -678,7 +733,18 @@ export default function ToolForm({ toolId }: ToolFormProps) {
     return (
         <form onSubmit={handleSubmit(onSubmit, onFormError)} className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-text-primary">{isEdit ? 'Edit Tool' : 'Add New Tool'}</h1>
+                <div>
+                    <h1 className="text-2xl font-bold text-text-primary">{isEdit ? 'Edit Tool' : 'Add New Tool'}</h1>
+                    {watch('submissionId') && (
+                        <p className="mt-2 flex items-center gap-2">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-accent-primary bg-accent-primary/10 border border-accent-primary/20 text-[10px] font-bold uppercase tracking-wider leading-none">
+                                Linked Submission
+                            </span>
+                            {watch('submissionRef') && <span className="font-mono text-xs text-text-secondary">{watch('submissionRef')}</span>}
+                            <span className="font-mono text-xs text-text-tertiary hidden sm:inline" title="Submission ID">({watch('submissionId')})</span>
+                        </p>
+                    )}
+                </div>
                 <div className="flex gap-2">
                     {!isEdit && (
                         <button
@@ -931,7 +997,47 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                     {/* 1. Basic Settings */}
                     <Section title="1. Basic Settings">
                         <Input label="Name of Tool" required {...register('name')} error={errors.name?.message} />
-                        <Input label="App Username" {...register('app_username')} placeholder="unique-username" />
+                        {/* App Username - locked by default in edit mode, unlock by clicking the edit button */}
+                        <div>
+                            <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                                App Username
+                            </label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    {...register('app_username')}
+                                    readOnly={isEdit && slugLocked}
+                                    placeholder="unique-username"
+                                    className={`flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-colors ${isEdit && slugLocked ? 'opacity-60 cursor-not-allowed select-none' : ''
+                                        }`}
+                                />
+                                {isEdit && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSlugLocked(l => !l)}
+                                        title={slugLocked ? 'Unlock to edit slug' : 'Lock slug'}
+                                        className={`flex items-center justify-center w-9 h-9 rounded-lg border transition-all flex-shrink-0 ${slugLocked
+                                                ? 'border-border text-text-tertiary hover:border-accent-primary hover:text-accent-primary'
+                                                : 'border-accent-primary text-accent-primary bg-accent-primary/10'
+                                            }`}
+                                    >
+                                        {slugLocked ? (
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                                <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                            {isEdit && slugLocked && (
+                                <p className="mt-1 text-xs text-text-tertiary">Click 🔒 to edit the URL slug (changes break existing links)</p>
+                            )}
+                        </div>
                         <Input label="Summary" required {...register('summary')} maxLength={200} error={errors.summary?.message} />
                         <Controller name="logoUrl" control={control} render={({ field }) => <MediaUpload label="App Logo" value={field.value || ''} onChange={field.onChange} uploadType="logo" toolName={watch('name')} />} />
                         <div>
@@ -1281,8 +1387,14 @@ export default function ToolForm({ toolId }: ToolFormProps) {
                             Object.entries(watch('socialLinks') || {}).filter(([_, v]) => v != null)
                         ) as Record<string, string> : undefined,
                     }}
-                    categories={catSearch.options.map(o => ({ categoryName: o.value }))}
-                    tasks={taskSearch.options.map(o => ({ taskName: o.value }))}
+                    categories={[
+                        ...(watch('categoryName') || []).map(name => ({ categoryName: name })),
+                        ...catSearch.options.filter(o => !(watch('categoryName') || []).includes(o.value)).map(o => ({ categoryName: o.value })),
+                    ]}
+                    tasks={[
+                        ...(watch('taskName') || []).map(name => ({ taskName: name })),
+                        ...taskSearch.options.filter(o => !(watch('taskName') || []).includes(o.value)).map(o => ({ taskName: o.value })),
+                    ]}
                     onClose={() => setShowFullPreview(false)}
                 />
             )}

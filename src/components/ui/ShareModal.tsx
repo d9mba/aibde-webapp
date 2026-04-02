@@ -54,13 +54,13 @@ export default function ShareModal({ isOpen, onClose, url, title, description }:
     const addShareUtm = (baseUrl: string): string => {
         try {
             const urlObj = new URL(baseUrl);
-            urlObj.searchParams.set('ref', 'aibde');
-            urlObj.searchParams.set('utm_source', 'aibde');
+            urlObj.searchParams.set('ref', 'aibde.tech');
+            urlObj.searchParams.set('utm_source', 'aibde.tech');
             urlObj.searchParams.set('utm_medium', 'share');
             return urlObj.toString();
         } catch {
             const separator = baseUrl.includes('?') ? '&' : '?';
-            return `${baseUrl}${separator}ref=aibde&utm_source=aibde&utm_medium=share`;
+            return `${baseUrl}${separator}ref=aibde.tech&utm_source=aibde.tech&utm_medium=share`;
         }
     };
 

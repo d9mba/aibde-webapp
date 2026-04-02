@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
-import AIToolCard from '@/components/features/tools/ToolCard';
+import { useRouter } from 'next/navigation';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import SearchSuggestionsDropdown from '@/components/ui/SearchSuggestionsDropdown';
-import { Category, Task } from '@/types';
+import { Category, Task, AdminTool } from '@/types';
+import AIToolCard from '@/components/features/tools/ToolCard';
 import { trackSearch, trackFilterUsed } from '@/hooks/useToolAnalytics';
 import { searchWithCountAction, getSearchSuggestionsAction } from '@/lib/actions';
 
@@ -17,63 +17,59 @@ interface SearchPageClientProps {
     toolCount: number;
     taskCount: number;
     categoryCount: number;
+    initialQuery: string;
+    initialCategory: string | null;
+    initialTask: string | null;
+    initialPricing: string | null;
 }
 
-export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount }: SearchPageClientProps) {
-    const searchParams = useSearchParams();
+export default function SearchPageClient({ categories, tasks, toolCount, taskCount, categoryCount, initialQuery, initialCategory, initialTask, initialPricing }: SearchPageClientProps) {
     const lastTrackedQuery = useRef<string>('');
-    const searchTimeout = useRef<NodeJS.Timeout>(undefined);
-    const searchCommittedRef = useRef(false);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const abortRef = useRef<AbortController | null>(null);
+    const router = useRouter();
+    const searchCommittedRef = useRef(!!initialQuery);
 
-    const [query, setQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    const [selectedTask, setSelectedTask] = useState<string | null>(null);
-    const [selectedPricing, setSelectedPricing] = useState<string | null>(null);
+    const [query, setQuery] = useState(initialQuery);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory);
+    const [selectedTask, setSelectedTask] = useState<string | null>(initialTask);
+    const [selectedPricing, setSelectedPricing] = useState<string | null>(initialPricing);
 
     // Search state
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<AdminTool[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
     const [isSearching, setIsSearching] = useState(false);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
+    const blurTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     // Ctrl+K keyboard shortcut to focus search
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k' && window.scrollY < 200) {
                 e.preventDefault();
+                e.stopPropagation();
                 inputRef.current?.focus();
             }
         };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
+        document.addEventListener('keydown', handleKeyDown, true);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown, true);
+            // Clean up blur timeout on unmount to prevent leaked state updates
+            clearTimeout(blurTimeoutRef.current);
+        };
     }, []);
 
-    // Read URL parameters on mount and trigger search if query exists
-    useEffect(() => {
-        const q = searchParams.get('q');
-        const pricing = searchParams.get('pricing');
-        const category = searchParams.get('category');
-        const task = searchParams.get('task');
-
-        if (q) {
-            setQuery(q);
-            setCommittedQuery(q);
-            searchCommittedRef.current = true;
-        }
-        if (pricing) setSelectedPricing(pricing);
-        if (category) setSelectedCategory(category);
-        if (task) setSelectedTask(task);
-    }, [searchParams]);
 
     // Suggestions state (shown while typing)
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [committedQuery, setCommittedQuery] = useState(''); // Query that triggers full search
+    const [committedQuery, setCommittedQuery] = useState(initialQuery); // Query that triggers full search
     const [selectedIndex, setSelectedIndex] = useState(-1); // For arrow key navigation
 
     // Fetch suggestions while typing (small list)
@@ -83,13 +79,25 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             return;
         }
         setIsLoadingSuggestions(true);
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         try {
+            // NOTE: getSearchSuggestionsAction is a Next.js Server Action (RPC call),
+            // not a fetch request, so it cannot accept an AbortSignal. The controller
+            // is only used to discard stale results via signal.aborted checks below.
             const tools = await getSearchSuggestionsAction(q, 6);
-            setSuggestions(tools);
+            if (!controller.signal.aborted) {
+                setSuggestions(tools);
+            }
         } catch (error) {
-            console.error('Suggestions failed:', error);
+            if (!controller.signal.aborted) {
+                console.error('Suggestions failed:', error);
+            }
         } finally {
-            setIsLoadingSuggestions(false);
+            if (!controller.signal.aborted) {
+                setIsLoadingSuggestions(false);
+            }
         }
     }, []);
 
@@ -127,8 +135,11 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
     // Navigate to a specific page
     async function goToPage(page: number): Promise<void> {
         await performSearch(committedQuery, selectedCategory, selectedTask, selectedPricing, page);
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
+        if (resultsRef.current) {
+            resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            window.scrollTo(0, 0);
+        }
     }
 
     // Debounced suggestions on query change (NOT full search)
@@ -137,13 +148,14 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
             clearTimeout(searchTimeout.current);
         }
 
+        // Skip suggestions when search is already committed (e.g. landing on /search?q=audio)
+        if (searchCommittedRef.current) return;
+
         if (query.length >= 2) {
             searchTimeout.current = setTimeout(() => {
                 fetchSuggestions(query);
-                if (!searchCommittedRef.current) {
-                    setShowSuggestions(true);
-                }
-            }, 200);
+                setShowSuggestions(true);
+            }, 350);
         } else {
             setSuggestions([]);
             setShowSuggestions(false);
@@ -174,7 +186,10 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-                window.location.href = `/app/${suggestions[selectedIndex].appUsername}`;
+                const selected = suggestions[selectedIndex];
+                if (selected?.appUsername) {
+                    router.push(`/app/${selected.appUsername}`);
+                }
             } else {
                 if (searchTimeout.current) {
                     clearTimeout(searchTimeout.current);
@@ -258,12 +273,12 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
 
                 {/* Search Input */}
                 <div className="relative w-full max-w-[500px] mt-1 py-1">
-                    <div className="bg-bg-card border border-border rounded-full shadow-lg hover:shadow-xl hover:border-text-tertiary focus-within:border-accent-primary/50 focus-within:shadow-[0_0_0_3px_rgba(52,178,123,0.25)] transition-all duration-200">
+                    <div className={`bg-bg-card border rounded-full shadow-lg hover:shadow-xl transition-all duration-200 ${isFocused ? 'border-emerald-500 shadow-[0_0_0_3px_rgba(52,178,123,0.25)]' : 'border-border hover:border-text-tertiary'}`}>
                         <div className="flex items-center gap-3 w-full px-5 py-3.5">
                             {(isSearching || isLoadingSuggestions) ? (
                                 <span className="w-[22px] h-[22px] border-2 border-border border-t-accent-primary rounded-full animate-spin flex-shrink-0" />
                             ) : (
-                                <svg className="text-text-tertiary flex-shrink-0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg className={`flex-shrink-0 transition-colors ${isFocused ? 'text-accent-primary' : 'text-text-tertiary'}`} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <circle cx="11" cy="11" r="8" />
                                     <path d="M21 21l-4.35-4.35" />
                                 </svg>
@@ -272,7 +287,7 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 ref={inputRef}
                                 type="text"
                                 autoComplete="off"
-                                className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50"
+                                className="flex-1 border-none outline-none bg-transparent text-base font-medium text-text-primary placeholder:text-text-tertiary/50 focus:shadow-none"
                                 placeholder="Search AI tools... (press Enter to search)"
                                 value={query}
                                 onChange={(e) => {
@@ -281,12 +296,18 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
                                 }}
                                 onKeyDown={handleKeyDown}
                                 onFocus={() => {
-                                    if (query.length >= 2) {
+                                    setIsFocused(true);
+                                    if (query.length >= 2 && !searchCommittedRef.current) {
                                         setShowSuggestions(true);
                                         fetchSuggestions(query);
                                     }
                                 }}
-                                onBlur={() => setTimeout(() => setShowSuggestions(false), 300)}
+                                onBlur={() => {
+                                    blurTimeoutRef.current = setTimeout(() => {
+                                        setShowSuggestions(false);
+                                        setIsFocused(false);
+                                    }, 300);
+                                }}
                             />
                             {!query && (
                                 <span className="hidden sm:flex items-center gap-1 text-[10px] text-text-tertiary/60 flex-shrink-0">

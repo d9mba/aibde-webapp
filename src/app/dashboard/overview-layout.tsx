@@ -1,6 +1,6 @@
-// Note: This is a reusable layout component, NOT a Next.js route layout.
-// Metadata must be exported from a file named layout.tsx or page.tsx to be auto-discovered.
-import type React from 'react';
-export default function Layout({ children }: { children: React.ReactNode }) {
+import type { ReactNode } from 'react';
+
+// Placeholder layout for future styling/providers — currently a pass-through
+export default function OverviewLayout({ children }: { children: ReactNode }) {
     return <>{children}</>;
 }

@@ -85,7 +85,6 @@ export default function TasksPage() {
     const handleSearchChange = useCallback((value: string) => {
         setSearch(value);
         setCurrentPage(1);
-        setPageLoading(true);
     }, []);
 
     const handleAdd = async () => {
@@ -154,7 +153,7 @@ export default function TasksPage() {
         if (!confirmed) return;
         const toastId = showToast('Deleting task...', 'loading');
         try {
-            const res = await fetch(`/api/tasks?id=${task.id}`, { method: 'DELETE' });
+            const res = await fetch(`/api/tasks?id=${encodeURIComponent(task.id)}`, { method: 'DELETE' });
             if (!res.ok) {
                 const bodyText = await res.text();
                 let message = 'Failed to delete task';
@@ -239,17 +238,17 @@ export default function TasksPage() {
                             <div
                                 key={task.id}
                                 className="bg-bg-card border border-border rounded-xl p-3 active:bg-bg-secondary"
-                                onClick={() => router.push(`/dashboard/tasks/${task.id}`)}
+                                onClick={() => { const safeSlug = `${slugify(task.taskName) || 'task'}-${task.id.split('-').pop()}`; router.push(`/dashboard/tasks/${safeSlug}`); }}
                             >
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex-1 min-w-0">
                                         {editingId === task.id ? (
-                                            <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full mb-1" />
+                                            <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(task.id, e); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full mb-1" />
                                         ) : (
                                             <div className="font-medium text-text-primary truncate">{task.taskName}</div>
                                         )}
                                         {editingId === task.id ? (
-                                            <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" placeholder="Description..." />
+                                            <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(task.id, e); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" placeholder="Description..." />
                                         ) : (
                                             <div className="text-xs text-text-tertiary line-clamp-1 mt-0.5">{task.description || 'No description'}</div>
                                         )}
@@ -292,7 +291,7 @@ export default function TasksPage() {
                                 <tr><td colSpan={4} className="px-4 py-8 text-center text-text-tertiary">{search ? 'No tasks match your search' : 'No tasks found'}</td></tr>
                             ) : (
                                 tasks.map((task: Task) => (
-                                    <tr key={task.id} className="border-t border-border hover:bg-bg-secondary/50 cursor-pointer" onClick={() => router.push(`/dashboard/tasks/${task.id}`)}>
+                                    <tr onClick={() => { const safeSlug = `${slugify(task.taskName) || 'task'}-${task.id.split('-').pop()}`; router.push(`/dashboard/tasks/${safeSlug}`); }} key={task.id}>
                                         <td className="px-4 py-3">
                                             {editingId === task.id ? (
                                                 <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(task.id); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
@@ -302,7 +301,7 @@ export default function TasksPage() {
                                         </td>
                                         <td className="px-4 py-3 text-text-secondary text-sm">
                                             {editingId === task.id ? (
-                                                <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
+                                                <input value={editDesc} onChange={e => setEditDesc(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); saveEdit(task.id, e); } }} className="px-2 py-1 bg-bg-secondary border border-border rounded text-sm w-full" />
                                             ) : (
                                                 task.description || '-'
                                             )}

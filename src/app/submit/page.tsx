@@ -636,7 +636,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                     </div>
                                     <p className="mt-1 text-3xl font-extrabold text-[var(--text-primary)]">
                                         {plan.price}
-                                        <span className="text-sm font-normal text-[var(--text-tertiary)]"> one-time</span>
+                                        <span className="text-sm font-normal italic text-[var(--text-tertiary)]"> one-time</span>
                                     </p>
                                     <p className="mt-2 text-sm text-[var(--text-secondary)]">{plan.description}</p>
                                     <ul className="mt-4 flex-1 space-y-2">
@@ -661,6 +661,10 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                             );
                         })}
                     </div>
+
+                    <p className="mt-4 text-center text-sm italic text-[var(--text-tertiary)]">
+                        * Prices shown don’t include applicable tax
+                    </p>
 
                     {/* Custom Launch */}
                     <div className="mt-6 rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-card)] p-6 text-center">
@@ -1117,13 +1121,16 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                             {PLANS.find((p) => p.id === formData.plan)?.name || 'Pro'} Plan
                                         </p>
                                         <p className="text-xs text-[var(--text-secondary)]">
-                                            {PLANS.find((p) => p.id === formData.plan)?.price || '$79'} one-time
+                                            {PLANS.find((p) => p.id === formData.plan)?.price || '$79'} <span className="italic">one-time</span>
                                         </p>
                                     </div>
                                 </div>
                                 <button type="button" onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="mt-3 text-xs font-medium text-[var(--accent-primary)] hover:underline">
                                     Change plan ↑
                                 </button>
+                                <p className="mt-3 text-xs italic opacity-80 text-[var(--text-tertiary)]">
+                                    * Prices shown don’t include applicable tax
+                                </p>
                             </div>
 
                             {/* What Happens Next */}

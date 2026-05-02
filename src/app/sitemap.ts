@@ -6,6 +6,7 @@ import {
     getToolsCount,
     getCategoriesCount,
     getTasksCount,
+    getAllPublishedBlogSlugs,
 } from '@/lib/data';
 import { slugify } from '@/lib/utils';
 
@@ -40,6 +41,8 @@ export async function getAllSitemapIds(): Promise<string[]> {
     const taskPages = Math.ceil(taskCount / SITEMAP_PAGE_SIZE) || 1;
     for (let i = 0; i < taskPages; i++) ids.push(`tasks-${i}`);
 
+    ids.push('blog');
+
     return ids;
 }
 
@@ -63,6 +66,7 @@ export default async function sitemap(props: { id: Promise<string> }): Promise<M
             { url: `${BASE_URL}/new`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
             { url: `${BASE_URL}/trending`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
             { url: `${BASE_URL}/contact`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+            { url: `${BASE_URL}/blog`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.8 },
         ];
     }
 
@@ -109,6 +113,17 @@ export default async function sitemap(props: { id: Promise<string> }): Promise<M
                 changeFrequency: 'weekly' as const,
                 priority: 0.7,
             }));
+    }
+
+    // Blog posts sitemap
+    if (id === 'blog') {
+        const blogSlugs = await getAllPublishedBlogSlugs();
+        return blogSlugs.map(post => ({
+            url: `${BASE_URL}/blog/${encodeURIComponent(post.slug)}`,
+            lastModified: new Date(post.updatedAt),
+            changeFrequency: 'weekly' as const,
+            priority: 0.7,
+        }));
     }
 
     return [];

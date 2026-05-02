@@ -27,6 +27,7 @@ import {
     TrendingUp,
     CreditCard,
     FileInput,
+    BookOpen,
     LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -53,6 +54,7 @@ const iconMap: Record<string, LucideIcon> = {
     trending: TrendingUp,
     'credit-card': CreditCard,
     'file-input': FileInput,
+    blog: BookOpen,
 };
 
 // Render icon helper - replaces the old icons.tsx
@@ -83,6 +85,7 @@ const navGroups: NavGroup[] = [
             { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
             { href: '/dashboard/tools', label: 'Tools', icon: 'tools' },
             { href: '/dashboard/trending', label: 'Trending', icon: 'trending' },
+            { href: '/dashboard/blog', label: 'Blog', icon: 'blog' },
         ]
     },
     {

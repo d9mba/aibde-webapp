@@ -19,6 +19,7 @@ import {
     EyeOff,
     Calendar,
     TrendingUp,
+    BookOpen,
     LucideIcon,
 } from 'lucide-react';
 
@@ -39,6 +40,7 @@ const iconMap: Record<string, LucideIcon> = {
     'external-link': ExternalLink,
     globe: Globe,
     settings: Settings,
+    blog: BookOpen,
 };
 
 // Render icon helper
@@ -113,6 +115,7 @@ export default function DashboardHome() {
         { href: '/dashboard/tasks', label: 'Manage Tasks', icon: 'tasks', desc: 'Organize tools by tasks' },
         { href: '/dashboard/spotlight', label: 'Configure Spotlight', icon: 'spotlight', desc: 'Feature tools on homepage' },
         { href: '/dashboard/trending', label: 'Manage Trending', icon: 'trending', desc: 'Control trending rankings' },
+        { href: '/dashboard/blog', label: 'Manage Blog', icon: 'blog', desc: 'Create & edit blog posts' },
         { href: '/dashboard/settings', label: 'Site Settings', icon: 'settings', desc: 'Configure site options' },
     ];
 

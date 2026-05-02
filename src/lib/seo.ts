@@ -129,3 +129,39 @@ export function getFaqJsonLd(faqs: { question: string; answer: string }[]) {
         })),
     };
 }
+
+/** Article JSON-LD for blog posts */
+export function getArticleJsonLd(article: {
+    title: string;
+    slug: string;
+    excerpt: string;
+    publishedAt: string | null;
+    updatedAt: string;
+    coverImage?: string | null;
+}) {
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: article.title,
+        url: `${SITE_URL}/blog/${article.slug}`,
+        description: article.excerpt,
+        datePublished: article.publishedAt || article.updatedAt,
+        dateModified: article.updatedAt,
+        author: {
+            '@type': 'Organization',
+            name: SITE_NAME,
+            url: SITE_URL,
+        },
+        publisher: {
+            '@type': 'Organization',
+            name: SITE_NAME,
+            logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` },
+        },
+        ...(article.coverImage && { image: article.coverImage }),
+        mainEntityOfPage: {
+            '@type': 'WebPage',
+            '@id': `${SITE_URL}/blog/${article.slug}`,
+        },
+    };
+}
+

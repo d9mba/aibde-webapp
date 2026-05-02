@@ -51,3 +51,12 @@ export {
 
 // Re-export types
 export type { SearchParams } from './search';
+
+// Blog functions
+export {
+    getPublishedBlogPosts,
+    getBlogPostBySlug,
+    getAllPublishedBlogSlugs,
+    getBlogPostsCount,
+    getRelatedBlogPosts,
+} from './blog';

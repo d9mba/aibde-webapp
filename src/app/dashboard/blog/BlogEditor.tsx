@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -14,6 +14,7 @@ import {
     Upload,
 } from 'lucide-react';
 import { BlogPost, BLOG_CATEGORIES, BlogCategory } from '@/types/blog';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 
 interface BlogEditorProps {
     postId?: string; // undefined = new post
@@ -60,6 +61,63 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
     // Image upload state
     const [uploading, setUploading] = useState(false);
 
+    // Track images for CDN cleanup
+    const previousImagesRef = useRef<string[]>([]);
+    const deletedImagesRef = useRef<string[]>([]);
+    // Track images uploaded THIS session (for cleanup on abandon)
+    const sessionUploadedRef = useRef<string[]>([]);
+
+    // Dirty state for unsaved changes warning
+    const [isDirty, setIsDirty] = useState(false);
+    const savedContentRef = useRef('');
+
+    // Unsaved changes warning on page close / navigation
+    useEffect(() => {
+        function handleBeforeUnload(e: BeforeUnloadEvent) {
+            // Clean up session-uploaded images that weren't saved
+            const unsaved = sessionUploadedRef.current;
+            if (unsaved.length > 0) {
+                const cdnBase = process.env.NEXT_PUBLIC_CDN_URL || '';
+                unsaved.forEach(url => {
+                    const path = cdnBase ? url.replace(cdnBase, '') : url;
+                    navigator.sendBeacon(`/api/upload/cleanup?path=${encodeURIComponent(path)}`);
+                });
+            }
+
+            if (isDirty) {
+                e.preventDefault();
+            }
+        }
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
+
+    // Extract image URLs from HTML content
+    function extractImageUrls(html: string): string[] {
+        const matches = html.match(/<img[^>]+src=["']([^"']+)["']/gi) || [];
+        return matches.map(m => {
+            const srcMatch = m.match(/src=["']([^"']+)["']/);
+            return srcMatch ? srcMatch[1] : '';
+        }).filter(Boolean);
+    }
+
+    // Track content changes to detect deleted images
+    function handleContentChange(html: string) {
+        const currentUrls = extractImageUrls(html);
+        const previousUrls = previousImagesRef.current;
+
+        // Find images that were removed
+        const removed = previousUrls.filter(url => !currentUrls.includes(url));
+        if (removed.length > 0) {
+            deletedImagesRef.current = [...deletedImagesRef.current, ...removed];
+        }
+
+        previousImagesRef.current = currentUrls;
+        setPost(prev => ({ ...prev, content: html }));
+        setIsDirty(true);
+    }
+
     // Load existing post
     useEffect(() => {
         if (!postId) return;
@@ -68,6 +126,9 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
             if (res.ok) {
                 const body = await res.json();
                 setPost(body.data);
+                // Track initial images
+                previousImagesRef.current = extractImageUrls(body.data.content || '');
+                savedContentRef.current = JSON.stringify(body.data);
             } else {
                 setError('Failed to load post');
             }
@@ -88,6 +149,7 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
                 .trim();
         }
         setPost(prev => ({ ...prev, ...updates }));
+        setIsDirty(true);
     }
 
     async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>, type: 'cover' | 'inline') {
@@ -124,6 +186,45 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
         }
     }
 
+    // Handle image insert from Tiptap toolbar — uploads file and returns URL
+    const handleEditorImageInsert = useCallback(async (file: File): Promise<string> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', 'blog');
+
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Upload failed');
+
+        const { url } = await res.json();
+        setPost(prev => ({ ...prev, images: [...(prev.images || []), url] }));
+        sessionUploadedRef.current = [...sessionUploadedRef.current, url];
+        return url;
+    }, []);
+
+    // Delete images from CDN that were removed from content
+    async function cleanupDeletedImages() {
+        const toDelete = deletedImagesRef.current;
+        if (toDelete.length === 0) return;
+
+        const cdnBase = process.env.NEXT_PUBLIC_CDN_URL || '';
+
+        await Promise.allSettled(
+            toDelete.map(url => {
+                // Convert CDN URL to relative path for the delete API
+                const path = cdnBase ? url.replace(cdnBase, '') : url;
+                return fetch(`/api/upload?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+            })
+        );
+
+        // Also remove from the images array
+        setPost(prev => ({
+            ...prev,
+            images: (prev.images || []).filter(img => !toDelete.includes(img)),
+        }));
+
+        deletedImagesRef.current = [];
+    }
+
     async function handleSave(publishStatus?: 'draft' | 'published') {
         setSaving(true);
         setError(null);
@@ -133,6 +234,9 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
         if (publishStatus) payload.status = publishStatus;
 
         try {
+            // Clean up deleted images from CDN
+            await cleanupDeletedImages();
+
             const url = postId ? `/api/blog/${postId}` : '/api/blog';
             const method = postId ? 'PUT' : 'POST';
             const res = await fetch(url, {
@@ -149,10 +253,16 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
             const body = await res.json();
             setSuccess(publishStatus === 'published' ? 'Published!' : 'Saved!');
 
+            // Clear session uploads (they're saved now)
+            sessionUploadedRef.current = [];
+            setIsDirty(false);
+
             if (!postId) {
                 router.push(`/dashboard/blog/${body.data.id}`);
             } else {
                 setPost(body.data);
+                previousImagesRef.current = extractImageUrls(body.data.content || '');
+                savedContentRef.current = JSON.stringify(body.data);
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to save');
@@ -337,25 +447,12 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
 
                     {/* Content */}
                     <div className="bg-bg-card border border-border rounded-xl p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                            <label className="text-xs font-medium text-text-tertiary uppercase tracking-wide">Content (HTML)</label>
-                            <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer hover:text-accent-primary transition-colors">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={e => handleImageUpload(e, 'inline')}
-                                    className="hidden"
-                                />
-                                <ImageIcon size={14} />
-                                <span>{uploading ? 'Uploading...' : 'Insert Image'}</span>
-                            </label>
-                        </div>
-                        <textarea
+                        <label className="text-xs font-medium text-text-tertiary uppercase tracking-wide">Content</label>
+                        <RichTextEditor
                             value={post.content || ''}
-                            onChange={e => setPost(prev => ({ ...prev, content: e.target.value }))}
-                            placeholder="<h2>Introduction</h2>\n<p>Write your article content in HTML...</p>"
-                            rows={20}
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border rounded-lg text-sm text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-primary resize-y font-mono"
+                            onChange={handleContentChange}
+                            placeholder="Start writing your article..."
+                            onImageInsert={handleEditorImageInsert}
                         />
                     </div>
 

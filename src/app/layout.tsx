@@ -4,6 +4,7 @@ import Providers from '@/components/Providers';
 import { LayoutWrapper } from '@/components/layout/LayoutWrapper';
 import { getWebSiteJsonLd, SEO } from '@/lib/seo';
 import '@/styles/globals.css';
+import '@/styles/tiptap.css';
 
 export const metadata: Metadata = {
     metadataBase: new URL(SEO.siteUrl),
@@ -105,6 +106,17 @@ export default async function RootLayout({
                             gtag('config', 'G-HT35EHF7PQ');`}
                         </Script>
                     </>
+                )}
+
+                {/* Microsoft Clarity - Production only */}
+                {process.env.NODE_ENV === 'production' && (
+                    <Script id="ms-clarity" strategy="afterInteractive">
+                        {`(function(c,l,a,r,i,t,y){
+                            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+                        })(window, document, "clarity", "script", "v19ejk4063");`}
+                    </Script>
                 )}
 
             </head>

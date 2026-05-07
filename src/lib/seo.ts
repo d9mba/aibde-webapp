@@ -165,3 +165,45 @@ export function getArticleJsonLd(article: {
     };
 }
 
+/** NewsArticle JSON-LD for /news/[slug] pages (Google News eligible) */
+export function getNewsArticleJsonLd(article: {
+    title: string;
+    slug: string;
+    summary: string;
+    publishedAt: string;
+    heroImage?: string | null;
+    sources?: { name: string; url: string }[];
+}) {
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        headline: article.title,
+        url: `${SITE_URL}/news/${article.slug}`,
+        description: article.summary,
+        datePublished: article.publishedAt,
+        dateModified: article.publishedAt,
+        author: {
+            '@type': 'Organization',
+            name: SITE_NAME,
+            url: SITE_URL,
+        },
+        publisher: {
+            '@type': 'Organization',
+            name: SITE_NAME,
+            logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` },
+        },
+        ...(article.heroImage && { image: article.heroImage }),
+        mainEntityOfPage: {
+            '@type': 'WebPage',
+            '@id': `${SITE_URL}/news/${article.slug}`,
+        },
+        ...(article.sources?.length && {
+            citation: article.sources.map(s => ({
+                '@type': 'WebPage',
+                name: s.name,
+                url: s.url,
+            })),
+        }),
+    };
+}
+

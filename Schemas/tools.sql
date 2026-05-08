@@ -520,6 +520,11 @@ $$;
 
 ALTER FUNCTION public.update_votes(p_tool_id uuid, p_action text, p_vote_type text, p_previous_vote text) OWNER TO postgres;
 
+-- Revoke public execute to satisfy security linter (voting is handled server-side via admin client)
+REVOKE EXECUTE ON FUNCTION public.update_votes(uuid, text, text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.update_votes(uuid, text, text, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.update_votes(uuid, text, text, text) FROM authenticated;
+
 -- Name: tools tools_app_username_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 --

@@ -35,7 +35,7 @@ BEGIN
             NEW.updated_at = now();
             RETURN NEW;
         END;
-        $func$ language 'plpgsql';
+        $func$ language 'plpgsql' SET search_path = '';
     END IF;
 END
 $$;

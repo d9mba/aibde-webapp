@@ -37,6 +37,11 @@ $$;
 
 ALTER FUNCTION public.rls_auto_enable() OWNER TO postgres;
 
+-- Revoke public execute to satisfy security linter
+REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM authenticated;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;

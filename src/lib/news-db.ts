@@ -1,11 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { dbNewsToFrontend } from '@/types/news';
 import type { NewsArticle } from '@/types/news';
-import { getMockNews, getMockNewsBySlug, getMockRelatedNews } from './mock-news';
 
 /**
  * Fetch all news articles from Supabase.
- * Falls back to mock data if the table doesn't exist or is empty.
  */
 export async function getNewsArticles(category?: string): Promise<NewsArticle[]> {
     try {
@@ -27,16 +25,14 @@ export async function getNewsArticles(category?: string): Promise<NewsArticle[]>
             return data.map(dbNewsToFrontend);
         }
     } catch (e) {
-        console.warn('Failed to fetch news from Supabase, falling back to mock data:', e);
+        console.error('Failed to fetch news from Supabase:', e);
     }
 
-    // Fallback
-    return getMockNews(category);
+    return [];
 }
 
 /**
  * Fetch a single news article by slug.
- * Falls back to mock data if not found or on error.
  */
 export async function getNewsArticleBySlug(slug: string): Promise<NewsArticle | null> {
     try {
@@ -55,15 +51,14 @@ export async function getNewsArticleBySlug(slug: string): Promise<NewsArticle | 
             return dbNewsToFrontend(data);
         }
     } catch (e) {
-        console.warn(`Failed to fetch news article '${slug}' from Supabase, falling back to mock data:`, e);
+        console.error(`Failed to fetch news article '${slug}' from Supabase:`, e);
     }
 
-    return getMockNewsBySlug(slug);
+    return null;
 }
 
 /**
  * Fetch related news articles.
- * Falls back to mock data.
  */
 export async function getRelatedNews(slug: string, category: string, limit: number = 3): Promise<NewsArticle[]> {
     try {
@@ -82,8 +77,8 @@ export async function getRelatedNews(slug: string, category: string, limit: numb
             return data.map(dbNewsToFrontend);
         }
     } catch (e) {
-        console.warn(`Failed to fetch related news for '${slug}' from Supabase, falling back to mock data:`, e);
+        console.error(`Failed to fetch related news for '${slug}' from Supabase:`, e);
     }
 
-    return getMockRelatedNews(slug, category, limit);
+    return [];
 }

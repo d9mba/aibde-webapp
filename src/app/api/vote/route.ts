@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash, randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { checkRateLimit, rateLimits, getClientIp } from '@/lib/rate-limit';
 import { isAllowedRedirectOrigin } from '@/lib/redirect';
 
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
     }
 
-    const { data, error: rpcError } = await supabase.rpc('update_votes', {
+    const { data, error: rpcError } = await supabaseAdmin.rpc('update_votes', {
         p_tool_id: toolId,
         p_action: action,
         p_vote_type: voteType,
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Bust the ISR cache for this tool's detail page so the next visit
     // gets fresh vote counts from the database instead of the stale cached render.
-    const { data: toolSlug, error: slugError } = await supabase
+    const { data: toolSlug, error: slugError } = await supabaseAdmin
         .from('tools')
         .select('app_username')
         .eq('id', toolId)

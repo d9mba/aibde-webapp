@@ -18,7 +18,7 @@ export default function Footer() {
                         {/* Left - Tagline + Social */}
                         <div className="col-span-12 lg:col-span-4 text-center lg:text-left">
                             <h2 className="text-2xl lg:text-3xl font-bold text-text-primary mb-2 font-orbitron">
-                                Browse, Explore & Discover
+                                Browse, Discover & Explore
                             </h2>
                             <p className="text-sm text-text-secondary mb-4">
                                 Top AI tools for your everyday tasks.

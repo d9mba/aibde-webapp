@@ -86,6 +86,7 @@ const navGroups: NavGroup[] = [
             { href: '/dashboard/tools', label: 'Tools', icon: 'tools' },
             { href: '/dashboard/trending', label: 'Trending', icon: 'trending' },
             { href: '/dashboard/blog', label: 'Blog', icon: 'blog' },
+            { href: '/dashboard/news', label: 'News', icon: 'notes' },
         ]
     },
     {

@@ -53,6 +53,43 @@ export default function NewsEditor({ articleSlug }: NewsEditorProps) {
     const [uploading, setUploading] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
 
+    // Track images for CDN cleanup
+    const initialImagesRef = useRef<string[]>([]);
+    const sessionUploadedRef = useRef<string[]>([]);
+
+    // Unsaved changes warning on page close / navigation
+    useEffect(() => {
+        function handleBeforeUnload(e: BeforeUnloadEvent) {
+            // Clean up session-uploaded images that weren't saved
+            const unsaved = sessionUploadedRef.current;
+            if (unsaved.length > 0) {
+                const cdnBase = process.env.NEXT_PUBLIC_CDN_URL || '';
+                unsaved.forEach(url => {
+                    const path = cdnBase ? url.replace(cdnBase, '') : url;
+                    navigator.sendBeacon(`/api/upload/cleanup?path=${encodeURIComponent(path)}`);
+                });
+            }
+
+            if (isDirty) {
+                e.preventDefault();
+            }
+        }
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
+
+    // Extract all image URLs from article
+    function extractAllImageUrls(art: Partial<NewsArticle>): string[] {
+        const matches = (art.content || '').match(/<img[^>]+src=["']([^"']+)["']/gi) || [];
+        const contentUrls = matches.map(m => {
+            const srcMatch = m.match(/src=["']([^"']+)["']/);
+            return srcMatch ? srcMatch[1] : '';
+        }).filter(Boolean);
+        
+        return [...contentUrls, art.heroImage, art.thumbnail].filter(Boolean) as string[];
+    }
+
     useEffect(() => {
         if (!articleSlug) return;
         async function load() {
@@ -60,6 +97,7 @@ export default function NewsEditor({ articleSlug }: NewsEditorProps) {
             if (res.ok) {
                 const body = await res.json();
                 setArticle(body.data);
+                initialImagesRef.current = extractAllImageUrls(body.data);
             } else {
                 setError('Failed to load article');
             }
@@ -99,6 +137,7 @@ export default function NewsEditor({ articleSlug }: NewsEditorProps) {
 
             const { url } = await res.json();
             setArticle(prev => ({ ...prev, [field]: url }));
+            sessionUploadedRef.current = [...sessionUploadedRef.current, url];
             setIsDirty(true);
         } catch {
             setError('Image upload failed');
@@ -116,8 +155,29 @@ export default function NewsEditor({ articleSlug }: NewsEditorProps) {
         if (!res.ok) throw new Error('Upload failed');
 
         const { url } = await res.json();
+        sessionUploadedRef.current = [...sessionUploadedRef.current, url];
         return url;
     }, []);
+
+    async function cleanupDeletedImages(finalArticleState: Partial<NewsArticle>) {
+        const currentUrls = extractAllImageUrls(finalArticleState);
+        // Unique set of all known URLs for this session
+        const allKnownUrls = Array.from(new Set([...initialImagesRef.current, ...sessionUploadedRef.current]));
+        
+        // Find URLs that were loaded or uploaded, but are no longer in the final content
+        const toDelete = allKnownUrls.filter(url => !currentUrls.includes(url));
+        
+        if (toDelete.length === 0) return;
+
+        const cdnBase = process.env.NEXT_PUBLIC_CDN_URL || '';
+
+        await Promise.allSettled(
+            toDelete.map(url => {
+                const path = cdnBase ? url.replace(cdnBase, '') : url;
+                return fetch(`/api/upload?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+            })
+        );
+    }
 
     async function handleSave() {
         setSaving(true);
@@ -135,6 +195,9 @@ export default function NewsEditor({ articleSlug }: NewsEditorProps) {
                 readTimeMinutes
             };
 
+            // Clean up deleted images from CDN before saving
+            await cleanupDeletedImages(payload);
+
             const url = articleSlug ? `/api/news/${articleSlug}` : '/api/news';
             const method = articleSlug ? 'PUT' : 'POST';
 
@@ -151,6 +214,10 @@ export default function NewsEditor({ articleSlug }: NewsEditorProps) {
 
             const body = await res.json();
             setSuccess('Saved successfully!');
+            
+            // Reset image tracking baseline
+            sessionUploadedRef.current = [];
+            initialImagesRef.current = extractAllImageUrls(body.data);
             setIsDirty(false);
 
             if (!articleSlug) {
@@ -336,7 +403,7 @@ export default function NewsEditor({ articleSlug }: NewsEditorProps) {
                             {article.heroImage ? (
                                 <div className="relative">
                                     <img src={article.heroImage} alt="Hero" className="w-full h-32 object-cover rounded-lg" />
-                                    <button onClick={() => setArticle(p => ({ ...p, heroImage: null }))} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-md">
+                                    <button onClick={() => { setArticle(p => ({ ...p, heroImage: null })); setIsDirty(true); }} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-md">
                                         <X size={14} />
                                     </button>
                                 </div>
@@ -355,7 +422,7 @@ export default function NewsEditor({ articleSlug }: NewsEditorProps) {
                             {article.thumbnail ? (
                                 <div className="relative">
                                     <img src={article.thumbnail} alt="Thumbnail" className="w-full h-32 object-cover rounded-lg" />
-                                    <button onClick={() => setArticle(p => ({ ...p, thumbnail: null }))} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-md">
+                                    <button onClick={() => { setArticle(p => ({ ...p, thumbnail: null })); setIsDirty(true); }} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-md">
                                         <X size={14} />
                                     </button>
                                 </div>

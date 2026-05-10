@@ -62,9 +62,7 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
     const [uploading, setUploading] = useState(false);
 
     // Track images for CDN cleanup
-    const previousImagesRef = useRef<string[]>([]);
-    const deletedImagesRef = useRef<string[]>([]);
-    // Track images uploaded THIS session (for cleanup on abandon)
+    const initialImagesRef = useRef<string[]>([]);
     const sessionUploadedRef = useRef<string[]>([]);
 
     // Dirty state for unsaved changes warning
@@ -93,27 +91,18 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [isDirty]);
 
-    // Extract image URLs from HTML content
-    function extractImageUrls(html: string): string[] {
-        const matches = html.match(/<img[^>]+src=["']([^"']+)["']/gi) || [];
-        return matches.map(m => {
+    // Extract all image URLs from post
+    function extractAllImageUrls(p: Partial<BlogPost>): string[] {
+        const matches = (p.content || '').match(/<img[^>]+src=["']([^"']+)["']/gi) || [];
+        const contentUrls = matches.map(m => {
             const srcMatch = m.match(/src=["']([^"']+)["']/);
             return srcMatch ? srcMatch[1] : '';
         }).filter(Boolean);
+        return [...contentUrls, p.coverImage].filter(Boolean) as string[];
     }
 
-    // Track content changes to detect deleted images
+    // Track content changes
     function handleContentChange(html: string) {
-        const currentUrls = extractImageUrls(html);
-        const previousUrls = previousImagesRef.current;
-
-        // Find images that were removed
-        const removed = previousUrls.filter(url => !currentUrls.includes(url));
-        if (removed.length > 0) {
-            deletedImagesRef.current = [...deletedImagesRef.current, ...removed];
-        }
-
-        previousImagesRef.current = currentUrls;
         setPost(prev => ({ ...prev, content: html }));
         setIsDirty(true);
     }
@@ -127,7 +116,7 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
                 const body = await res.json();
                 setPost(body.data);
                 // Track initial images
-                previousImagesRef.current = extractImageUrls(body.data.content || '');
+                initialImagesRef.current = extractAllImageUrls(body.data);
                 savedContentRef.current = JSON.stringify(body.data);
             } else {
                 setError('Failed to load post');
@@ -168,6 +157,8 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
             if (!res.ok) throw new Error('Upload failed');
 
             const { url } = await res.json();
+            
+            sessionUploadedRef.current = [...sessionUploadedRef.current, url];
 
             if (type === 'cover') {
                 setPost(prev => ({ ...prev, coverImage: url }));
@@ -202,27 +193,21 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
     }, []);
 
     // Delete images from CDN that were removed from content
-    async function cleanupDeletedImages() {
-        const toDelete = deletedImagesRef.current;
+    async function cleanupDeletedImages(finalPostState: Partial<BlogPost>) {
+        const currentUrls = extractAllImageUrls(finalPostState);
+        const allKnownUrls = Array.from(new Set([...initialImagesRef.current, ...sessionUploadedRef.current]));
+        
+        const toDelete = allKnownUrls.filter(url => !currentUrls.includes(url));
         if (toDelete.length === 0) return;
 
         const cdnBase = process.env.NEXT_PUBLIC_CDN_URL || '';
 
         await Promise.allSettled(
             toDelete.map(url => {
-                // Convert CDN URL to relative path for the delete API
                 const path = cdnBase ? url.replace(cdnBase, '') : url;
                 return fetch(`/api/upload?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
             })
         );
-
-        // Also remove from the images array
-        setPost(prev => ({
-            ...prev,
-            images: (prev.images || []).filter(img => !toDelete.includes(img)),
-        }));
-
-        deletedImagesRef.current = [];
     }
 
     async function handleSave(publishStatus?: 'draft' | 'published') {
@@ -234,8 +219,8 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
         if (publishStatus) payload.status = publishStatus;
 
         try {
-            // Clean up deleted images from CDN
-            await cleanupDeletedImages();
+            // Clean up deleted images from CDN before saving
+            await cleanupDeletedImages(payload);
 
             const url = postId ? `/api/blog/${postId}` : '/api/blog';
             const method = postId ? 'PUT' : 'POST';
@@ -253,15 +238,15 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
             const body = await res.json();
             setSuccess(publishStatus === 'published' ? 'Published!' : 'Saved!');
 
-            // Clear session uploads (they're saved now)
+            // Clear session uploads and set new baseline
             sessionUploadedRef.current = [];
+            initialImagesRef.current = extractAllImageUrls(body.data);
             setIsDirty(false);
 
             if (!postId) {
                 router.push(`/dashboard/blog/${body.data.id}`);
             } else {
                 setPost(body.data);
-                previousImagesRef.current = extractImageUrls(body.data.content || '');
                 savedContentRef.current = JSON.stringify(body.data);
             }
         } catch (err) {
@@ -411,7 +396,7 @@ export default function BlogEditor({ postId }: BlogEditorProps) {
                             <div className="relative">
                                 <img src={post.coverImage} alt="Cover" className="w-full h-48 object-cover rounded-lg" />
                                 <button
-                                    onClick={() => setPost(prev => ({ ...prev, coverImage: null }))}
+                                    onClick={() => { setPost(prev => ({ ...prev, coverImage: null })); setIsDirty(true); }}
                                     className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-md cursor-pointer"
                                 >
                                     <X size={14} />

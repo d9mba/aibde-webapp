@@ -64,6 +64,40 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
 
+    // First, fetch the post to get its images for cleanup
+    const { data: post } = await supabaseAdmin
+        .from('blog_posts')
+        .select('content, cover_image')
+        .eq('id', id)
+        .single();
+
+    if (post) {
+        // Extract all image URLs
+        const matches = (post.content || '').match(/<img[^>]+src=["']([^"']+)["']/gi) || [];
+        const contentUrls = matches.map((m: string) => {
+            const srcMatch = m.match(/src=["']([^"']+)["']/);
+            return srcMatch ? srcMatch[1] : '';
+        }).filter(Boolean);
+        
+        const allUrls = [...contentUrls, post.cover_image].filter(Boolean);
+        
+        if (allUrls.length > 0) {
+            const cdnBase = process.env.NEXT_PUBLIC_CDN_URL || '';
+            const relativePaths = allUrls.map((url: string) => cdnBase ? url.replace(cdnBase, '') : url);
+            
+            try {
+                const baseUrl = request.headers.get('origin') || `http://${request.headers.get('host')}`;
+                await fetch(`${baseUrl}/api/upload/cleanup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: relativePaths })
+                });
+            } catch (err) {
+                console.error('[DELETE Blog] Failed to cleanup images:', err);
+            }
+        }
+    }
+
     const { error } = await supabaseAdmin
         .from('blog_posts')
         .delete()

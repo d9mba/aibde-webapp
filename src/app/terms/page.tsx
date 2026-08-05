@@ -2,22 +2,22 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
     title: 'Terms and Conditions | AI Tools Directory',
-    description: 'Read the AiBDE Terms and Conditions. Understand your rights and responsibilities when using our AI tools directory and services.',
-    keywords: 'AiBDE terms, terms of service, user agreement, AI tools directory terms, conditions of use',
+    description: 'Read the BrowseForAI Terms and Conditions. Understand your rights and responsibilities when using our AI tools directory and services.',
+    keywords: 'BrowseForAI terms, terms of service, user agreement, AI tools directory terms, conditions of use',
     openGraph: {
         title: 'Terms and Conditions | AI Tools Directory',
-        description: 'Read the AiBDE Terms and Conditions.',
+        description: 'Read the BrowseForAI Terms and Conditions.',
         type: 'website',
-        siteName: 'AiBDE',
-        url: 'https://aibde.tech/terms',
+        siteName: 'BrowseForAI',
+        url: 'https://www.browseforai.com/terms',
     },
     twitter: {
         card: 'summary',
         title: 'Terms and Conditions | AI Tools Directory',
-        description: 'Read the AiBDE Terms and Conditions.',
+        description: 'Read the BrowseForAI Terms and Conditions.',
     },
     alternates: {
-        canonical: 'https://aibde.tech/terms',
+        canonical: 'https://www.browseforai.com/terms',
     },
 };
 
@@ -32,9 +32,9 @@ export default function TermsPage() {
                 <section>
                     <h2 className="text-xl font-semibold text-text-primary mb-3">Introduction and Acceptance</h2>
                     <p className="leading-relaxed">
-                        Welcome to AIBDE, a platform dedicated to helping users discover AI tools and resources.
+                        Welcome to BrowseForAI, a platform dedicated to helping users discover AI tools and resources.
                         These Terms and Conditions (&quot;Terms&quot;) govern your access to and use of our website and
-                        services. By accessing or using AIBDE, you agree to be bound by these Terms.
+                        services. By accessing or using BrowseForAI, you agree to be bound by these Terms.
                     </p>
                 </section>
 
@@ -42,7 +42,7 @@ export default function TermsPage() {
                 <section>
                     <h2 className="text-xl font-semibold text-text-primary mb-3">1. User Eligibility</h2>
                     <p className="leading-relaxed">
-                        The website is intended for individuals who are at least 13 years old. By using AIBDE,
+                        The website is intended for individuals who are at least 13 years old. By using BrowseForAI,
                         you represent that you meet this age requirement. If you are under 18, you should
                         review these Terms with a parent or guardian.
                     </p>
@@ -51,7 +51,7 @@ export default function TermsPage() {
                 {/* Use of Service */}
                 <section>
                     <h2 className="text-xl font-semibold text-text-primary mb-3">2. Use of Service</h2>
-                    <p className="mb-3">You agree to use AIBDE only for lawful purposes. You may not:</p>
+                    <p className="mb-3">You agree to use BrowseForAI only for lawful purposes. You may not:</p>
                     <ul className="list-disc pl-6 space-y-2">
                         <li>Use the service for any illegal or unauthorized purpose</li>
                         <li>Attempt to gain unauthorized access to our systems</li>
@@ -76,8 +76,8 @@ export default function TermsPage() {
                 <section>
                     <h2 className="text-xl font-semibold text-text-primary mb-3">4. Intellectual Property</h2>
                     <p className="leading-relaxed">
-                        All content on AIBDE, including text, graphics, logos, and software, is the property
-                        of AIBDE or its content suppliers and is protected by intellectual property laws.
+                        All content on BrowseForAI, including text, graphics, logos, and software, is the property
+                        of BrowseForAI or its content suppliers and is protected by intellectual property laws.
                         Tool listings and their associated content belong to their respective owners.
                     </p>
                 </section>
@@ -86,7 +86,7 @@ export default function TermsPage() {
                 <section>
                     <h2 className="text-xl font-semibold text-text-primary mb-3">5. Third-Party Links</h2>
                     <p className="leading-relaxed">
-                        AIBDE contains links to third-party AI tools and websites. We are not responsible for
+                        BrowseForAI contains links to third-party AI tools and websites. We are not responsible for
                         the content, accuracy, or practices of these external sites. Inclusion in our directory
                         does not constitute endorsement.
                     </p>
@@ -96,7 +96,7 @@ export default function TermsPage() {
                 <section>
                     <h2 className="text-xl font-semibold text-text-primary mb-3">6. Disclaimer</h2>
                     <p className="leading-relaxed">
-                        AIBDE is provided &quot;as is&quot; without warranties of any kind, express or implied.
+                        BrowseForAI is provided &quot;as is&quot; without warranties of any kind, express or implied.
                         We do not guarantee the accuracy, completeness, or reliability of any information
                         on the site. Use of any AI tool listed is at your own risk.
                     </p>
@@ -106,7 +106,7 @@ export default function TermsPage() {
                 <section>
                     <h2 className="text-xl font-semibold text-text-primary mb-3">7. Limitation of Liability</h2>
                     <p className="leading-relaxed">
-                        To the fullest extent permitted by law, AIBDE shall not be liable for any indirect,
+                        To the fullest extent permitted by law, BrowseForAI shall not be liable for any indirect,
                         incidental, special, consequential, or punitive damages arising from your use of
                         our service or any linked third-party tools.
                     </p>
@@ -117,7 +117,7 @@ export default function TermsPage() {
                     <h2 className="text-xl font-semibold text-text-primary mb-3">8. Changes to Terms</h2>
                     <p className="leading-relaxed">
                         We reserve the right to modify these Terms at any time. We will update the
-                        &quot;Last updated&quot; date when changes are made. Continued use of AIBDE after changes
+                        &quot;Last updated&quot; date when changes are made. Continued use of BrowseForAI after changes
                         constitutes acceptance of the new Terms.
                     </p>
                 </section>
@@ -127,7 +127,7 @@ export default function TermsPage() {
                     <h2 className="text-xl font-semibold text-text-primary mb-3">9. Contact Us</h2>
                     <p className="leading-relaxed">
                         If you have any questions about these Terms, please contact us at{' '}
-                        <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a>
+                        <a href="mailto:support@browseforai.com" className="text-accent-primary hover:underline">support@browseforai.com</a>
                     </p>
                 </section>
             </div>

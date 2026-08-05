@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
             'AI search engine',
             'compare AI tools',
             'AI tools comparison',
-            'AiBDE search',
+            'BrowseForAI search',
         ].join(', '),
         openGraph: {
             title,

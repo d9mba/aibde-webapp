@@ -18,7 +18,7 @@ export async function generateMetadata({
 
     if (!tool) {
         return {
-            title: 'Tool Not Found | AiBDE',
+            title: 'Tool Not Found | BrowseForAI',
             description: 'The requested AI tool could not be found.',
         };
     }
@@ -33,7 +33,7 @@ export async function generateMetadata({
     const categoryLabel = tool.categoryName?.[0] || 'AI Tool';
     const taskLabels = tool.taskName?.slice(0, 3) || [];
     const year = new Date().getFullYear();
-    const suffix = ` | AiBDE`;
+    const suffix = ` | BrowseForAI`;
     // Cap name to prevent titles exceeding ~60 chars
     const maxNameLen = 30;
     const displayName = tool.name.length > maxNameLen
@@ -47,7 +47,7 @@ export async function generateMetadata({
             : tool.summary)
         : categoryLabel;
 
-    // Title format: "[Tool Name] – [Summary] | AiBDE"
+    // Title format: "[Tool Name] – [Summary] | BrowseForAI"
     const title = `${prefix}${shortSummary}${suffix}`;
 
     // Description: mentions competitors and use cases for SERP visibility
@@ -77,7 +77,7 @@ export async function generateMetadata({
             ...(tool.tags || []),
             'AI tool',
             'best AI tools',
-            'AiBDE'
+            'BrowseForAI'
         ].join(', '),
         openGraph: {
             title,

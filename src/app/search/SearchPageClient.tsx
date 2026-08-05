@@ -263,8 +263,8 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10">
             {/* Hero Section - Matching main page style */}
             <section className="text-center flex flex-col items-center gap-4 py-8 mb-8">
-                <h1 className="font-orbitron text-5xl sm:text-6xl font-bold text-text-primary tracking-wider lowercase m-0">
-                    aibde
+                <h1 className="font-orbitron text-4xl sm:text-5xl font-bold text-text-primary tracking-wider lowercase m-0">
+                    BrowseForAI
                 </h1>
                 <p className="font-orbitron text-text-secondary text-sm sm:text-base -mt-2 tracking-wide">Browse, Discover, Explore</p>
                 <p className="text-text-tertiary text-xs sm:text-sm -mt-2">

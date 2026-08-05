@@ -201,7 +201,7 @@ export default function TopHeader() {
                     {/* Logo */}
                     <Link href="/" prefetch={false} className="flex items-center gap-2 no-underline flex-shrink-0">
                         <span className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight font-orbitron">
-                            aibde
+                            BrowseForAI
                         </span>
                     </Link>
 

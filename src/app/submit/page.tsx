@@ -128,7 +128,7 @@ const FOUNDER_REVIEWS = [
     {
         name: 'Sarah Chen',
         role: 'Founder, CodePilot AI',
-        quote: 'AiBDE drove consistent organic traffic to our tool page from day one. Best ROI for any directory listing.',
+        quote: 'BrowseForAI drove consistent organic traffic to our tool page from day one. Best ROI for any directory listing.',
     },
     {
         name: 'Marcus Rivera',
@@ -225,7 +225,7 @@ function MarqueeToolCards({ tools }: { tools: RecentTool[] }) {
                             </div>
                         </div>
                         <p className="mt-3 line-clamp-2 text-sm text-[var(--text-secondary)]">
-                            {tool.summary || 'AI tool listed on AiBDE.'}
+                            {tool.summary || 'AI tool listed on BrowseForAI.'}
                         </p>
                     </Link>
                 ))}
@@ -464,10 +464,10 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                     <div>
                         <p className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
                             <Sparkles className="h-3.5 w-3.5 text-[var(--accent-primary)]" />
-                            AiBDE Tool Launch Portal
+                            BrowseForAI Tool Launch Portal
                         </p>
                         <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-5xl lg:text-6xl lg:leading-[1.05]">
-                            Launch Your AI Tool on AiBDE
+                            Launch Your AI Tool on BrowseForAI
                         </h1>
                         <p className="mt-4 max-w-xl text-base leading-relaxed text-[var(--text-secondary)] md:text-lg">
                             Reach developers, founders, and businesses actively looking for innovative AI products.
@@ -478,7 +478,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                 <ArrowRight className="h-4 w-4" />
                             </button>
                             <a href="#proof" className="submit-btn-secondary inline-flex items-center gap-2 px-7 py-3.5">
-                                Why Founders Choose AiBDE
+                                Why Founders Choose BrowseForAI
                             </a>
                         </div>
                         <div className="mt-8 flex flex-wrap gap-2">
@@ -505,10 +505,10 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                 </div>
             </section>
 
-            {/* ── Why Founders Choose AiBDE ── */}
+            {/* ── Why Founders Choose BrowseForAI ── */}
             <section id="proof" className="scroll-mt-24 border-b border-[var(--border-color)] px-4 py-14">
                 <div className="mx-auto max-w-6xl">
-                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Why Founders Choose AiBDE</h2>
+                    <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Why Founders Choose BrowseForAI</h2>
                     <p className="mt-1 text-sm text-[var(--text-secondary)]">Everything you need to grow your AI tool&apos;s reach.</p>
 
                     <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -556,7 +556,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
             <section className="border-b border-[var(--border-color)] px-4 py-14">
                 <div className="mx-auto max-w-6xl">
                     <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">What Founders Say</h2>
-                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Hear from builders who launched on AiBDE.</p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Hear from builders who launched on BrowseForAI.</p>
 
                     <div className="mt-6 grid gap-5 md:grid-cols-3">
                         {FOUNDER_REVIEWS.map((review) => (
@@ -583,7 +583,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
             <section className="border-b border-[var(--border-color)] px-4 py-14">
                 <div className="mx-auto max-w-6xl">
                     <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Recently Submitted Tools</h2>
-                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Social proof from builders already launching on AiBDE.</p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Social proof from builders already launching on BrowseForAI.</p>
 
                     <div className="mt-6">
                         {toolsLoading ? (
@@ -608,7 +608,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                 <div className="mx-auto max-w-6xl">
                     <h2 className="text-center text-2xl font-bold tracking-tight text-[var(--text-primary)]">Choose Your Plan</h2>
                     <p className="mt-1 text-center text-sm text-[var(--text-secondary)]">
-                        Every plan includes a permanent listing in the AiBDE directory.
+                        Every plan includes a permanent listing in the BrowseForAI directory.
                     </p>
 
                     <div className="mt-8 grid gap-5 md:grid-cols-3">
@@ -676,7 +676,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                             Need a tailored launch strategy, custom placement, or bulk submissions? We&apos;ll create a plan that fits your goals.
                         </p>
                         <a
-                            href="mailto:support@aibde.tech?subject=Custom Launch Inquiry"
+                            href="mailto:support@browseforai.com?subject=Custom Launch Inquiry"
                             className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--accent-primary)] px-6 py-2.5 text-sm font-semibold text-[var(--accent-primary)] transition hover:bg-[var(--accent-primary)] hover:text-white"
                         >
                             Contact Us
@@ -1148,7 +1148,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                                         <Users className="mt-0.5 h-4 w-4 text-[var(--accent-primary)]" />
                                         <div>
                                             <p className="text-sm font-medium text-[var(--text-primary)]">Directory Publish</p>
-                                            <p className="text-xs text-[var(--text-secondary)]">Approved tools appear in the AiBDE directory and category/task discovery.</p>
+                                            <p className="text-xs text-[var(--text-secondary)]">Approved tools appear in the BrowseForAI directory and category/task discovery.</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-3 rounded-xl border border-[var(--border-color)] p-3">
@@ -1171,13 +1171,13 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
                     <h2 className="pt-6 text-2xl font-bold tracking-tight text-[var(--text-primary)]">Frequently Asked Questions</h2>
                     <div className="mt-3">
                         <FAQItem question="How long does approval take?">Most submissions are manually reviewed and published within 24–48 hours. We&apos;ll notify you by email once your tool is live in the directory.</FAQItem>
-                        <FAQItem question="Can I edit my listing later?">Yes. Email support@aibde.tech with your tool name and the changes you&apos;d like. We&apos;ll update the listing within 24–48 hours.</FAQItem>
+                        <FAQItem question="Can I edit my listing later?">Yes. Email support@browseforai.com with your tool name and the changes you&apos;d like. We&apos;ll update the listing within 24–48 hours.</FAQItem>
                         <FAQItem question="Do you offer featured placements?">Yes! Our Featured plan ($249) gives you homepage visibility and priority category ranking for maximum exposure.</FAQItem>
                         <FAQItem question="Is there a free listing option?">We currently offer three paid plans starting at $49. Each plan ensures manual review and a permanent listing in our directory.</FAQItem>
                         <FAQItem question="What&apos;s the difference between Basic, Verified, and Featured?">Basic ($49) gets you listed with standard SEO. Verified ($99) adds a blue verified badge, priority review, and social mention. Featured ($249) includes a gold badge, 7-day homepage placement, and priority ranking.</FAQItem>
-                        <FAQItem question="Can I get a refund?">If your tool is not approved after review, we offer a full refund. Contact support@aibde.tech for assistance.</FAQItem>
+                        <FAQItem question="Can I get a refund?">If your tool is not approved after review, we offer a full refund. Contact support@browseforai.com for assistance.</FAQItem>
                         <FAQItem question="What categories do you support?">We support all AI categories except adult content or NSFW. If your tool doesn&apos;t fit the current list, select &quot;Other&quot; and specify your category.</FAQItem>
-                        <FAQItem question="How does AiBDE help with SEO?">Every listing gets a dedicated page with structured data, FAQ schema, meta tags, and internal linking — helping your tool rank in Google search results.</FAQItem>
+                        <FAQItem question="How does BrowseForAI help with SEO?">Every listing gets a dedicated page with structured data, FAQ schema, meta tags, and internal linking — helping your tool rank in Google search results.</FAQItem>
                         <FAQItem question="Do you verify the tools you list?">Yes. Our editorial review team manually reviews each submission for quality, functionality, and relevance before it goes live.</FAQItem>
                         <FAQItem question="Can I submit multiple tools?">Absolutely! Each tool requires a separate submission and plan.</FAQItem>
                     </div>
@@ -1188,7 +1188,7 @@ function SubmitPageContent({ isPreview }: { isPreview: boolean }) {
             <section className="px-4 py-16 md:py-20">
                 <div className="mx-auto max-w-4xl rounded-3xl border border-[var(--border-color)] bg-[var(--bg-card)] p-8 text-center">
                     <h2 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-4xl">Launch your AI tool today.</h2>
-                    <p className="mt-3 text-sm text-[var(--text-secondary)] md:text-base">Join the growing community of AI builders on AiBDE.</p>
+                    <p className="mt-3 text-sm text-[var(--text-secondary)] md:text-base">Join the growing community of AI builders on BrowseForAI.</p>
                     <button type="button" onClick={scrollToForm} className="submit-btn-primary mt-8 inline-flex items-center gap-2 px-8 py-3.5">
                         Submit Your Tool
                         <Sparkles className="h-4 w-4" />

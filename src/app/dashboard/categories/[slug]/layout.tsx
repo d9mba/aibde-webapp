@@ -15,7 +15,7 @@ export async function generateMetadata({
 
     if (normalizedSlug === 'new') {
         return {
-            title: 'Add New Category - Dashboard | AIBDE',
+            title: 'Add New Category - Dashboard | BrowseForAI',
         };
     }
 
@@ -25,7 +25,7 @@ export async function generateMetadata({
 
         if (category?.categoryName) {
             return {
-                title: `${category.categoryName} - Edit Category | AIBDE`,
+                title: `${category.categoryName} - Edit Category | BrowseForAI`,
             };
         }
     } catch (e) {
@@ -33,7 +33,7 @@ export async function generateMetadata({
     }
 
     return {
-        title: 'Edit Category - Dashboard | AIBDE',
+        title: 'Edit Category - Dashboard | BrowseForAI',
     };
 }
 

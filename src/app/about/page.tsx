@@ -2,9 +2,9 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
     title: 'About | AI Tools Directory Mission & Vision',
-    description: 'Learn about AiBDE - your trusted AI tools directory. Our mission is to make AI accessible by curating the best AI tools for writing, design, coding, marketing, and productivity.',
+    description: 'Learn about BrowseForAI - your trusted AI tools directory. Our mission is to make AI accessible by curating the best AI tools for writing, design, coding, marketing, and productivity.',
     keywords: [
-        'about AiBDE',
+        'about BrowseForAI',
         'AI tools directory',
         'AI discovery platform',
         'find AI tools',
@@ -12,29 +12,29 @@ export const metadata: Metadata = {
     ].join(', '),
     openGraph: {
         title: 'About | AI Tools Directory',
-        description: 'Learn about AiBDE - your trusted AI tools directory. Our mission is to make AI accessible to everyone.',
+        description: 'Learn about BrowseForAI - your trusted AI tools directory. Our mission is to make AI accessible to everyone.',
         type: 'website',
-        siteName: 'AiBDE',
-        url: 'https://aibde.tech/about',
+        siteName: 'BrowseForAI',
+        url: 'https://www.browseforai.com/about',
     },
     twitter: {
         card: 'summary',
         title: 'About | AI Tools Directory',
-        description: 'Learn about AiBDE - your trusted AI tools directory.',
+        description: 'Learn about BrowseForAI - your trusted AI tools directory.',
     },
     alternates: {
-        canonical: 'https://aibde.tech/about',
+        canonical: 'https://www.browseforai.com/about',
     },
 };
 
 export default function AboutPage() {
     return (
         <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-12 sm:py-16">
-            <h1 className="text-3xl sm:text-4xl font-bold text-text-primary mb-6">About AiBDE</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-text-primary mb-6">About BrowseForAI</h1>
 
             <div className="prose prose-lg text-text-secondary space-y-6">
                 <p>
-                    AiBDE is your go-to directory for discovering the best AI tools for your everyday tasks.
+                    BrowseForAI is your go-to directory for discovering the best AI tools for your everyday tasks.
                     We curate and organize AI-powered applications across various categories to help you find
                     the perfect tool for any job.
                 </p>
@@ -58,7 +58,7 @@ export default function AboutPage() {
                 <h2 className="text-xl font-semibold text-text-primary mt-8 mb-4">Contact Us</h2>
                 <p>
                     Have questions or suggestions? We&apos;d love to hear from you!
-                    Reach out to us at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a>.
+                    Reach out to us at <a href="mailto:support@browseforai.com" className="text-accent-primary hover:underline">support@browseforai.com</a>.
                 </p>
             </div>
         </div>

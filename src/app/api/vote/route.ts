@@ -15,7 +15,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Apply rate limiting
-    const cookieToken = request.cookies.get('aibde_voter_id')?.value;
+    const cookieToken = request.cookies.get('browseforai_voter_id')?.value;
     let deviceToken = cookieToken;
     let generatedNewToken = false;
 
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     if (generatedNewToken) {
-        response.cookies.set('aibde_voter_id', deviceToken, {
+        response.cookies.set('browseforai_voter_id', deviceToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             maxAge: 60 * 60 * 24 * 365, // 1 year

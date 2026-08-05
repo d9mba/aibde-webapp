@@ -238,7 +238,7 @@ export default function ToolDetailClient({
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)
                 }
-                url={typeof window !== 'undefined' ? window.location.href : (tool.appUsername ? `https://www.aibde.tech/app/${tool.appUsername}` : 'https://www.aibde.tech')}
+                url={typeof window !== 'undefined' ? window.location.href : (tool.appUsername ? `https://www.browseforai.com/app/${tool.appUsername}` : 'https://www.browseforai.com')}
                 title={tool.name}
                 description={tool.summary}
             />

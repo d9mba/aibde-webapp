@@ -1,8 +1,8 @@
-# AIBDE - AI Tool Directory
+# BrowseForAI - AI Tool Directory
 
 A modern, production-ready AI tool directory built with Next.js 16, Supabase, and Clerk authentication. Features 10,000+ AI tools with advanced search, categories, and admin dashboard.
 
-**Live Site:** https://www.aibde.tech
+**Live Site:** https://www.browseforai.com
 
 ---
 
@@ -444,11 +444,11 @@ R2_ACCESS_KEY_ID=xxx
 R2_SECRET_ACCESS_KEY=xxx
 R2_BUCKET_NAME=aibde-webapp-prod
 R2_DEV_URL=https://pub-xxx.r2.dev
-NEXT_PUBLIC_CDN_URL=https://cdn.aibde.tech
+NEXT_PUBLIC_CDN_URL=https://cdn.browseforai.com
 
 # PostHog Analytics
 NEXT_PUBLIC_POSTHOG_KEY=phc_xxx
-NEXT_PUBLIC_POSTHOG_HOST=https://e.aibde.tech
+NEXT_PUBLIC_POSTHOG_HOST=https://us.posthog.com
 POSTHOG_PERSONAL_API_KEY=phx_xxx
 POSTHOG_PROJECT_ID=xxx
 
@@ -499,5 +499,5 @@ rm -rf .next && npm run dev
 
 ## 📞 Contact
 
-- **Website:** https://www.aibde.tech
-- **Email:** support@aibde.tech
+- **Website:** https://www.browseforai.com
+- **Email:** support@browseforai.com

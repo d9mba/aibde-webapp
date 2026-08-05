@@ -19,18 +19,18 @@ export async function generateMetadata(): Promise<Metadata> {
         keywords: [
             'new AI tools',
             'latest AI tools',
-            'AI tools 2025',
+            'AI tools 2026',
             'new AI releases',
             'recently launched AI',
             'AI software new',
-            'AiBDE',
+            'BrowseForAI',
         ].join(', '),
         openGraph: {
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: 'https://aibde.tech/new',
+            siteName: 'BrowseForAI',
+            url: 'https://www.browseforai.com/new',
         },
         twitter: {
             card: 'summary_large_image',
@@ -38,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
             description,
         },
         alternates: {
-            canonical: 'https://aibde.tech/new',
+            canonical: 'https://www.browseforai.com/new',
         },
     };
 }

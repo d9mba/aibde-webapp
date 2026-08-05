@@ -16,13 +16,13 @@ export async function generateMetadata({
     // Handle 'new' route
     if (id === 'new') {
         return {
-            title: 'Add New Tool - Dashboard | AIBDE',
+            title: 'Add New Tool - Dashboard | BrowseForAI',
         };
     }
 
     // Skip DB query for malformed IDs
     if (!UUID_RE.test(id)) {
-        return { title: 'Edit Tool - Dashboard | AIBDE' };
+        return { title: 'Edit Tool - Dashboard | BrowseForAI' };
     }
 
     try {
@@ -36,7 +36,7 @@ export async function generateMetadata({
             console.error('Failed to fetch tool name for metadata:', error, { id });
         } else if (tool?.name) {
             return {
-                title: `${tool.name} - Edit Tool | AIBDE`,
+                title: `${tool.name} - Edit Tool | BrowseForAI`,
             };
         }
     } catch (e) {
@@ -45,7 +45,7 @@ export async function generateMetadata({
     }
 
     return {
-        title: 'Edit Tool - Dashboard | AIBDE',
+        title: 'Edit Tool - Dashboard | BrowseForAI',
     };
 }
 

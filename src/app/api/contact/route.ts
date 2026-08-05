@@ -120,7 +120,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     body: JSON.stringify({
                         ...formData,
                         timestamp: new Date().toISOString(),
-                        source: 'aibde-contact-form',
+                        source: 'browseforai-contact-form',
                     }),
                 });
 

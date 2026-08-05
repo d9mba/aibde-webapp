@@ -2,22 +2,22 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
     title: 'Privacy Policy | AI Tools Directory',
-    description: 'Read the AiBDE Privacy Policy. Learn how we collect, use, and protect your personal information when using our AI tools directory.',
-    keywords: 'AiBDE privacy policy, data protection, cookie policy, personal data, AI tools directory privacy',
+    description: 'Read the BrowseForAI Privacy Policy. Learn how we collect, use, and protect your personal information when using our AI tools directory.',
+    keywords: 'BrowseForAI privacy policy, data protection, cookie policy, personal data, AI tools directory privacy',
     openGraph: {
         title: 'Privacy Policy | AI Tools Directory',
-        description: 'Read the AiBDE Privacy Policy. Learn how we protect your data.',
+        description: 'Read the BrowseForAI Privacy Policy. Learn how we protect your data.',
         type: 'website',
-        siteName: 'AiBDE',
-        url: 'https://aibde.tech/privacy',
+        siteName: 'BrowseForAI',
+        url: 'https://www.browseforai.com/privacy',
     },
     twitter: {
         card: 'summary',
         title: 'Privacy Policy | AI Tools Directory',
-        description: 'Read the AiBDE Privacy Policy.',
+        description: 'Read the BrowseForAI Privacy Policy.',
     },
     alternates: {
-        canonical: 'https://aibde.tech/privacy',
+        canonical: 'https://www.browseforai.com/privacy',
     },
 };
 
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
                 <section>
                     <h2 className="text-xl font-semibold text-text-primary mb-3">1. Introduction</h2>
                     <p className="leading-relaxed">
-                        This Privacy Policy explains how AIBDE (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) processes your
+                        This Privacy Policy explains how BrowseForAI (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) processes your
                         personal data when you use our website. We value the protection of your data and are
                         committed to transparency about how we collect and use information.
                     </p>
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
                     <h2 className="text-xl font-semibold text-text-primary mb-3">8. Contact Us</h2>
                     <p className="leading-relaxed">
                         If you have any questions about this Privacy Policy, please contact us at{' '}
-                        <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a>
+                        <a href="mailto:support@browseforai.com" className="text-accent-primary hover:underline">support@browseforai.com</a>
                     </p>
                 </section>
             </div>

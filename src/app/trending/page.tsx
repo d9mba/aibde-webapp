@@ -24,14 +24,14 @@ export async function generateMetadata(): Promise<Metadata> {
             'AI tools ranking',
             'most used AI tools',
             'viral AI tools',
-            'AiBDE',
+            'BrowseForAI',
         ].join(', '),
         openGraph: {
             title,
             description,
             type: 'website',
-            siteName: 'AiBDE',
-            url: 'https://aibde.tech/trending',
+            siteName: 'BrowseForAI',
+            url: 'https://www.browseforai.com/trending',
         },
         twitter: {
             card: 'summary_large_image',
@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
             description,
         },
         alternates: {
-            canonical: 'https://aibde.tech/trending',
+            canonical: 'https://www.browseforai.com/trending',
         },
     };
 }

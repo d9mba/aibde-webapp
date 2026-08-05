@@ -3,7 +3,7 @@
  * Shared across submit-tool and payments/retry endpoints.
  */
 
-const ALLOWED_ORIGINS: string[] = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://aibde.tech,https://www.aibde.tech')
+const ALLOWED_ORIGINS: string[] = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://browseforai.com,https://www.browseforai.com')
     .split(',')
     .map(o => o.trim())
     .filter(Boolean);

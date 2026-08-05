@@ -485,8 +485,8 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
             )}
             <p className="text-sm text-[var(--text-tertiary)]">
                 Need help? Email us at{' '}
-                <a href="mailto:support@aibde.tech" className="font-medium text-[var(--accent-primary)] hover:underline">
-                    support@aibde.tech
+                <a href="mailto:support@browseforai.com" className="font-medium text-[var(--accent-primary)] hover:underline">
+                    support@browseforai.com
                 </a>
             </p>
             <p className="text-xs italic text-[var(--text-tertiary)]">
@@ -572,7 +572,7 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                                 <RetryPaymentButton submissionId={submissionId} />
                             </div>
                             <a
-                                href="mailto:support@aibde.tech?subject=Payment%20Failed%20-%20Submission"
+                                href="mailto:support@browseforai.com?subject=Payment%20Failed%20-%20Submission"
                                 className="submit-btn-secondary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium"
                             >
                                 <Mail className="h-4 w-4" />
@@ -636,8 +636,8 @@ export default async function SubmitResultPage({ params, searchParams }: ResultP
                         </p>
                         <p className="mt-4 text-center text-xs text-[var(--text-tertiary)]">
                             If you believe this is an error, contact{' '}
-                            <a href="mailto:support@aibde.tech" className="font-medium text-[var(--accent-primary)] hover:underline">
-                                support@aibde.tech
+                            <a href="mailto:support@browseforai.com" className="font-medium text-[var(--accent-primary)] hover:underline">
+                                support@browseforai.com
                             </a>
                         </p>
                         <div className="mt-8 flex flex-wrap justify-center gap-3">

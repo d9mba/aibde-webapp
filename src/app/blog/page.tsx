@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     description: 'Discover the best AI tools for 2026. Read guides, comparisons, and in-depth reviews of top AI tools for writing, design, coding, marketing, and more.',
     keywords: ['AI tools blog', 'best AI tools 2026', 'AI tools comparison', 'top AI tools', 'AI guides'],
     openGraph: {
-        title: 'Blog — Best AI Tools, Guides & Comparisons | AiBDE',
+        title: 'Blog — Best AI Tools, Guides & Comparisons | BrowseForAI',
         description: 'Discover the best AI tools for 2026. Read guides, comparisons, and in-depth reviews.',
         url: `${SEO.siteUrl}/blog`,
         type: 'website',

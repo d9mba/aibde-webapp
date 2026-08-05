@@ -44,7 +44,7 @@ function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
             {isOpen && (
                 <div className="absolute left-0 top-full mt-1 py-1 bg-bg-card border border-border rounded-lg shadow-lg z-50 min-w-[130px]">
                     <a
-                        href={`mailto:support@aibde.tech?subject=Report%20Issue%20with%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.appUsername}%0A%0AIssue:%20`}
+                        href={`mailto:support@browseforai.com?subject=Report%20Issue%20with%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://www.browseforai.com/app/${tool.appUsername}%0A%0AIssue:%20`}
                         className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-red transition-colors no-underline"
                         onClick={() => setIsOpen(false)}
                     >
@@ -54,7 +54,7 @@ function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
                         Report
                     </a>
                     <a
-                        href={`mailto:support@aibde.tech?subject=Claim%20Ownership%20of%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://aibde.com/app/${tool.appUsername}%0A%0AI%20am%20the%20owner/developer%20of%20this%20tool%20and%20would%20like%20to%20claim%20it.%0A%0AMy%20role:%20%0AProof%20of%20ownership:%20`}
+                        href={`mailto:support@browseforai.com?subject=Claim%20Ownership%20of%20${encodeURIComponent(tool.name)}&body=Tool%20URL:%20https://www.browseforai.com/app/${tool.appUsername}%0A%0AI%20am%20the%20owner/developer%20of%20this%20tool%20and%20would%20like%20to%20claim%20it.%0A%0AMy%20role:%20%0AProof%20of%20ownership:%20`}
                         className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-primary transition-colors no-underline"
                         onClick={() => setIsOpen(false)}
                     >
@@ -64,7 +64,7 @@ function MoreOptionsMenu({ tool }: { tool: AdminTool }) {
                         Claim
                     </a>
                     <a
-                        href={`mailto:support@aibde.tech?subject=Advertise%20on%20${encodeURIComponent(tool.name)}%20Page&body=Tool%20URL:%20https://aibde.com/app/${tool.appUsername}%0A%0AI%20am%20interested%20in%20advertising%20on%20this%20tool%20page.%0A%0ACompany:%20%0ABudget:%20%0ADetails:%20`}
+                        href={`mailto:support@browseforai.com?subject=Advertise%20on%20${encodeURIComponent(tool.name)}%20Page&body=Tool%20URL:%20https://www.browseforai.com/app/${tool.appUsername}%0A%0AI%20am%20interested%20in%20advertising%20on%20this%20tool%20page.%0A%0ACompany:%20%0ABudget:%20%0ADetails:%20`}
                         className="flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-bg-secondary hover:text-accent-primary transition-colors no-underline"
                         onClick={() => setIsOpen(false)}
                     >

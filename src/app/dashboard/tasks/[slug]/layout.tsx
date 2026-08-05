@@ -28,7 +28,7 @@ export async function generateMetadata({
 
     if (normalizedSlug === 'new') {
         return {
-            title: 'Add New Task - Dashboard | AIBDE',
+            title: 'Add New Task - Dashboard | BrowseForAI',
         };
     }
 
@@ -54,7 +54,7 @@ export async function generateMetadata({
 
         if (task?.taskName) {
             return {
-                title: `${task.taskName} - Edit Task | AIBDE`,
+                title: `${task.taskName} - Edit Task | BrowseForAI`,
             };
         }
     } catch (e) {
@@ -62,7 +62,7 @@ export async function generateMetadata({
     }
 
     return {
-        title: 'Edit Task - Dashboard | AIBDE',
+        title: 'Edit Task - Dashboard | BrowseForAI',
     };
 }
 

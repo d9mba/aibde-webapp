@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
         getTasksCount(),
     ]);
 
-    const title = `AiBDE - Browse, Discover, and Explore. Top AI Tools For Your Everyday Tasks`;
+    const title = `BrowseForAI - Browse, Discover, and Explore. Top AI Tools For Your Everyday Tasks`;
     const description = `Discover ${toolCount.toLocaleString()}+ AI tools across ${categoryCount} categories for ${taskCount}+ tasks. Find the best AI solutions for writing, design, coding, marketing, and more. Updated daily.`;
 
     const year = new Date().getFullYear();
@@ -52,7 +52,7 @@ export async function generateMetadata(): Promise<Metadata> {
             'AI for coding',
             'AI image generator',
             'ChatGPT alternatives',
-            'AiBDE',
+            'BrowseForAI',
         ].join(', '),
         openGraph: {
             title,

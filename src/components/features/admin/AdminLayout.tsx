@@ -167,7 +167,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         <div className="px-3 py-3.5 border-b border-border flex items-center justify-between">
                             <Link href="/dashboard" prefetch={false} className="flex items-center gap-2.5 no-underline">
                                 <span className="flex items-center justify-center w-8 h-8 flex-shrink-0 rounded-lg overflow-hidden">
-                                    <img src="/logo.png" alt="AIBDE" className="w-full h-full object-contain" />
+                                    <img src="/logo.png" alt="BrowseForAI" className="w-full h-full object-contain" />
                                 </span>
                                 <span className={cn(
                                     "text-[0.9375rem] font-semibold text-text-primary tracking-tight whitespace-nowrap transition-opacity duration-150",

@@ -26,21 +26,21 @@ export default function Footer() {
 
                             {/* Social Icons */}
                             <div className="flex items-center gap-4 justify-center lg:justify-start">
-                                <a href="mailto:support@aibde.tech" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Email">
+                                <a href="mailto:support@browseforai.com" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Email">
                                     <Mail size={18} />
                                 </a>
-                                <a href="https://instagram.com/aibde.official" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Instagram">
+                                <a href="https://instagram.com/browseforai.official" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Instagram">
                                     <Instagram size={18} />
                                 </a>
-                                {/* <a href="https://youtube.com/@aibde" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="YouTube">
+                                {/* <a href="https://youtube.com/@browseforai" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="YouTube">
                                     <Youtube size={18} />
                                 </a> */}
-                                <a href="https://x.com/aibde_Official" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="X/Twitter">
+                                <a href="https://x.com/browseforai_Official" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="X/Twitter">
                                     <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                                     </svg>
                                 </a>
-                                <a href="https://facebook.com/aibde.official" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Facebook">
+                                <a href="https://facebook.com/browseforai.official" target="_blank" rel="noopener noreferrer" className="text-text-tertiary hover:text-text-primary transition-colors" aria-label="Facebook">
                                     <Facebook size={18} />
                                 </a>
                             </div>
@@ -92,12 +92,12 @@ export default function Footer() {
                         <span
                             className="block text-text-primary leading-[0.85] select-none font-orbitron"
                             style={{
-                                fontSize: 'clamp(3.5rem, 12vw, 12rem)',
+                                fontSize: 'clamp(2.5rem, 9vw, 9rem)',
                                 fontWeight: 700,
-                                letterSpacing: '0.15em'
+                                letterSpacing: '0.05em'
                             }}
                         >
-                            aibde
+                            BrowseForAI
                         </span>
                     </Link>
                 </div>
@@ -105,7 +105,7 @@ export default function Footer() {
                 {/* Bottom Bar - Legal Links */}
                 <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-48 lg:pb-8 pt-6">
                     <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
-                        <span className="text-xs text-text-tertiary">© {new Date().getFullYear()} AIBDE</span>
+                        <span className="text-xs text-text-tertiary">© {new Date().getFullYear()} BrowseForAI</span>
                         <Link href="/about" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">About</Link>
                         <Link href="/contact" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">Contact</Link>
                         <Link href="/privacy" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">Privacy</Link>

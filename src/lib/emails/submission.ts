@@ -79,12 +79,12 @@ export async function sendSubmissionEmail(
     let html: string;
 
     if (type === 'success') {
-        subject = 'Thank you for submitting your AI tool to AiBDE';
+        subject = 'Thank you for submitting your AI tool to BrowseForAI';
         html = `
       <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #111827;">
         <p>Hello ${safeName},</p>
         <p>Thank you for your submission.</p>
-        <p>We have successfully received your purchase request for listing your tool on <strong>AiBDE</strong>.</p>
+        <p>We have successfully received your purchase request for listing your tool on <strong>BrowseForAI</strong>.</p>
         <h3 style="margin-top: 24px; margin-bottom: 8px;">Submission Details</h3>
         <ul style="padding-left: 20px; margin-top: 4px; margin-bottom: 16px;">
           <li><strong>Tool Name:</strong> ${safeToolName}</li>
@@ -93,16 +93,16 @@ export async function sendSubmissionEmail(
           ${safeRef ? `<li><strong>Submission ID:</strong> <code>${safeRef}</code></li>` : ''}
         </ul>
         <p>Our team will review your submission soon.</p>
-        <p>If your tool meets our guidelines, it will be published on <a href="https://www.aibde.tech" target="_blank">AiBDE.tech</a>.</p>
-        <p style="margin-top: 24px;">Best regards<br/>AiBDE Team<br/><a href="https://www.aibde.tech">https://www.aibde.tech</a></p>
+        <p>If your tool meets our guidelines, it will be published on <a href="https://browseforai.com" target="_blank">BrowseForAI.com</a>.</p>
+        <p style="margin-top: 24px;">Best regards<br/>BrowseForAI Team<br/><a href="https://browseforai.com">https://browseforai.com</a></p>
       </div>
     `;
     } else {
-        subject = 'Your AiBDE submission payment was not completed';
+        subject = 'Your BrowseForAI submission payment was not completed';
         html = `
       <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #111827;">
         <p>Hello ${safeName},</p>
-        <p>We noticed that your payment attempt for submitting a tool to <strong>AiBDE</strong> was not completed.</p>
+        <p>We noticed that your payment attempt for submitting a tool to <strong>BrowseForAI</strong> was not completed.</p>
         <h3 style="margin-top: 24px; margin-bottom: 8px;">Submission Details</h3>
         <ul style="padding-left: 20px; margin-top: 4px; margin-bottom: 16px;">
           <li><strong>Tool Name:</strong> ${safeToolName}</li>
@@ -110,16 +110,16 @@ export async function sendSubmissionEmail(
           ${safeRef ? `<li><strong>Submission ID:</strong> <code>${safeRef}</code></li>` : ''}
         </ul>
         <p>You may retry your submission again at any time.</p>
-        <p style="margin-top: 24px;">Best regards<br/>AiBDE Team</p>
+        <p style="margin-top: 24px;">Best regards<br/>BrowseForAI Team</p>
       </div>
     `;
     }
 
     try {
         const { data: emailData, error } = await resend.emails.send({
-            from: 'AiBDE <support@aibde.tech>',
+            from: 'BrowseForAI <support@browseforai.com>',
             to: submitter_email,
-            replyTo: 'support@aibde.tech',
+            replyTo: 'support@browseforai.com',
             subject,
             html,
         });

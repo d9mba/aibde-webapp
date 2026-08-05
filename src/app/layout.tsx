@@ -9,11 +9,11 @@ import '@/styles/tiptap.css';
 export const metadata: Metadata = {
     metadataBase: new URL(SEO.siteUrl),
     title: {
-        default: 'AiBDE - AI Tool Directory | Discover 10,000+ AI Tools',
-        template: '%s | AiBDE',
+        default: 'BrowseForAI - AI Tool Directory | Discover 10,000+ AI Tools',
+        template: '%s | BrowseForAI',
     },
     description: 'Discover and compare 10,000+ AI tools for writing, design, coding, marketing, and more. Browse by category and task. Updated daily.',
-    keywords: ['AI tools', 'AI directory', 'best AI tools', 'AI software', 'artificial intelligence tools', 'AiBDE'],
+    keywords: ['AI tools', 'AI directory', 'best AI tools', 'AI software', 'artificial intelligence tools', 'BrowseForAI'],
     applicationName: SEO.siteName,
     openGraph: {
         type: 'website',
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary_large_image',
-        site: '@aibde',
+        site: '@browseforai',
     },
     robots: {
         index: true,

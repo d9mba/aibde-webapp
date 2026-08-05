@@ -18,14 +18,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     if (!task) {
         return {
-            title: 'Task Not Found | AiBDE',
+            title: 'Task Not Found | BrowseForAI',
             description: 'The requested task could not be found.',
         };
     }
 
     // Get count efficiently (not loading all tools)
     const toolCount = await getToolsCountByTask(task.taskName);
-    const title = `${task.taskName} AI Tools | AiBDE`;
+    const title = `${task.taskName} AI Tools | BrowseForAI`;
     const description = task.description || `Find ${toolCount}+ best AI tools for ${task.taskName}. Compare top-rated AI solutions to automate and enhance your ${task.taskName.toLowerCase()} workflow.`;
 
     return {
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             `${task.taskName} AI tools`,
             `best ${task.taskName} tools`,
             'AI automation',
-            'AiBDE',
+            'BrowseForAI',
         ].join(', '),
         openGraph: {
             title,

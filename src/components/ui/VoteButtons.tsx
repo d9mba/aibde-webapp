@@ -10,7 +10,7 @@ interface VoteButtonsProps {
 }
 
 // Local storage key for tracking user votes
-const VOTE_STORAGE_KEY = 'aibde_votes';
+const VOTE_STORAGE_KEY = 'browseforai_votes';
 
 interface VoteRecord {
     [toolId: string]: 'up' | 'down';

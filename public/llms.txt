@@ -1,22 +1,22 @@
-# AiBDE
+# BrowseForAI
 
 > Discover and compare 10,000+ AI tools for writing, design, coding, marketing, and more. Browse by category and task.
 
-AiBDE is an AI tools directory. Find the best AI software for your workflow. Updated daily.
+BrowseForAI is an AI tools directory. Find the best AI software for your workflow. Updated daily.
 
 ## Main pages
 
-- [Home](https://www.aibde.tech/)
-- [Search AI tools](https://www.aibde.tech/search)
-- [Browse by category](https://www.aibde.tech/category)
-- [Browse by task](https://www.aibde.tech/tasks)
-- [New AI tools](https://www.aibde.tech/new)
-- [Trending AI tools](https://www.aibde.tech/trending)
-- [Submit a tool](https://www.aibde.tech/submit)
-- [About](https://www.aibde.tech/about)
-- [Contact](https://www.aibde.tech/contact)
+- [Home](https://www.browseforai.com/)
+- [Search AI tools](https://www.browseforai.com/search)
+- [Browse by category](https://www.browseforai.com/category)
+- [Browse by task](https://www.browseforai.com/tasks)
+- [New AI tools](https://www.browseforai.com/new)
+- [Trending AI tools](https://www.browseforai.com/trending)
+- [Submit a tool](https://www.browseforai.com/submit)
+- [About](https://www.browseforai.com/about)
+- [Contact](https://www.browseforai.com/contact)
 
 ## Optional
 
-- [Privacy Policy](https://www.aibde.tech/privacy)
-- [Terms of Service](https://www.aibde.tech/terms)
+- [Privacy Policy](https://www.browseforai.com/privacy)
+- [Terms of Service](https://www.browseforai.com/terms)

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAllSitemapIds } from '../sitemap';
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aibde.tech';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.browseforai.com';
 
 function escapeXml(str: string | number): string {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

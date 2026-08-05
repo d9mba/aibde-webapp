@@ -18,15 +18,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     if (!category) {
         return {
-            title: 'Category Not Found | AiBDE',
+            title: 'Category Not Found | BrowseForAI',
             description: 'The requested category could not be found.',
         };
     }
 
     // Get count efficiently (not loading all tools)
     const toolCount = await getToolsCountByCategory(category.categoryName);
-    const title = `${category.categoryName} AI Tools | AiBDE`;
-    const description = category.description || `Discover ${toolCount}+ best ${category.categoryName} AI tools. Compare features, pricing, and find the perfect AI solution for your ${category.categoryName.toLowerCase()} needs.`;
+    const title = `${category.categoryName} AI Tools | BrowseForAI`;
+    const description = category.description || `Discover ${toolCount}+ best AI tools for ${category.categoryName.toLowerCase()}. Compare top-rated AI solutions, features, and pricing to find the right tool for your needs.`;
 
     return {
         title,
@@ -35,9 +35,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             category.categoryName,
             `${category.categoryName} AI tools`,
             `best ${category.categoryName} tools`,
-            `${category.categoryName} software`,
-            'AI tools',
-            'AiBDE',
+            `top ${category.categoryName} software`,
+            'AI tools directory',
+            'BrowseForAI',
         ].join(', '),
         openGraph: {
             title,

@@ -146,7 +146,7 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
                     {sheetsError && (
                         <div className="mt-4 p-3 bg-accent-orange/10 border border-accent-orange/30 rounded-lg text-sm text-accent-orange">
                             We&apos;re currently experiencing a technical issue. If you don&apos;t hear from us, please email us directly at{' '}
-                            <a href="mailto:support@aibde.tech" className="font-semibold underline">support@aibde.tech</a>.
+                            <a href="mailto:support@browseforai.com" className="font-semibold underline">support@browseforai.com</a>.
                         </div>
                     )}
                 </div>
@@ -200,7 +200,7 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
 
                         <div>
                             <label className="block text-sm font-medium text-text-primary mb-1.5">Tool URL you are referring to</label>
-                            <input type="url" name="toolUrl" value={formData.toolUrl} onChange={handleChange} className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none" placeholder="https://aibde.com/app/..." />
+                            <input type="url" name="toolUrl" value={formData.toolUrl} onChange={handleChange} className="w-full px-4 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none" placeholder="https://www.browseforai.com/app/..." />
                         </div>
 
                         <div>
@@ -239,7 +239,7 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
 
             {/* Email Contact - Secondary Option */}
             <a
-                href="mailto:support@aibde.tech"
+                href="mailto:support@browseforai.com"
                 className="group flex items-center gap-4 p-6 bg-bg-card border border-border rounded-xl hover:border-accent-primary/50 hover:shadow-lg transition-all no-underline mb-12"
             >
                 <div className="w-12 h-12 rounded-xl bg-accent-primary/10 flex items-center justify-center text-accent-primary group-hover:bg-accent-primary group-hover:text-white transition-colors">
@@ -247,7 +247,7 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
                 </div>
                 <div>
                     <h3 className="text-lg font-semibold text-text-primary mb-0.5">Prefer to email directly?</h3>
-                    <span className="text-accent-primary font-medium text-sm">support@aibde.tech</span>
+                    <span className="text-accent-primary font-medium text-sm">support@browseforai.com</span>
                 </div>
             </a>
 
@@ -262,16 +262,16 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
                     Use our <Link href="/submit" className="text-accent-primary hover:underline">Submit Tool</Link> page to add your AI product. Fill in the required details and our team will review your submission within 48 hours.
                 </FAQItem>
 
-                <FAQItem question="How can I feature my tool on AiBDE?">
+                <FAQItem question="How can I feature my tool on BrowseForAI?">
                     You can feature your tool by selecting the "Featured" plan ($249) on our <Link href="/submit" className="text-accent-primary hover:underline">Submit Tool</Link> page. This gives you homepage visibility and priority category ranking for maximum exposure.
                 </FAQItem>
 
-                <FAQItem question="How can I advertise on AiBDE?">
-                    We offer various advertising options including banner ads, sponsored listings, and newsletter sponsorships. Email us at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a> for our media kit and rates.
+                <FAQItem question="How can I advertise on BrowseForAI?">
+                    We offer various advertising options including banner ads, sponsored listings, and newsletter sponsorships. Email us at <a href="mailto:support@browseforai.com" className="text-accent-primary hover:underline">support@browseforai.com</a> for our media kit and rates.
                 </FAQItem>
 
                 <FAQItem question="How do I update information about my AI tool?">
-                    Email us at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a> with your tool name and the changes you&apos;d like to make. We&apos;ll update the listing within 24-48 hours.
+                    Email us at <a href="mailto:support@browseforai.com" className="text-accent-primary hover:underline">support@browseforai.com</a> with your tool name and the changes you&apos;d like to make. We&apos;ll update the listing within 24-48 hours.
                 </FAQItem>
 
                 <FAQItem question="Is there a free listing option for my AI tool?">
@@ -282,12 +282,12 @@ function ContactPageContent({ isPreview }: { isPreview: boolean }) {
                     We typically review and approve submissions within 24-48 business hours. If we need additional information, we&apos;ll reach out via the email you provided.
                 </FAQItem>
 
-                <FAQItem question="Can I remove my tool from AiBDE?">
-                    Yes, you can request removal of your tool at any time. Simply email us at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a> with your tool name and we&apos;ll process the removal within 24 hours.
+                <FAQItem question="Can I remove my tool from BrowseForAI?">
+                    Yes, you can request removal of your tool at any time. Simply email us at <a href="mailto:support@browseforai.com" className="text-accent-primary hover:underline">support@browseforai.com</a> with your tool name and we&apos;ll process the removal within 24 hours.
                 </FAQItem>
 
                 <FAQItem question="Do you accept guest posts or sponsored content?">
-                    Yes, we do accept guest posts and sponsored content that are highly relevant to our AI audience. Contact us via the form above or at <a href="mailto:support@aibde.tech" className="text-accent-primary hover:underline">support@aibde.tech</a> to discuss options and guidelines.
+                    Yes, we do accept guest posts and sponsored content that are highly relevant to our AI audience. Contact us via the form above or at <a href="mailto:support@browseforai.com" className="text-accent-primary hover:underline">support@browseforai.com</a> to discuss options and guidelines.
                 </FAQItem>
 
                 <FAQItem question="What is the typical response time for inquiries?">

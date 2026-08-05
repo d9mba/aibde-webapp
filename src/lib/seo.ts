@@ -9,8 +9,8 @@ export function safeJsonLdStringify(data: unknown): string {
         .replace(/>/g, '\\u003e');
 }
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aibde.tech';
-const SITE_NAME = 'AiBDE';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.browseforai.com';
+const SITE_NAME = 'BrowseForAI';
 
 export const SEO = {
     siteUrl: SITE_URL,

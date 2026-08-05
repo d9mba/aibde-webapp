@@ -8,14 +8,14 @@ export const metadata: Metadata = {
     description: 'Stay updated with the latest AI news: model releases, startup launches, funding rounds, open-source breakthroughs, and industry trends. Updated in real-time.',
     keywords: ['AI news', 'AI updates', 'AI launches', 'AI models', 'AI funding', 'AI startups', 'AI industry news'],
     openGraph: {
-        title: 'AI News — Latest AI Launches & Breakthroughs | AiBDE',
+        title: 'AI News — Latest AI Launches & Breakthroughs | BrowseForAI',
         description: 'Stay updated with the latest AI news: model releases, startup launches, funding rounds, and more.',
         url: `${SEO.siteUrl}/news`,
         type: 'website',
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'AI News — Latest AI Launches & Breakthroughs | AiBDE',
+        title: 'AI News — Latest AI Launches & Breakthroughs | BrowseForAI',
         description: 'Stay updated with the latest AI news: model releases, startup launches, funding rounds, and more.',
     },
     alternates: {

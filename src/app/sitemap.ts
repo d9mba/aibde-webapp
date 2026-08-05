@@ -10,7 +10,7 @@ import {
 } from '@/lib/data';
 import { slugify } from '@/lib/utils';
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aibde.tech';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.browseforai.com';
 
 /** Max URLs per sitemap (smaller files = faster crawling by search engines). */
 const SITEMAP_PAGE_SIZE = 1000;

@@ -15,7 +15,7 @@ export async function generateMetadata({
 
     if (normalizedSlug === 'new') {
         return {
-            title: 'Add New Tag - Dashboard | AIBDE',
+            title: 'Add New Tag - Dashboard | BrowseForAI',
         };
     }
 
@@ -25,7 +25,7 @@ export async function generateMetadata({
 
         if (tag?.tagName) {
             return {
-                title: `${tag.tagName} - Edit Tag | AIBDE`,
+                title: `${tag.tagName} - Edit Tag | BrowseForAI`,
             };
         }
     } catch (e) {
@@ -33,7 +33,7 @@ export async function generateMetadata({
     }
 
     return {
-        title: 'Edit Tag - Dashboard | AIBDE',
+        title: 'Edit Tag - Dashboard | BrowseForAI',
     };
 }
 

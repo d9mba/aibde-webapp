@@ -137,8 +137,8 @@ export default function HeroSection({ toolCount, categoryCount, taskCount }: Her
 
     return (
         <section className="text-center flex flex-col items-center gap-4 py-8">
-            <h1 className="font-orbitron text-5xl sm:text-6xl font-bold text-text-primary tracking-wider lowercase m-0">
-                aibde
+            <h1 className="font-orbitron text-4xl sm:text-5xl font-bold text-text-primary tracking-wider lowercase m-0">
+                BrowseForAI
             </h1>
             <p className="font-orbitron text-text-secondary text-sm sm:text-base -mt-2 tracking-wide">Browse, Discover, Explore</p>
             <p className="text-text-tertiary text-xs sm:text-sm -mt-2">

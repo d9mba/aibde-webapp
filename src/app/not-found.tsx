@@ -11,7 +11,7 @@ import AIToolCard from '@/components/features/tools/ToolCard';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Page Not Found | AiBDE',
+    title: 'Page Not Found | BrowseForAI',
     description: 'The page you are looking for does not exist. Explore our collection of AI tools instead.',
 };
 

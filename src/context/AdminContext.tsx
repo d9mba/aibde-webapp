@@ -79,7 +79,7 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 const USE_API = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'your-project-url';
 
 // localStorage key for fallback
-const STORAGE_KEY = 'aibde_admin_data';
+const STORAGE_KEY = 'browseforai_admin_data';
 
 interface AdminProviderProps {
     children: ReactNode;

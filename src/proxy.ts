@@ -1,4 +1,4 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { clerkMiddleware } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 // SECURITY: HMAC-sign the admin_access cookie value with a timestamp to prevent replay
@@ -42,23 +42,32 @@ async function verifyCookieValue(cookieValue: string, secret: string): Promise<b
     return (Date.now() - timestamp) < COOKIE_MAX_AGE_MS;
 }
 
-// 1. Define Routes
-const isSecretEntry = createRouteMatcher(['/login/:secret']) // Matches /login/super-secret
-const isLoginPage = createRouteMatcher(['/login(.*)', '/sign-in(.*)']) // Matches /login, /login/factor-one
-const isPublicApiRoute = createRouteMatcher([
-    '/api/public(.*)',
-    '/api/vote',
-    '/api/submit-tool',
-    '/api/contact',
-    '/api/search',
-    '/api/tools/by-category',
-    '/api/tools/by-task',
-    // Payment retry must be publicly accessible for submitters
-    '/api/payments/retry',
-    // Dodo webhooks must be publicly accessible for the payment provider
-    '/api/dodo/webhook(.*)',
-])
-const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api(.*)'])
+// 1. Route Matching Helpers
+function matchSecretEntry(path: string): boolean {
+    return /^\/login\/[^/]+$/.test(path);
+}
+
+function matchLoginPage(path: string): boolean {
+    return path.startsWith('/login') || path.startsWith('/sign-in');
+}
+
+function matchPublicApiRoute(path: string): boolean {
+    return (
+        path.startsWith('/api/public') ||
+        path === '/api/vote' ||
+        path === '/api/submit-tool' ||
+        path === '/api/contact' ||
+        path === '/api/search' ||
+        path === '/api/tools/by-category' ||
+        path === '/api/tools/by-task' ||
+        path === '/api/payments/retry' ||
+        path.startsWith('/api/dodo/webhook')
+    );
+}
+
+function matchProtectedRoute(path: string): boolean {
+    return path.startsWith('/dashboard') || path.startsWith('/api');
+}
 
 export const proxy = clerkMiddleware(async (auth, req) => {
     const path = req.nextUrl.pathname
@@ -74,11 +83,11 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     // STEP 1: Protect the Login Page FIRST (before Clerk auth resolves)
     // Block /login access unless user has admin_access cookie
     // Allow Clerk's internal auth sub-routes (factor-one, sso-callback, etc.)
-    if (isLoginPage(req) && !clerkRoutes.includes(lastSegment)) {
+    if (matchLoginPage(path) && !clerkRoutes.includes(lastSegment)) {
         const hasAccess = req.cookies.get('admin_access');
 
         // Check if this is the secret entry route
-        if (isSecretEntry(req)) {
+        if (matchSecretEntry(path)) {
             const urlSecret = path.split('/').pop();
             const validSecret = process.env.ADMIN_LOGIN_SECRET;
 
@@ -170,7 +179,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     }
 
     // Allow Public APIs - but block direct browser access AND CLI access for non-admins
-    if (isPublicApiRoute(req)) {
+    if (matchPublicApiRoute(path)) {
         // If user is logged in (admin), allow all access
         if (userId) {
             return NextResponse.next();
@@ -188,7 +197,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     }
 
     // Protect Dashboard & Private APIs
-    if (isProtectedRoute(req)) {
+    if (matchProtectedRoute(path)) {
         if (!userId) {
             if (path.startsWith('/api/')) {
                 return NextResponse.json({ error: 'Access denied' }, { status: 403 });

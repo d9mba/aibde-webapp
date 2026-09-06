@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "ai-seo": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-seo/SKILL.md",
+      "computedHash": "de09eb5f5ebaeb5c4e1c5967d90432c442cdcf83fbeca8e5ce8999bbb0e6c8b7"
+    },
     "better-auth-integration": {
       "source": "dodopayments/skills",
       "sourceType": "github",
@@ -163,11 +169,29 @@
       "skillPath": "dodo-payments/product-catalog-management/SKILL.md",
       "computedHash": "be55626bf01cf2a37b5c5dd706b3268059d028d83304f46906bde1ca4b48f490"
     },
+    "product-marketing": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/product-marketing/SKILL.md",
+      "computedHash": "709145cb3cd36bab03d5dfe4ecd41af3120ed5a9d293c7ba9d7d9648c39f34b9"
+    },
+    "programmatic-seo": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/programmatic-seo/SKILL.md",
+      "computedHash": "a53dc8741b0df338766ef8fc7d704bdfc75b8c8e7e1b1b2a5947d81d8c9508ff"
+    },
     "refunds-and-disputes": {
       "source": "dodopayments/skills",
       "sourceType": "github",
       "skillPath": "dodo-payments/refunds-and-disputes/SKILL.md",
       "computedHash": "0a17f8fba7a1c66a0033a279e10d6b4925e7c1a1f8e1f3897f24de1ce3413917"
+    },
+    "schema": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/schema/SKILL.md",
+      "computedHash": "13693bae311fd444da31a82b3aa46003e12a21220aae98c77ee479fe34116067"
     },
     "subscription-integration": {
       "source": "dodopayments/skills",

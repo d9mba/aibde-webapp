@@ -497,6 +497,30 @@ rm -rf .next && npm run dev
 
 ---
 
+## ⚙️ CI/CD & Database Deployment (GitHub Actions)
+
+BrowseForAI coordinates deployments across **GitHub Actions**, **Supabase**, and **Vercel** with backward-compatible schema changes:
+
+| Workflow | Trigger | Scope & Checks |
+|---|---|---|
+| **BrowseForAI PR Validation** (`browseforai-ci.yml`) | Pull Request to `main` | Full validation gate: TypeScript check (`tsc`), Next.js production build (`next build`), migration immutability, expand-first backward-compatibility check, local Supabase container spin-up (`supabase start`), `supabase db reset`, and `supabase db lint`. |
+| **Deploy Supabase Migrations** (`browseforai-supabase-prod.yml`) | Push to `main` (`supabase/migrations/**`), `workflow_dispatch` | Production database push: remote schema drift inspection, immutability check, backward-compatibility validation, SQL lint, and strict sequential push (`supabase db push --linked`). Supports `--dry-run`. |
+
+### Database Migration Policy: Expand → Migrate → Contract
+The migration policy is designed to keep database changes backward-compatible with the currently deployed application, significantly reducing the risk of Vercel/Supabase deployment desynchronization:
+1. **Expand**: All migrations must be non-breaking and additive (`ADD COLUMN`, `ADD TABLE`, `ADD INDEX`, nullable fields or defaults). Destructive changes (`DROP COLUMN`, `RENAME COLUMN`, `DROP TABLE`) are blocked in CI.
+2. **Deploy**: Deploy backward-compatible database changes and Vercel app.
+3. **Contract**: Once the old app version is completely phased out, clean up deprecated structures in a subsequent migration.
+
+### Required GitHub Secrets
+Configure these in **GitHub Repository Settings > Secrets and variables > Actions**:
+
+- `SUPABASE_ACCESS_TOKEN`: Supabase Personal Access Token (from Account > Access Tokens).
+- `SUPABASE_PROJECT_ID`: Supabase Project Reference ID (e.g. `abcdefghijklmnopqrst`).
+- `SUPABASE_DB_PASSWORD`: Postgres database password for the remote project.
+
+---
+
 ## 📞 Contact
 
 - **Website:** https://www.browseforai.com

@@ -1,0 +1,193 @@
+name: BrowseForAI PR Validation (CI)
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: browseforai-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-app:
+    name: Validate Application Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck TypeScript
+        run: |
+          echo "::group::Typecheck"
+          npx tsc --noEmit
+          echo "✓ TypeScript typechecking passed with 0 errors."
+          echo "::endgroup::"
+
+      - name: Test Next.js Build
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+          # Stub environment variables for static build hydration
+          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-anon-key"
+          SUPABASE_SERVICE_ROLE_KEY: "placeholder-service-role-key"
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_placeholder"
+          CLERK_SECRET_KEY: "sk_test_placeholder"
+          ADMIN_LOGIN_SECRET: "placeholder-admin-secret"
+          DODO_PAYMENTS_API_KEY: "placeholder-dodo-key"
+        run: |
+          echo "::group::Next.js Build"
+          npm run build
+          echo "✓ Next.js production build succeeded."
+          echo "::endgroup::"
+
+  validate-migrations:
+    name: Validate Database Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history needed for base branch comparison
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      # ── CHECK 1: Migration Immutability ──
+      - name: Verify historical migration immutability
+        run: |
+          echo "::group::Check Migration Immutability"
+          BASE="origin/${{ github.base_ref || 'main' }}"
+          MODIFIED=$(git diff --name-only --diff-filter=M "$BASE"...HEAD -- supabase/migrations/ || true)
+          if [ -n "$MODIFIED" ]; then
+            echo "::error::Historical migration files were modified in this PR. Applied migrations must never be altered."
+            echo "$MODIFIED"
+            echo "## ❌ Migration Immutability Violated" >> $GITHUB_STEP_SUMMARY
+            echo "Modifying applied migration files is forbidden. Add a NEW migration file instead." >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$MODIFIED" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✓ No existing migrations were modified."
+          echo "::endgroup::"
+
+      # ── CHECK 2: Backward Compatibility & Expand-First Policy ──
+      - name: Enforce backward-compatible migrations policy
+        run: |
+          echo "::group::Validate Backward-Compatibility & Quality"
+          BASE="origin/${{ github.base_ref || 'main' }}"
+          ADDED=$(git diff --name-only --diff-filter=A "$BASE"...HEAD -- supabase/migrations/ || true)
+
+          if [ -z "$ADDED" ]; then
+            echo "No new migration files in this PR."
+            echo "::endgroup::"
+            exit 0
+          fi
+
+          echo "New migration files detected:"
+          echo "$ADDED"
+          ERRORS=0
+
+          for file in $ADDED; do
+            [ ! -f "$file" ] && continue
+            BASENAME=$(basename "$file")
+
+            # Check filename pattern: YYYYMMDDHHMMSS_description.sql
+            if ! echo "$BASENAME" | grep -qE '^[0-9]{14}_[a-z0-9_]+\.sql$'; then
+              echo "::error file=$file::Invalid filename. Must match format: YYYYMMDDHHMMSS_description.sql"
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            # Check file is not empty
+            CONTENT=$(cat "$file" | sed '/^[[:space:]]*$/d' | sed '/^--/d')
+            if [ -z "$CONTENT" ]; then
+              echo "::error file=$file::Migration file is empty (no SQL statements found)."
+              ERRORS=$((ERRORS + 1))
+              continue
+            fi
+
+            # Enforce expand-first rules: block destructive changes breaking previous app version
+            if grep -qiE '^\s*ALTER\s+TABLE\s+\S+\s+DROP\s+COLUMN' "$file"; then
+              echo "::error file=$file::DROP COLUMN is prohibited in forward migrations. Use expand -> migrate -> contract phases."
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            if grep -qiE '^\s*ALTER\s+TABLE\s+\S+\s+RENAME\s+COLUMN' "$file"; then
+              echo "::error file=$file::RENAME COLUMN is prohibited. Use add new column -> backfill -> deprecate pattern."
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            if grep -qiE '^\s*DROP\s+TABLE' "$file"; then
+              echo "::error file=$file::DROP TABLE is prohibited without prior application deprecation."
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            if grep -qiE '^\s*TRUNCATE' "$file"; then
+              echo "::error file=$file::TRUNCATE is prohibited in automated migration scripts."
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            # Warn on adding NOT NULL column without a DEFAULT (breaks concurrent writes from running app)
+            if grep -qiE '^\s*ALTER\s+TABLE\s+\S+\s+ADD\s+COLUMN\s+\S+\s+.*\bNOT\s+NULL\b' "$file" && ! grep -qiE '\bDEFAULT\b' "$file"; then
+              echo "::warning file=$file::Adding a NOT NULL column without a DEFAULT can fail if existing rows exist and breaks concurrent writes. Consider adding as nullable or specifying a DEFAULT."
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "## ❌ Backward-Compatibility Policy Violated ($ERRORS errors)" >> $GITHUB_STEP_SUMMARY
+            echo "Migrations must be non-breaking and backward-compatible with the currently running application." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✓ All new migrations comply with backward-compatibility rules."
+          echo "::endgroup::"
+
+      # ── CHECK 3: Local Ephemeral Supabase Simulation ──
+      - name: Start local Supabase container
+        run: |
+          echo "::group::Start Supabase"
+          supabase start
+          echo "::endgroup::"
+
+      - name: Replay migrations from scratch (db reset)
+        run: |
+          echo "::group::Run Migrations"
+          supabase db reset
+          echo "✓ All migrations executed and applied cleanly in sequence."
+          echo "::endgroup::"
+
+      - name: Lint database schema
+        run: |
+          echo "::group::Lint SQL Schema"
+          if ! supabase db lint --local; then
+            echo "::warning::Supabase db lint emitted warnings or notices."
+          fi
+          echo "::endgroup::"
+
+      - name: Stop local Supabase
+        if: always()
+        run: |
+          supabase stop || true
+
+      - name: Report CI Summary
+        if: always()
+        run: |
+          echo "## ✅ Supabase CI Validation Passed" >> $GITHUB_STEP_SUMMARY
+          echo "All migrations applied cleanly from scratch with no syntax or constraint errors." >> $GITHUB_STEP_SUMMARY

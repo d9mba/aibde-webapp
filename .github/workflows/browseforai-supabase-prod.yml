@@ -1,0 +1,237 @@
+name: Deploy Supabase Migrations (PROD)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/browseforai-supabase-prod.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (preview migration changes without applying)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: supabase-production-migrations
+  cancel-in-progress: false
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+  PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID || secrets.SUPABASE_PROJECT_REF }}
+
+jobs:
+  deploy-migrations:
+    name: Deploy to Supabase Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full git history needed for integrity & diff checks
+
+      - name: Validate GitHub secrets
+        run: |
+          MISSING=0
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::Missing secret SUPABASE_ACCESS_TOKEN"
+            MISSING=$((MISSING + 1))
+          fi
+          if [ -z "$SUPABASE_DB_PASSWORD" ]; then
+            echo "::error::Missing secret SUPABASE_DB_PASSWORD"
+            MISSING=$((MISSING + 1))
+          fi
+          if [ -z "$PROJECT_ID" ]; then
+            echo "::error::Missing secret SUPABASE_PROJECT_ID (or SUPABASE_PROJECT_REF)"
+            MISSING=$((MISSING + 1))
+          fi
+          if [ $MISSING -gt 0 ]; then
+            echo "## ❌ Configuration Error" >> $GITHUB_STEP_SUMMARY
+            echo "Required GitHub repository secrets are missing. Please configure:" >> $GITHUB_STEP_SUMMARY
+            echo "- \`SUPABASE_ACCESS_TOKEN\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`SUPABASE_DB_PASSWORD\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`SUPABASE_PROJECT_ID\` (or \`SUPABASE_PROJECT_REF\`)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        run: supabase link --project-ref "$PROJECT_ID"
+
+      # ── GATE 1: Remote Schema Drift Inspection (Non-blocking) ──
+      - name: Inspect remote schema drift
+        id: drift
+        run: |
+          echo "::group::Schema Drift Inspection"
+          # Inspect differences between local baseline and remote DB without blocking pending migrations
+          if supabase db diff --linked > /tmp/drift-diff.txt 2>&1; then
+            echo "✓ Remote schema matches local migration state."
+          else
+            echo "::warning::Differences detected between remote database and migration baseline. This is expected when migrations are pending."
+            if [ -s /tmp/drift-diff.txt ]; then
+              echo "Diff preview (first 40 lines):"
+              head -n 40 /tmp/drift-diff.txt
+            fi
+          fi
+          echo "::endgroup::"
+
+      # ── GATE 2: Migration Immutability Check ──
+      - name: Block edited historical migrations
+        run: |
+          echo "::group::Check Migration Immutability"
+          RANGE="HEAD~1 HEAD"
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            RANGE="${{ github.event.before }} ${{ github.sha }}"
+          fi
+
+          MODIFIED=$(git diff --name-only --diff-filter=M $RANGE -- supabase/migrations/ || true)
+          if [ -n "$MODIFIED" ]; then
+            echo "::error::BLOCKED — Historical migration files were modified. Applied migrations must remain immutable."
+            echo "$MODIFIED"
+            echo "## ❌ Migration Integrity Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Modifying applied migration files breaks schema tracking. Create a NEW migration instead." >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$MODIFIED" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✓ No existing migrations modified."
+          echo "::endgroup::"
+
+      # ── GATE 3: Backward-Compatibility & Quality Gate ──
+      - name: Verify backward-compatibility of migrations
+        run: |
+          echo "::group::Verify Expand-First Policy"
+          RANGE="HEAD~1 HEAD"
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            RANGE="${{ github.event.before }} ${{ github.sha }}"
+          fi
+
+          ADDED=$(git diff --name-only --diff-filter=A $RANGE -- supabase/migrations/ || true)
+
+          if [ -z "$ADDED" ]; then
+            echo "No new migration files in this push."
+            echo "::endgroup::"
+            exit 0
+          fi
+
+          echo "New migration files:"
+          echo "$ADDED"
+          ERRORS=0
+
+          for file in $ADDED; do
+            [ ! -f "$file" ] && continue
+            BASENAME=$(basename "$file")
+
+            # Check naming convention
+            if ! echo "$BASENAME" | grep -qE '^[0-9]{14}_[a-z0-9_]+\.sql$'; then
+              echo "::error file=$file::Invalid filename format. Expected: YYYYMMDDHHMMSS_description.sql"
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            # Check not empty
+            CONTENT=$(cat "$file" | sed '/^[[:space:]]*$/d' | sed '/^--/d')
+            if [ -z "$CONTENT" ]; then
+              echo "::error file=$file::Migration file is empty."
+              ERRORS=$((ERRORS + 1))
+              continue
+            fi
+
+            # Prohibit breaking forward operations
+            if grep -qiE '^\s*ALTER\s+TABLE\s+\S+\s+DROP\s+COLUMN' "$file"; then
+              echo "::error file=$file::DROP COLUMN is prohibited. Use expand -> migrate -> contract phases."
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            if grep -qiE '^\s*ALTER\s+TABLE\s+\S+\s+RENAME\s+COLUMN' "$file"; then
+              echo "::error file=$file::RENAME COLUMN is prohibited. Use add new column -> backfill -> deprecate."
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            if grep -qiE '^\s*DROP\s+TABLE' "$file"; then
+              echo "::error file=$file::DROP TABLE is prohibited without phased deprecation."
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            if grep -qiE '^\s*TRUNCATE' "$file"; then
+              echo "::error file=$file::TRUNCATE is prohibited."
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            echo "  ✓ $BASENAME"
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "## ❌ Migration Validation Failed ($ERRORS errors)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✓ All migrations verified as backward-compatible."
+          echo "::endgroup::"
+
+      # ── GATE 4: SQL Linting ──
+      - name: Lint SQL against production schema
+        run: |
+          echo "::group::SQL Lint"
+          if ! supabase db lint --linked; then
+            echo "::warning::Supabase db lint reported warnings or notices."
+          fi
+          echo "::endgroup::"
+
+      # ── DEPLOY (Strict sequential push without --include-all) ──
+      - name: Push migrations to production
+        id: push
+        run: |
+          set -o pipefail
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "Running migration dry-run (simulation)..."
+            supabase db push --linked --dry-run 2>&1 | tee /tmp/push-output.txt
+          else
+            echo "Applying migrations to production..."
+            supabase db push --linked 2>&1 | tee /tmp/push-output.txt
+          fi
+          echo "✓ Migration execution completed."
+
+      # ── REPORTING ──
+      - name: Summary Report
+        if: always()
+        run: |
+          if [ "${{ steps.push.outcome }}" = "success" ]; then
+            if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+              echo "## 🔍 Migration Dry-Run Completed" >> $GITHUB_STEP_SUMMARY
+              echo "Migrations were simulated against project \`$PROJECT_ID\` with no changes applied." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "## ✅ Migrations Applied to Production" >> $GITHUB_STEP_SUMMARY
+              echo "New migrations were successfully applied to project \`$PROJECT_ID\`." >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ -f /tmp/push-output.txt ]; then
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              cat /tmp/push-output.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          elif [ "${{ steps.push.outcome }}" = "failure" ]; then
+            echo "## ❌ Migration Push Failed" >> $GITHUB_STEP_SUMMARY
+            echo "The migration push encountered an error." >> $GITHUB_STEP_SUMMARY
+            if [ -f /tmp/push-output.txt ]; then
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              tail -50 /tmp/push-output.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+          if [ -s /tmp/drift-diff.txt ] && grep -qiE 'CREATE|ALTER|DROP' /tmp/drift-diff.txt; then
+            echo "### ℹ️ Remote Schema Differences Noted" >> $GITHUB_STEP_SUMMARY
+            echo "The following differences between the remote database and local baseline were observed prior to push:" >> $GITHUB_STEP_SUMMARY
+            echo '```sql' >> $GITHUB_STEP_SUMMARY
+            head -n 25 /tmp/drift-diff.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

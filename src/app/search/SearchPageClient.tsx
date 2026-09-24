@@ -263,10 +263,15 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10">
             {/* Hero Section - Matching main page style */}
             <section className="text-center flex flex-col items-center gap-4 py-8 mb-8">
-                <h1 className="font-orbitron text-4xl sm:text-5xl font-bold text-text-primary tracking-wider lowercase m-0">
-                    BrowseForAI
+                <h1 className="text-4xl sm:text-5xl font-extrabold text-text-primary tracking-tight lowercase m-0">
+                    browsefor<span className="text-accent-primary">ai</span>
                 </h1>
-                <p className="font-orbitron text-text-secondary text-sm sm:text-base -mt-2 tracking-wide">Browse, Discover, Explore</p>
+                <p className="text-text-secondary text-sm sm:text-base font-medium -mt-2">
+                    browse. discover. explore.
+                </p>
+                <p className="text-text-tertiary text-xs sm:text-sm font-normal -mt-2 lowercase">
+                    your pocket handbook to explore the world of ai.
+                </p>
                 <p className="text-text-tertiary text-xs sm:text-sm -mt-2">
                     <span className="text-text-primary font-semibold">{toolCount.toLocaleString()}</span> AI tools for <span className="text-text-primary font-semibold">{taskCount}</span> tasks and <span className="text-text-primary font-semibold">{categoryCount}</span> categories
                 </p>

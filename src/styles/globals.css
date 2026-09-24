@@ -1,5 +1,5 @@
-/* Google Fonts - must be first */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+/* Google Fonts - Manrope font system */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 /* Tailwind CSS */
 @tailwind base;
@@ -86,7 +86,7 @@
 }
 
 html {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -300,11 +300,10 @@ select option:checked {
     animation: shimmer 1.5s infinite;
 }
 
-/* Section Titles - Bold italic style */
+/* Section Titles */
 .section-title {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Manrope', sans-serif;
     font-weight: 700;
-    font-style: italic;
     color: var(--text-primary);
 }
 
@@ -358,10 +357,6 @@ select option:checked {
     color: white;
 }
 
-/* Utility class for font weights */
-.font-orbitron {
-    font-family: 'Orbitron', sans-serif;
-}
 
 /* Card hover effect */
 .card-hover {

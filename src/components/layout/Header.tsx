@@ -24,6 +24,8 @@ import {
     Monitor,
     Info,
     Mail,
+    Newspaper,
+    BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getNextThemeMode, ThemeMode } from '@/lib/formatters';
@@ -51,6 +53,8 @@ const iconMap = {
     menu: Menu,
     info: Info,
     mail: Mail,
+    newspaper: Newspaper,
+    bookOpen: BookOpen,
 } as const;
 
 type IconName = keyof typeof iconMap;
@@ -191,6 +195,8 @@ export default function Header() {
     const browseNav: NavItem[] = [
         { href: '/category', label: 'Categories', icon: 'folder' },
         { href: '/tasks', label: 'Tasks', icon: 'task' },
+        { href: '/news', label: 'News', icon: 'newspaper' },
+        { href: '/blog', label: 'Blog', icon: 'bookOpen' },
     ];
 
     const actionNav: NavItem[] = [

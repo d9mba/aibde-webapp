@@ -199,9 +199,12 @@ export default function TopHeader() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
                 <div className="flex items-center justify-between h-14 sm:h-16 gap-4">
                     {/* Logo */}
-                    <Link href="/" prefetch={false} className="flex items-center gap-2 no-underline flex-shrink-0">
-                        <span className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight font-orbitron">
-                            BrowseForAI
+                    <Link href="/" prefetch={false} className="flex items-center gap-2 sm:gap-2.5 no-underline flex-shrink-0 group" aria-label="browseforai">
+                        <span className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0">
+                            <img src="/logo.png" alt="browseforai logo" className="w-full h-full object-contain" />
+                        </span>
+                        <span className="text-xl sm:text-2xl font-extrabold text-text-primary tracking-tight lowercase">
+                            browsefor<span className="text-accent-primary">ai</span>
                         </span>
                     </Link>
 

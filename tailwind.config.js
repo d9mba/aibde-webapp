@@ -9,8 +9,7 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                orbitron: ['Orbitron', 'sans-serif'],
-                sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                sans: ['Manrope', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
             },
             colors: {
                 // Map CSS variables to Tailwind - hybrid approach

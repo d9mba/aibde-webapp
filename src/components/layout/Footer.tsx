@@ -17,11 +17,11 @@ export default function Footer() {
                     <div className="grid grid-cols-12 gap-8 lg:gap-12">
                         {/* Left - Tagline + Social */}
                         <div className="col-span-12 lg:col-span-4 text-center lg:text-left">
-                            <h2 className="text-2xl lg:text-3xl font-bold text-text-primary mb-2 font-orbitron">
-                                Browse, Discover & Explore
+                            <h2 className="text-2xl lg:text-3xl font-medium text-text-primary mb-2 lowercase tracking-tight">
+                                browse. discover. explore.
                             </h2>
-                            <p className="text-sm text-text-secondary mb-4">
-                                Top AI tools for your everyday tasks.
+                            <p className="text-sm font-normal text-text-secondary mb-4 lowercase">
+                                your pocket handbook to explore the world of ai.
                             </p>
 
                             {/* Social Icons */}
@@ -78,6 +78,12 @@ export default function Footer() {
                                 <Link href="/tasks" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
                                     Tasks
                                 </Link>
+                                <Link href="/news" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
+                                    News
+                                </Link>
+                                <Link href="/blog" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
+                                    Blog
+                                </Link>
                                 <Link href="/submit" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
                                     Submit Tool
                                 </Link>
@@ -88,16 +94,14 @@ export default function Footer() {
 
                 {/* Giant Wordmark */}
                 <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8 text-center">
-                    <Link href="/" prefetch={false} className="inline-block no-underline focus:outline-none">
+                    <Link href="/" prefetch={false} className="inline-block no-underline focus:outline-none" aria-label="browseforai">
                         <span
-                            className="block text-text-primary leading-[0.85] select-none font-orbitron"
+                            className="block text-text-primary leading-[0.85] select-none font-extrabold tracking-tight lowercase"
                             style={{
                                 fontSize: 'clamp(2.5rem, 9vw, 9rem)',
-                                fontWeight: 700,
-                                letterSpacing: '0.05em'
                             }}
                         >
-                            BrowseForAI
+                            browsefor<span className="text-accent-primary">ai</span>
                         </span>
                     </Link>
                 </div>
@@ -105,7 +109,7 @@ export default function Footer() {
                 {/* Bottom Bar - Legal Links */}
                 <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-48 lg:pb-8 pt-6">
                     <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
-                        <span className="text-xs text-text-tertiary">© {new Date().getFullYear()} BrowseForAI</span>
+                        <span className="text-xs text-text-tertiary">© {new Date().getFullYear()} browseforai</span>
                         <Link href="/about" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">About</Link>
                         <Link href="/contact" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">Contact</Link>
                         <Link href="/privacy" prefetch={false} className="text-xs text-text-tertiary hover:text-text-secondary transition-colors no-underline">Privacy</Link>

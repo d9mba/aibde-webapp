@@ -81,7 +81,7 @@ export async function sendSubmissionEmail(
     if (type === 'success') {
         subject = 'Thank you for submitting your AI tool to BrowseForAI';
         html = `
-      <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #111827;">
+      <div style="font-family: 'Segoe UI', sans-serif; line-height: 1.6; color: #111827;">
         <p>Hello ${safeName},</p>
         <p>Thank you for your submission.</p>
         <p>We have successfully received your purchase request for listing your tool on <strong>BrowseForAI</strong>.</p>
@@ -100,7 +100,7 @@ export async function sendSubmissionEmail(
     } else {
         subject = 'Your BrowseForAI submission payment was not completed';
         html = `
-      <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #111827;">
+      <div style="font-family: 'Segoe UI', sans-serif; line-height: 1.6; color: #111827;">
         <p>Hello ${safeName},</p>
         <p>We noticed that your payment attempt for submitting a tool to <strong>BrowseForAI</strong> was not completed.</p>
         <h3 style="margin-top: 24px; margin-bottom: 8px;">Submission Details</h3>

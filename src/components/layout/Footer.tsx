@@ -87,6 +87,9 @@ export default function Footer() {
                                 <Link href="/submit" prefetch={false} className="text-sm text-text-secondary hover:text-text-primary transition-colors no-underline">
                                     Submit Tool
                                 </Link>
+                                <Link href="/install" prefetch={false} className="text-sm text-accent-primary hover:underline transition-colors no-underline font-medium">
+                                    Install App
+                                </Link>
                             </nav>
                         </div>
                     </div>
@@ -96,12 +99,12 @@ export default function Footer() {
                 <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8 text-center">
                     <Link href="/" prefetch={false} className="inline-block no-underline focus:outline-none" aria-label="browseforai">
                         <span
-                            className="block text-text-primary leading-[0.85] select-none font-extrabold tracking-tight lowercase"
+                            className="block text-text-primary leading-[0.85] select-none font-brand font-extrabold tracking-normal lowercase"
                             style={{
                                 fontSize: 'clamp(2.5rem, 9vw, 9rem)',
                             }}
                         >
-                            browsefor<span className="text-accent-primary">ai</span>
+                            browsefor<span className="text-accent-primary uppercase">ai</span>
                         </span>
                     </Link>
                 </div>

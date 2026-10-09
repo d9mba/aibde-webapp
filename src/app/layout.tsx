@@ -88,10 +88,18 @@ export default async function RootLayout({
                         `,
                     }}
                 />
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-                <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
+                {/* Service Worker Registration */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+                                window.addEventListener('load', function() {
+                                    navigator.serviceWorker.register('/sw.js').catch(function() {});
+                                });
+                            }
+                        `,
+                    }}
+                />
                 {/* Google Tag Manager - Production only */}
                 {process.env.NODE_ENV === 'production' && (
                     <Script id="gtm-script" strategy="afterInteractive">

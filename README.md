@@ -52,6 +52,7 @@ src/
 │   ├── trending/                   # Trending tools page
 │   ├── new/                        # New tools page
 │   ├── submit/                     # Public tool submission page
+│   ├── install/                    # App installation instructions & prompt
 │   ├── contact/                    # Contact page
 │   ├── about/, privacy/, terms/    # Static pages
 │   ├── go/[slug]/                  # Affiliate redirect (route handler)

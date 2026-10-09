@@ -26,6 +26,7 @@ import {
     Mail,
     Newspaper,
     BookOpen,
+    Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getNextThemeMode, ThemeMode } from '@/lib/formatters';
@@ -55,6 +56,7 @@ const iconMap = {
     mail: Mail,
     newspaper: Newspaper,
     bookOpen: BookOpen,
+    download: Download,
 } as const;
 
 type IconName = keyof typeof iconMap;
@@ -204,6 +206,7 @@ export default function Header() {
     ];
 
     const moreNav: NavItem[] = [
+        { href: '/install', label: 'Install App', icon: 'download' },
         { href: '/about', label: 'About', icon: 'info' },
         { href: '/contact', label: 'Contact', icon: 'mail' },
     ];

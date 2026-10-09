@@ -9,7 +9,8 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Manrope', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                sans: ['"Segoe UI"', 'sans-serif'],
+                brand: ['"VAG Rounded Next W05 ExtraBlack"', '"Segoe UI"', 'sans-serif'],
             },
             colors: {
                 // Map CSS variables to Tailwind - hybrid approach

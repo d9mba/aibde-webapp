@@ -11,6 +11,7 @@ import { trackToolClick } from '@/hooks/useToolAnalytics';
 import { getSearchSuggestionsAction } from '@/lib/actions';
 import { AdminTool } from '@/types';
 import { ToolBadge } from '@/components/icons/ToolBadge';
+import InstallButton from '@/components/layout/InstallButton';
 
 export default function TopHeader() {
     const router = useRouter();
@@ -200,11 +201,11 @@ export default function TopHeader() {
                 <div className="flex items-center justify-between h-14 sm:h-16 gap-4">
                     {/* Logo */}
                     <Link href="/" prefetch={false} className="flex items-center gap-2 sm:gap-2.5 no-underline flex-shrink-0 group" aria-label="browseforai">
-                        <span className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0">
-                            <img src="/logo.png" alt="browseforai logo" className="w-full h-full object-contain" />
+                        <span className="flex items-center justify-center w-8 h-8 sm:w-8.5 sm:h-8.5 flex-shrink-0">
+                            <img src="/logo-trimmed.png" alt="browseforai logo" className="w-full h-full object-contain" />
                         </span>
-                        <span className="text-xl sm:text-2xl font-extrabold text-text-primary tracking-tight lowercase">
-                            browsefor<span className="text-accent-primary">ai</span>
+                        <span className="text-xl sm:text-2xl font-brand font-extrabold text-text-primary tracking-normal lowercase">
+                            browsefor<span className="text-accent-primary uppercase">ai</span>
                         </span>
                     </Link>
 
@@ -341,7 +342,8 @@ export default function TopHeader() {
                     </div>
 
                     {/* Right side */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+                        <InstallButton />
                         {/* Mobile search icon when header search is hidden */}
                         {!showHeaderSearch && (
                             <Link

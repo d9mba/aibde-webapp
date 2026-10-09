@@ -263,8 +263,8 @@ export default function SearchPageClient({ categories, tasks, toolCount, taskCou
         <div className="max-w-[1200px] mx-auto px-4 py-6 sm:px-6 sm:py-10">
             {/* Hero Section - Matching main page style */}
             <section className="text-center flex flex-col items-center gap-4 py-8 mb-8">
-                <h1 className="text-4xl sm:text-5xl font-extrabold text-text-primary tracking-tight lowercase m-0">
-                    browsefor<span className="text-accent-primary">ai</span>
+                <h1 className="text-4xl sm:text-5xl font-brand font-extrabold text-text-primary tracking-normal lowercase m-0">
+                    browsefor<span className="text-accent-primary uppercase">ai</span>
                 </h1>
                 <p className="text-text-secondary text-sm sm:text-base font-medium -mt-2">
                     browse. discover. explore.

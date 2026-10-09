@@ -1,5 +1,13 @@
-/* Google Fonts - Manrope font system */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+/* Typography: Segoe UI (UI) + VAG Rounded Next W05 ExtraBlack (brand only).
+   Brand font file (licensed) must be placed at public/fonts/VAGRoundedNextW05-ExtraBlack.woff2 */
+@font-face {
+    font-family: 'VAG Rounded Next W05 ExtraBlack';
+    src: local('VAG Rounded Next W05 ExtraBlack'),
+        url('/fonts/VAGRoundedNextW05-ExtraBlack.woff2') format('woff2');
+    font-weight: 800 900;
+    font-style: normal;
+    font-display: swap;
+}
 
 /* Tailwind CSS */
 @tailwind base;
@@ -86,7 +94,7 @@
 }
 
 html {
-    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -302,7 +310,7 @@ select option:checked {
 
 /* Section Titles */
 .section-title {
-    font-family: 'Manrope', sans-serif;
+    font-family: "Segoe UI", sans-serif;
     font-weight: 700;
     color: var(--text-primary);
 }
